@@ -1,6 +1,6 @@
 # Roadmap
 
-[繁體中文](roadmap.zh-TW.md) · **English**
+[简体中文](roadmap.zh-CN.md) · **English**
 
 This document collects the directions that Speclink does not complete yet. It describes directions, not a schedule. Thus it has no version numbers and no delivery dates.
 

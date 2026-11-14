@@ -1,0 +1,71 @@
+# Specseal verify 门禁 — GitHub Actions 模板。
+#
+# 把本文件复制进【你的项目】的 .github/workflows/ 目录（不是本仓库自己的 CI）。
+# 它在以下情况让 PR 失败：
+#   1. 工作区校验不再通过（规格文件结构损坏），或
+#   2. 本 PR 涉及的某个进行中变更没有 verify 盖章。
+#
+# 准备：
+#   - 需要装好引擎。两种方式：
+#       a. 从本 fork 构建：  cargo install --path crates/adapters/speclink-cli
+#       b. 上游 npm 渠道：   npm i -g @speclink/cli   （同一引擎，Speclink 品牌）
+#   - 「盖章门禁」步骤里的 JSON 字段名请按你的引擎版本输出调整
+#     （`speclink list --json`、`speclink show <change> --json`、
+#     `speclink verify show <change> --json`）。输出形状见 Specseal 检出目录的
+#     docs/verb-contract.zh-CN.md。
+
+name: specseal-verify
+
+on:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # speclink 要读变更历史；给工作区留够深度
+          fetch-depth: 0
+
+      - name: 安装引擎
+        run: |
+          # 方式 (a)：从 Specseal 检出目录构建（检出路径）：
+          # cargo install --path /path/to/Specseal/crates/adapters/speclink-cli
+          # 方式 (b)：上游渠道：
+          npm i -g @speclink/cli
+          speclink --version
+
+      # 关卡 1 — 结构。`validate` 对格式错误的 proposal、没有复选框的
+      # tasks.md、缺操作段落的 delta 以非零码退出。此关卡精确，无需调整。
+      - name: 校验工作区
+        run: speclink validate
+
+      # 关卡 2 — 盖章门禁。对本 PR 涉及的每个进行中变更，
+      # 要求存在已盖章的 verify 票据。字段名按你引擎版本的 JSON 输出调整
+      # （见 docs/verb-contract.zh-CN.md）。
+      - name: 盖章门禁（字段按你的版本调整）
+        shell: bash
+        run: |
+          set -euo pipefail
+          # 本 PR 相对基准分支改动的变更：
+          changed_specs="$(git diff --name-only "origin/${{ github.base_ref }}..." \
+            | grep -E '^speclink/changes/' | cut -d/ -f3 | sort -u || true)"
+          if [ -z "$changed_specs" ]; then
+            echo "本 PR 未涉及 speclink 变更——无需门禁。"
+            exit 0
+          fi
+          fail=0
+          for change in $changed_specs; do
+            echo "检查变更: $change"
+            # JSON 路径按你的版本输出调整。
+            if ! speclink verify show "$change" --json | grep -q '"stamped"'; then
+              echo "::error::变更 '$change' 没有 verify 盖章。先走验证站并盖章，再合并。"
+              fail=1
+            fi
+          done
+          exit $fail
+
+      # 可选关卡 3 — 计划健全性：依赖波次仍可解析。
+      - name: Plan
+        run: speclink plan

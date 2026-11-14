@@ -1,6 +1,6 @@
 # Node SDK (@speclink/engine)
 
-[繁體中文](sdk-node.zh-TW.md) · **English**
+[简体中文](sdk-node.zh-CN.md) · **English**
 
 `@speclink/engine` lets a Node.js program run Speclink verbs, store specs in its own database, and make skill files for any AI tool. It is the same Rust engine that the CLI uses, bound to Node with [napi-rs](https://napi.rs). It is not a second implementation, so verb behavior, `--json` output shapes, and skill content match the CLI.
 

@@ -1,6 +1,6 @@
 # Server Storage Backends
 
-[繁體中文](server-store-drivers.zh-TW.md) · **English**
+[简体中文](server-store-drivers.zh-CN.md) · **English**
 
 The storage backend (store driver) decides where the server keeps the project data (specs, changes, discussions, and more). In most cases, use the default `sqlite`.
 

@@ -2,7 +2,7 @@
 
 Thank you for your help. This guide tells you how to set up the repo, which tests to run, and how to send a pull request.
 
-You can write issues and pull requests in English or Traditional Chinese.
+You can write issues and pull requests in English or Simplified Chinese.
 
 ## Report a bug or ask for a feature
 
@@ -64,14 +64,14 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 - Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `chore`.
 - The scope is the area that you change, for example `cli`, `desktop`, `server-web`, or `docs`.
 - A commit that belongs to a Speclink change uses the change name as the scope: `speclink(<change-name>): <description>`.
-- The maintainers write descriptions in Traditional Chinese. English descriptions are welcome too.
+- The maintainers write descriptions in Simplified Chinese. English descriptions are welcome too.
 
 ## Send a pull request
 
 1. Fork the repo and create a branch from `main`.
 2. Make the change and add tests.
 3. Run the tests from [Run the tests](#run-the-tests).
-4. If the change affects users, update the docs. Each document has an English version (`<name>.md`) and a Traditional Chinese version (`<name>.zh-TW.md`). Keep both versions in step. If you cannot write one of the languages, say so in the pull request, and a maintainer will help.
+4. If the change affects users, update the docs. Each document has an English version (`<name>.md`) and a Simplified Chinese version (`<name>.zh-CN.md`). Keep both versions in step. If you cannot write one of the languages, say so in the pull request, and a maintainer will help.
 5. Open the pull request and fill in the template.
 
 ## License

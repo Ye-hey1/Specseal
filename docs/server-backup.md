@@ -1,6 +1,6 @@
 # Server Backup and Restore
 
-[繁體中文](server-backup.zh-TW.md) · **English**
+[简体中文](server-backup.zh-CN.md) · **English**
 
 The official `speclink-server` has three subcommands for backup, verification, and restore:
 
@@ -49,10 +49,10 @@ speclink-server backup \
 **Expected output**:
 
 ```text
-備份完成：1 個 scope、2 個成員 → /var/backups/speclink/speclink-20261007T084144Z.tar
+备份完成：1 个 scope、2 个成员 → /var/backups/speclink/speclink-20261007T084144Z.tar
 ```
 
-A "scope" is one project and repository pair. A "member" (成員) is one data file in the tar. After a successful backup, the server adds a record to the account database. To see it, filter `/admin/audit` in the console by the action "Backup recorded".
+A "scope" is one project and repository pair. A "member" (成员) is one data file in the tar. After a successful backup, the server adds a record to the account database. To see it, filter `/admin/audit` in the console by the action "Backup recorded".
 
 ## <a id="verify"></a>Verify a backup
 
@@ -65,7 +65,7 @@ speclink-server verify-backup --input /var/backups/speclink/speclink-20261007T08
 **Expected output**:
 
 ```text
-備份完整：格式版本 1、2 個成員、1 個 scope
+备份完整：格式版本 1、2 个成员、1 个 scope
 ```
 
 If all checks pass, the command returns 0. If one bit of the file changed, or the format version is unknown, it returns non-zero and shows the reason, for example:
@@ -98,7 +98,7 @@ speclink-server restore \
 **Expected output**:
 
 ```text
-還原完成且驗證通過：1 個 scope 全數比對一致
+还原完成且验证通过：1 个 scope 全数比对一致
 ```
 
 If one item does not match, `restore` returns non-zero, lists each difference, and says that you must not use this target.

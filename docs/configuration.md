@@ -1,6 +1,6 @@
 # Configuration
 
-[繁體中文](configuration.zh-TW.md) · **English**
+[简体中文](configuration.zh-CN.md) · **English**
 
 Speclink keeps settings in three layers. Workflow policy lives in `speclink/config.yaml` and travels with the specs. The AI tools and the remote connection of this checkout live in `.speclink.yaml`. Sign-in credentials live at the user level and never enter the project. Environment variables can override policy for one run.
 
@@ -73,7 +73,7 @@ Use `speclink workflow-config`. In local mode it changes `speclink/config.yaml`.
 
 Write rules:
 
-- `locale` accepts only `tw`, `ja`, `en`. `spec_locale` also accepts `auto` (follow `locale`). Case must match. A display name such as 「繁體中文」 is rejected, and the error lists the valid codes.
+- `locale` accepts only `tw`, `ja`, `en`. `spec_locale` also accepts `auto` (follow `locale`). Case must match. A display name such as 「简体中文」 is rejected, and the error lists the valid codes.
 - `tdd`, `audit`, and `worktree` accept only `true` / `false`. A `false` value (or an empty `locale`) removes the line, so the default applies again.
 - All write subcommands accept `--dry-run`. It prints the diff and writes nothing. The diff compares the old and new text line by line. Only the lines that are removed, added, or moved get `-` or `+`. The other lines in the changed range show as context, also when they are between two changes. Up to three unchanged lines before and after that range are also shown.
 - A `review` write replaces the whole `review` block. `extend` writes no `baseline` key, an empty list removes its key, and a block with nothing left is removed. Comments inside the `review` block are not kept.

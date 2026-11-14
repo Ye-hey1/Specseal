@@ -2,76 +2,76 @@
 
 [English](README.en.md)
 
-在 Claude Code 裡加上四樣東西：
+在 Claude Code 里加上四样东西：
 
-- **技能列**：輸入框上方一排 speclink 技能按鈕，依工作流程分成「規劃／實作／品質／收尾／其他」五頁。點一下就把 `/speclink-…` 指令填進輸入框，已經打的字留在後面當參數。「收尾」頁的 `archive+commit` 一次填入 `/speclink-archive + /speclink-commit`。滑鼠移到技能上，技能列右邊會顯示它的說明（技能本身的 description）。技能列分三列：「speclink」（右邊是目前在處理的步驟與 change）、分頁與面板鈕、技能。終端機太窄、分頁和面板鈕放不下一列時（中文標籤不到 55 欄、英文不到 60 欄），面板鈕移到第一列最右邊，分頁不會從中間拆開；這時右邊沒有空間，不顯示技能說明。
-- **側邊面板**：點技能列的「面板」或輸入 `/speclink-panel` 開關。上方三個分頁：
-  - **看板**：下一步，以及提案中／進行中／已就緒的變更（波次、worktree、任務進度、被誰擋住）。按變更前的 ▸ 展開，顯示提案／設計／規格／任務四份文件是否完成，以及依 `##` 分組的任務清單（已勾的畫暗，`[M]` 標成「手動」）。
-  - **討論**：討論中與已結論分開列，按 ▸ 展開讀討論內文。
-  - **品質**：每個變更未結的審查、驗證工單：第幾輪、各嚴重度幾條；按 ▸ 展開讀每條發現。
-  - 每個區塊的標題前都有 ▾，按一下收起。點名稱會把它填進輸入框，成為最前面那個指令的參數。面板只顯示，不會勾任務或改任何東西。
-- **輸入框的 `#` 選單**：在輸入框打 `#`，上方會出現下拉選單，列出提案中的變更；`#` 後面再打字可以篩選名稱（不分大小寫）。按 Tab 選第一個，或按 ↓ 選一個再按 Tab／Enter，`#` 那個字就換成變更名稱，例如打 `/speclink-apply #` 再選一個變更。沒有選就按 Enter，會照你打的字送出。句中也可以用，`#` 前面要有空白。
-- **目前在處理什麼**：技能列的「speclink」右邊標出這個 session 正在跑的步驟與 change，例如 `▸ apply · add-auth`，步驟用它所在分頁的顏色。session 標題也換成 `apply · add-auth`，Warp 等會顯示終端機標題的分頁列，從分頁名稱就分得出每個 session 在做哪個 change。步驟取自你送出的 `/speclink-…` 指令，以及模型自己呼叫的 speclink 技能（例如 quality 裡接著跑的 review）；change 取自指令的參數，以及技能執行 speclink CLI 時帶的 change 名稱，所以沒打名稱也認得出來。discuss、improve、audit、trace、manual、baseline、config 不做 change，訊息和指令裡提到的名稱不算；propose 只認它之後建立的 change。在 Herdr 的終端機裡，焦點變了會寫成 `speclink.focus` 標籤，Herdr 面板就和技能列同步。在某個 change 的 worktree 裡開的 session，一開始就標出那個 change。封存完成（change 從清單消失）後標上 `✓`，例如 `archive · add-auth ✓`。送出 `/speclink-…` 指令後，模型還沒開始跑任何工具就按 Esc 中斷，會回到送出前的步驟與 change；已經開始跑工具才中斷，就留在新的步驟。`compact` 不影響；`/clear` 會清掉，標題在你下一次送出訊息時改回 `Claude Code`；`/resume` 接回的對話，從它的標題或紀錄找回步驟與 change，被 compact 過的也找得回來。還沒用過 speclink 的 session 不顯示，也不改標題。
+- **技能列**：输入框上方一排 speclink 技能按钮，依工作流程分成「规划／实作／品质／收尾／其他」五页。点一下就把 `/speclink-…` 指令填进输入框，已经打的字留在后面当参数。「收尾」页的 `archive+commit` 一次填入 `/speclink-archive + /speclink-commit`。鼠标移到技能上，技能列右边会显示它的说明（技能本身的 description）。技能列分三列：「speclink」（右边是目前在处理的步骤与 change）、分页与面板钮、技能。终端机太窄、分页和面板钮放不下一列时（中文标签不到 55 栏、英文不到 60 栏），面板钮移到第一列最右边，分页不会从中间拆开；这时右边没有空间，不显示技能说明。
+- **侧边面板**：点技能列的「面板」或输入 `/speclink-panel` 开关。上方三个分页：
+  - **看板**：下一步，以及提案中／进行中／已就绪的变更（波次、worktree、任务进度、被谁挡住）。按变更前的 ▸ 展开，显示提案／设计／规格／任务四份文档是否完成，以及依 `##` 分组的任务清单（已勾的画暗，`[M]` 标成「手动」）。
+  - **讨论**：讨论中与已结论分开列，按 ▸ 展开读讨论内文。
+  - **品质**：每个变更未结的审查、验证工单：第几轮、各严重度几条；按 ▸ 展开读每条发现。
+  - 每个区块的标题前都有 ▾，按一下收起。点名称会把它填进输入框，成为最前面那个指令的参数。面板只显示，不会勾任务或改任何东西。
+- **输入框的 `#` 菜单**：在输入框打 `#`，上方会出现下拉列表，列出提案中的变更；`#` 后面再打字可以筛选名称（不分大小写）。按 Tab 选第一个，或按 ↓ 选一个再按 Tab／Enter，`#` 那个字就换成变更名称，例如打 `/speclink-apply #` 再选一个变更。没有选就按 Enter，会照你打的字送出。句中也可以用，`#` 前面要有空白。
+- **目前在处理什么**：技能列的「speclink」右边标出这个 session 正在跑的步骤与 change，例如 `▸ apply · add-auth`，步骤用它所在分页的颜色。session 标题也换成 `apply · add-auth`，Warp 等会显示终端机标题的分页列，从分页名称就分得出每个 session 在做哪个 change。步骤取自你送出的 `/speclink-…` 指令，以及模型自己调用的 speclink 技能（例如 quality 里接着跑的 review）；change 取自指令的参数，以及技能运行 speclink CLI 时带的 change 名称，所以没打名称也认得出来。discuss、improve、audit、trace、manual、baseline、config 不做 change，消息和指令里提到的名称不算；propose 只认它之后创建的 change。在 Herdr 的终端机里，焦点变了会写成 `speclink.focus` 标签，Herdr 面板就和技能列同步。在某个 change 的 worktree 里开的 session，一开始就标出那个 change。封存完成（change 从清单消失）后标上 `✓`，例如 `archive · add-auth ✓`。送出 `/speclink-…` 指令后，模型还没开始跑任何工具就按 Esc 中断，会回到送出前的步骤与 change；已经开始跑工具才中断，就留在新的步骤。`compact` 不影响；`/clear` 会清掉，标题在你下一次送出消息时改回 `Claude Code`；`/resume` 接回的对话，从它的标题或纪录找回步骤与 change，被 compact 过的也找得回来。还没用过 speclink 的 session 不显示，也不改标题。
 
-![Claude Code 輸入框上方是技能列，右邊開著側邊面板的看板分頁](../../../docs/assets/screenshots/zh-TW/claude-code-panel.png)
+![Claude Code 输入框上方是技能列，右边开着侧边面板的看板分页](../../../docs/assets/screenshots/zh-TW/claude-code-panel.png)
 
 <table>
   <tr>
-    <td width="50%"><img src="../../../docs/assets/screenshots/zh-TW/claude-code-quality.png" alt="側邊面板的品質分頁，列出未結的審查工單與兩條發現" /><br /><sub>品質分頁</sub></td>
-    <td width="50%"><img src="../../../docs/assets/screenshots/zh-TW/claude-code-hash-menu.png" alt="在 /speclink-apply 後面打 #，輸入框上方跳出提案中的變更選單" /><br /><sub>輸入框的 <code>#</code> 選單</sub></td>
+    <td width="50%"><img src="../../../docs/assets/screenshots/zh-TW/claude-code-quality.png" alt="侧边面板的品质分页，列出未结的审查工单与两条发现" /><br /><sub>品质分页</sub></td>
+    <td width="50%"><img src="../../../docs/assets/screenshots/zh-TW/claude-code-hash-menu.png" alt="在 /speclink-apply 后面打 #，输入框上方跳出提案中的变更菜单" /><br /><sub>输入框的 <code>#</code> 菜单</sub></td>
   </tr>
 </table>
 
 ## 需求
 
-- Claude Code 2.1.290 以上（以這一版測試）。mod 的 API 目前是 early access，Claude Code 改版時，這個 mod 可能要跟著更新。
-- `speclink` CLI 在 PATH 上。`#` 選單讀的是 `speclink plan` 的 `--json` 輸出（5 秒內重用同一份）。面板讀的是 `speclink list`、`speclink plan`、`speclink discuss list` 的 `--json` 輸出；展開變更時讀 `show`、`status`，展開討論時讀 `discuss show`，切到品質分頁時讀每個變更的 `review show`、`verify show`。worktree 裡的變更在它的 worktree 資料夾讀。
-- 專案執行過 `speclink init`。技能列只顯示專案裡實際裝好的 speclink 技能；沒有技能的專案不顯示技能列。
-- 用滑鼠點按鈕需要 Claude Code 的全螢幕版面（settings.json 的 `"tui": "fullscreen"`）。
+- Claude Code 2.1.290 以上（以这一版测试）。mod 的 API 目前是 early access，Claude Code 改版时，这个 mod 可能要跟着更新。
+- `speclink` CLI 在 PATH 上。`#` 菜单读的是 `speclink plan` 的 `--json` 输出（5 秒内重用同一份）。面板读的是 `speclink list`、`speclink plan`、`speclink discuss list` 的 `--json` 输出；展开变更时读 `show`、`status`，展开讨论时读 `discuss show`，切到品质分页时读每个变更的 `review show`、`verify show`。worktree 里的变更在它的 worktree 文件夹读。
+- 项目运行过 `speclink init`。技能列只显示项目里实际装好的 speclink 技能；没有技能的项目不显示技能列。
+- 用鼠标点按钮需要 Claude Code 的全屏幕版面（settings.json 的 `"tui": "fullscreen"`）。
 
-## 安裝
+## 安装
 
-在 Claude Code 的輸入框輸入：
+在 Claude Code 的输入框输入：
 
 ```
 /plugin install speclink-skills --marketplace MomoChenisMe/speclink
 ```
 
-第一次會問要不要加入 `github:MomoChenisMe/speclink` 這個 marketplace，回答 `y`；範圍選 user，每個專案都會載入。
+第一次会问要不要加入 `github:MomoChenisMe/speclink` 这个 marketplace，回答 `y`；范围选 user，每个项目都会加载。
 
-更新：執行 `claude plugin update speclink-skills`，再重開 Claude Code。
+更新：运行 `claude plugin update speclink-skills`，再重开 Claude Code。
 
-## 設定
+## 设置
 
-`/config` 裡的 **speclink-skills → Language**：
+`/config` 里的 **speclink-skills → Language**：
 
 | 值 | 效果 |
 | --- | --- |
-| `auto`（預設） | 跟著 Claude Code 的 `language` 設定：寫的是中文就用繁體中文，其餘用英文 |
+| `auto`（缺省） | 跟着 Claude Code 的 `language` 设置：写的是中文就用繁体中文，其余用英文 |
 | `en` | 英文 |
-| `zh-TW` | 繁體中文 |
+| `zh-TW` | 繁体中文 |
 
 ## 已知限制
 
-- **面板不顯示 review、verify 的章**（品質分頁只列未結的工單）：CLI 的輸出沒有蓋章狀態。`list --json` 刻意不放這些欄位；蓋章時工單會被刪掉，所以蓋過章的 `review show` 也會失敗。蓋章紀錄只在變更的 `.meta.yaml` 裡，要看章請用桌面 app。
-- **`archive+commit`**：Claude Code 只把第一個斜線指令當成指令。實際執行的是 `/speclink-archive`，後面的 `+ /speclink-commit …` 成為它的參數，由模型在封存後接著提交。
-- **session 標題要等下一次送出才更新**：Claude Code 只在送出訊息與開 session 時讓 mod 改標題，所以技能中途才認出（或換了）的 change、封存的 `✓`、`/clear` 後改回 `Claude Code`、按 Esc 後回到原本的步驟，技能列會立刻更新，標題要等你下一次送出訊息。設定了焦點之後，你用 `/rename` 取的名字也會在下一次送出時被換掉；`/clear` 時只改回這個 mod 設的標題，你自己取的不動。
-- **Windows**：面板經 `cmd.exe /d /c speclink …` 執行 CLI。npm 裝的 `speclink` 是 `.cmd` 殼，而 mod 執行指令時不經過 shell，直接執行會失敗。這條路徑還沒有在實機 Windows 上驗證。
+- **面板不显示 review、verify 的章**（品质分页只列未结的工单）：CLI 的输出没有盖章状态。`list --json` 刻意不放这些字段；盖章时工单会被删掉，所以盖过章的 `review show` 也会失败。盖章纪录只在变更的 `.meta.yaml` 里，要看章请用桌面 app。
+- **`archive+commit`**：Claude Code 只把第一个斜线指令当成指令。实际运行的是 `/speclink-archive`，后面的 `+ /speclink-commit …` 成为它的参数，由模型在封存后接着提交。
+- **session 标题要等下一次送出才更新**：Claude Code 只在送出消息与开 session 时让 mod 改标题，所以技能中途才认出（或换了）的 change、封存的 `✓`、`/clear` 后改回 `Claude Code`、按 Esc 后回到原本的步骤，技能列会立刻更新，标题要等你下一次送出消息。设置了焦点之后，你用 `/rename` 取的名字也会在下一次送出时被换掉；`/clear` 时只改回这个 mod 设的标题，你自己取的不动。
+- **Windows**：面板经 `cmd.exe /d /c speclink …` 运行 CLI。npm 装的 `speclink` 是 `.cmd` 壳，而 mod 运行指令时不经过 shell，直接运行会失败。这条路径还没有在实机 Windows 上验证。
 
-## 開發
+## 开发
 
 ```bash
 claude plugin validate integrations/claude-code/speclink-skills
 claude plugin test integrations/claude-code/speclink-skills
 ```
 
-本機開發時，把這個 repo 加成本地 marketplace 再安裝。Claude Code 會直接讀工作目錄，改完執行 `/reload-plugins` 就生效：
+本机开发时，把这个 repo 加成本地 marketplace 再安装。Claude Code 会直接读工作目录，改完运行 `/reload-plugins` 就生效：
 
 ```bash
-claude plugin marketplace add <speclink repo 的路徑>
+claude plugin marketplace add <speclink repo 的路径>
 claude plugin install speclink-skills@speclink
 ```
 
-Claude Code 載入 mod 後，會在 `.claude-plugin/types/` 產生型別檔（已列入 `.gitignore`）。之後在 repo 根目錄執行 `npx tsc -p integrations/claude-code/speclink-skills` 就能做型別檢查。
+Claude Code 加载 mod 后，会在 `.claude-plugin/types/` 产生类型档（已列入 `.gitignore`）。之后在 repo 根目录运行 `npx tsc -p integrations/claude-code/speclink-skills` 就能做类型检查。
 
-技能分頁表在 `hooks/groups.ts`。`scripts/claude-code/skill-groups.test.mjs` 會拿它對照 repo 裡的 `.claude/skills/speclink-*`：speclink 新增或移除技能時，這個測試會提醒你同步分頁表。
+技能分页表在 `hooks/groups.ts`。`scripts/claude-code/skill-groups.test.mjs` 会拿它对照 repo 里的 `.claude/skills/speclink-*`：speclink 添加或移除技能时，这个测试会提醒你同步分页表。

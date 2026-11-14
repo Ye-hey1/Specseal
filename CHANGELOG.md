@@ -1,5 +1,5 @@
 # Changelog
-**English** · [繁體中文](CHANGELOG.zh-TW.md)
+**English** · [繁体中文](CHANGELOG.zh-TW.md)
 
 ## 0.12.0 (2026-11-05)
 
@@ -138,7 +138,7 @@
 
 ### Improvements
 
-- The Traditional Chinese text now uses one term, 「正式規格」, for the specs that archive merges. It pairs with 「delta 規格」 in a change. The specs page and the manual in the desktop app, the README and the docs use the same words. The English text keeps "specs".
+- The Traditional Chinese text now uses one term, 「正式规格」, for the specs that archive merges. It pairs with 「delta 规格」 in a change. The specs page and the manual in the desktop app, the README and the docs use the same words. The English text keeps "specs".
 
 ## 0.3.0 (2026-09-11)
 

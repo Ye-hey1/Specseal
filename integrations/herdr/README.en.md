@@ -1,6 +1,6 @@
 # speclink: a Herdr mod for Speclink
 
-[繁體中文](README.md)
+[繁体中文](README.md)
 
 Open a panel in [Herdr](https://herdr.dev) that shows the changes and discussions of the current project. One click hands a skill to the correct agent, starts work on a change, or tells Speclink to open a detail page. You do not type a change name and you do not look for a window.
 

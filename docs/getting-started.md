@@ -1,6 +1,6 @@
 # Getting started with a Local Repo
 
-[繁體中文](getting-started.zh-TW.md) · **English**
+[简体中文](getting-started.zh-CN.md) · **English**
 
 Follow this guide to complete one full round: **install → init → propose → apply → check → archive**. The specs live in your repo, and Git handles collaboration. No server is necessary.
 

@@ -1,6 +1,6 @@
 # Server Deployment
 
-[繁體中文](server-deployment.zh-TW.md) · **English**
+[简体中文](server-deployment.zh-CN.md) · **English**
 
 This document shows how to run the official `speclink-server` for a team. It covers the run modes, the configuration, HTTPS, the management commands, and upgrade and rollback. For a first trial, follow [Remote Getting Started](remote-getting-started.md) once. That guide takes you through the first-run setup, the memberships, and the Desktop and CLI connections.
 

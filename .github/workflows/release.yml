@@ -13,8 +13,8 @@
 #     when their secrets exist. No secrets → unsigned installers, workflow stays green.
 #
 # Usage:
-#   執行 /release 技能（.claude/skills/release/SKILL.md）：守門、版號、更新日誌、寫檔、
-#   commit、附註 tag 與 push 一次做完；tag 推上來之後由本 workflow 接手。
+#   运行 /release 技能（.claude/skills/release/SKILL.md）：守门、版号、更新日志、写档、
+#   commit、附注 tag 与 push 一次做完；tag 推上来之后由本 workflow 接手。
 #
 # Note: the `ubuntu-24.04-arm` runner is free for PUBLIC repositories only — remove that
 # matrix entry (or switch to `cross`) if the repo is private.
@@ -29,7 +29,7 @@ permissions:
   contents: write
 
 env:
-  # server image 的正典名（ghcr 要求小寫；per-arch digest 推送與 manifest 合併共用）。
+  # server image 的正典名（ghcr 要求小写；per-arch digest 推送与 manifest 合并共用）。
   REGISTRY_IMAGE: ghcr.io/momochenisme/speclink-server
 
 jobs:
@@ -37,8 +37,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # smoke: 該 target 是否能在自身 runner 上原生執行（決定是否跑 server SPA
-        # smoke）。交叉編譯的 macOS Intel 在 arm64 runner 上不可原生執行，故跳過。
+        # smoke: 该 target 是否能在自身 runner 上原生运行（决定是否跑 server SPA
+        # smoke）。交叉编译的 macOS Intel 在 arm64 runner 上不可原生运行，故跳过。
         include:
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -67,11 +67,11 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      # server binary 於編譯期內嵌 apps/server-web 的 production dist（設計 D5），
-      # 故 dist 必須在 cargo build 之前產出。建置順序固定為 npm ci（lockfile）→
-      # Web test → Web production build → 編譯 server；每個 release binary 因此都
-      # 通過同一次 source revision 的 Web 驗證並攜帶對齊版本的內嵌資產。缺 index／
-      # manifest 時 Rust 內嵌會 fail closed，不會產生只有 API 沒有 UI 的 artifact。
+      # server binary 于编译期内嵌 apps/server-web 的 production dist（设计 D5），
+      # 故 dist 必须在 cargo build 之前产出。建置顺序固定为 npm ci（lockfile）→
+      # Web test → Web production build → 编译 server；每个 release binary 因此都
+      # 通过同一次 source revision 的 Web 验证并携带对齐版本的内嵌资产。缺 index／
+      # manifest 时 Rust 内嵌会 fail closed，不会产生只有 API 没有 UI 的 artifact。
       - uses: actions/setup-node@v5
         with:
           node-version: 20
@@ -85,23 +85,23 @@ jobs:
       - name: Build server-web frontend (vite → dist)
         run: npm run build -w apps/server-web
 
-      # 只建置要發布的兩支 binary。全 workspace 建置會把 tauri crate 一起拖進來，
-      # 而它需要 GTK/WebKit 系統庫與先行的 vite build（見 ci.yml），此 job 的
-      # runner 都沒有——桌面安裝檔由獨立的 desktop job 產出。
+      # 只建置要发布的两支 binary。全 workspace 建置会把 tauri crate 一起拖进来，
+      # 而它需要 GTK/WebKit 系统库与先行的 vite build（见 ci.yml），此 job 的
+      # runner 都没有——桌面安装档由独立的 desktop job 产出。
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }} -p speclink-cli -p speclink-server
 
-      # server-release smoke：把 release binary 放進「沒有相鄰 dist」的乾淨工作目錄
-      # 啟動，證明 SPA 只能來自 binary 內嵌——GET /login 載入內嵌 index（HTML），
-      # 未知 /api 路徑回真正的 JSON 404、不被 SPA fallback 吞成 200 HTML。交叉編譯
-      # target（在異架 runner 上不可原生執行）跳過此步。
-      - name: Server SPA smoke（無相鄰 dist 載入內嵌 index）
+      # server-release smoke：把 release binary 放进「没有相邻 dist」的干净工作目录
+      # 启动，证明 SPA 只能来自 binary 内嵌——GET /login 加载内嵌 index（HTML），
+      # 未知 /api 路径回真正的 JSON 404、不被 SPA fallback 吞成 200 HTML。交叉编译
+      # target（在异架 runner 上不可原生运行）跳过此步。
+      - name: Server SPA smoke（无相邻 dist 加载内嵌 index）
         if: matrix.smoke
         shell: bash
         run: |
           BIN="target/${{ matrix.target }}/release/speclink-server"
           [ -f "$BIN.exe" ] && BIN="$BIN.exe"
-          # 刻意獨立、無任何 dist 的工作目錄：資產只能出自 binary 內嵌。
+          # 刻意独立、无任何 dist 的工作目录：资产只能出自 binary 内嵌。
           rm -rf smoke-runtime && mkdir -p smoke-runtime
           printf 'store:\n  driver: sqlite\n  path: smoke-runtime/store.db\nidentity:\n  driver: sqlite\n  path: smoke-runtime/identity.db\n' > smoke-runtime/config.yaml
           "./$BIN" --config smoke-runtime/config.yaml --addr 127.0.0.1:8188 &
@@ -112,53 +112,53 @@ jobs:
             if curl -fsS -o /dev/null http://127.0.0.1:8188/login; then ok=1; break; fi
             sleep 1
           done
-          [ -n "$ok" ] || { echo "::error::server 未在 30 秒內於無 dist 環境回應 /login"; exit 1; }
-          # /login 回內嵌 SPA index：必須是 HTML，而非 404 或空。
+          [ -n "$ok" ] || { echo "::error::server 未在 30 秒内于无 dist 环境回应 /login"; exit 1; }
+          # /login 回内嵌 SPA index：必须是 HTML，而非 404 或空。
           login_ctype="$(curl -s -o /dev/null -w '%{content_type}' http://127.0.0.1:8188/login)"
           echo "$login_ctype" | grep -qi 'text/html' \
-            || { echo "::error::/login 未回 HTML（內嵌 index 未載入）：$login_ctype"; exit 1; }
-          # 未知 browser API 應為 JSON 404，禁止被 catch-all fallback 變成 200 HTML。
+            || { echo "::error::/login 未回 HTML（内嵌 index 未加载）：$login_ctype"; exit 1; }
+          # 未知 browser API 应为 JSON 404，禁止被 catch-all fallback 变成 200 HTML。
           miss_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8188/api/speclink/v1/web/missing)"
           miss_ctype="$(curl -s -o /dev/null -w '%{content_type}' http://127.0.0.1:8188/api/speclink/v1/web/missing)"
           [ "$miss_code" = "404" ] \
-            || { echo "::error::未知 /api 未回 404（實際 $miss_code）"; exit 1; }
+            || { echo "::error::未知 /api 未回 404（实际 $miss_code）"; exit 1; }
           echo "$miss_ctype" | grep -qi 'application/json' \
             || { echo "::error::/api 404 非 JSON（$miss_ctype）"; exit 1; }
 
-      # 兩支 binary 都不進 Release assets：CLI 的通路收斂為 npm（cli-distribution spec
-      # 「CLI 以 npm 套件發布」；設計 D4／D8），server 為 Docker＋npm（設計 D6）。上面
-      # 仍建置並冒煙作品質閘門；raw binary 以獨立 artifact 交給各自的 npm 發布 job 物化。
+      # 两支 binary 都不进 Release assets：CLI 的通路收敛为 npm（cli-distribution spec
+      # 「CLI 以 npm 套件发布」；设计 D4／D8），server 为 Docker＋npm（设计 D6）。上面
+      # 仍建置并冒烟作品质闸门；raw binary 以独立 artifact 交给各自的 npm 发布 job 物化。
       - uses: actions/upload-artifact@v4
         with:
           name: cli-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/speclink${{ contains(matrix.target, 'windows') && '.exe' || '' }}
           if-no-files-found: error
 
-      # server binary 同形：release job 的 dist 收集以 pattern 圈定，cli-*／server-* 都撈不到。
+      # server binary 同形：release job 的 dist 收集以 pattern 圈定，cli-*／server-* 都捞不到。
       - uses: actions/upload-artifact@v4
         with:
           name: server-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/speclink-server${{ contains(matrix.target, 'windows') && '.exe' || '' }}
           if-no-files-found: error
 
-  # 桌面安裝檔（desktop-release spec；design D1：沿用自組 matrix，不用 tauri-action）：
-  # macOS universal dmg（Apple Silicon 與 Intel 同一檔）、Windows NSIS（x86_64）、
-  # Linux AppImage（x86_64／aarch64）。每個 target 上傳兩個 artifact：
-  #   - desktop-<target>：要附上 Release 的安裝檔
-  #   - updater-<platform>：更新包＋minisign 簽章（release job 據此組 latest.json，再把
-  #     更新包本體補進 Release assets、.sig 留在 job 內——簽章內容已內嵌 latest.json；
-  #     Windows／AppImage 的更新包即安裝檔本身，重複上傳換取組裝契約單純）
+  # 桌面安装档（desktop-release spec；design D1：沿用自组 matrix，不用 tauri-action）：
+  # macOS universal dmg（Apple Silicon 与 Intel 同一档）、Windows NSIS（x86_64）、
+  # Linux AppImage（x86_64／aarch64）。每个 target 上传两个 artifact：
+  #   - desktop-<target>：要附上 Release 的安装档
+  #   - updater-<platform>：更新包＋minisign 签章（release job 据此组 latest.json，再把
+  #     更新包本体补进 Release assets、.sig 留在 job 内——签章内容已内嵌 latest.json；
+  #     Windows／AppImage 的更新包即安装档本身，重复上传换取组装契约单纯）
   desktop:
     strategy:
       fail-fast: false
       matrix:
         include:
-          # macOS 出 universal（設計 D2）：一個 dmg 與一個更新包同時跑 Apple Silicon 與
-          # Intel，訪客不必分辨晶片。Tauri 的 universal target 要求兩個 rustup target 都
-          # 裝好（rust_targets），sidecar 由 desktop-sidecar.mjs 對兩架構各建一次再以
-          # lipo 合成。bundles 仍要帶 app：Tauri 只為 app／appimage／msi／nsis 產出
-          # 更新包，dmg 不在其列——只建 dmg 時 bundler 印一行警告就跳過更新包，且把
-          # 中間產物 Speclink.app 清掉，下方收集步驟的 cp 隨即找不到 app.tar.gz。
+          # macOS 出 universal（设计 D2）：一个 dmg 与一个更新包同时跑 Apple Silicon 与
+          # Intel，访客不必分辨芯片。Tauri 的 universal target 要求两个 rustup target 都
+          # 装好（rust_targets），sidecar 由 desktop-sidecar.mjs 对两架构各建一次再以
+          # lipo 合成。bundles 仍要带 app：Tauri 只为 app／appimage／msi／nsis 产出
+          # 更新包，dmg 不在其列——只建 dmg 时 bundler 印一行警告就跳过更新包，且把
+          # 中间产物 Speclink.app 清掉，下方收集步骤的 cp 随即找不到 app.tar.gz。
           - os: macos-latest
             target: universal-apple-darwin
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -169,7 +169,7 @@ jobs:
             rust_targets: x86_64-pc-windows-msvc
             bundles: nsis
             platform: windows-x86_64
-          # Linux 只出 AppImage（設計 D7）：它同時是安裝檔與更新包，任何發行版可用。
+          # Linux 只出 AppImage（设计 D7）：它同时是安装档与更新包，任何发行版可用。
           - os: ubuntu-22.04            # older glibc baseline for wide compatibility
             target: x86_64-unknown-linux-gnu
             rust_targets: x86_64-unknown-linux-gnu
@@ -184,13 +184,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # 版本閘門（fail-closed）：tag、tauri.conf.json、release-notes.json 頂端三者同版，
-      # 且 CHANGELOG.md、CHANGELOG.zh-TW.md 兩份都與 JSON 重算一致（release-notes spec
-      # 「release 管線守門版號四處同版與渲染一致」）。版號不齊即紅燈——否則 latest.json
-      # 宣告 tag 版、安裝檔與 app 自報版本停在舊版，形成每次啟動都勸誘安裝同一 build 的
-      # 無盡更新迴圈（spec「描述檔欄位對齊發布內容」）；更新日誌落後則 Release 說明與
-      # 桌面彈窗都拿不到這版內容。
-      # 排在所有建置之前：十分鐘建置之後才紅燈是浪費。
+      # 版本闸门（fail-closed）：tag、tauri.conf.json、release-notes.json 顶端三者同版，
+      # 且 CHANGELOG.md、CHANGELOG.zh-TW.md 两份都与 JSON 重算一致（release-notes spec
+      # 「release 管线守门版号四处同版与渲染一致」）。版号不齐即红灯——否则 latest.json
+      # 声明 tag 版、安装档与 app 自报版本停在旧版，形成每次启动都劝诱安装同一 build 的
+      # 无尽更新循环（spec「描述档字段对齐发布内容」）；更新日志落后则 Release 说明与
+      # 桌面弹窗都拿不到这版内容。
+      # 排在所有建置之前：十分钟建置之后才红灯是浪费。
       - name: Assert release version and changelog consistency
         shell: bash
         run: |
@@ -198,23 +198,23 @@ jobs:
           NOTES_VERSION="$(node -p "require('./apps/desktop/src/release-notes/release-notes.json')[0].version")"
           TAG_VERSION="${GITHUB_REF_NAME#v}"
           if [ "$CONF_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::tauri.conf.json version（${CONF_VERSION}）與 tag（${TAG_VERSION}）不一致——先 bump 版本再發 tag"
+            echo "::error::tauri.conf.json version（${CONF_VERSION}）与 tag（${TAG_VERSION}）不一致——先 bump 版本再发 tag"
             exit 1
           fi
           if [ "$NOTES_VERSION" != "$TAG_VERSION" ]; then
-            echo "::error::release-notes.json 頂端 version（${NOTES_VERSION}）與 tag（${TAG_VERSION}）不一致——先執行 /release 技能補上更新日誌再發 tag"
+            echo "::error::release-notes.json 顶端 version（${NOTES_VERSION}）与 tag（${TAG_VERSION}）不一致——先运行 /release 技能补上更新日志再发 tag"
             exit 1
           fi
           if ! node scripts/release/release-notes-render.mjs --check; then
-            echo "::error::CHANGELOG.md 或 CHANGELOG.zh-TW.md 與 release-notes.json 重算結果不一致（--check 兩份都比對，漂移的檔名與差異見上方輸出）——執行 node scripts/release/release-notes-render.mjs --write 後提交 CHANGELOG.md 與 CHANGELOG.zh-TW.md 兩份"
+            echo "::error::CHANGELOG.md 或 CHANGELOG.zh-TW.md 与 release-notes.json 重算结果不一致（--check 两份都比对，漂移的文件名与差异见上方输出）——运行 node scripts/release/release-notes-render.mjs --write 后提交 CHANGELOG.md 与 CHANGELOG.zh-TW.md 两份"
             exit 1
           fi
 
-      # 簽章 secrets 閘門（design D1）：每組 secrets 全有全無——全無即跳過該路徑、
-      # workflow 照常全綠；部分存在即以列出缺項名稱的錯誤失敗，不產出半套簽章的
-      # 安裝檔（「已簽章但未公證」照樣被 Gatekeeper 攔，卻讓人誤以為已完成）。
-      # 決策寫入 GITHUB_ENV 供下方簽章步驟判斷，兩處不再各自推導 secrets 是否存在。
-      # 排在昂貴步驟之前：設定錯誤要在建置前就紅燈，而非跑完五個 target 才發現。
+      # 签章 secrets 闸门（design D1）：每组 secrets 全有全无——全无即跳过该路径、
+      # workflow 照常全绿；部分存在即以列出缺项名称的错误失败，不产出半套签章的
+      # 安装档（「已签章但未公证」照样被 Gatekeeper 拦，却让人误以为已完成）。
+      # 决策写入 GITHUB_ENV 供下方签章步骤判断，两处不再各自推导 secrets 是否存在。
+      # 排在昂贵步骤之前：设置错误要在建置前就红灯，而非跑完五个 target 才发现。
       - name: Signing secrets gate
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -235,8 +235,8 @@ jobs:
         with:
           key: desktop-${{ matrix.target }}
 
-      # 援引 ci.yml 的 Tauri Linux 依賴清單；另補 AppImage 打包工具所需的 FUSE
-      # （22.04 為 libfuse2、24.04 改名 libfuse2t64，擇一存在）。
+      # 援引 ci.yml 的 Tauri Linux 依赖清单；另补 AppImage 打包工具所需的 FUSE
+      # （22.04 为 libfuse2、24.04 改名 libfuse2t64，择一存在）。
       - name: Install Tauri system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -244,8 +244,8 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
             libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
           sudo apt-get install -y libfuse2 || sudo apt-get install -y libfuse2t64
-          # AppImage 的 bundler 會呼叫 xdg-open：ubuntu-24.04-arm 映像未內建
-          # xdg-utils（22.04 有），缺了會在打包最後一步才失敗。
+          # AppImage 的 bundler 会调用 xdg-open：ubuntu-24.04-arm 映像未内置
+          # xdg-utils（22.04 有），缺了会在打包最后一步才失败。
           sudo apt-get install -y xdg-utils
 
       - uses: actions/setup-node@v5
@@ -255,19 +255,19 @@ jobs:
       - name: Install npm dependencies (root workspaces)
         run: npm ci
 
-      # tauri.conf.json 無 beforeBuildCommand（專案慣例：desktop 前端手動 build），
-      # 故 dist 必須在 tauri build 之前顯式產出。
+      # tauri.conf.json 无 beforeBuildCommand（项目惯例：desktop 前端手动 build），
+      # 故 dist 必须在 tauri build 之前显式产出。
       - name: Build desktop frontend (vite → dist)
         run: npm run build -w apps/desktop
 
-      # CLI sidecar（design D5）：把同版 speclink CLI 佈到 externalBin 要求的
-      # target-triple 命名位置；缺檔時 tauri build 直接失敗（fail-closed）。
+      # CLI sidecar（design D5）：把同版 speclink CLI 布到 externalBin 要求的
+      # target-triple 命名位置；缺档时 tauri build 直接失败（fail-closed）。
       - name: Stage CLI sidecar
         run: node scripts/desktop/desktop-sidecar.mjs --target ${{ matrix.target }}
 
-      # OS 簽章開關（design D1／D4）：條件來自上方閘門的決策，填鑰匙即啟用、
-      # 無須改管線。macOS 六項一次注入——憑證三項讓 Tauri 簽章，公證三項讓它在
-      # 簽章後送 Apple 公證並 staple 票證；少了公證，簽過的 app 一樣被 Gatekeeper 攔。
+      # OS 签章开关（design D1／D4）：条件来自上方闸门的决策，填钥匙即激活、
+      # 无须改管线。macOS 六项一次注入——凭证三项让 Tauri 签章，公证三项让它在
+      # 签章后送 Apple 公证并 staple 票证；少了公证，签过的 app 一样被 Gatekeeper 拦。
       - name: Enable macOS code signing and notarization (env-gated)
         if: runner.os == 'macOS' && env.SPECLINK_MACOS_SIGNING == 'full'
         shell: bash
@@ -281,8 +281,8 @@ jobs:
             echo "APPLE_TEAM_ID=${{ secrets.APPLE_TEAM_ID }}"
           } >> "$GITHUB_ENV"
 
-      # Windows 僅本機憑證路徑（SignPath 裁定不採用，design D2）；secrets 缺席
-      # 即產出未簽章安裝檔。
+      # Windows 仅本机凭证路径（SignPath 裁定不采用，design D2）；secrets 缺席
+      # 即产出未签章安装档。
       - name: Enable Windows code signing (env-gated)
         if: runner.os == 'Windows' && env.SPECLINK_WINDOWS_SIGNING == 'certificate'
         shell: bash
@@ -292,19 +292,19 @@ jobs:
             echo "WINDOWS_CERTIFICATE_PASSWORD=${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}"
           } >> "$GITHUB_ENV"
 
-      # 更新包簽章（design D3）：TAURI_SIGNING_* 為必要 secrets——缺席時建置以
-      # 非零結束（desktop-release spec「缺私鑰時建置失敗」），與 OS 簽章正交。
+      # 更新包签章（design D3）：TAURI_SIGNING_* 为必要 secrets——缺席时建置以
+      # 非零结束（desktop-release spec「缺私钥时建置失败」），与 OS 签章正交。
       - name: Build desktop bundles (Tauri)
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm run -w apps/desktop tauri -- build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
 
-      # 佈署收集：installers/ 進 Release assets；updater/<platform>/ 供 latest.json
-      # 組裝（每個更新包目錄恰一更新包＋同名 .sig——scripts/release/release-latest-json.mjs
-      # 的目錄契約；darwin-universal 一個目錄餵 darwin-aarch64 與 darwin-x86_64 兩鍵）。
-      # macOS 更新包原名不含架構，改名帶 universal 與 dmg 對稱。.sig 只進 updater/，
-      # 不進 installers/——它在發布後零讀者。
+      # 布署收集：installers/ 进 Release assets；updater/<platform>/ 供 latest.json
+      # 组装（每个更新包目录恰一更新包＋同名 .sig——scripts/release/release-latest-json.mjs
+      # 的目录契约；darwin-universal 一个目录喂 darwin-aarch64 与 darwin-x86_64 两键）。
+      # macOS 更新包原名不含架构，改名带 universal 与 dmg 对称。.sig 只进 updater/，
+      # 不进 installers/——它在发布后零读者。
       - name: Collect installers and updater packages
         shell: bash
         run: |
@@ -343,12 +343,12 @@ jobs:
           path: updater/${{ matrix.platform }}/*
           if-no-files-found: error
 
-  # server Docker image → ghcr，tag 對齊 release 版本（v0.1.0 → 0.1.0，semver
-  # 亦自動附 latest）。兩架構經 qemu 模擬建置——arm64 的 Rust 編譯在模擬下偏慢，
-  # 屬已知代價（設計明訂先不做多架構矩陣最佳化）。
-  # docker 逐架構原生分開建（設計 D10）：amd64／arm64 各在自己的原生 runner 建置
-  # （零 QEMU——模擬下的 Rust 編譯單跑逾 35 分鐘且是 SIGILL flaky 的根源），
-  # push by digest 不打 tag；tag 由 docker-manifest 合併 job 統一打。
+  # server Docker image → ghcr，tag 对齐 release 版本（v0.1.0 → 0.1.0，semver
+  # 亦自动附 latest）。两架构经 qemu 仿真建置——arm64 的 Rust 编译在仿真下偏慢，
+  # 属已知代价（设计明订先不做多架构矩阵优化）。
+  # docker 逐架构原生分开建（设计 D10）：amd64／arm64 各在自己的原生 runner 建置
+  # （零 QEMU——仿真下的 Rust 编译单跑逾 35 分钟且是 SIGILL flaky 的根源），
+  # push by digest 不打 tag；tag 由 docker-manifest 合并 job 统一打。
   docker:
     strategy:
       fail-fast: false
@@ -373,8 +373,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # metadata-action 會把 owner 正規化為小寫（ghcr 要求）；此處只取 labels，
-      # tag 留給合併 job。
+      # metadata-action 会把 owner 范式为小写（ghcr 要求）；此处只取 labels，
+      # tag 留给合并 job。
       - uses: docker/metadata-action@v5
         id: meta
         with:
@@ -403,8 +403,8 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # 兩架構 digest 都成功才打 tag（版本＋major.minor＋latest）——發布原子性由本
-  # job 承擔，等價於原單一 job 的全有全無語意。
+  # 两架构 digest 都成功才打 tag（版本＋major.minor＋latest）——发布原子性由本
+  # job 承担，等价于原单一 job 的全有全无语意。
   docker-manifest:
     needs: [docker]
     runs-on: ubuntu-latest
@@ -443,36 +443,36 @@ jobs:
           for digest in *; do ref_args+=("${{ env.REGISTRY_IMAGE }}@sha256:${digest}"); done
           docker buildx imagetools create "${tag_args[@]}" "${ref_args[@]}"
 
-      - name: Inspect manifest（兩架構齊備才算數）
+      - name: Inspect manifest（两架构齐备才算数）
         shell: bash
         run: |
           docker buildx imagetools inspect "${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}" | tee inspect.txt
           if ! grep -q "linux/amd64" inspect.txt || ! grep -q "linux/arm64" inspect.txt; then
-            echo "::error::manifest 缺架構"
+            echo "::error::manifest 缺架构"
             exit 1
           fi
 
-  # 部署文件對使用者承諾「每個 release tag 同時產出全部形態」，所以任一形態
-  # 失敗時不該還發出一個缺形態的 Release——needs 納入 build、desktop 與 docker，讓
-  # 產物（CLI binary、Docker、桌面安裝檔與更新描述檔）的產出是全有全無。
-  # CLI 與 server 的 binary 都不進 Release assets——各走自己的 npm 發布 job。
+  # 部署文档对用户承诺「每个 release tag 同时产出全部形态」，所以任一形态
+  # 失败时不该还发出一个缺形态的 Release——needs 纳入 build、desktop 与 docker，让
+  # 产物（CLI binary、Docker、桌面安装档与更新描述档）的产出是全有全无。
+  # CLI 与 server 的 binary 都不进 Release assets——各走自己的 npm 发布 job。
   release:
     needs: [build, desktop, docker-manifest]
     runs-on: ubuntu-latest
     steps:
-      # 組裝腳本（scripts/release/release-latest-json.mjs）需要 repo 內容。
+      # 组装脚本（scripts/release/release-latest-json.mjs）需要 repo 内容。
       - uses: actions/checkout@v5
 
-      # Release assets 是封閉集合（desktop-release spec「Release 產出三平台桌面安裝檔」；
-      # 設計 D1）：安裝檔＋更新包本體＋latest.json，共六個檔。dist 只攤平合併
-      # desktop-*；cli-*／server-* 各給自己的 npm 發布 job，不落入。
+      # Release assets 是封闭集合（desktop-release spec「Release 产出三平台桌面安装档」；
+      # 设计 D1）：安装档＋更新包本体＋latest.json，共六个档。dist 只摊平合并
+      # desktop-*；cli-*／server-* 各给自己的 npm 发布 job，不落入。
       - uses: actions/download-artifact@v4
         with:
           pattern: desktop-*
           path: dist
           merge-multiple: true
 
-      # updater-* 保持目錄結構下載，還原組裝腳本的「每個更新包目錄一更新包＋一 .sig」契約。
+      # updater-* 保持目录结构下载，还原组装脚本的「每个更新包目录一更新包＋一 .sig」契约。
       - uses: actions/download-artifact@v4
         with:
           pattern: updater-*
@@ -487,20 +487,20 @@ jobs:
             --dir updater --repo "$GITHUB_REPOSITORY" --out dist/latest.json
           cat dist/latest.json
 
-      # 更新包本體要能從 Release 下載（latest.json 的 url 指向它）；.sig 不上——
-      # Tauri updater 只讀 latest.json 內嵌的 signature 內容，發布後沒有任何讀者。
-      # Windows／AppImage 的更新包與安裝檔同名同內容，覆蓋無害；macOS 多出 .app.tar.gz。
-      # 不再產校驗碼檔：它唯一的機器讀者（install.sh、formula 產生器）都改讀 npm。
+      # 更新包本体要能从 Release 下载（latest.json 的 url 指向它）；.sig 不上——
+      # Tauri updater 只读 latest.json 内嵌的 signature 内容，发布后没有任何读者。
+      # Windows／AppImage 的更新包与安装档同名同内容，覆盖无害；macOS 多出 .app.tar.gz。
+      # 不再产校验码档：它唯一的机器读者（install.sh、formula 产生器）都改读 npm。
       - name: Add updater packages to Release assets (signatures stay out)
         run: |
           find updater -type f ! -name '*.sig' -exec cp {} dist/ \;
           ls -l dist
 
-      # 下載指南前置於 Release 說明（desktop-release spec「Release 說明含下載指南」；
-      # 設計 D7）：英文指南與英文更新日誌片段在前，繁中指南與繁中片段收在「繁體中文」
-      # 的 <details> 區塊（release-notes.json 為真相）；
-      # generate_release_notes 只剩最後的比較連結。notes.md 落在 workspace 根而非
-      # dist/，不會被當成資產上傳。
+      # 下载指南前置于 Release 说明（desktop-release spec「Release 说明含下载指南」；
+      # 设计 D7）：英文指南与英文更新日志片段在前，繁中指南与繁中片段收在「繁体中文」
+      # 的 <details> 区块（release-notes.json 为真相）；
+      # generate_release_notes 只剩最后的比较链接。notes.md 落在 workspace 根而非
+      # dist/，不会被当成资产上传。
       - name: Download guide (release notes header)
         run: node scripts/release/release-notes.mjs --tag "$GITHUB_REF_NAME" > notes.md
 
@@ -510,11 +510,11 @@ jobs:
           files: dist/*
           generate_release_notes: true
 
-  # CLI 的 npm 通路（cli-distribution spec「CLI 以 npm 套件發布」；設計 D4／D8）：binary 的
-  # 唯一來源——install.sh 抓這裡的 tgz、Homebrew formula 也指向這裡。閘門、物化＋pack、冪等
-  # 發布、等 registry 可見都在共用的 npm-publish.yml（三條 npm 通路同一份）；這裡只給差異：
-  # 下載 cli-*、以 npm-cli-package.mjs 物化、把 tgz 校驗清單以 cli-npm-sums artifact 交給
-  # tap-publish，並以 published 輸出告知它「formula 指向的 tgz 到底在不在」。
+  # CLI 的 npm 通路（cli-distribution spec「CLI 以 npm 套件发布」；设计 D4／D8）：binary 的
+  # 唯一来源——install.sh 抓这里的 tgz、Homebrew formula 也指向这里。闸门、物化＋pack、幂等
+  # 发布、等 registry 可见都在共用的 npm-publish.yml（三条 npm 通路同一份）；这里只给差异：
+  # 下载 cli-*、以 npm-cli-package.mjs 物化、把 tgz 校验清单以 cli-npm-sums artifact 交给
+  # tap-publish，并以 published 输出告知它「formula 指向的 tgz 到底在不在」。
   cli-npm-publish:
     needs: [release]
     uses: ./.github/workflows/npm-publish.yml
@@ -526,11 +526,11 @@ jobs:
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # Formula 隨發版自動推送 tap（cli-distribution spec；設計 D5／D8）。排在 Release 與
-  # CLI 的 npm 發布之後：formula 的 url 指向 registry 上的平台 tgz，sha256 算在
-  # cli-npm-publish 發布後自 registry 取回的那份 tgz 上；通路推送不是發布的前置條件，失敗可單獨
-  # 重跑、不回溯撤銷 Release。secrets 不能出現在 job 層級的 if，故以首步輸出當雙閘門
-  # ——TAP_PUSH_TOKEN 缺席、或 CLI 因 NPM_TOKEN 缺席而未發布，後續步驟全部跳過、job 綠。
+  # Formula 随发版自动推送 tap（cli-distribution spec；设计 D5／D8）。排在 Release 与
+  # CLI 的 npm 发布之后：formula 的 url 指向 registry 上的平台 tgz，sha256 算在
+  # cli-npm-publish 发布后自 registry 取回的那份 tgz 上；通路推送不是发布的前置条件，失败可单独
+  # 重跑、不回溯撤销 Release。secrets 不能出现在 job 层级的 if，故以首步输出当双闸门
+  # ——TAP_PUSH_TOKEN 缺席、或 CLI 因 NPM_TOKEN 缺席而未发布，后续步骤全部跳过、job 绿。
   tap-publish:
     needs: [release, cli-npm-publish]
     runs-on: ubuntu-latest
@@ -561,15 +561,15 @@ jobs:
           GH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
         run: |
           TAP="${{ github.repository_owner }}/homebrew-tap"
-          # 更新既有檔要附現存 sha；首版（檔案不存在）則不帶。
+          # 更新既有档要附现存 sha；首版（文件不存在）则不带。
           SHA=$(gh api "/repos/$TAP/contents/Formula/speclink.rb" --jq .sha 2>/dev/null || true)
           gh api -X PUT "/repos/$TAP/contents/Formula/speclink.rb" \
             -f message="speclink ${GITHUB_REF_NAME}" \
             -f "content=$(base64 -w0 speclink.rb)" \
             ${SHA:+-f "sha=$SHA"}
 
-  # server 的 npm 通路（server-release spec「npm 套件一行啟動 server」；設計 D9）：
-  # 與 CLI 同一份共用 workflow，差異只有下載 server-* 與物化腳本。
+  # server 的 npm 通路（server-release spec「npm 套件一行启动 server」；设计 D9）：
+  # 与 CLI 同一份共用 workflow，差异只有下载 server-* 与物化脚本。
   npm-publish:
     needs: [release]
     uses: ./.github/workflows/npm-publish.yml
@@ -580,10 +580,10 @@ jobs:
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-  # tag 名去 v 前綴的版號：reusable workflow 的 with: 只吃表達式，而 Actions 表達式
-  # 沒有字串裁切函式（無 replace／substring），只能由 shell 算成 job output 再傳入。
-  # 同時前置把關版號格式：蓋章腳本只收 X.Y.Z，若留到 pack job 才擋，prerelease
-  # tag 會白跑完五平台 matrix 才紅燈——而那種 tag 在 engine 上通路前是全綠的。
+  # tag 名去 v 前缀的版号：reusable workflow 的 with: 只吃表达式，而 Actions 表达式
+  # 没有字符串裁切函数（无 replace／substring），只能由 shell 算成 job output 再传入。
+  # 同时前置把关版号格式：盖章脚本只收 X.Y.Z，若留到 pack job 才挡，prerelease
+  # tag 会白跑完五平台 matrix 才红灯——而那种 tag 在 engine 上通路前是全绿的。
   engine-version:
     runs-on: ubuntu-latest
     outputs:
@@ -600,12 +600,12 @@ jobs:
             echo "publishable=true" >> "$GITHUB_OUTPUT"
           else
             echo "publishable=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::tag $GITHUB_REF_NAME 非 X.Y.Z，略過 engine 的 npm 建置與發布"
+            echo "::notice::tag $GITHUB_REF_NAME 非 X.Y.Z，略过 engine 的 npm 建置与发布"
           fi
 
-  # engine 的五平台建置與打包（node-sdk-release spec「build/pack workflow 可被 release
-  # 管線重用」；設計 D1／D3）：以 workflow_call 重用 node-sdk.yml，不複製 build matrix。
-  # 屬同一個 workflow run，故蓋章後的 npm-tarballs artifact 下方 job 直接下載得到。
+  # engine 的五平台建置与打包（node-sdk-release spec「build/pack workflow 可被 release
+  # 管线重用」；设计 D1／D3）：以 workflow_call 重用 node-sdk.yml，不拷贝 build matrix。
+  # 属同一个 workflow run，故盖章后的 npm-tarballs artifact 下方 job 直接下载得到。
   engine-npm-build:
     needs: [engine-version]
     if: needs.engine-version.outputs.publishable == 'true'
@@ -613,9 +613,9 @@ jobs:
     with:
       version: ${{ needs.engine-version.outputs.version }}
 
-  # engine 的 npm 通路（node-sdk-release spec「npm 發布閘門與發布順序」；設計 D3）：
-  # 同一份共用 workflow；發布單位是 node-sdk.yml 打包好的 npm-tarballs（主套件 tarball 在根、
-  # 平台子套件在 npm/<平台>/），不傳 materialize，發布端不重新打包。
+  # engine 的 npm 通路（node-sdk-release spec「npm 发布闸门与发布顺序」；设计 D3）：
+  # 同一份共用 workflow；发布单位是 node-sdk.yml 打包好的 npm-tarballs（主套件 tarball 在根、
+  # 平台子套件在 npm/<平台>/），不传 materialize，发布端不重新打包。
   engine-npm-publish:
     needs: [engine-npm-build, release]
     uses: ./.github/workflows/npm-publish.yml

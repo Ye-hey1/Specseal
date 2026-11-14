@@ -1,6 +1,6 @@
 # SDD workflow
 
-[繁體中文](workflow.zh-TW.md) · **English**
+[简体中文](workflow.zh-CN.md) · **English**
 
 This document explains each stage of Speclink: what it does, which skill to use, when to skip it, when it is done, and where to go next.
 

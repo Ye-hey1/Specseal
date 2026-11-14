@@ -1,20 +1,20 @@
-# Speclink server — PostgreSQL profile（server ＋ postgres 兩服務）：
+# Speclink server — PostgreSQL profile（server ＋ postgres 两服务）：
 #
-#   cp .env.example .env    # 填入密碼；.env 不入版本控制
+#   cp .env.example .env    # 填入密码；.env 不入版本控制
 #   docker compose -f docker-compose.postgres.yml up -d
 #
-# secret 紀律：密碼只經環境變數注入——store url 不含密碼，
-# server 由 SPECLINK_POSTGRES_PASSWORD 補全；postgres 服務用同源的變數初始化。
-# 版本控制內（本檔與 .env.example）沒有任何明文密碼。
+# secret 纪律：密码只经环境变量注入——store url 不含密码，
+# server 由 SPECLINK_POSTGRES_PASSWORD 补全；postgres 服务用同源的变量初始化。
+# 版本控制内（本档与 .env.example）没有任何明文密码。
 #
-# identity 資料庫維持 /data 下的 SQLite 檔（identity 獨立於 TeamStore driver 選擇）。
+# identity 数据库维持 /data 下的 SQLite 档（identity 独立于 TeamStore driver 选择）。
 
 name: speclink-postgres
 
 configs:
   server-config:
-    # server 的組態 YAML 不做環境變數展開，改由 compose 在 up 時插值產生本檔。
-    # url 刻意不含密碼：postgres driver 會以 SPECLINK_POSTGRES_PASSWORD 補全。
+    # server 的组态 YAML 不做环境变量展开，改由 compose 在 up 时插值产生本档。
+    # url 刻意不含密码：postgres driver 会以 SPECLINK_POSTGRES_PASSWORD 补全。
     content: |
       store:
         driver: postgres
@@ -22,7 +22,7 @@ configs:
       identity:
         driver: sqlite
         path: /data/identity.db
-      # 預設與 SPECLINK_PORT 連動（同 docker-compose.yml）。
+      # 缺省与 SPECLINK_PORT 连动（同 docker-compose.yml）。
       public_url: ${SPECLINK_PUBLIC_URL:-http://localhost:${SPECLINK_PORT:-8080}}
 
 services:
@@ -32,7 +32,7 @@ services:
     environment:
       POSTGRES_USER: speclink
       POSTGRES_DB: speclink
-      POSTGRES_PASSWORD: ${SPECLINK_POSTGRES_PASSWORD:?請複製 .env.example 為 .env 並設定密碼}
+      POSTGRES_PASSWORD: ${SPECLINK_POSTGRES_PASSWORD:?请拷贝 .env.example 为 .env 并设置密码}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -43,7 +43,7 @@ services:
 
   server:
     image: ghcr.io/momochenisme/speclink-server:latest
-    # 同 docker-compose.yml：本機無映像時就地建置。要用官方映像先 docker compose pull。
+    # 同 docker-compose.yml：本机无映像时就地建置。要用官方映像先 docker compose pull。
     build:
       context: ..
       dockerfile: crates/host/speclink-server/Dockerfile
@@ -52,7 +52,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SPECLINK_POSTGRES_PASSWORD: ${SPECLINK_POSTGRES_PASSWORD:?請複製 .env.example 為 .env 並設定密碼}
+      SPECLINK_POSTGRES_PASSWORD: ${SPECLINK_POSTGRES_PASSWORD:?请拷贝 .env.example 为 .env 并设置密码}
     ports:
       - "${SPECLINK_PORT:-8080}:8080"
     configs:

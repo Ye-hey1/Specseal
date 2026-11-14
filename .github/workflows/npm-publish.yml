@@ -1,26 +1,26 @@
-# npm 發布的共用 workflow（workflow_call）：release.yml 的三條 npm 通路——CLI（@speclink/cli，
-# cli-distribution spec「CLI 以 npm 套件發布」；release-assets-trim 設計 D4／D8）、server
-# （@speclink/server，server-release spec「npm 套件一行啟動 server」）、engine（@speclink/engine，
-# node-sdk-release spec「npm 發布閘門與發布順序」）——共用同一套閘門與發布迴圈，只以輸入區分：
+# npm 发布的共用 workflow（workflow_call）：release.yml 的三条 npm 通路——CLI（@speclink/cli，
+# cli-distribution spec「CLI 以 npm 套件发布」；release-assets-trim 设计 D4／D8）、server
+# （@speclink/server，server-release spec「npm 套件一行启动 server」）、engine（@speclink/engine，
+# node-sdk-release spec「npm 发布闸门与发布顺序」）——共用同一套闸门与发布循环，只以输入区分：
 #
-#   artifacts      download-artifact 的 pattern。物化路徑給 <name>-<target> 目錄（cli-*、server-*：
-#                  內容是 raw binary）；已打包路徑給 tarball artifact 名（npm-tarballs）。
-#   materialize    物化腳本路徑（scripts/npm/npm-*-package.mjs），以 --version／--binaries／--out
-#                  呼叫後對每個套件目錄 npm pack；留空＝artifact 內已是 tarball，發布端不重新打包
-#                  （node-sdk-release spec：發布單位是上游打包好的 tarball）。
-#   main-package   主套件名：平台子套件先發、它最後發，並等它在 registry 可見才算成功。
-#   sums-artifact  有值時把 tarball 的 sha256 清單（<值>.txt）上傳為此名的 artifact——CLI 用它
-#                  把校驗清單交給 tap-publish。清單算在發布後自 registry 取回的 tarball 上，
-#                  不是本次 pack 的：重跑時已上架的同版會被跳過，本次重建的 bytes 不一定
-#                  等於 registry 那份，而 formula 指的是 registry 那份。
+#   artifacts      download-artifact 的 pattern。物化路径给 <name>-<target> 目录（cli-*、server-*：
+#                  内容是 raw binary）；已打包路径给 tarball artifact 名（npm-tarballs）。
+#   materialize    物化脚本路径（scripts/npm/npm-*-package.mjs），以 --version／--binaries／--out
+#                  调用后对每个套件目录 npm pack；留空＝artifact 内已是 tarball，发布端不重新打包
+#                  （node-sdk-release spec：发布单位是上游打包好的 tarball）。
+#   main-package   主套件名：平台子套件先发、它最后发，并等它在 registry 可见才算成功。
+#   sums-artifact  有值时把 tarball 的 sha256 清单（<值>.txt）上传为此名的 artifact——CLI 用它
+#                  把校验清单交给 tap-publish。清单算在发布后自 registry 取回的 tarball 上，
+#                  不是本次 pack 的：重跑时已上架的同版会被跳过，本次重建的 bytes 不一定
+#                  等于 registry 那份，而 formula 指的是 registry 那份。
 #
-# 語意（三條通路一致）：排在 Release 之後、不是發布的前置條件；NPM_TOKEN 缺席時各步跳過而
-# job 綠、輸出 published=false；存在而發布失敗時紅燈、可單獨重跑。冪等：發到一半失敗或 tag
-# 重推時，已上架的同版會讓 npm publish 拿 403 而永遠轉不綠，所以每份先查 registry、同版已存在
-# 就跳過。fail closed：發布前逐份斷言 tarball 版號等於 tag 版（npm 發布不可撤回，蓋章沒跑會把
-# 佔位版永久上架，而重跑又會因「已存在」全部略過）；發布後輪詢等主套件可見（首次上架的
-# packument 會延遲好幾分鐘，只查一次會假紅；「全部跳過」與「全部發完」在 job 結果上同樣是綠，
-# 沒有這一步 job 綠得毫無意義）。
+# 语意（三条通路一致）：排在 Release 之后、不是发布的前置条件；NPM_TOKEN 缺席时各步跳过而
+# job 绿、输出 published=false；存在而发布失败时红灯、可单独重跑。幂等：发到一半失败或 tag
+# 重推时，已上架的同版会让 npm publish 拿 403 而永远转不绿，所以每份先查 registry、同版已存在
+# 就跳过。fail closed：发布前逐份断言 tarball 版号等于 tag 版（npm 发布不可撤回，盖章没跑会把
+# 占位版永久上架，而重跑又会因「已存在」全部略过）；发布后轮询等主套件可见（首次上架的
+# packument 会延迟好几分钟，只查一次会假红；「全部跳过」与「全部发完」在 job 结果上同样是绿，
+# 没有这一步 job 绿得毫无意义）。
 
 name: npm publish
 
@@ -32,16 +32,16 @@ on:
         required: true
         type: string
       main-package:
-        description: '主套件名，例如 @speclink/cli；最後發並等它在 registry 可見'
+        description: '主套件名，例如 @speclink/cli；最后发并等它在 registry 可见'
         required: true
         type: string
       materialize:
-        description: '物化腳本路徑；留空表示 artifact 內已是 tarball，不重新打包'
+        description: '物化脚本路径；留空表示 artifact 内已是 tarball，不重新打包'
         required: false
         type: string
         default: ''
       sums-artifact:
-        description: '有值時把 tarball 的 sha256 清單上傳為此名的 artifact'
+        description: '有值时把 tarball 的 sha256 清单上传为此名的 artifact'
         required: false
         type: string
         default: ''
@@ -50,7 +50,7 @@ on:
         required: false
     outputs:
       published:
-        description: 'true＝主套件已上架且在 registry 可見；false＝NPM_TOKEN 缺席而跳過'
+        description: 'true＝主套件已上架且在 registry 可见；false＝NPM_TOKEN 缺席而跳过'
         value: ${{ jobs.publish.outputs.published }}
 
 jobs:
@@ -61,13 +61,13 @@ jobs:
     outputs:
       published: ${{ steps.publish.outputs.published || 'false' }}
     steps:
-      # secrets 不能出現在 job 層級的 if，故以首步輸出當開關。
+      # secrets 不能出现在 job 层级的 if，故以首步输出当开关。
       - name: npm credential gate
         id: gate
         shell: bash
         run: echo "enabled=$([ -n "$NPM_TOKEN" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-      # 物化腳本與 packages/*-npm 的主套件在 repo 內（engine 路徑用不到 checkout，多一步無害）。
+      # 物化脚本与 packages/*-npm 的主套件在 repo 内（engine 路径用不到 checkout，多一步无害）。
       - uses: actions/checkout@v5
         if: steps.gate.outputs.enabled == 'true'
 
@@ -77,15 +77,15 @@ jobs:
           node-version: 20
           registry-url: https://registry.npmjs.org
 
-      # 保留 artifact 目錄結構：物化腳本要的是 input/<name>-<target>/<binary> 佈局；
-      # tarball 路徑下面以 find 攤平，不依賴層數。
+      # 保留 artifact 目录结构：物化脚本要的是 input/<name>-<target>/<binary> 布局；
+      # tarball 路径下面以 find 摊平，不依赖层数。
       - uses: actions/download-artifact@v4
         if: steps.gate.outputs.enabled == 'true'
         with:
           pattern: ${{ inputs.artifacts }}
           path: input
 
-      # 輸入一律經 env 進 shell（不內插進 run:），tag 名與輸入值可含 shell 特殊字元。
+      # 输入一律经 env 进 shell（不内插进 run:），tag 名与输入值可含 shell 特殊字符。
       - name: Materialize and pack (or collect the prebuilt tarballs)
         if: steps.gate.outputs.enabled == 'true'
         shell: bash
@@ -96,7 +96,7 @@ jobs:
           mkdir -p tarballs
           if [ -n "$MATERIALIZE" ]; then
             node "$MATERIALIZE" --version "$VERSION" --binaries input --out npm-out
-            # 先 pack 再 publish tgz：npm publish <tgz> 上傳的就是這一份 bytes。
+            # 先 pack 再 publish tgz：npm publish <tgz> 上传的就是这一份 bytes。
             for pkg in npm-out/*/; do
               (cd "$pkg" && npm pack --pack-destination "$GITHUB_WORKSPACE/tarballs" >/dev/null)
             done
@@ -116,7 +116,7 @@ jobs:
         run: |
           EXPECTED="${GITHUB_REF_NAME#v}"
 
-          # tarball 內 package/package.json 的欄位（name／version）。
+          # tarball 内 package/package.json 的字段（name／version）。
           pkg_field() {
             tar -xzOf "$1" package/package.json | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).$2"
           }
@@ -126,20 +126,20 @@ jobs:
             name="$(pkg_field "$tgz" name)"
             version="$(pkg_field "$tgz" version)"
             if [ "$version" != "$EXPECTED" ]; then
-              echo "::error::$name 的 tarball 版號為 $version，與 tag 版 $EXPECTED 不符（版號蓋章沒跑？）"
+              echo "::error::$name 的 tarball 版号为 $version，与 tag 版 $EXPECTED 不符（版号盖章没跑？）"
               exit 1
             fi
             if npm view "$name@$version" version >/dev/null 2>&1; then
-              echo "$name@$version 已在 registry，跳過"
+              echo "$name@$version 已在 registry，跳过"
             else
-              # `./` 不可省：npm publish 的引數是 package spec，不是路徑。`tarballs/x.tgz` 恰好是
-              # 「一個斜線」的形狀，會被當成 GitHub 簡寫 owner/repo 去 git ls-remote（2026-09-08 的
-              # engine v0.2.0 主套件就死在這裡）。前綴 ./ 讓它只能是路徑。
+              # `./` 不可省：npm publish 的参数是 package spec，不是路径。`tarballs/x.tgz` 恰好是
+              # 「一个斜线」的形状，会被当成 GitHub 简写 owner/repo 去 git ls-remote（2026-09-08 的
+              # engine v0.2.0 主套件就死在这里）。前缀 ./ 让它只能是路径。
               npm publish "./$tgz" --access public
             fi
           }
 
-          # 平台子套件先發、主套件最後：optionalDependencies 於主套件上架時皆可解析到同版。
+          # 平台子套件先发、主套件最后：optionalDependencies 于主套件上架时皆可解析到同版。
           main_tgz=""
           for tgz in tarballs/*.tgz; do
             if [ "$(pkg_field "$tgz" name)" = "$MAIN" ]; then
@@ -148,23 +148,23 @@ jobs:
               publish_one "$tgz"
             fi
           done
-          [ -n "$main_tgz" ] || { echo "::error::tarballs 內沒有主套件 $MAIN"; exit 1; }
+          [ -n "$main_tgz" ] || { echo "::error::tarballs 内没有主套件 $MAIN"; exit 1; }
           publish_one "$main_tgz"
 
-          # 等主套件在 registry 可見，沒等到就紅——否則下游（tap-publish）會拿到一份指向
-          # 還抓不到的 tgz 的 formula。
+          # 等主套件在 registry 可见，没等到就红——否则下游（tap-publish）会拿到一份指向
+          # 还抓不到的 tgz 的 formula。
           visible=""
           for _ in $(seq 1 60); do
             if npm view "$MAIN@$EXPECTED" version >/dev/null 2>&1; then visible=1; break; fi
             sleep 10
           done
-          [ -n "$visible" ] || { echo "::error::$MAIN@$EXPECTED 十分鐘內未出現在 registry"; exit 1; }
+          [ -n "$visible" ] || { echo "::error::$MAIN@$EXPECTED 十分钟内未出现在 registry"; exit 1; }
 
-          # 校驗清單（只有指定 sums-artifact 的通路需要）算在 registry 上那份 bytes：每個套件都從
-          # formula 會指向的同一個 tarball 網址取回。重跑時已上架的同版被跳過、本次重建的 bytes
-          # 不一定相同，formula 指的是 registry 那份，所以不能拿本次 pack 的算。這裡直接抓 tarball、
-          # 不用 npm pack：npm pack 要先讀 packument，formula 卻用不到它；v0.11.0、v0.12.0 的
-          # npm pack 都對 cli-linux-arm64 連續失敗五分鐘（當時錯誤訊息被丟掉，原因未明），事後才取得到。
+          # 校验清单（只有指定 sums-artifact 的通路需要）算在 registry 上那份 bytes：每个套件都从
+          # formula 会指向的同一个 tarball 网址取回。重跑时已上架的同版被跳过、本次重建的 bytes
+          # 不一定相同，formula 指的是 registry 那份，所以不能拿本次 pack 的算。这里直接抓 tarball、
+          # 不用 npm pack：npm pack 要先读 packument，formula 却用不到它；v0.11.0、v0.12.0 的
+          # npm pack 都对 cli-linux-arm64 连续失败五分钟（当时错误消息被丢掉，原因未明），事后才取得到。
           if [ -n "$SUMS_ARTIFACT" ]; then
             mkdir -p registry-tarballs
             for tgz in tarballs/*.tgz; do
@@ -175,7 +175,7 @@ jobs:
                 if curl -fsSL --max-time 120 "$url" -o "registry-tarballs/$(basename "$tgz")"; then fetched=1; break; fi
                 sleep 10
               done
-              [ -n "$fetched" ] || { echo "::error::$name@$EXPECTED 五分鐘內無法自 registry 取回 tarball（$url）"; exit 1; }
+              [ -n "$fetched" ] || { echo "::error::$name@$EXPECTED 五分钟内无法自 registry 取回 tarball（$url）"; exit 1; }
             done
             (cd registry-tarballs && sha256sum *.tgz) > "$SUMS_ARTIFACT.txt"
             cat "$SUMS_ARTIFACT.txt"

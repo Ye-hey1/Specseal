@@ -60,18 +60,18 @@ jobs:
         id: npm-ci
         run: npm ci
 
-      # scripts/ 的測試面守的是「設定本身」的契約——workflow 步驟順序、release
-      # 產物組裝、簽章閘門、交付 gate。它零外部依賴且不到一秒，排在其他測試面之前
-      # 就能在跑滿建置前先擋下設定破損。
+      # scripts/ 的测试面守的是「设置本身」的契约——workflow 步骤顺序、release
+      # 产物组装、签章闸门、交付 gate。它零外部依赖且不到一秒，排在其他测试面之前
+      # 就能在跑满建置前先挡下设置破损。
       #
-      # 這裡用 bash 展開 glob 而非交給 node：--test 的 glob 展開是 Node 21 才有的
-      # 能力，本 job 釘選 Node 20；Windows runner 的預設 shell 也不展開 glob。
+      # 这里用 bash 展开 glob 而非交给 node：--test 的 glob 展开是 Node 21 才有的
+      # 能力，本 job 钉选 Node 20；Windows runner 的缺省 shell 也不展开 glob。
       - name: Test (scripts)
         shell: bash
         run: node --test scripts/*.test.mjs scripts/*/*.test.mjs
 
-      # 前一個測試面紅了，後面的照跑：一輪就看到全部失敗，不用修一個、重跑一輪才看到下一個。
-      # 只有依賴沒裝成（或更早的建置失敗讓它被跳過）才不跑，那時跑了只會多出噪音。
+      # 前一个测试面红了，后面的照跑：一轮就看到全部失败，不用修一个、重跑一轮才看到下一个。
+      # 只有依赖没装成（或更早的建置失败让它被跳过）才不跑，那时跑了只会多出噪音。
       - name: Test (UI)
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: npm test -w packages/ui
@@ -84,10 +84,10 @@ jobs:
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: npm test -w apps/server-web
 
-      # 兩個前端 production build 都必須在 cargo test 之前完成：desktop 供
-      # tauri::generate_context! 於編譯期內嵌 frontendDist；server-web 供
+      # 两个前端 production build 都必须在 cargo test 之前完成：desktop 供
+      # tauri::generate_context! 于编译期内嵌 frontendDist；server-web 供
       # speclink-server 的 compile-time asset embedding。Rust 的 embedded asset／
-      # route 測試才會驗到當次 source 產出的 index 與 manifest，而非過期產物。
+      # route 测试才会验到当次 source 产出的 index 与 manifest，而非过期产物。
       - name: Build desktop frontend (vite → dist)
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: npm run build -w apps/desktop
@@ -96,10 +96,10 @@ jobs:
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: npm run build -w apps/server-web
 
-      # speclink-desktop 的 build script 於編譯期檢查 tauri.conf.json 的 externalBin
-      # 是否就位，而 binaries/ 是 gitignored——沒佈 sidecar 的話 cargo test 會死在
-      # build script（不是測試紅字，是整個 crate 編不動）。CLI 上面已建過 release，
-      # 這一步只是重用產物再複製到 target-triple 命名位置。
+      # speclink-desktop 的 build script 于编译期检查 tauri.conf.json 的 externalBin
+      # 是否就位，而 binaries/ 是 gitignored——没布 sidecar 的话 cargo test 会死在
+      # build script（不是测试红字，是整个 crate 编不动）。CLI 上面已建过 release，
+      # 这一步只是重用产物再拷贝到 target-triple 命名位置。
       - name: Stage CLI sidecar (desktop externalBin)
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: node scripts/desktop/desktop-sidecar.mjs
@@ -108,7 +108,7 @@ jobs:
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: cargo test --workspace --locked
 
-  # Phase 3 收官劇本獨立計時、獨立失敗現場；不藏在 workspace 單元測試裡。
+  # Phase 3 收官剧本独立计时、独立失败现场；不藏在 workspace 单元测试里。
   phase3-e2e:
     runs-on: ubuntu-latest
     env:
@@ -130,18 +130,18 @@ jobs:
         with:
           node-version: 20
 
-      # 兩份 dist 都要：desktop 供 tauri::generate_context! 內嵌 frontendDist；
+      # 两份 dist 都要：desktop 供 tauri::generate_context! 内嵌 frontendDist；
       # server-web 供 speclink-server 的 asset embedding——desktop 的 dev-dependencies
-      # 帶 speclink-server，phase3 劇本正是拿它起真 server，缺 dist 則 RustEmbed
-      # 於編譯期失敗。
+      # 带 speclink-server，phase3 剧本正是拿它起真 server，缺 dist 则 RustEmbed
+      # 于编译期失败。
       - name: Build frontends (desktop + server-web)
         run: |
           npm ci
           npm run build -w apps/desktop
           npm run build -w apps/server-web
 
-      # externalBin 的編譯期存在性檢查，同 build-and-smoke；此 job 沒有現成的
-      # release CLI，故這一步自己建。
+      # externalBin 的编译期存在性检查，同 build-and-smoke；此 job 没有现成的
+      # release CLI，故这一步自己建。
       - name: Stage CLI sidecar (desktop externalBin)
         run: node scripts/desktop/desktop-sidecar.mjs
 
@@ -161,9 +161,9 @@ jobs:
           path: target/phase3-e2e-artifacts/
           if-no-files-found: warn
 
-  # Docker 冒煙（server-release spec）：映像 build 得起來只是下限——起得來、
-  # /healthz 與 /readyz 皆 2xx、logs 印 setup token、壞組態 fail closed 以非零
-  # exit code 結束，四件事都驗到才算。兩份 compose 檔的語法驗證也掛在這裡。
+  # Docker 冒烟（server-release spec）：映像 build 得起来只是下限——起得来、
+  # /healthz 与 /readyz 皆 2xx、logs 印 setup token、坏组态 fail closed 以非零
+  # exit code 结束，四件事都验到才算。两份 compose 档的语法验证也挂在这里。
   docker-smoke:
     runs-on: ubuntu-latest
     steps:
@@ -172,21 +172,21 @@ jobs:
       - name: Build image
         run: docker build -f crates/host/speclink-server/Dockerfile -t speclink-server:smoke .
 
-      - name: Compose 檔語法驗證
+      - name: Compose 档语法验证
         env:
-          # postgres compose 對缺密碼設計成大聲失敗（${VAR:?}），語法驗證給假值通過。
+          # postgres compose 对缺密码设计成大声失败（${VAR:?}），语法验证给假值通过。
           SPECLINK_POSTGRES_PASSWORD: ci-syntax-check-only
         run: |
           docker compose -f deploy/docker-compose.yml config --quiet
           docker compose -f deploy/docker-compose.postgres.yml config --quiet
 
-      # 語法過不代表起得來，這一步驗真正的 compose 路徑。
+      # 语法过不代表起得来，这一步验真正的 compose 路径。
       #
-      # --build 是必要的，不是保險：compose 對 image: 是「先 pull、失敗才 build」。
-      # 今天 ghcr 上還沒有 :latest（pull 403 → 回退建置）所以看起來會過，但首次
-      # 正式發版推出 :latest 的那天，這一步會改拉已發布映像、不再建置本 commit 的
-      # 原始碼——測的東西被無聲掉包。--build 讓它永遠建置受測原始碼。
-      - name: 冒煙 — SQLite compose 一行開箱
+      # --build 是必要的，不是保险：compose 对 image: 是「先 pull、失败才 build」。
+      # 今天 ghcr 上还没有 :latest（pull 403 → 回退建置）所以看起来会过，但首次
+      # 正式发版推出 :latest 的那天，这一步会改拉已发布映像、不再建置本 commit 的
+      # 原代码——测的东西被无声掉包。--build 让它永远建置受测原代码。
+      - name: 冒烟 — SQLite compose 一行开箱
         shell: bash
         working-directory: deploy
         run: |
@@ -197,18 +197,18 @@ jobs:
             sleep 1
           done
           if [ -z "$ok" ]; then
-            echo "::error::compose 起的 server 未在 60 秒內就緒"
+            echo "::error::compose 起的 server 未在 60 秒内就绪"
             docker compose logs
             exit 1
           fi
           if ! docker compose logs server | grep -Eq 'setup\?token=[A-Za-z0-9_]+'; then
-            echo "::error::compose logs 沒有一次性 setup token 行"
+            echo "::error::compose logs 没有一次性 setup token 行"
             docker compose logs
             exit 1
           fi
           docker compose down -v
 
-      - name: 冒煙 — 起容器（SQLite 組態）→ /healthz、/readyz → setup token 行
+      - name: 冒烟 — 起容器（SQLite 组态）→ /healthz、/readyz → setup token 行
         shell: bash
         run: |
           docker run -d --name smoke -p 8080:8080 speclink-server:smoke
@@ -219,23 +219,23 @@ jobs:
             sleep 1
           done
           if [ -z "$ok" ]; then
-            echo "::error::/healthz 或 /readyz 未在 30 秒內回 2xx"
+            echo "::error::/healthz 或 /readyz 未在 30 秒内回 2xx"
             docker logs smoke
             exit 1
           fi
           if ! docker logs smoke | grep -Eq 'setup\?token=[A-Za-z0-9_]+'; then
-            echo "::error::logs 沒有一次性 setup token 行"
+            echo "::error::logs 没有一次性 setup token 行"
             docker logs smoke
             exit 1
           fi
           docker stop smoke
 
-      # spec 的 THEN 有兩句：非零 exit code「且」不綁定連接埠。後者在容器退出後
-      # 無法用 curl 觀察——埠映射隨容器一起拆掉，那種斷言恆真、是假覆蓋。改以
-      # 啟動順序的可觀察代理來驗：main.rs 的順序是 config → store → identity →
-      # setup token → bind，所以「死在 config 階段」＋「沒印出 token 行」即證明
-      # 執行從未走到 bind。
-      - name: 壞組態容器即死（fail closed，且未走到 bind）
+      # spec 的 THEN 有两句：非零 exit code「且」不绑定连接端口。后者在容器退出后
+      # 无法用 curl 观察——端口映射随容器一起拆掉，那种断言恒真、是假覆盖。改以
+      # 启动顺序的可观察代理来验：main.rs 的顺序是 config → store → identity →
+      # setup token → bind，所以「死在 config 阶段」＋「没印出 token 行」即证明
+      # 运行从未走到 bind。
+      - name: 坏组态容器即死（fail closed，且未走到 bind）
         shell: bash
         run: |
           printf 'store: [unclosed\n' > bad-config.yaml
@@ -247,22 +247,22 @@ jobs:
             sleep 1
           done
           if [ "$(docker inspect -f '{{.State.Status}}' badcfg)" != "exited" ]; then
-            echo "::error::壞組態容器 15 秒內未退出——啟動守門失效"
+            echo "::error::坏组态容器 15 秒内未退出——启动守门失效"
             docker logs badcfg
             exit 1
           fi
           rc=$(docker inspect -f '{{.State.ExitCode}}' badcfg)
           docker logs badcfg || true
           if [ "$rc" -eq 0 ]; then
-            echo "::error::壞組態容器以 0 退出——fail closed 失效"
+            echo "::error::坏组态容器以 0 退出——fail closed 失效"
             exit 1
           fi
           if ! docker logs badcfg 2>&1 | grep -q 'cannot parse config file'; then
-            echo "::error::非零退出但不是因為組態解析失敗——守門的把關點跑掉了"
+            echo "::error::非零退出但不是因为组态解析失败——守门的把关点跑掉了"
             exit 1
           fi
           if docker logs badcfg 2>&1 | grep -q 'setup?token='; then
-            echo "::error::壞組態下仍鑄出 setup token——執行走過了 config 守門"
+            echo "::error::坏组态下仍铸出 setup token——运行走过了 config 守门"
             exit 1
           fi
 
@@ -300,8 +300,8 @@ jobs:
         with:
           node-version: 20
 
-      # 這個 job 也編 speclink-server，其 lib 於編譯期內嵌 apps/server-web/dist
-      # （gitignored）。沒有這一步，postgres 套件根本走不到測試就編譯失敗。
+      # 这个 job 也编 speclink-server，其 lib 于编译期内嵌 apps/server-web/dist
+      # （gitignored）。没有这一步，postgres 套件根本走不到测试就编译失败。
       - name: Build server-web frontend (vite → dist)
         run: |
           npm ci

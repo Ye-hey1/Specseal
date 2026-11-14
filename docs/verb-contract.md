@@ -1,6 +1,6 @@
 # Verb and Flag Contract
 
-[繁體中文](verb-contract.zh-TW.md) · **English**
+[简体中文](verb-contract.zh-CN.md) · **English**
 
 ## <a id="audience"></a>Who this document is for
 
@@ -354,7 +354,7 @@ If-Match: 2
 
 | Endpoint | Request body | Success response |
 | --- | --- | --- |
-| `POST /discussions` | `{"topic":"看板搜尋列","slug":"board-search-bar"}` | `{"slug":"board-search-bar","topic":"看板搜尋列","path":"discussions/board-search-bar.md"}` |
+| `POST /discussions` | `{"topic":"看板搜索列","slug":"board-search-bar"}` | `{"slug":"board-search-bar","topic":"看板搜索列","path":"discussions/board-search-bar.md"}` |
 | `PUT /discussions/{slug}/context` | `{"content":"…"}` | `{}` |
 | `POST /discussions/{slug}/rounds` | `{"mode":"interview","content":"…"}` | `{"round":1}` |
 | `POST /discussions/{slug}/conclude` | `{"content":"…","hold":true}` | `{"restaleFlagged":[],"held":true}` |
@@ -446,7 +446,7 @@ Always present: `slug`, `topic`, `status`, `rounds`, `created`, `path`, `archive
 Optional: `createdBy`, `kind` (`improve` for an improve discussion), and `promotedTo`. `promotedTo` lists the changes that the discussion turned into, in the order of promotion. The server takes it directly from the discussion record. It does not appear when the discussion has no promotion.
 
 ```json
-{ "slug": "board-search-bar", "topic": "看板搜尋列", "status": "promoted", "rounds": 1, "created": "2026-10-07", "createdBy": "Demo <demo@example.com>", "promotedTo": ["add-search-bar"], "concluded": true, "hold": true, "path": "discussions/board-search-bar.md", "archived": false }
+{ "slug": "board-search-bar", "topic": "看板搜索列", "status": "promoted", "rounds": 1, "created": "2026-10-07", "createdBy": "Demo <demo@example.com>", "promotedTo": ["add-search-bar"], "concluded": true, "hold": true, "path": "discussions/board-search-bar.md", "archived": false }
 ```
 
 ### The local `worktree` field of `speclink list --json`

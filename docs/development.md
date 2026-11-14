@@ -1,6 +1,6 @@
 # Development Environment
 
-[繁體中文](development.zh-TW.md) · **English**
+[简体中文](development.zh-CN.md) · **English**
 
 This document is for developers who clone the source tree. It explains the five one-command entry points at the repo root, how to run the tests, and the repo layout. The last section shows how to open unsigned installers from Releases.
 
@@ -31,8 +31,8 @@ If you only want to host a server outside a checkout, you do not need this docum
 - **Purpose**: start the full dev environment with one command. It builds the `speclink-cli` of the current checkout first. If the build succeeds, it starts `speclink-server` and the desktop app (tauri dev) together. The Vite dev server supplies the desktop frontend, so frontend edits reload at once.
 - **Prerequisites**: all items in Prerequisites. The settings come from `.env` at the repo root (copy `.env.example` and edit it). Without `.env`, all defaults apply: sqlite, data in `.dev/`, and the server on `127.0.0.1:8080`. If `.env` is not valid (for example, `SPECLINK_STORE_DRIVER=postgres` without `SPECLINK_POSTGRES_URL`), the command exits non-zero and starts nothing.
 - **Expected observable results**:
-  1. The terminal first shows `speclink dev: 建置當前 checkout 的 speclink-cli…`. If the build fails, the command exits non-zero and leaves no background process.
-  2. On the first start, the server prints one line: `Speclink 首次啟動：開啟 http://localhost:8080/setup?token=… 完成初始設定（此連結 24 小時內有效，且僅顯示這一次）。`. Open that link to complete the initial setup.
+  1. The terminal first shows `speclink dev: 建置当前 checkout 的 speclink-cli…`. If the build fails, the command exits non-zero and leaves no background process.
+  2. On the first start, the server prints one line: `Speclink 首次启动：打开 http://localhost:8080/setup?token=… 完成初始设置（此链接 24 小时内有效，且仅显示这一次）。`. Open that link to complete the initial setup.
   3. The desktop side puts the sidecar (the CLI inside the desktop app; see [`npm run dev:desktop`](#dev-desktop)) in place, then opens the desktop window.
   4. Ctrl+C stops the server and the desktop app together and leaves no background process. If one side stops first, the other side also stops. Data stays in `.dev/` (not in version control).
 
@@ -49,7 +49,7 @@ The CLI build comes first on purpose. When you then check things with [`npm run 
 - **Purpose**: start only the desktop app (tauri dev), for desktop work and local-mode trials. It starts no server and needs no remote settings.
 - **Prerequisites**: Rust, `npm install`, and the Tauri system dependencies. The `.env` check is the same as in `npm run dev`.
 - **Expected observable results**:
-  1. It builds `speclink-cli` and copies it to the location that the desktop app needs. This CLI inside the desktop app is the sidecar. The terminal shows `sidecar 佈署完成（debug）：…`, or `sidecar 內容未變，跳過複製：…` when nothing changed. If this step fails, the command exits non-zero and opens no window.
+  1. It builds `speclink-cli` and copies it to the location that the desktop app needs. This CLI inside the desktop app is the sidecar. The terminal shows `sidecar 布署完成（debug）：…`, or `sidecar 内容未变，跳过拷贝：…` when nothing changed. If this step fails, the command exits non-zero and opens no window.
   2. The Vite dev server starts, then the desktop window opens. The UI comes from the current source, and frontend edits reload in place.
   3. The window runs in local mode and can open the `speclink/` board of this repo. It works with no server on the machine.
 

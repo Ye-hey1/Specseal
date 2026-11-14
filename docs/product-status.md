@@ -1,6 +1,6 @@
 # Product status
 
-[繁體中文](product-status.zh-TW.md) · **English**
+[简体中文](product-status.zh-CN.md) · **English**
 
 Last check: **2026-10-07** (0.8.0).
 

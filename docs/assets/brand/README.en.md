@@ -1,6 +1,6 @@
 # Speclink brand assets
 
-[繁體中文](README.md) · **English**
+[繁体中文](README.md) · **English**
 
 The interlocking S consists of two complementary shapes, expressing connections between requirements, specifications and implementation. The app icon uses a teal rounded tile with a white S. Outside the tile is transparent, including in the Windows ICO; rounded corners do not depend on an OS mask.
 

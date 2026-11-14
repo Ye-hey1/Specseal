@@ -14,13 +14,13 @@ on:
       - 'Cargo.toml'
       - 'Cargo.lock'
       - '.github/workflows/node-sdk.yml'
-  # 同檔雙角色（設計 D1）：push／PR 是 CI 驗證（無 version，佔位版號打包），
-  # release.yml 以 workflow_call 帶 tag 版重用同一份 build/pack，蓋章後的
-  # npm-tarballs artifact 因屬同一 workflow run 而能被 caller 的後續 job 下載。
+  # 同档双角色（设计 D1）：push／PR 是 CI 验证（无 version，占位版号打包），
+  # release.yml 以 workflow_call 带 tag 版重用同一份 build/pack，盖章后的
+  # npm-tarballs artifact 因属同一 workflow run 而能被 caller 的后续 job 下载。
   workflow_call:
     inputs:
       version:
-        description: '發布版號（X.Y.Z，不帶 v 前綴）；留空則以 repo 內佔位版號打包'
+        description: '发布版号（X.Y.Z，不带 v 前缀）；留空则以 repo 内占位版号打包'
         required: false
         type: string
 
@@ -78,7 +78,7 @@ jobs:
       - name: Build native module (release)
         run: npm run build:release -- --target ${{ matrix.settings.target }}
 
-      # engine.spec 的 CLI parity 測試需要 speclink binary；與 napi release build 共用編譯產物。
+      # engine.spec 的 CLI parity 测试需要 speclink binary；与 napi release build 共用编译产物。
       - name: Build the CLI for parity tests (release)
         if: matrix.settings.test
         working-directory: .
@@ -95,9 +95,9 @@ jobs:
           path: crates/adapters/speclink-node/*.node
           if-no-files-found: error
 
-      # binding.js 是 napi build 產生的 loader，被 .gitignore 忽略，但主套件的
-      # files 列了它——pack job 不重新建置，所以這裡帶一份出去。它只依 platform／
-      # arch 分派、與 target 無關，因此固定從一個 target 上傳一份即可。
+      # binding.js 是 napi build 产生的 loader，被 .gitignore 忽略，但主套件的
+      # files 列了它——pack job 不重新建置，所以这里带一份出去。它只依 platform／
+      # arch 分派、与 target 无关，因此固定从一个 target 上传一份即可。
       - name: Upload the generated JS loader
         if: matrix.settings.target == 'x86_64-unknown-linux-gnu'
         uses: actions/upload-artifact@v4
@@ -123,9 +123,9 @@ jobs:
       - name: Create platform sub-package directories
         run: npx napi create-npm-dir -t .
 
-      # pattern 圈定：被 release.yml 以 workflow_call 重用時，本 job 與 caller 屬
-      # 同一個 run，不圈定會把 server-*／desktop-* 等 artifact 一起灌進 napi 的
-      # 掃描目錄。
+      # pattern 圈定：被 release.yml 以 workflow_call 重用时，本 job 与 caller 属
+      # 同一个 run，不圈定会把 server-*／desktop-* 等 artifact 一起灌进 napi 的
+      # 扫描目录。
       - name: Download all platform binaries
         uses: actions/download-artifact@v4
         with:
@@ -135,18 +135,18 @@ jobs:
       - name: Distribute binaries into sub-packages
         run: npx napi artifacts
 
-      # binding.js 只由 napi build 產生、不在 repo 內，而主套件的 files 列了它：
-      # 少了它 npm pack 會靜默略過，發出去的套件一 require 就 MODULE_NOT_FOUND。
+      # binding.js 只由 napi build 产生、不在 repo 内，而主套件的 files 列了它：
+      # 少了它 npm pack 会静默略过，发出去的套件一 require 就 MODULE_NOT_FOUND。
       - name: Restore the generated JS loader
         uses: actions/download-artifact@v4
         with:
           name: binding-js
           path: crates/adapters/speclink-node
 
-      # 版號蓋章（設計 D2）：只在 workflow_call 帶 version 時執行，把 tag 版寫進主
-      # 套件與全部平台子套件並物化 optionalDependencies。push／PR 無此輸入即跳過，
-      # 打包行為與導入 workflow_call 前完全一致。版號經 env 傳入而非內插進 run:
-      # ——tag 名可含引號與分號，內插等於把 tag 名當 shell 原始碼跑。
+      # 版号盖章（设计 D2）：只在 workflow_call 带 version 时运行，把 tag 版写进主
+      # 套件与全部平台子套件并物化 optionalDependencies。push／PR 无此输入即跳过，
+      # 打包行为与导入 workflow_call 前完全一致。版号经 env 传入而非内插进 run:
+      # ——tag 名可含引号与分号，内插等于把 tag 名当 shell 原代码跑。
       - name: Stamp the release version onto the package family
         if: inputs.version != ''
         working-directory: .
@@ -161,15 +161,15 @@ jobs:
             (cd "$dir" && npm pack)
           done
           ls -l ./*.tgz npm/*/*.tgz
-          # fail closed：主套件少了 binding.js 照樣打包成功，但裝起來是壞的。
+          # fail closed：主套件少了 binding.js 照样打包成功，但装起来是坏的。
           main_tgz="$(ls ./*.tgz)"
           tar -tzf "$main_tgz" | grep -qx 'package/binding.js' \
             || { echo "::error::主套件 tarball 缺 binding.js（loader 未取回）"; exit 1; }
-          # 同一道保險要對稱：napi artifacts 找不到相符檔名時是靜默 return，
-          # 少了這裡就會打包出「只有 package.json」的子套件，全綠發上 npm。
+          # 同一道保险要对称：napi artifacts 找不到相符文件名时是静默 return，
+          # 少了这里就会打包出「只有 package.json」的子套件，全绿发上 npm。
           for tgz in npm/*/*.tgz; do
             tar -tzf "$tgz" | grep -q '\.node$' \
-              || { echo "::error::子套件 tarball $tgz 缺 .node（napi artifacts 沒分配到二進位）"; exit 1; }
+              || { echo "::error::子套件 tarball $tgz 缺 .node（napi artifacts 没分配到二进位）"; exit 1; }
           done
 
       - name: Upload npm tarballs

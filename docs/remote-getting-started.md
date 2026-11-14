@@ -1,6 +1,6 @@
 # Remote Getting Started: Server, Desktop, and CLI
 
-[繁體中文](remote-getting-started.zh-TW.md) · **English**
+[简体中文](remote-getting-started.zh-CN.md) · **English**
 
 Follow this guide once. You start a Speclink server on your own computer, and then you connect the Desktop app and the CLI to the same project. Each step shows the result that you must see. For the local path without a server, see [Local Repo Getting Started](getting-started.md). [Project Capability Status](product-status.md) is the reference for what works today.
 
@@ -37,7 +37,7 @@ npx @speclink/server
 **Expected output**: one first-run line with a one-time setup link.
 
 ```text
-Speclink 首次啟動：開啟 http://localhost:8080/setup?token=spk_setup_… 完成初始設定（此連結 24 小時內有效，且僅顯示這一次）。
+Speclink 首次启动：打开 http://localhost:8080/setup?token=spk_setup_… 完成初始设置（此链接 24 小时内有效，且仅显示这一次）。
 ```
 
 The server prints this link only once. The link is valid for 24 hours. Copy it now.
@@ -71,7 +71,7 @@ The setup has two steps:
 
 ![The Speclink server first-run setup screen, step 2 creates the project and the repository](assets/screenshots/en/server-setup.png)
 
-(The screenshots show the interface in Traditional Chinese. You can change the interface language.)
+(The screenshots show the interface in Simplified Chinese. You can change the interface language.)
 
 When the setup finishes, the browser opens the admin console overview as the admin. The "Getting started" block at the top shows the service URL, the project key, and the repository key. This block appears only once, right after the setup. Write the values down.
 

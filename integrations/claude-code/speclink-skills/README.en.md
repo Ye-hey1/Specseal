@@ -1,6 +1,6 @@
 # speclink-skills: a Claude Code mod for Speclink
 
-[繁體中文](README.md)
+[繁体中文](README.md)
 
 It adds four things to Claude Code:
 
