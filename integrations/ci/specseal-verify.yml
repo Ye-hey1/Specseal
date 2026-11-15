@@ -1,18 +1,19 @@
-# Specseal verify 门禁 — GitHub Actions 模板。
+# Specseal verify 门禁 — GitHub Actions 模板（下游项目用）。
 #
-# 把本文件复制进【你的项目】的 .github/workflows/ 目录（不是本仓库自己的 CI）。
-# 它在以下情况让 PR 失败：
-#   1. 工作区校验不再通过（规格文件结构损坏），或
-#   2. 本 PR 涉及的某个进行中变更没有 verify 盖章。
+# 推荐方式：直接引用本仓库的 composite action（一行接入，无需复制脚本）。
+# 把本文件放进你的项目 .github/workflows/specseal-verify.yml：
 #
-# 准备：
-#   - 需要装好引擎。两种方式：
-#       a. 从本 fork 构建：  cargo install --path crates/adapters/speclink-cli
-#       b. 上游 npm 渠道：   npm i -g @speclink/cli   （同一引擎，Speclink 品牌）
-#   - 「盖章门禁」步骤里的 JSON 字段名请按你的引擎版本输出调整
-#     （`speclink list --json`、`speclink show <change> --json`、
-#     `speclink verify show <change> --json`）。输出形状见 Specseal 检出目录的
-#     docs/verb-contract.zh-CN.md。
+#   action 会做两件事：
+#     1. `speclink validate`——工作区结构校验（格式错的 proposal / 缺复选框的
+#        tasks.md / 缺操作段落的 delta 都会让 PR 失败）
+#     2. 盖章门禁——PR diff 触及的每个未归档变更必须已有 verify 章
+#        （.meta.yaml 的 verified_at，与桌面 app / Herdr 面板同源）；
+#        require-reviewed: true 时还要求 review 章。
+#
+#   自定义：
+#     install-engine: false   # runner 上已装好 speclink 时跳过 npm 安装
+#     require-reviewed: true  # 连 review 章一起要求
+#     changes: "a b"          # 显式指定要门禁的变更，默认取 PR diff 触及的
 
 name: specseal-verify
 
@@ -25,47 +26,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # speclink 要读变更历史；给工作区留够深度
+          # 盖章门禁要对比 PR 与基准分支的 diff；给足深度
           fetch-depth: 0
 
-      - name: 安装引擎
-        run: |
-          # 方式 (a)：从 Specseal 检出目录构建（检出路径）：
-          # cargo install --path /path/to/Specseal/crates/adapters/speclink-cli
-          # 方式 (b)：上游渠道：
-          npm i -g @speclink/cli
-          speclink --version
+      - uses: Ye-hey1/Specseal/.github/actions/specseal-verify@main
+        with:
+          install-engine: true
 
-      # 关卡 1 — 结构。`validate` 对格式错误的 proposal、没有复选框的
-      # tasks.md、缺操作段落的 delta 以非零码退出。此关卡精确，无需调整。
-      - name: 校验工作区
-        run: speclink validate
-
-      # 关卡 2 — 盖章门禁。对本 PR 涉及的每个进行中变更，
-      # 要求存在已盖章的 verify 票据。字段名按你引擎版本的 JSON 输出调整
-      # （见 docs/verb-contract.zh-CN.md）。
-      - name: 盖章门禁（字段按你的版本调整）
-        shell: bash
-        run: |
-          set -euo pipefail
-          # 本 PR 相对基准分支改动的变更：
-          changed_specs="$(git diff --name-only "origin/${{ github.base_ref }}..." \
-            | grep -E '^speclink/changes/' | cut -d/ -f3 | sort -u || true)"
-          if [ -z "$changed_specs" ]; then
-            echo "本 PR 未涉及 speclink 变更——无需门禁。"
-            exit 0
-          fi
-          fail=0
-          for change in $changed_specs; do
-            echo "检查变更: $change"
-            # JSON 路径按你的版本输出调整。
-            if ! speclink verify show "$change" --json | grep -q '"stamped"'; then
-              echo "::error::变更 '$change' 没有 verify 盖章。先走验证站并盖章，再合并。"
-              fail=1
-            fi
-          done
-          exit $fail
-
-      # 可选关卡 3 — 计划健全性：依赖波次仍可解析。
+      # 可选：依赖波次健全性检查
       - name: Plan
         run: speclink plan
+
+# ── 手动版（不想引用外部 action 时，把上面 steps 换成以下内容）────────
+#
+#       - name: Install engine
+#         run: npm i -g @speclink/cli
+#
+#       - name: Validate workspace
+#         run: speclink validate
+#
+#       - name: Stamp gate
+#         shell: bash
+#         run: |
+#           set -euo pipefail
+#           changed="$(git diff --name-only "origin/${{ github.base_ref }}..." \
+#             | grep -E '^speclink/changes/' | cut -d/ -f3 | grep -v '^archive$' | sort -u || true)"
+#           [ -z "$changed" ] && { echo "PR 未触及 speclink 变更——跳过。"; exit 0; }
+#           fail=0
+#           for change in $changed; do
+#             meta="speclink/changes/$change/.meta.yaml"
+#             if [ ! -f "$meta" ] || ! grep -q '^verified_at:' "$meta"; then
+#               echo "::error::变更 '$change' 尚未盖章（verify）。先走验证站再合并。"
+#               fail=1
+#             fi
+#           done
+#           exit $fail
+#
+#       - name: Plan
+#         run: speclink plan

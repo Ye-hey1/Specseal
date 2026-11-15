@@ -105,7 +105,7 @@ For the full first round (propose, apply, check, archive), see [Getting started]
 - **Execution order**: `speclink plan` puts changes into waves from their declared dependencies and shows the next change that is ready to start.
 - **Manual and trace**: Specseal generates a readable manual from the specs, and `trace` shows how a capability came to be.
 - **Team sharing**: After you connect a server, the CLI, the desktop app, and AI agents read and write the same specs.
-- **CI gate**: the [workflow template](integrations/ci/specseal-verify.yml) fails a PR whose changes are unstamped or whose spec files no longer validate.
+- **CI gate**: a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)) fails a PR whose touched changes are unstamped or whose spec files no longer validate — one `uses:` line in your workflow.
 
 ## <a id="how-it-works"></a>How it works
 
@@ -223,7 +223,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 - **Partial**: Remote workspaces in the desktop app, the Claude Code plugin, the Herdr mod.
 - **Planned upstream**: Agent tool packages and MCP, SSO, runtime plugins, multi-node deployment.
 
-Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename, the verify CI gate as a reusable GitHub Action, and a spec-kit migration command. **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client).
+Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename and a spec-kit migration command. **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client) and the verify CI gate as a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)).
 
 ## <a id="contributing"></a>Contributing
 
