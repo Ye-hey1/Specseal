@@ -25,19 +25,19 @@ describe("detectPlatform（design D1）", () => {
     expect(detectPlatform(LINUX_UA)).toBe("linux");
   });
 
-  it("非瀏覽器環境（無 navigator）回 linux", () => {
+  it("非浏览器环境（无 navigator）回 linux", () => {
     vi.stubGlobal("navigator", undefined);
     expect(detectPlatform()).toBe("linux");
   });
 
-  it("未傳 UA 時讀 navigator.userAgent", () => {
+  it("未传 UA 时读 navigator.userAgent", () => {
     vi.stubGlobal("navigator", { userAgent: MAC_UA });
     expect(detectPlatform()).toBe("macos");
   });
 });
 
-describe("modKey：快捷鍵標籤的修飾鍵", () => {
-  it("macOS 為 ⌘，Windows／Linux 為 Ctrl+", () => {
+describe("modKey：快捷键标签的修饰键", () => {
+  it("macOS 为 ⌘，Windows／Linux 为 Ctrl+", () => {
     expect(modKey("macos")).toBe("⌘");
     expect(modKey("windows")).toBe("Ctrl+");
     expect(modKey("linux")).toBe("Ctrl+");

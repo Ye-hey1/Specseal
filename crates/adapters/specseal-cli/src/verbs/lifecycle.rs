@@ -1,0 +1,213 @@
+//! Change lifecycle verbs: archive, discard, claim.
+//!
+//! archive and discard are Dual; claim is RemoteOnly (the fs store has no
+//! ownership concept, so dispatch refuses it before this file is reached).
+
+use anyhow::{bail, Result};
+use specseal_core as core;
+
+use crate::common::{emit, open_project, plain_command, render_options, run};
+use crate::remote_base::RemoteCtx;
+use core::store::Store;
+use core::workspace::Workspace;
+use specseal_verbs::families::lifecycle::{ArchiveArgs, DiscardArgs};
+use specseal_verbs::render::lifecycle as render;
+
+pub(crate) fn cmd_archive(a: ArchiveArgs) -> Result<()> {
+    let (ws, store) = open_project()?;
+    if a.all || a.changes.len() > 1 {
+        return cmd_archive_bulk(&ws, &store, &a);
+    }
+    // mark-tasks-complete 与封存语意（含 in-progress 标记不动）单点在 runtime。
+    let cmd = plain_command(&a)?;
+    let outcome: core::archive::ArchiveOutcome = run(&store, Some(&ws), cmd)?;
+    emit(render::archive(&outcome, render_options(false)));
+    Ok(())
+}
+/// Bulk archive (specseal-specific). Semantics: archives in created-date order, skips
+/// not-ready changes with a reason (never silently), and fail-fasts on the first actual
+/// archive error with a three-part report. The work tree's state is irrelevant — @trace
+/// no longer carries a file list, so a dirty file cannot leak into any archived change.
+fn cmd_archive_bulk(ws: &Workspace, store: &dyn Store, a: &ArchiveArgs) -> Result<()> {
+    let mut changes: Vec<core::model::Change> = if a.all {
+        core::model::list_changes(store)
+    } else {
+        let mut v = Vec::new();
+        for name in &a.changes {
+            v.push(
+                core::model::find_change(store, name)
+                    .ok_or_else(|| anyhow::anyhow!("Change '{name}' not found."))?,
+            );
+        }
+        v
+    };
+    if changes.is_empty() {
+        println!("No active changes to archive.");
+        return Ok(());
+    }
+    changes.sort_by(|x, y| {
+        (x.meta.created.as_deref().unwrap_or(""), &x.name)
+            .cmp(&(y.meta.created.as_deref().unwrap_or(""), &y.name))
+    });
+
+    // Readiness is the engine's own read-only projection of its archive gates
+    // (spec archive-merge「过期判定单源共用」): nothing the merge gate would refuse,
+    // valid, tasks complete — each exempted by its flag. Only the wording lives here.
+    let opts = core::archive::ArchiveOptions::from(a);
+    let mut archived: Vec<String> = Vec::new();
+    let mut skipped: Vec<(String, String)> = Vec::new();
+    for (idx, change) in changes.iter().enumerate() {
+        if let Some(reason) = core::archive::skip_reason(store, change, &opts) {
+            let why = match reason {
+                core::archive::SkipReason::MergeRefused(refused) => {
+                    let mut text = format!(
+                        "{} delta operation(s) archive would refuse — run /specseal-drift {}",
+                        refused.len(),
+                        change.name
+                    );
+                    // Purpose 守门的违规点名到 capability（spec archive-merge「新
+                    // capability 缺 Purpose 的违规呈现三处一致」）：只给计数会让
+                    // 用户以为是过期 delta，走错 drift → ingest 的修法。
+                    let purpose_caps: Vec<&str> = refused
+                        .iter()
+                        .filter(|v| v.is_purpose_gate())
+                        .map(|v| v.capability.as_str())
+                        .collect();
+                    if !purpose_caps.is_empty() {
+                        text.push_str(&format!(
+                            " (new capability {} lacks a qualifying `## Purpose`)",
+                            purpose_caps.join(", ")
+                        ));
+                    }
+                    text
+                }
+                core::archive::SkipReason::StructuralInvalid => "validation failed".to_string(),
+                core::archive::SkipReason::TasksIncomplete { complete, total } => {
+                    format!("tasks incomplete ({complete}/{total})")
+                }
+            };
+            skipped.push((change.name.clone(), why));
+            continue;
+        }
+        let archive_cmd = a.archive_command(Some(change.name.clone()));
+        match run::<core::archive::ArchiveOutcome>(store, Some(ws), archive_cmd) {
+            Ok(outcome) => {
+                emit(render::archive(&outcome, render_options(false)));
+                archived.push(outcome.change_name);
+            }
+            Err(e) => {
+                // Fail-fast: earlier archives are already applied and cannot be rolled back.
+                println!();
+                println!("Bulk archive aborted at '{}': {e}", change.name);
+                if !archived.is_empty() {
+                    println!("  Archived: {}", archived.join(", "));
+                }
+                let untouched: Vec<&str> =
+                    changes[idx + 1..].iter().map(|c| c.name.as_str()).collect();
+                if !untouched.is_empty() {
+                    println!("  Untouched: {}", untouched.join(", "));
+                }
+                bail!("bulk archive failed at '{}'", change.name);
+            }
+        }
+    }
+
+    println!();
+    for (name, why) in &skipped {
+        println!("! Skipped: {name} — {why}");
+    }
+    println!(
+        "Bulk archive: {} archived, {} skipped",
+        archived.len(),
+        skipped.len()
+    );
+    Ok(())
+}
+pub(crate) fn cmd_discard(a: DiscardArgs) -> Result<()> {
+    let (ws, store) = open_project()?;
+    let cmd = plain_command(&a)?;
+    let outcome: core::discard::DiscardOutcome = run(&store, Some(&ws), cmd)?;
+    emit(render::discard(
+        &outcome.change_name,
+        &outcome.unlinked_discussions,
+        render_options(a.json),
+    ));
+    Ok(())
+}
+pub(crate) fn remote_archive(ctx: &RemoteCtx, a: &ArchiveArgs) -> Result<()> {
+    if a.all || a.changes.len() > 1 {
+        bail!("bulk archive is not supported in remote mode — archive changes one at a time");
+    }
+    let Some(name) = a.changes.first().cloned().map(Some).unwrap_or(None) else {
+        bail!("Please specify a change to archive.");
+    };
+    let resp = ctx.client.archive(&name, a.carry_review, a.carry_verify)?;
+    // datedName 是哨兵：新 server 给得出完整封存结果，就走 fs 同一支输出；
+    // 旧 server 什么都没带，退回既有的两行输出而不是半套。
+    emit(match to_archive_outcome(name, resp) {
+        Ok(outcome) => render::archive(&outcome, render_options(false)),
+        Err((name, resp)) => {
+            let caps: Vec<&str> = resp.specs.iter().map(|s| s.capability.as_str()).collect();
+            render::archive_summary(&name, &caps, render_options(false))
+        }
+    });
+    Ok(())
+}
+/// The wire archive response reshaped into the engine's outcome, so the fs
+/// output path renders it as-is. `Err` hands back the inputs when the
+/// sentinel (`datedName`) is absent — an old server whose response cannot
+/// honestly fill the outcome.
+fn to_archive_outcome(
+    change_name: String,
+    resp: specseal_protocol::command::ArchiveResponse,
+) -> std::result::Result<
+    core::archive::ArchiveOutcome,
+    (String, specseal_protocol::command::ArchiveResponse),
+> {
+    let Some(dated_name) = resp.dated_name.clone() else {
+        return Err((change_name, resp));
+    };
+    Ok(core::archive::ArchiveOutcome {
+        change_name,
+        dated_name,
+        caps: resp
+            .specs
+            .into_iter()
+            .map(|s| core::archive::CapCounts {
+                capability: s.capability,
+                added: s.added,
+                modified: s.modified,
+                removed: s.removed,
+                renamed: s.renamed,
+            })
+            .collect(),
+        snapshot_created: resp.snapshot_created.unwrap_or(false),
+        // remote 的封存永远不跳过 specs（端点无此旗标）——字段对渲染无影响。
+        skipped_specs: false,
+        archived_discussions: resp
+            .archived_discussions
+            .into_iter()
+            .map(|d| (d.slug, d.file))
+            .collect(),
+        // 缺席读作「有证据」，零证据提示因此不会凭空冒出来。
+        evidence_recorded: resp.evidence_recorded.unwrap_or(true),
+    })
+}
+/// remote discard：直通 DELETE 端点（--force 为 query 参数）。guard 拒绝由
+/// server 以引擎冻结消息（含「pass --force」指引）回来，经标准错误翻译原文
+/// 呈现——与 fs 模式同语意（design 决策 3／6）。
+pub(crate) fn remote_discard(ctx: &RemoteCtx, a: &DiscardArgs) -> Result<()> {
+    let outcome = ctx.client.discard(&a.change, a.force)?;
+    let unlinked: Vec<(String, String)> = outcome
+        .unlinked_discussions
+        .into_iter()
+        .map(|d| (d.slug, d.status))
+        .collect();
+    emit(render::discard(&outcome.change, &unlinked, render_options(a.json)));
+    Ok(())
+}
+pub(crate) fn remote_claim(ctx: &RemoteCtx, name: &str) -> Result<()> {
+    let _ = ctx.client.claim(name)?;
+    emit(render::claim(name, render_options(false)));
+    Ok(())
+}

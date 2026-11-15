@@ -1,4 +1,4 @@
-// 五個設定零件（desktop-settings-mode design D3）：頁標題、卡、列、列右側下拉、群組標題。
+// 五个设置零件（desktop-settings-mode design D3）：页标题、卡、列、列右侧下拉、群组标题。
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -16,34 +16,34 @@ import {
 const classes = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/);
 
 describe("SettingsPageHeader", () => {
-  it("渲染標題、說明、右側動作與其下 12px 灰字註記", () => {
+  it("渲染标题、说明、右侧动作与其下 12px 灰字注记", () => {
     render(
       <SettingsPageHeader
         title="一般"
-        description="介面語言、更新與 CLI。"
-        actions={<button>檢查更新</button>}
-        note="此頁內容僅存於此裝置，不寫入版本庫"
+        description="接口语言、更新与 CLI。"
+        actions={<button>检查更新</button>}
+        note="此页内容仅存于此设备，不写入版本库"
       />,
     );
     expect(screen.getByRole("heading", { level: 2, name: "一般" })).toBeTruthy();
-    expect(screen.getByText("介面語言、更新與 CLI。")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "檢查更新" })).toBeTruthy();
-    const note = screen.getByText("此頁內容僅存於此裝置，不寫入版本庫");
+    expect(screen.getByText("接口语言、更新与 CLI。")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "检查更新" })).toBeTruthy();
+    const note = screen.getByText("此页内容仅存于此设备，不写入版本库");
     expect(classes(note)).toEqual(expect.arrayContaining(["text-xs", "text-muted-foreground"]));
   });
 
-  it("未給 note 時不渲染註記列", () => {
+  it("未给 note 时不渲染注记列", () => {
     const { container } = render(<SettingsPageHeader title="更新" />);
     expect(container.querySelector("[data-settings-note]")).toBeNull();
   });
 });
 
 describe("SettingsGroupHeader", () => {
-  it("12px 粗體灰字標籤，可帶圖示與計數", () => {
+  it("12px 粗体灰字标签，可带图标与计数", () => {
     const { container } = render(
-      <SettingsGroupHeader icon={<Globe data-testid="icon" />} label="應用程式" count={5} />,
+      <SettingsGroupHeader icon={<Globe data-testid="icon" />} label="应用程序" count={5} />,
     );
-    const label = screen.getByText("應用程式");
+    const label = screen.getByText("应用程序");
     const root = container.firstElementChild as HTMLElement;
     expect(classes(root)).toEqual(
       expect.arrayContaining(["text-xs", "font-semibold", "text-muted-foreground"]),
@@ -53,23 +53,23 @@ describe("SettingsGroupHeader", () => {
     expect(screen.getByText("5")).toBeTruthy();
   });
 
-  it("圖示與計數皆選配", () => {
-    const { container } = render(<SettingsGroupHeader label="專案" />);
+  it("图标与计数皆选配", () => {
+    const { container } = render(<SettingsGroupHeader label="项目" />);
     expect(container.querySelector("svg")).toBeNull();
-    expect(container.textContent).toBe("專案");
+    expect(container.textContent).toBe("项目");
   });
 });
 
 describe("SettingsCard", () => {
-  it("14px 小標（含計數）在 16px 圓角卡之上，卡以小標為區域名，列間細線", () => {
+  it("14px 小标（含计数）在 16px 圆角卡之上，卡以小标为区域名，列间细线", () => {
     render(
-      <SettingsCard title="連線" count={2}>
+      <SettingsCard title="连接" count={2}>
         <SettingsRow label="甲" control={<span />} />
         <SettingsRow label="乙" control={<span />} />
       </SettingsCard>,
     );
-    const region = screen.getByRole("region", { name: "連線" });
-    const title = within(region).getByText("連線");
+    const region = screen.getByRole("region", { name: "连接" });
+    const title = within(region).getByText("连接");
     expect(classes(title.parentElement as HTMLElement)).toContain("text-sm");
     expect(within(region).getByText("2")).toBeTruthy();
     const card = region.querySelector("[data-settings-card-body]") as HTMLElement;
@@ -77,79 +77,79 @@ describe("SettingsCard", () => {
     expect(within(card).getAllByRole("group")).toHaveLength(2);
   });
 
-  // server-web-list-pages design D1：小標同一列的右端槽（連結或 12px 灰字）。
-  it("aside 渲染在小標同一列、卡身之外；未給時小標列沒有 aside", () => {
+  // server-web-list-pages design D1：小标同一列的右端槽（链接或 12px 灰字）。
+  it("aside 渲染在小标同一列、卡身之外；未给时小标列没有 aside", () => {
     const { unmount } = render(
-      <SettingsCard title="系統健康" aside={<a href="/admin/system">系統 ›</a>}>
+      <SettingsCard title="系统健康" aside={<a href="/admin/system">系统 ›</a>}>
         <SettingsRow label="甲" control={<span />} />
       </SettingsCard>,
     );
-    const region = screen.getByRole("region", { name: "系統健康" });
-    const link = within(region).getByRole("link", { name: "系統 ›" });
+    const region = screen.getByRole("region", { name: "系统健康" });
+    const link = within(region).getByRole("link", { name: "系统 ›" });
     const head = region.querySelector("[data-settings-card-head]") as HTMLElement;
     expect(head.contains(link)).toBe(true);
-    expect(head.contains(within(region).getByText("系統健康"))).toBe(true);
+    expect(head.contains(within(region).getByText("系统健康"))).toBe(true);
     expect((region.querySelector("[data-settings-card-body]") as HTMLElement).contains(link)).toBe(false);
     unmount();
     render(
-      <SettingsCard title="連線">
+      <SettingsCard title="连接">
         <SettingsRow label="甲" control={<span />} />
       </SettingsCard>,
     );
-    expect(screen.getByRole("region", { name: "連線" }).querySelector("[data-settings-card-aside]")).toBeNull();
+    expect(screen.getByRole("region", { name: "连接" }).querySelector("[data-settings-card-aside]")).toBeNull();
   });
 });
 
 describe("SettingsRow", () => {
-  it("左標籤＋說明、右控制項；以標籤為群組名", () => {
+  it("左标签＋说明、右控制项；以标签为群组名", () => {
     render(
       <SettingsRow
-        label="外觀"
-        description="跟隨系統或固定淺色／深色。"
+        label="外观"
+        description="跟随系统或固定浅色／深色。"
         control={<button>深色</button>}
       />,
     );
-    const row = screen.getByRole("group", { name: "外觀" });
+    const row = screen.getByRole("group", { name: "外观" });
     expect(classes(row)).toEqual(expect.arrayContaining(["grid", "grid-cols-[1fr_auto]", "px-4", "py-3"]));
-    expect(classes(within(row).getByText("外觀"))).toContain("text-sm");
-    const description = within(row).getByText("跟隨系統或固定淺色／深色。");
+    expect(classes(within(row).getByText("外观"))).toContain("text-sm");
+    const description = within(row).getByText("跟随系统或固定浅色／深色。");
     expect(classes(description)).toEqual(expect.arrayContaining(["text-xs", "text-muted-foreground"]));
     expect(within(row).getByRole("button", { name: "深色" })).toBeTruthy();
   });
 
-  it("warning 時說明改警示色", () => {
-    render(<SettingsRow label="speclink CLI" description="版本不符" control={null} warning />);
+  it("warning 时说明改警示色", () => {
+    render(<SettingsRow label="specseal CLI" description="版本不符" control={null} warning />);
     const description = screen.getByText("版本不符");
     expect(classes(description)).toContain("text-status-warning");
     expect(classes(description)).not.toContain("text-muted-foreground");
   });
 
-  it("htmlFor 讓標籤對到控制項；children 渲染在列下方", () => {
+  it("htmlFor 让标签对到控制项；children 渲染在列下方", () => {
     render(
       <SettingsRow label="locale" htmlFor="cfg-x" control={<input id="cfg-x" />}>
-        <p>展開內容</p>
+        <p>展开内容</p>
       </SettingsRow>,
     );
     expect(screen.getByLabelText("locale").id).toBe("cfg-x");
-    expect(screen.getByText("展開內容")).toBeTruthy();
+    expect(screen.getByText("展开内容")).toBeTruthy();
   });
 
-  // server-web-list-pages design D1：根節點帶 group，列內按鈕可用 group-hover: 依列滑過顯示。
-  it("根節點帶 group class", () => {
-    render(<SettingsRow label="CI 金鑰" control={<button>撤銷</button>} />);
-    expect(classes(screen.getByRole("group", { name: "CI 金鑰" }))).toContain("group");
+  // server-web-list-pages design D1：根节点带 group，列内按钮可用 group-hover: 依列滑过显示。
+  it("根节点带 group class", () => {
+    render(<SettingsRow label="CI 密钥" control={<button>撤销</button>} />);
+    expect(classes(screen.getByRole("group", { name: "CI 密钥" }))).toContain("group");
   });
 });
 
 describe("SettingsLinkRow", () => {
-  it("整列為按鈕（hover 灰底、右端外開圖示），點擊回呼", async () => {
+  it("整列为按钮（hover 灰底、右端外开图标），点击回呼", async () => {
     const onClick = vi.fn();
     const user = userEvent.setup();
-    render(<SettingsLinkRow label="回報問題" description="開新 issue 並帶入版本資訊" onClick={onClick} />);
-    const row = screen.getByRole("button", { name: /回報問題/ });
+    render(<SettingsLinkRow label="回报问题" description="开新 issue 并带入版本信息" onClick={onClick} />);
+    const row = screen.getByRole("button", { name: /回报问题/ });
     expect(classes(row)).toEqual(expect.arrayContaining(["w-full", "text-left", "hover:bg-muted"]));
     expect(row.querySelector("svg.lucide-external-link")).toBeTruthy();
-    expect(within(row).getByText("開新 issue 並帶入版本資訊")).toBeTruthy();
+    expect(within(row).getByText("开新 issue 并带入版本信息")).toBeTruthy();
     await user.click(row);
     expect(onClick).toHaveBeenCalledTimes(1);
   });
@@ -157,28 +157,28 @@ describe("SettingsLinkRow", () => {
 
 describe("SettingsChoice", () => {
   const OPTIONS = [
-    { value: "system", label: "跟隨系統" },
-    { value: "light", label: "淺色" },
+    { value: "system", label: "跟随系统" },
+    { value: "light", label: "浅色" },
     { value: "dark", label: "深色" },
   ];
 
-  it("以 aria-label 可選、顯示現值、選取後回呼", async () => {
+  it("以 aria-label 可选、显示现值、选取后回呼", async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
-    render(<SettingsChoice value="system" options={OPTIONS} onChange={onChange} ariaLabel="外觀" />);
-    const trigger = screen.getByRole("combobox", { name: "外觀" });
-    expect(trigger.textContent).toContain("跟隨系統");
+    render(<SettingsChoice value="system" options={OPTIONS} onChange={onChange} ariaLabel="外观" />);
+    const trigger = screen.getByRole("combobox", { name: "外观" });
+    expect(trigger.textContent).toContain("跟随系统");
     expect(classes(trigger)).toEqual(expect.arrayContaining(["h-8", "text-[13px]"]));
     await user.click(trigger);
     await user.click(await screen.findByRole("option", { name: "深色" }));
     expect(onChange).toHaveBeenCalledWith("dark");
   });
 
-  it("停用項不可選、停用時觸發鈕 disabled", () => {
+  it("停用项不可选、停用时触发钮 disabled", () => {
     render(
       <SettingsChoice
-        value="繁體中文"
-        options={[{ value: "繁體中文", label: "繁體中文（無效）", disabled: true }, ...OPTIONS]}
+        value="繁体中文"
+        options={[{ value: "繁体中文", label: "繁体中文（无效）", disabled: true }, ...OPTIONS]}
         onChange={() => {}}
         ariaLabel="locale"
         disabled
@@ -186,49 +186,49 @@ describe("SettingsChoice", () => {
     );
     const trigger = screen.getByRole("combobox", { name: "locale" }) as HTMLButtonElement;
     expect(trigger.disabled).toBe(true);
-    expect(trigger.textContent).toContain("繁體中文（無效）");
+    expect(trigger.textContent).toContain("繁体中文（无效）");
   });
 
-  // desktop-subagent-model-page design「SettingsChoice 的分組」。
+  // desktop-subagent-model-page design「SettingsChoice 的分组」。
   const separators = () => document.querySelectorAll('[data-slot="select-separator"]');
 
-  it("分組項渲染分組標籤，組與組、組與單項之間有分隔線；選分組內的項目回傳其值", async () => {
+  it("分组项渲染分组标签，组与组、组与单项之间有分隔线；选分组内的项目回传其值", async () => {
     const onChange = vi.fn();
     const user = userEvent.setup();
     render(
       <SettingsChoice
         value="__inherit__"
         options={[
-          { value: "__inherit__", label: "沿用主對話" },
-          { label: "內建", options: [{ value: "sonnet", label: "sonnet" }, { value: "opus", label: "opus" }] },
-          { label: "自訂清單", options: [{ value: "claude-x", label: "claude-x" }] },
-          { value: "__custom__", label: "自行輸入…" },
+          { value: "__inherit__", label: "沿用主对话" },
+          { label: "内置", options: [{ value: "sonnet", label: "sonnet" }, { value: "opus", label: "opus" }] },
+          { label: "自订清单", options: [{ value: "claude-x", label: "claude-x" }] },
+          { value: "__custom__", label: "自行输入…" },
         ]}
         onChange={onChange}
-        ariaLabel="審查"
+        ariaLabel="审查"
       />,
     );
-    await user.click(screen.getByRole("combobox", { name: "審查" }));
-    const builtin = await screen.findByRole("group", { name: "內建" });
+    await user.click(screen.getByRole("combobox", { name: "审查" }));
+    const builtin = await screen.findByRole("group", { name: "内置" });
     expect(within(builtin).getAllByRole("option").map((o) => o.textContent)).toEqual(["sonnet", "opus"]);
-    const custom = screen.getByRole("group", { name: "自訂清單" });
+    const custom = screen.getByRole("group", { name: "自订清单" });
     expect(within(custom).getAllByRole("option").map((o) => o.textContent)).toEqual(["claude-x"]);
     expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual([
-      "沿用主對話",
+      "沿用主对话",
       "sonnet",
       "opus",
       "claude-x",
-      "自行輸入…",
+      "自行输入…",
     ]);
     expect(separators()).toHaveLength(3);
     await user.click(within(builtin).getByRole("option", { name: "opus" }));
     expect(onChange).toHaveBeenCalledWith("opus");
   });
 
-  it("只放單項時不出現分組標籤與分隔線", async () => {
+  it("只放单项时不出现分组标签与分隔线", async () => {
     const user = userEvent.setup();
-    render(<SettingsChoice value="system" options={OPTIONS} onChange={() => {}} ariaLabel="外觀" />);
-    await user.click(screen.getByRole("combobox", { name: "外觀" }));
+    render(<SettingsChoice value="system" options={OPTIONS} onChange={() => {}} ariaLabel="外观" />);
+    await user.click(screen.getByRole("combobox", { name: "外观" }));
     await screen.findByRole("option", { name: "深色" });
     expect(screen.queryByRole("group")).toBeNull();
     expect(separators()).toHaveLength(0);

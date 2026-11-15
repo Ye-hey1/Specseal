@@ -1,43 +1,43 @@
-//! GUI 管理操作：change metadata 讀取與 active change 刪除。
+//! GUI 管理操作：change metadata 读取与 active change 删除。
 //!
-//! delete 是 desktop 層操作（引擎與 CLI 皆無 delete 動詞）——僅作用於 active change
-//! 目錄、經路徑安全檢查、由 UI 以確認對話框把關。
+//! delete 是 desktop 层操作（引擎与 CLI 皆无 delete 动词）——仅作用于 active change
+//! 目录、经路径安全检查、由 UI 以确认对话框把关。
 
 use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
-use speclink_core::store::Store;
+use specseal_core::store::Store;
 
 use crate::init_core_context;
-use speclink_core::rank::neighbor_midpoint;
+use specseal_core::rank::neighbor_midpoint;
 
-/// 每專案根一次的 git 身分快取（design D1：identity 每根快取）：完成路徑高頻取用，
-/// 而 GUI 進程 spawn git 在部分環境極慢（防毒掃描，實測單次 ~3 秒）——首次取得後
-/// app 存續期內重用，身分變更需重啟 app 才生效。持鎖跨首次抓取：同根並發首抓只 spawn 一次。
+/// 每项目根一次的 git 身分缓存（design D1：identity 每根缓存）：完成路径高频取用，
+/// 而 GUI 进程 spawn git 在部分环境极慢（杀毒扫描，实测单次 ~3 秒）——首次取得后
+/// app 存续期内重用，身分变更需重启 app 才生效。持锁跨首次抓取：同根并发首抓只 spawn 一次。
 static IDENTITY_CACHE: std::sync::OnceLock<
     std::sync::Mutex<std::collections::HashMap<PathBuf, Option<String>>>,
 > = std::sync::OnceLock::new();
 
-/// 任務寫回全域鎖（design D3：寫入序列化（全域寫鎖））：寫回 command 移至執行緒池後
-/// 並發成為可能——讀-改-寫不序列化會互相覆蓋（遺失更新）。寫回入口整段持鎖，
-/// 依提交順序落盤；讀取路徑不取鎖維持快路徑。
+/// 任务写回全域锁（design D3：写入串行化（全域写锁））：写回 command 移至线程池后
+/// 并发成为可能——读-改-写不串行化会互相覆盖（遗失更新）。写回入口整段持锁，
+/// 依提交顺序落盘；读取路径不取锁维持快路径。
 static WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// 取得寫回鎖（poisoned 時取回內值——鎖只護順序、無不變量需要放棄）。
+/// 取得写回锁（poisoned 时取回内值——锁只护顺序、无不变量需要放弃）。
 fn write_guard() -> std::sync::MutexGuard<'static, ()> {
     WRITE_LOCK.lock().unwrap_or_else(|p| p.into_inner())
 }
 
-/// 取得（並快取）指定根的 git 身分；供 app 啟動／切根時背景預熱與完成路徑取用。
+/// 取得（并缓存）指定根的 git 身分；供 app 启动／切根时背景预热与完成路径取用。
 pub fn cached_git_identity(root: &Path) -> Option<String> {
     let cache = IDENTITY_CACHE.get_or_init(Default::default);
     let mut map = cache.lock().unwrap_or_else(|p| p.into_inner());
     map.entry(root.to_path_buf())
-        .or_insert_with(|| speclink_host::context::git_identity(root))
+        .or_insert_with(|| specseal_host::context::git_identity(root))
         .clone()
 }
 
-/// 回傳 change 的 metadata（camelCase：createdBy/createdWith/created）。無此 change 回 `None`。
+/// 回传 change 的 metadata（camelCase：createdBy/createdWith/created）。无此 change 回 `None`。
 pub fn change_meta_at(root: &Path, change: &str) -> Option<Value> {
     let ctx = crate::context_for_change(root, change)?;
     let change = ctx.store.find_change(change)?;
@@ -53,48 +53,48 @@ pub fn change_meta_at(root: &Path, change: &str) -> Option<Value> {
     }))
 }
 
-/// 刪除一個 active change——走引擎 discard 全語意（force=false）：開工痕跡守門、
-/// 來源討論解鏈（清單空時狀態回復）、touched 紀錄清理。desktop 不提供 force 通道；
-/// 解鏈明細不呈現，前端既有 refresh 自然反映討論狀態回復。
+/// 删除一个 active change——走引擎 discard 全语意（force=false）：开工痕迹守门、
+/// 来源讨论解链（清单空时状态回复）、touched 纪录清理。desktop 不提供 force 信道；
+/// 解链明细不呈现，前端既有 refresh 自然反映讨论状态回复。
 ///
-/// worktree 掛著時拒絕（design D3）：刪除與封存、退回同屬破壞性生命週期動詞——
-/// 它動的是主 checkout 的 change 目錄存廢，路由進 worktree 沒有意義。
+/// worktree 挂着时拒绝（design D3）：删除与封存、退回同属破坏性生命周期动词——
+/// 它动的是主 checkout 的 change 目录存废，路由进 worktree 没有意义。
 pub fn delete_change_at(root: &Path, change: &str) -> Result<(), String> {
     if !crate::query::is_safe_path_param(change) {
         return Err(format!("invalid change name: {change}"));
     }
     let ctx = init_core_context(root)
-        .ok_or_else(|| format!("not a speclink project: {}", root.display()))?;
-    // 守門（含 git spawn）在取寫回鎖之前完成：鎖護檔案寫入，不護 git 觀察面。
+        .ok_or_else(|| format!("not a specseal project: {}", root.display()))?;
+    // 守门（含 git spawn）在取写回锁之前完成：锁护文件写入，不护 git 观察面。
     crate::query::refuse_if_worktree_is_open(&ctx, change)?;
     let _guard = write_guard();
-    speclink_core::discard::discard(&ctx.workspace, &ctx.store, change, false)
+    specseal_core::discard::discard(&ctx.workspace, &ctx.store, change, false)
         .map(|_| ())
         .map_err(|e| e.to_string())
 }
 
-/// 退回提案中(desktop 直呼引擎動詞):移除 in-progress 標記,僅零工作痕跡時
-/// 放行。成功涵蓋實際移除與未開工冪等——前端一律重載,卡片依派生歸位。
-/// 守門拒絕回傳 [`revert_blocked_error`] 的結構化 JSON;其餘錯誤為純文字。
+/// 退回提案中(desktop 直呼引擎动词):移除 in-progress 标记,仅零工作痕迹时
+/// 放行。成功涵盖实际移除与未开工幂等——前端一律重载,卡片依派生归位。
+/// 守门拒绝回传 [`revert_blocked_error`] 的结构化 JSON;其余错误为纯文本。
 pub fn revert_change_to_proposed_at(root: &Path, change: &str) -> Result<(), String> {
     if !crate::query::is_safe_path_param(change) {
         return Err(format!("invalid change name: {change}"));
     }
     let ctx = init_core_context(root)
-        .ok_or_else(|| format!("not a speclink project: {}", root.display()))?;
-    // 守門（含 git spawn）在取寫回鎖之前完成，同 delete_change_at。
+        .ok_or_else(|| format!("not a specseal project: {}", root.display()))?;
+    // 守门（含 git spawn）在取写回锁之前完成，同 delete_change_at。
     crate::query::refuse_if_worktree_is_open(&ctx, change)?;
     let _guard = write_guard();
-    speclink_core::inprogress::remove(&ctx.store, change)
+    specseal_core::inprogress::remove(&ctx.store, change)
         .map(|_| ())
-        .map_err(|e| match e.downcast_ref::<speclink_core::inprogress::RevertBlocked>() {
+        .map_err(|e| match e.downcast_ref::<specseal_core::inprogress::RevertBlocked>() {
             Some(b) => revert_blocked_error(b.checked_tasks, &b.touched_files),
             None => e.to_string(),
         })
 }
 
-/// 守門拒絕的結構化錯誤 JSON——本地與 remote 兩個 bridge 共用的單一轉譯,
-/// 前端守門對話框的唯一消費形狀(kind/checkedTasks/touchedFiles)。
+/// 守门拒绝的结构化错误 JSON——本地与 remote 两个 bridge 共用的单一转译,
+/// 前端守门对话框的唯一消费形状(kind/checkedTasks/touchedFiles)。
 pub fn revert_blocked_error(checked_tasks: usize, touched_files: &[String]) -> String {
     json!({
         "kind": "revertBlocked",
@@ -104,60 +104,60 @@ pub fn revert_blocked_error(checked_tasks: usize, touched_files: &[String]) -> S
     .to_string()
 }
 
-/// 勾選/取消一個任務。`task` 雙值域（與 CLI task 動詞一致）：純數字＝1-based
-/// ordinal（僅計 checkbox 行）、tsk_ 前綴＝stable ID 定址；其餘值、定址不中
-/// 或無 tasks.md 回 `Err`。
+/// 勾选/取消一个任务。`task` 双值域（与 CLI task 动词一致）：纯数字＝1-based
+/// ordinal（仅计 checkbox 行）、tsk_ 前缀＝stable ID 寻址；其余值、寻址不中
+/// 或无 tasks.md 回 `Err`。
 ///
-/// done=true 走引擎的任務完成協作函式——與 CLI `task done` 相同的檔案效果
-/// （勾章、touched 記錄、首次完成蓋開工章；identity 沿 git 身分、agent 缺席）。
-/// 與 CLI 唯一的差異：任務已完成時視為冪等成功（GUI toggle 語意下重複 done=true
-/// 只可能來自競態，不以錯誤打斷使用者），不寫任何檔案。
-/// done=false（取消勾選）走引擎的反向動詞 uncomplete——純狀態翻轉，
-/// 不蓋章、不記 touched。
+/// done=true 走引擎的任务完成协作函数——与 CLI `task done` 相同的文件效果
+/// （勾章、touched 记录、首次完成盖开工章；identity 沿 git 身分、agent 缺席）。
+/// 与 CLI 唯一的差异：任务已完成时视为幂等成功（GUI toggle 语意下重复 done=true
+/// 只可能来自竞态，不以错误打断用户），不写任何文件。
+/// done=false（取消勾选）走引擎的反向动词 uncomplete——纯状态翻转，
+/// 不盖章、不记 touched。
 pub fn set_task_done_at(root: &Path, change: &str, task: &str, done: bool) -> Result<(), String> {
     if !crate::query::is_safe_path_param(change) {
         return Err(format!("invalid change name: {change}"));
     }
     let addr = if task.starts_with("tsk_") {
-        speclink_core::tasks::TaskAddr::Stable(task.to_string())
+        specseal_core::tasks::TaskAddr::Stable(task.to_string())
     } else {
         let ordinal: usize = task
             .parse()
             .map_err(|_| format!("invalid task id: {task}"))?;
-        speclink_core::tasks::TaskAddr::Ordinal(ordinal)
+        specseal_core::tasks::TaskAddr::Ordinal(ordinal)
     };
-    // 定根到該 change 的所在（design D1）：勾章、touched 記錄、git 髒檔歸因與
-    // 開工章全部落在同一份副本——內容在哪裡，寫入就在哪裡。定根（含 git spawn）
-    // 在取寫回鎖之前完成：鎖護的是檔案的讀-改-寫，不護 git 觀察面。
+    // 定根到该 change 的所在（design D1）：勾章、touched 记录、git 脏档归因与
+    // 开工章全部落在同一份副本——内容在哪里，写入就在哪里。定根（含 git spawn）
+    // 在取写回锁之前完成：锁护的是文件的读-改-写，不护 git 观察面。
     let ctx = crate::require_context_for_change(root, change)?;
     let _guard = write_guard();
     if done {
-        // identity 鍵用呼叫端傳入的專案根（與 app 啟動預熱同鍵）——定根後的
-        // ctx.workspace.root 可能是 worktree 路徑，身分其實是同一個 repo config。
+        // identity 键用调用端传入的项目根（与 app 启动预热同键）——定根后的
+        // ctx.workspace.root 可能是 worktree 路径，身分其实是同一个 repo config。
         let identity = cached_git_identity(root);
-        speclink_core::tasks::complete(
+        specseal_core::tasks::complete(
             &ctx.store,
             change,
             &addr,
-            &speclink_core::tasks::CompleteAttribution {
+            &specseal_core::tasks::CompleteAttribution {
                 identity: identity.as_deref(),
                 agent: None,
                 repo: None,
             },
-            speclink_core::tasks::TouchedCandidates::ProbeWorkspace(&ctx.workspace),
+            specseal_core::tasks::TouchedCandidates::ProbeWorkspace(&ctx.workspace),
         )
-        .map(|_| ()) // already → 冪等成功（引擎保證零檔案效果）
+        .map(|_| ()) // already → 幂等成功（引擎保证零文件效果）
         .map_err(|e| e.to_string())
     } else {
-        speclink_core::tasks::uncomplete(&ctx.store, change, &addr)
-            .map(|_| ()) // already → 冪等成功（引擎保證零檔案效果）
+        specseal_core::tasks::uncomplete(&ctx.store, change, &addr)
+            .map(|_| ()) // already → 幂等成功（引擎保证零文件效果）
             .map_err(|e| e.to_string())
     }
 }
 
-/// 排程分頁的新增候選（add-change-plan-remote D9）：該 change 所在名冊（與 [`set_depends_at`]
-/// 同一個定根：有 worktree 映射為其副本）的其他作用中 change，依名稱排序——分支後才在主
-/// checkout 建立的 change 不在 worktree 副本的名冊裡，列出來只會被引擎拒絕。
+/// 调度分页的添加候选（add-change-plan-remote D9）：该 change 所在名册（与 [`set_depends_at`]
+/// 同一个定根：有 worktree 映射为其副本）的其他作用中 change，依名称排序——分支后才在主
+/// checkout 创建的 change 不在 worktree 副本的名册里，列出来只会被引擎拒绝。
 pub fn depends_candidates_at(root: &Path, change: &str) -> Result<Vec<String>, String> {
     if !crate::query::is_safe_path_param(change) {
         return Err(format!("invalid change name: {change}"));
@@ -171,40 +171,40 @@ pub fn depends_candidates_at(root: &Path, change: &str) -> Result<Vec<String>, S
         .collect())
 }
 
-/// 宣告（或 `remove` 時撤銷）`on` 為 `change` 的前置（design D6）：守門與寫入全在引擎
-/// `plan::set_depends`——自依賴、不存在、已封存、成環一律拒絕且零寫入，錯誤文字就是
-/// 引擎訊息。定根到該 change 的所在（有 worktree 映射寫其副本），寫入持全域寫回鎖。
-/// 引擎的成環守門只看寫入的那份 store：有 worktree 映射時，分支後主 checkout 才宣告
-/// 的反向邊副本看不到，而看板同源視圖（overlay）看得到——新增後以 overlay 複檢一次，
-/// 成環就撤銷剛加的邊、回引擎的成環訊息（看板不會出現 planError）。
+/// 声明（或 `remove` 时撤销）`on` 为 `change` 的前置（design D6）：守门与写入全在引擎
+/// `plan::set_depends`——自依赖、不存在、已封存、成环一律拒绝且零写入，错误文本就是
+/// 引擎消息。定根到该 change 的所在（有 worktree 映射写其副本），写入持全域写回锁。
+/// 引擎的成环守门只看写入的那份 store：有 worktree 映射时，分支后主 checkout 才声明
+/// 的反向边副本看不到，而看板同源视图（overlay）看得到——添加后以 overlay 复检一次，
+/// 成环就撤销刚加的边、回引擎的成环消息（看板不会出现 planError）。
 pub fn set_depends_at(root: &Path, change: &str, on: &[String], remove: bool) -> Result<(), String> {
     if !crate::query::is_safe_path_param(change) {
         return Err(format!("invalid change name: {change}"));
     }
-    // facts 現取（含 git spawn）在取寫回鎖之前完成；定根與 overlay 用同一份 facts。
+    // facts 现取（含 git spawn）在取写回锁之前完成；定根与 overlay 用同一份 facts。
     let ctx = init_core_context(root)
-        .ok_or_else(|| format!("not a speclink project: {}", root.display()))?;
+        .ok_or_else(|| format!("not a specseal project: {}", root.display()))?;
     let facts = crate::facts_for(&ctx);
     let home = crate::home_store_for(&ctx, &facts, change);
     let _guard = write_guard();
     let before = home.find_change(change).map(|c| c.meta.depends_on()).unwrap_or_default();
-    let write = speclink_core::plan::set_depends(&home, change, on, remove).map_err(|e| e.to_string())?;
+    let write = specseal_core::plan::set_depends(&home, change, on, remove).map_err(|e| e.to_string())?;
     if !remove && write.changed {
         let overlaid = crate::query::overlay_store(&ctx, &facts);
-        if let Err(cycle) = speclink_core::plan::check_cycle(&overlaid) {
+        if let Err(cycle) = specseal_core::plan::check_cycle(&overlaid) {
             let added: Vec<String> = on.iter().filter(|n| !before.contains(n)).cloned().collect();
-            speclink_core::plan::set_depends(&home, change, &added, true).map_err(|e| e.to_string())?;
+            specseal_core::plan::set_depends(&home, change, &added, true).map_err(|e| e.to_string())?;
             return Err(cycle.to_string());
         }
     }
     Ok(())
 }
 
-/// 批次設定全部任務的完成狀態（desktop-task-interactions design D1：批次動詞單指令雙用）。
-/// done=true＝全部標完成，done=false＝全部取消勾選；一次讀檔、一次寫回。
-/// 側效沿單發勾選語意：done=true 且有翻轉時 touched 記錄一次（歸於本次首個翻轉的任務）、
-/// 首次完成蓋開工章；done=false 純行編輯，無任何側效。
-/// 目標狀態已達成時冪等成功、零檔案效果。
+/// 批量设置全部任务的完成状态（desktop-task-interactions design D1：批量动词单指令双用）。
+/// done=true＝全部标完成，done=false＝全部取消勾选；一次读档、一次写回。
+/// 侧效沿单发勾选语意：done=true 且有翻转时 touched 记录一次（归于本次首个翻转的任务）、
+/// 首次完成盖开工章；done=false 纯行编辑，无任何侧效。
+/// 目标状态已达成时幂等成功、零文件效果。
 pub fn set_all_tasks_at(root: &Path, change: &str, done: bool) -> Result<(), String> {
     if !crate::query::is_safe_path_param(change) {
         return Err(format!("invalid change name: {change}"));
@@ -216,8 +216,8 @@ pub fn set_all_tasks_at(root: &Path, change: &str, done: bool) -> Result<(), Str
         .read_artifact(change, "tasks.md")
         .ok_or_else(|| format!("tasks.md not found for change: {change}"))?;
     let had_trailing_newline = text.ends_with('\n');
-    // 逐行鏡射引擎 tasks::parse 的 checkbox 判定——翻轉集合與引擎所見一致
-    // （dash／star 兩種 bullet、[ ]/[x]/[X] 三態）。
+    // 逐行镜射引擎 tasks::parse 的 checkbox 判定——翻转集合与引擎所见一致
+    // （dash／star 两种 bullet、[ ]/[x]/[X] 三态）。
     let mut first_flipped: Option<(usize, String)> = None;
     let mut ordinal = 0usize;
     let lines: Vec<String> = text
@@ -246,7 +246,7 @@ pub fn set_all_tasks_at(root: &Path, change: &str, done: bool) -> Result<(), Str
             format!("{indent}{bullet}{mark}{}", &body[3..])
         })
         .collect();
-    // 目標狀態已達成→冪等成功、零檔案效果。
+    // 目标状态已达成→幂等成功、零文件效果。
     let Some((first_id, first_desc)) = first_flipped else { return Ok(()) };
     let mut out = lines.join("\n");
     if had_trailing_newline {
@@ -256,46 +256,46 @@ pub fn set_all_tasks_at(root: &Path, change: &str, done: bool) -> Result<(), Str
         .write_artifact(change, "tasks.md", &out)
         .map_err(|e| e.to_string())?;
     if done {
-        // 側效沿單發完成語意（tasks::complete 同款）：未認領 dirty 檔記一筆
-        // 雙通道記錄——v1 touched（commit 技能的檔案清單通道）＋ v2 EvidenceEntry
-        // （evidence 查詢面讀的是這條），皆歸於本次首個翻轉任務；首次完成蓋
-        // 開工章（inprogress::add 冪等）。
-        // identity 鍵同 set_task_done_at：用呼叫端專案根，與預熱同鍵。
+        // 侧效沿单发完成语意（tasks::complete 同款）：未认领 dirty 档记一笔
+        // 双信道记录——v1 touched（commit 技能的文件清单信道）＋ v2 EvidenceEntry
+        // （evidence 查找面读的是这条），皆归于本次首个翻转任务；首次完成盖
+        // 开工章（inprogress::add 幂等）。
+        // identity 键同 set_task_done_at：用调用端项目根，与预热同键。
         let identity = cached_git_identity(root);
-        let mut record = speclink_core::tasks::TouchedRecord::load(&ctx.store, change);
+        let mut record = specseal_core::tasks::TouchedRecord::load(&ctx.store, change);
         record.change = change.to_string();
         let seen = record.all_files();
-        let files: Vec<String> = speclink_core::tasks::git_changed_files(&ctx.workspace)
+        let files: Vec<String> = specseal_core::tasks::git_changed_files(&ctx.workspace)
             .into_iter()
             .filter(|f| !seen.contains(f))
             .collect();
         if !files.is_empty() {
-            record.touched.push(speclink_core::tasks::TouchedEntry {
+            record.touched.push(specseal_core::tasks::TouchedEntry {
                 task_id: first_id.to_string(),
                 task_desc: first_desc.clone(),
                 files: files.clone(),
             });
-            record.entries.push(speclink_core::tasks::EvidenceEntry {
+            record.entries.push(specseal_core::tasks::EvidenceEntry {
                 task_id: first_id.to_string(),
                 task_desc: first_desc,
                 actor: identity.clone(),
                 repo: None,
-                head_commit: speclink_core::tasks::head_commit(&ctx.workspace.root),
+                head_commit: specseal_core::tasks::head_commit(&ctx.workspace.root),
                 touched_files: files,
                 recorded_at: chrono::Utc::now()
                     .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
             });
             record.save(&ctx.store).map_err(|e| e.to_string())?;
         }
-        speclink_core::inprogress::add(&ctx.store, change, identity.as_deref(), None, None)
+        specseal_core::inprogress::add(&ctx.store, change, identity.as_deref(), None, None)
             .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
-/// 把第 `from` 個任務移到以第 `to` 個任務為錨的位置（皆 1-based、僅計 checkbox 行）。
-/// 搬移＋重編號語意整段遷入 speclink-core（remote-verb-parity design 決策 4）——
-/// 此處薄呼叫 core 同一引擎，桌面拖排與 server 端點行為逐位元一致。
+/// 把第 `from` 个任务移到以第 `to` 个任务为锚的位置（皆 1-based、仅计 checkbox 行）。
+/// 搬移＋重编号语意整段迁入 specseal-core（remote-verb-parity design 决策 4）——
+/// 此处薄调用 core 同一引擎，桌面拖排与 server 端点行为逐比特一致。
 pub fn move_task_at(
     root: &Path,
     change: &str,
@@ -308,14 +308,14 @@ pub fn move_task_at(
     }
     let ctx = crate::require_context_for_change(root, change)?;
     let _guard = write_guard();
-    speclink_core::tasks::move_task(&ctx.store, change, from, to, before)
+    specseal_core::tasks::move_task(&ctx.store, change, from, to, before)
         .map(|_| ())
         .map_err(|e| e.to_string())
 }
 
-/// 看板拖排寫回（design D3/D5）：以鄰居識別碼表達落點，計中點 rank 寫回被拖卡的
-/// meta（變更）或 frontmatter（討論）。目標欄內有缺 rank 卡時先依當前顯示序整欄
-/// 補章（等距鍵）再套用移動；已消失的鄰居視為開放端（欄頂／欄底），不 panic。
+/// 看板拖排写回（design D3/D5）：以邻居识别码表达落点，计中点 rank 写回被拖卡的
+/// meta（变更）或 frontmatter（讨论）。目标栏内有缺 rank 卡时先依当前显示序整栏
+/// 补章（等距键）再套用移动；已消失的邻居视为开放端（栏顶／栏底），不 panic。
 pub fn reorder_card_at(
     root: &Path,
     kind: &str,
@@ -332,23 +332,23 @@ pub fn reorder_card_at(
         }
     }
     let ctx = init_core_context(root)
-        .ok_or_else(|| format!("not a speclink project: {}", root.display()))?;
+        .ok_or_else(|| format!("not a specseal project: {}", root.display()))?;
     match kind {
-        // 變更卡：讀走看板同源視圖（overlay：主 roster ＋映射 change 的副本現值），
-        // 寫逐 change 解析落點——有映射寫其 worktree 副本、無映射寫主 checkout。
-        // 整欄補章因此各回各家，不會把別的 change 的 rank 污染進被拖卡的 worktree
-        // 分支；分支後才新建的 change 也在欄內。欄序、補章、中點與依賴檢查是引擎
-        // `plan::move_rank` 那一份（CLI 的 change rank 同一份），檢查全在寫入之前，
-        // 被拒即零寫入。討論卡沒有 worktree 映射，直走主 store。
-        // facts 現取（含 git spawn）在取寫回鎖之前完成。
+        // 变更卡：读走看板同源视图（overlay：主 roster ＋映射 change 的副本现值），
+        // 写逐 change 解析落点——有映射写其 worktree 副本、无映射写主 checkout。
+        // 整栏补章因此各回各家，不会把别的 change 的 rank 污染进被拖卡的 worktree
+        // 分支；分支后才新建的 change 也在栏内。栏序、补章、中点与依赖检查是引擎
+        // `plan::move_rank` 那一份（CLI 的 change rank 同一份），检查全在写入之前，
+        // 被拒即零写入。讨论卡没有 worktree 映射，直走主 store。
+        // facts 现取（含 git spawn）在取写回锁之前完成。
         "change" => {
             let facts = crate::facts_for(&ctx);
             let _guard = write_guard();
             let overlaid = crate::query::overlay_store(&ctx, &facts);
             let write = |name: &str, key: &str| {
-                speclink_core::model::set_board_rank(&crate::home_store_for(&ctx, &facts, name), name, key)
+                specseal_core::model::set_board_rank(&crate::home_store_for(&ctx, &facts, name), name, key)
             };
-            speclink_core::plan::move_rank(&overlaid, &write, id, prev_id, next_id)
+            specseal_core::plan::move_rank(&overlaid, &write, id, prev_id, next_id)
                 .map_err(|e| e.to_string())
         }
         "discussion" => {
@@ -371,9 +371,9 @@ fn reorder_discussion(
     }
     let ranks: std::collections::HashMap<&str, String> =
         if active.iter().any(|(r, _)| r.is_none()) {
-            let keys = speclink_core::rank::spread(active.len());
+            let keys = specseal_core::rank::spread(active.len());
             for ((_, i), key) in active.iter().zip(&keys) {
-                speclink_core::discuss::set_board_rank(store, &i.slug, key)
+                specseal_core::discuss::set_board_rank(store, &i.slug, key)
                     .map_err(|e| e.to_string())?;
             }
             active.iter().map(|(_, i)| i.slug.as_str()).zip(keys).collect()
@@ -384,7 +384,7 @@ fn reorder_discussion(
                 .collect()
         };
     let key = neighbor_midpoint(&ranks, prev_id, next_id);
-    speclink_core::discuss::set_board_rank(store, id, &key).map_err(|e| e.to_string())
+    specseal_core::discuss::set_board_rank(store, id, &key).map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
@@ -393,11 +393,11 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    /// 建含一個 active change 的暫存 fixture 專案。
+    /// 建含一个 active change 的暂存 fixture 项目。
     fn fixture_with_change(tag: &str, name: &str) -> PathBuf {
-        let root = std::env::temp_dir().join(format!("speclink-manage-{}-{}", tag, std::process::id()));
+        let root = std::env::temp_dir().join(format!("specseal-manage-{}-{}", tag, std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let dir = root.join("speclink").join("changes").join(name);
+        let dir = root.join("specseal").join("changes").join(name);
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("proposal.md"), "## Why\ntest\n").unwrap();
         fs::write(
@@ -419,7 +419,7 @@ mod tests {
         assert_eq!(meta["created"], "2026-07-05");
         assert_eq!(meta["createdBy"], "momo");
         assert_eq!(meta["createdWith"], "claude");
-        // 抽屜「誰於何時開工」的資料來源：started 站以 camelCase 帶出。
+        // 抽屉「谁于何时开工」的数据源：started 站以 camelCase 带出。
         assert_eq!(meta["startedAt"], "2026-07-06");
         assert_eq!(meta["startedBy"], "Worker <w@example.com>");
         assert_eq!(meta["startedWith"], "claude");
@@ -438,8 +438,8 @@ mod tests {
 
     #[test]
     fn change_meta_exposes_from_discussions_as_array() {
-        // 詳情抽屜「來源討論」的資料源：多值化的 fromDiscussions 陣列（依 meta 順序），
-        // 無來源討論時為空陣列；不再輸出舊單值鍵 fromDiscussion。
+        // 详情抽屉「来源讨论」的数据源：多值化的 fromDiscussions 数组（依 meta 顺序），
+        // 无来源讨论时为空数组；不再输出旧单值键 fromDiscussion。
         let fx = crate::testfixture::FixtureRoot::new("m-meta-fromdisc");
         fx.add_change(
             "multi",
@@ -455,9 +455,9 @@ mod tests {
 
     #[test]
     fn change_meta_comes_from_the_worktree_copy() {
-        // spec worktree-overlay「desktop 看板的 worktree 呈現」：抽屜的 metadata
-        // 欄位（建立與開工資訊）對有映射的 change 須讀 worktree 副本——開工章是
-        // 在 worktree 內蓋的，讀主 checkout 會顯示成從未開工。
+        // spec worktree-overlay「desktop 看板的 worktree 呈现」：抽屉的 metadata
+        // 字段（创建与开工信息）对有映射的 change 须读 worktree 副本——开工章是
+        // 在 worktree 内盖的，读主 checkout 会显示成从未开工。
         let fx = crate::testfixture::FixtureRoot::new("m-meta-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
         let wt = fx.attach_worktree("add-auth");
@@ -469,7 +469,7 @@ mod tests {
         .unwrap();
 
         let meta = change_meta_at(fx.root(), "add-auth").expect("meta exists");
-        assert_eq!(meta["startedAt"], "2026-07-06", "開工章須讀 worktree 副本: {meta}");
+        assert_eq!(meta["startedAt"], "2026-07-06", "开工章须读 worktree 副本: {meta}");
         assert_eq!(meta["startedBy"], "Worker <w@example.com>");
         assert_eq!(meta["startedWith"], "claude");
     }
@@ -481,7 +481,7 @@ mod tests {
         assert!(change_meta_at(fx.root(), "no-such-change-xyz").is_none());
     }
 
-    // --- 退回提案中:引擎動詞直呼與守門錯誤的共用轉譯 ---
+    // --- 退回提案中:引擎动词直呼与守门错误的共用转译 ---
 
     const STARTED_META: &str = "schema: spec-driven\ncreated: 2026-07-05\nstarted_at: 2026-07-06\nstarted_by: Worker <w@example.com>\nstarted_with: claude\n";
 
@@ -489,11 +489,11 @@ mod tests {
     fn revert_zero_trace_change_removes_started_lines_verbatim() {
         let fx = crate::testfixture::FixtureRoot::new("m-revert-ok");
         fx.add_change("demo", STARTED_META);
-        // add_change 預設 tasks.md 含一個已勾任務——覆寫為零勾選(零痕跡)。
-        fx.write("speclink/changes/demo/tasks.md", "## 1. Group\n\n- [ ] 1.1 First task\n");
+        // add_change 缺省 tasks.md 含一个已勾任务——覆写为零勾选(零痕迹)。
+        fx.write("specseal/changes/demo/tasks.md", "## 1. Group\n\n- [ ] 1.1 First task\n");
         revert_change_to_proposed_at(fx.root(), "demo").expect("zero-trace revert succeeds");
         let meta = fs::read_to_string(
-            fx.root().join("speclink/changes/demo/.meta.yaml"),
+            fx.root().join("specseal/changes/demo/.meta.yaml"),
         )
         .unwrap();
         assert_eq!(
@@ -504,13 +504,13 @@ mod tests {
 
     #[test]
     fn revert_is_refused_while_the_change_has_a_worktree() {
-        // spec worktree-overlay「worktree 掛著時的 desktop 動詞防護」：退回提案中
-        // 與封存同一條紅線——工作在 worktree 副本裡，主 checkout 不該擅自退回。
+        // spec worktree-overlay「worktree 挂着时的 desktop 动词防护」：退回提案中
+        // 与封存同一条红线——工作在 worktree 副本里，主 checkout 不该擅自退回。
         let fx = crate::testfixture::FixtureRoot::new("m-revert-wt");
         fx.add_change("demo", STARTED_META);
-        fx.write("speclink/changes/demo/tasks.md", "## 1. Group\n\n- [ ] 1.1 First task\n");
-        fx.write(".speclink.yaml", "tools:\n  - claude\n");
-        fx.write("speclink/config.yaml", "schema: spec-driven\nworktree: true\n");
+        fx.write("specseal/changes/demo/tasks.md", "## 1. Group\n\n- [ ] 1.1 First task\n");
+        fx.write(".specseal.yaml", "tools:\n  - claude\n");
+        fx.write("specseal/config.yaml", "schema: spec-driven\nworktree: true\n");
         let git = |args: &[&str]| {
             let out = std::process::Command::new("git")
                 .args(args)
@@ -526,28 +526,28 @@ mod tests {
         git(&["init", "-q", "-b", "main"]);
         git(&["add", "-A"]);
         git(&["commit", "-qm", "seed"]);
-        git(&["worktree", "add", "-q", "-b", "speclink/demo", fx.root().join("wt").to_str().unwrap()]);
+        git(&["worktree", "add", "-q", "-b", "specseal/demo", fx.root().join("wt").to_str().unwrap()]);
 
-        let err = revert_change_to_proposed_at(fx.root(), "demo").expect_err("必須拒絕");
-        assert!(err.contains("worktree-merge"), "須指出收尾方式: {err}");
-        let meta = fs::read_to_string(fx.root().join("speclink/changes/demo/.meta.yaml")).unwrap();
-        assert!(meta.contains("started_at"), "拒絕時開工戳記不得被移除: {meta}");
+        let err = revert_change_to_proposed_at(fx.root(), "demo").expect_err("必须拒绝");
+        assert!(err.contains("worktree-merge"), "须指出收尾方式: {err}");
+        let meta = fs::read_to_string(fx.root().join("specseal/changes/demo/.meta.yaml")).unwrap();
+        assert!(meta.contains("started_at"), "拒绝时开工戳记不得被移除: {meta}");
     }
 
     #[test]
     fn revert_on_unstarted_change_is_idempotent_success() {
         let fx = crate::testfixture::FixtureRoot::new("m-revert-idem");
         fx.add_change("demo", "schema: spec-driven\ncreated: 2026-07-05\n");
-        fx.write("speclink/changes/demo/tasks.md", "## 1. Group\n\n- [ ] 1.1 First task\n");
+        fx.write("specseal/changes/demo/tasks.md", "## 1. Group\n\n- [ ] 1.1 First task\n");
         revert_change_to_proposed_at(fx.root(), "demo").expect("idempotent success");
     }
 
     #[test]
     fn revert_blocked_returns_the_shared_structured_error_json() {
         let fx = crate::testfixture::FixtureRoot::new("m-revert-blocked");
-        fx.add_change("demo", STARTED_META); // 預設 tasks.md 含 1 個已勾任務
+        fx.add_change("demo", STARTED_META); // 缺省 tasks.md 含 1 个已勾任务
         fx.write(
-            ".speclink/touched/demo.json",
+            ".specseal/touched/demo.json",
             r#"{"change":"demo","touched":[{"task_id":"2","task_desc":"1.2 Second task","files":["src/a.rs"]}]}"#,
         );
         let err = revert_change_to_proposed_at(fx.root(), "demo")
@@ -556,10 +556,10 @@ mod tests {
         assert_eq!(v["kind"], "revertBlocked");
         assert_eq!(v["checkedTasks"], 1);
         assert_eq!(v["touchedFiles"], json!(["src/a.rs"]));
-        // remote bridge 走同一轉譯函式——形狀由這條斷言釘住。
+        // remote bridge 走同一转译函数——形状由这条断言钉住。
         assert_eq!(err, revert_blocked_error(1, &["src/a.rs".to_string()]));
         let meta = fs::read_to_string(
-            fx.root().join("speclink/changes/demo/.meta.yaml"),
+            fx.root().join("specseal/changes/demo/.meta.yaml"),
         )
         .unwrap();
         assert_eq!(meta, STARTED_META, "a refusal must not touch the meta");
@@ -567,11 +567,11 @@ mod tests {
 
     #[test]
     fn delete_change_removes_active_change() {
-        // 無痕跡 fixture（無 started_at、零勾選）——delete 走 discard 全語意後
-        // 守門放行的基準案例。
+        // 无痕迹 fixture（无 started_at、零勾选）——delete 走 discard 全语意后
+        // 守门放行的基准案例。
         let root = fixture_with_change("del", "doomed-change");
         fs::write(
-            root.join("speclink").join("changes").join("doomed-change").join("tasks.md"),
+            root.join("specseal").join("changes").join("doomed-change").join("tasks.md"),
             "- [ ] 1.1 open\n",
         )
         .unwrap();
@@ -583,29 +583,29 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    // --- 刪除走 discard 全語意（spec desktop-app「桌面刪除變更走 discard 全語意」）---
+    // --- 删除走 discard 全语意（spec desktop-app「桌面删除变更走 discard 全语意」）---
 
     const PROMOTED_D1: &str = "---\ntopic: d1\nslug: d1\nstatus: promoted\npromoted_to: cut\ncreated: 2026-07-01\n---\n\n## Conclusion\n\n**Decision**: x\n";
 
     #[test]
     fn delete_promoted_change_unlinks_source_discussion_and_clears_touched() {
-        // spec scenario「刪除轉出 change 連帶解鏈來源討論」：目錄消失、touched
-        // 清除；來源討論 promoted_to 移除該名，清單空時狀態回復 concluded。
+        // spec scenario「删除转出 change 连带解链来源讨论」：目录消失、touched
+        // 清除；来源讨论 promoted_to 移除该名，清单空时状态回复 concluded。
         let fx = crate::testfixture::FixtureRoot::new("del-unlink");
         fx.add_change("cut", "schema: spec-driven\ncreated: 2026-07-05\nfrom_discussion: d1\n");
-        // add_change 預設 tasks.md 含一個已勾任務——覆寫為零痕跡。
-        fx.write("speclink/changes/cut/tasks.md", "- [ ] 1.1 open\n");
-        fx.write("speclink/discussions/d1.md", PROMOTED_D1);
-        fx.write(".speclink/touched/cut.json", "{\"change\":\"cut\",\"touched\":[]}");
+        // add_change 缺省 tasks.md 含一个已勾任务——覆写为零痕迹。
+        fx.write("specseal/changes/cut/tasks.md", "- [ ] 1.1 open\n");
+        fx.write("specseal/discussions/d1.md", PROMOTED_D1);
+        fx.write(".specseal/touched/cut.json", "{\"change\":\"cut\",\"touched\":[]}");
 
         delete_change_at(fx.root(), "cut").expect("trace-free delete succeeds");
 
-        assert!(!fx.root().join("speclink/changes/cut").exists(), "change directory gone");
+        assert!(!fx.root().join("specseal/changes/cut").exists(), "change directory gone");
         assert!(
-            !fx.root().join(".speclink/touched/cut.json").exists(),
+            !fx.root().join(".specseal/touched/cut.json").exists(),
             "touched record cleared"
         );
-        let doc = fs::read_to_string(fx.root().join("speclink/discussions/d1.md")).unwrap();
+        let doc = fs::read_to_string(fx.root().join("specseal/discussions/d1.md")).unwrap();
         assert!(!doc.contains("promoted_to"), "promoted_to entry removed: {doc}");
         assert!(
             doc.contains("status: concluded\n"),
@@ -615,85 +615,85 @@ mod tests {
 
     #[test]
     fn delete_started_change_is_refused_with_zero_file_effects() {
-        // spec scenario「有開工痕跡的本地刪除被拒」：meta 含 started_at → Err，
-        // speclink/ 下任何檔案逐位元不變（含來源討論不解鏈）。
+        // spec scenario「有开工痕迹的本地删除被拒」：meta 含 started_at → Err，
+        // specseal/ 下任何文件逐比特不变（含来源讨论不解链）。
         let fx = crate::testfixture::FixtureRoot::new("del-refused");
         fx.add_change(
             "cut",
             "schema: spec-driven\ncreated: 2026-07-05\nstarted_at: 2026-07-06\nfrom_discussion: d1\n",
         );
-        fx.write("speclink/changes/cut/tasks.md", "- [ ] 1.1 open\n");
-        fx.write("speclink/discussions/d1.md", PROMOTED_D1);
-        let meta_path = fx.root().join("speclink/changes/cut/.meta.yaml");
+        fx.write("specseal/changes/cut/tasks.md", "- [ ] 1.1 open\n");
+        fx.write("specseal/discussions/d1.md", PROMOTED_D1);
+        let meta_path = fx.root().join("specseal/changes/cut/.meta.yaml");
         let meta_before = fs::read_to_string(&meta_path).unwrap();
 
         delete_change_at(fx.root(), "cut").expect_err("started change must refuse delete");
 
-        assert!(fx.root().join("speclink/changes/cut").exists(), "change directory preserved");
+        assert!(fx.root().join("specseal/changes/cut").exists(), "change directory preserved");
         assert_eq!(fs::read_to_string(&meta_path).unwrap(), meta_before, "meta byte-identical");
         assert_eq!(
-            fs::read_to_string(fx.root().join("speclink/discussions/d1.md")).unwrap(),
+            fs::read_to_string(fx.root().join("specseal/discussions/d1.md")).unwrap(),
             PROMOTED_D1,
             "discussion untouched — no unlink on a refused delete"
         );
     }
 
-    // --- 寫入面路由（spec worktree-overlay「worktree 掛著時的 desktop 動詞防護」
-    // 的粒度寫入動詞：檔案效果與側效落在 worktree 副本）---
+    // --- 写入面路由（spec worktree-overlay「worktree 挂着时的 desktop 动词防护」
+    // 的粒度写入动词：文件效果与侧效落在 worktree 副本）---
 
     #[test]
     fn set_task_done_writes_into_the_worktree_copy() {
-        // Scenario「任務勾選寫入 worktree」：勾章落在副本的 tasks.md，touched 記錄
-        // 同落副本（歸因掃的是副本的髒檔），主 checkout 的 tasks.md 位元級不變。
+        // Scenario「任务勾选写入 worktree」：勾章落在副本的 tasks.md，touched 记录
+        // 同落副本（归因扫的是副本的脏档），主 checkout 的 tasks.md 比特级不变。
         let fx = crate::testfixture::FixtureRoot::new("m-task-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
-        fx.write("speclink/changes/add-auth/tasks.md", "## 1. Group\n\n- [ ] 1.1 first\n");
+        fx.write("specseal/changes/add-auth/tasks.md", "## 1. Group\n\n- [ ] 1.1 first\n");
         let wt = fx.attach_worktree("add-auth");
-        let main_tasks = fx.root().join("speclink/changes/add-auth/tasks.md");
+        let main_tasks = fx.root().join("specseal/changes/add-auth/tasks.md");
         let main_before = fs::read_to_string(&main_tasks).unwrap();
-        // 副本內的未認領髒檔——勾選的歸因來源。
+        // 副本内的未认领脏档——勾选的归因来源。
         fs::write(wt.path().join("src.rs"), "fn implemented_in_the_worktree() {}\n").unwrap();
 
-        set_task_done_at(fx.root(), "add-auth", "1", true).expect("勾選成功");
+        set_task_done_at(fx.root(), "add-auth", "1", true).expect("勾选成功");
 
         let wt_change = wt.change_dir("add-auth");
         let wt_tasks = fs::read_to_string(wt_change.join("tasks.md")).unwrap();
-        assert!(wt_tasks.contains("- [x] 1.1 first"), "勾章須落在 worktree 副本: {wt_tasks}");
+        assert!(wt_tasks.contains("- [x] 1.1 first"), "勾章须落在 worktree 副本: {wt_tasks}");
         assert_eq!(
             fs::read_to_string(&main_tasks).unwrap(),
             main_before,
-            "主 checkout 的 tasks.md 位元級不變"
+            "主 checkout 的 tasks.md 比特级不变"
         );
         let record = fs::read_to_string(wt_change.join(".evidence.json"))
-            .expect("touched 記錄落在 worktree 副本");
-        assert!(record.contains("src.rs"), "歸因掃的是副本的髒檔: {record}");
+            .expect("touched 记录落在 worktree 副本");
+        assert!(record.contains("src.rs"), "归因扫的是副本的脏档: {record}");
         assert!(
-            !fx.root().join("speclink/changes/add-auth/.evidence.json").exists(),
-            "主 checkout 不留記錄"
+            !fx.root().join("specseal/changes/add-auth/.evidence.json").exists(),
+            "主 checkout 不留记录"
         );
-        // 首次完成的開工章同樣落在副本。
+        // 首次完成的开工章同样落在副本。
         let wt_meta = fs::read_to_string(wt_change.join(".meta.yaml")).unwrap();
-        assert!(wt_meta.contains("started_at:"), "開工章須落在副本: {wt_meta}");
+        assert!(wt_meta.contains("started_at:"), "开工章须落在副本: {wt_meta}");
         assert!(
-            !fs::read_to_string(fx.root().join("speclink/changes/add-auth/.meta.yaml"))
+            !fs::read_to_string(fx.root().join("specseal/changes/add-auth/.meta.yaml"))
                 .unwrap()
                 .contains("started_at:"),
-            "主 checkout 的 metadata 不被寫入"
+            "主 checkout 的 metadata 不被写入"
         );
     }
 
     #[test]
     fn bulk_check_and_task_move_write_into_the_worktree_copy() {
-        // 粒度寫入動詞同一落點：全部勾選與任務拖排也寫副本的 tasks.md
-        // （全勾自行寫回、拖排走引擎，兩條路徑都要跟著定根）。
+        // 粒度写入动词同一落点：全部勾选与任务拖排也写副本的 tasks.md
+        // （全勾自行写回、拖排走引擎，两条路径都要跟着定根）。
         let fx = crate::testfixture::FixtureRoot::new("m-bulk-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
         fx.write(
-            "speclink/changes/add-auth/tasks.md",
+            "specseal/changes/add-auth/tasks.md",
             "## 1. Group\n\n- [ ] 1.1 first\n- [ ] 1.2 second\n",
         );
         let wt = fx.attach_worktree("add-auth");
-        let main_tasks = fx.root().join("speclink/changes/add-auth/tasks.md");
+        let main_tasks = fx.root().join("specseal/changes/add-auth/tasks.md");
         let main_before = fs::read_to_string(&main_tasks).unwrap();
         let wt_tasks = wt.change_dir("add-auth")
             .join("tasks.md");
@@ -702,25 +702,25 @@ mod tests {
         let after_bulk = fs::read_to_string(&wt_tasks).unwrap();
         assert!(
             after_bulk.contains("- [x] 1.1 first") && after_bulk.contains("- [x] 1.2 second"),
-            "全勾須落在 worktree 副本: {after_bulk}"
+            "全勾须落在 worktree 副本: {after_bulk}"
         );
-        assert_eq!(fs::read_to_string(&main_tasks).unwrap(), main_before, "主 checkout 不動");
+        assert_eq!(fs::read_to_string(&main_tasks).unwrap(), main_before, "主 checkout 不动");
 
         move_task_at(fx.root(), "add-auth", 2, 1, None).expect("拖排成功");
         let after_move = fs::read_to_string(&wt_tasks).unwrap();
-        assert!(after_move.contains("- [x] 1.1 second"), "拖排須落在副本: {after_move}");
-        assert_eq!(fs::read_to_string(&main_tasks).unwrap(), main_before, "主 checkout 仍不動");
+        assert!(after_move.contains("- [x] 1.1 second"), "拖排须落在副本: {after_move}");
+        assert_eq!(fs::read_to_string(&main_tasks).unwrap(), main_before, "主 checkout 仍不动");
     }
 
     #[test]
     fn bulk_check_records_v2_evidence_like_a_single_completion() {
-        // 批次勾選沿單發完成語意：除了 v1 touched 通道，也要落 v2 EvidenceEntry
-        // ——只寫 v1 的記錄在新的 evidence 查詢面（server 端點、封存 trace）會被
-        // 讀成空集合。
+        // 批量勾选沿单发完成语意：除了 v1 touched 信道，也要落 v2 EvidenceEntry
+        // ——只写 v1 的记录在新的 evidence 查找面（server 端点、封存 trace）会被
+        // 读成空集合。
         let fx = crate::testfixture::FixtureRoot::new("m-bulk-evidence");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
         fx.write(
-            "speclink/changes/add-auth/tasks.md",
+            "specseal/changes/add-auth/tasks.md",
             "## 1. Group\n\n- [ ] 1.1 first\n- [ ] 1.2 second\n",
         );
         git_with_identity(fx.root(), "Bulk Tester", "bulk@example.test");
@@ -739,8 +739,8 @@ mod tests {
 
         set_all_tasks_at(fx.root(), "add-auth", true).expect("全勾成功");
 
-        let store = speclink_fs::FsStore::new(fx.root(), "speclink");
-        let rec = speclink_core::tasks::TouchedRecord::load(&store, "add-auth");
+        let store = specseal_fs::FsStore::new(fx.root(), "specseal");
+        let rec = specseal_core::tasks::TouchedRecord::load(&store, "add-auth");
         assert_eq!(rec.touched.len(), 1, "v1 file-list channel keeps its entry");
         assert_eq!(rec.entries.len(), 1, "the v2 evidence entry lands too: {rec:?}");
         let e = &rec.entries[0];
@@ -752,27 +752,27 @@ mod tests {
 
     #[test]
     fn discarding_the_review_ticket_targets_the_worktree_copy() {
-        // 放棄審查工單同屬粒度寫入動詞：刪的是副本的工單，主 checkout 的同名檔不動。
+        // 放弃审查工单同属粒度写入动词：删的是副本的工单，主 checkout 的同名档不动。
         let fx = crate::testfixture::FixtureRoot::new("m-discard-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
-        fx.write("speclink/changes/add-auth/review.md", "# Review — 主 checkout 的舊工單\n");
+        fx.write("specseal/changes/add-auth/review.md", "# Review — 主 checkout 的旧工单\n");
         let wt = fx.attach_worktree("add-auth");
         let wt_ticket = wt.change_dir("add-auth")
             .join("review.md");
 
-        crate::verbs::discard_review_at(fx.root(), "add-auth").expect("放棄工單成功");
+        crate::verbs::discard_review_at(fx.root(), "add-auth").expect("放弃工单成功");
 
-        assert!(!wt_ticket.exists(), "副本的工單須被刪除");
+        assert!(!wt_ticket.exists(), "副本的工单须被删除");
         assert!(
-            fx.root().join("speclink/changes/add-auth/review.md").is_file(),
-            "主 checkout 的工單不受影響"
+            fx.root().join("specseal/changes/add-auth/review.md").is_file(),
+            "主 checkout 的工单不受影响"
         );
     }
 
     #[test]
     fn reorder_card_writes_the_rank_into_the_worktree_copy() {
-        // Scenario「卡片拖排位置保持」：rank 寫入 worktree 副本的 change metadata，
-        // 與看板讀取（走 overlay）同源——寫主 checkout 會在下次刷新被覆蓋回原位。
+        // Scenario「卡片拖排位置保持」：rank 写入 worktree 副本的 change metadata，
+        // 与看板读取（走 overlay）同源——写主 checkout 会在下次刷新被覆盖回原位。
         let fx = crate::testfixture::FixtureRoot::new("m-rank-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
         let wt = fx.attach_worktree("add-auth");
@@ -784,104 +784,104 @@ mod tests {
                 .join(".meta.yaml"),
         )
         .unwrap();
-        assert!(wt_meta.contains("board_rank:"), "rank 須寫入 worktree 副本: {wt_meta}");
+        assert!(wt_meta.contains("board_rank:"), "rank 须写入 worktree 副本: {wt_meta}");
         assert!(
-            !fs::read_to_string(fx.root().join("speclink/changes/add-auth/.meta.yaml"))
+            !fs::read_to_string(fx.root().join("specseal/changes/add-auth/.meta.yaml"))
                 .unwrap()
                 .contains("board_rank:"),
-            "主 checkout 的 metadata 不被寫入"
+            "主 checkout 的 metadata 不被写入"
         );
     }
 
     #[test]
     fn column_restamp_writes_each_change_into_its_own_home() {
-        // 審查 finding（Round 1 CRITICAL）：拖排的整欄補章不得整欄寫進被拖卡的
-        // worktree 副本。讀取面走看板同源視圖（overlay：主 roster ＋映射值），
-        // 寫入逐 change 解析落點——有映射寫副本、無映射寫主 checkout；分支後
-        // 才在主 checkout 新建的 change 也要在欄內（否則鄰居定位與補章都漏掉它）。
+        // 审查 finding（Round 1 CRITICAL）：拖排的整栏补章不得整栏写进被拖卡的
+        // worktree 副本。读取面走看板同源视图（overlay：主 roster ＋映射值），
+        // 写入逐 change 解析落点——有映射写副本、无映射写主 checkout；分支后
+        // 才在主 checkout 新建的 change 也要在栏内（否则邻居定位与补章都漏掉它）。
         let fx = crate::testfixture::FixtureRoot::new("m-rank-column-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
         fx.add_change("beta", "schema: spec-driven\ncreated: 2026-07-05\n");
         let wt = fx.attach_worktree("add-auth");
-        // gamma 只存在於主 checkout（分支後新建）——worktree 快照裡沒有它。
+        // gamma 只存在于主 checkout（分支后新建）——worktree 快照里没有它。
         fx.add_change("gamma", "schema: spec-driven\ncreated: 2026-07-05\n");
 
         reorder_card_at(fx.root(), "change", "add-auth", None, None).expect("拖排成功");
 
         let meta = |p: &std::path::Path| fs::read_to_string(p).unwrap();
         let main_meta =
-            |name: &str| meta(&fx.root().join(format!("speclink/changes/{name}/.meta.yaml")));
+            |name: &str| meta(&fx.root().join(format!("specseal/changes/{name}/.meta.yaml")));
         let wt_meta = |name: &str| {
             meta(&wt.change_dir(name)
                 .join(".meta.yaml"))
         };
 
-        assert!(wt_meta("add-auth").contains("board_rank:"), "被拖卡寫進 worktree 副本");
+        assert!(wt_meta("add-auth").contains("board_rank:"), "被拖卡写进 worktree 副本");
         assert!(
             !main_meta("add-auth").contains("board_rank:"),
-            "被拖卡不寫主 checkout"
+            "被拖卡不写主 checkout"
         );
-        assert!(main_meta("beta").contains("board_rank:"), "無映射同欄卡補章落在主 checkout");
-        assert!(!wt_meta("beta").contains("board_rank:"), "無映射卡不得污染 worktree 副本");
+        assert!(main_meta("beta").contains("board_rank:"), "无映射同栏卡补章落在主 checkout");
+        assert!(!wt_meta("beta").contains("board_rank:"), "无映射卡不得污染 worktree 副本");
         assert!(
             main_meta("gamma").contains("board_rank:"),
-            "主 checkout 新建的卡也在欄內、補章落在主 checkout"
+            "主 checkout 新建的卡也在栏内、补章落在主 checkout"
         );
     }
 
     #[test]
     fn delete_is_refused_while_the_change_has_a_worktree() {
-        // Scenario「刪除被擋」：刪除是破壞性生命週期動詞，與封存、退回同一級——
-        // 拒絕並提示先收尾，兩份 change 目錄均不變。
+        // Scenario「删除被挡」：删除是破坏性生命周期动词，与封存、退回同一级——
+        // 拒绝并提示先收尾，两份 change 目录均不变。
         let fx = crate::testfixture::FixtureRoot::new("m-del-wt");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
-        // 零痕跡：守門之外的既有前置都會放行，拒絕只可能來自 worktree 守門。
-        fx.write("speclink/changes/add-auth/tasks.md", "- [ ] 1.1 open\n");
+        // 零痕迹：守门之外的既有前置都会放行，拒绝只可能来自 worktree 守门。
+        fx.write("specseal/changes/add-auth/tasks.md", "- [ ] 1.1 open\n");
         let wt = fx.attach_worktree("add-auth");
 
-        let err = delete_change_at(fx.root(), "add-auth").expect_err("有 worktree 映射時必須拒絕");
+        let err = delete_change_at(fx.root(), "add-auth").expect_err("有 worktree 映射时必须拒绝");
 
-        assert!(err.contains("worktree-merge"), "須指出收尾方式: {err}");
-        assert!(err.contains("add-auth"), "須指名 change: {err}");
+        assert!(err.contains("worktree-merge"), "须指出收尾方式: {err}");
+        assert!(err.contains("add-auth"), "须指名 change: {err}");
         assert!(
-            fx.root().join("speclink/changes/add-auth").is_dir(),
-            "主 checkout 的 change 目錄不變"
+            fx.root().join("specseal/changes/add-auth").is_dir(),
+            "主 checkout 的 change 目录不变"
         );
         assert!(
             wt.change_dir("add-auth").is_dir(),
-            "worktree 副本的 change 目錄不變"
+            "worktree 副本的 change 目录不变"
         );
     }
 
     #[test]
     fn writes_land_in_the_main_checkout_when_the_policy_is_off() {
-        // design D4 紅線：worktree 政策關閉 → facts 為空 → 寫入面全部回到主
-        // checkout、守門退場，與 worktree 功能出現前完全相同。
+        // design D4 红线：worktree 政策关闭 → facts 为空 → 写入面全部回到主
+        // checkout、守门退场，与 worktree 功能出现前完全相同。
         let fx = crate::testfixture::FixtureRoot::new("m-policy-off");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-05\n");
-        fx.write("speclink/changes/add-auth/tasks.md", "## 1. Group\n\n- [ ] 1.1 first\n");
+        fx.write("specseal/changes/add-auth/tasks.md", "## 1. Group\n\n- [ ] 1.1 first\n");
         let wt = fx.attach_worktree("add-auth");
-        fx.write("speclink/config.yaml", "schema: spec-driven\nworktree: false\n");
+        fx.write("specseal/config.yaml", "schema: spec-driven\nworktree: false\n");
 
-        set_task_done_at(fx.root(), "add-auth", "1", true).expect("勾選成功");
+        set_task_done_at(fx.root(), "add-auth", "1", true).expect("勾选成功");
 
         let main_tasks =
-            fs::read_to_string(fx.root().join("speclink/changes/add-auth/tasks.md")).unwrap();
+            fs::read_to_string(fx.root().join("specseal/changes/add-auth/tasks.md")).unwrap();
         assert!(main_tasks.contains("- [x] 1.1 first"), "勾章落在主 checkout: {main_tasks}");
         let wt_tasks = fs::read_to_string(
             wt.change_dir("add-auth").join("tasks.md"),
         )
         .unwrap();
-        assert!(wt_tasks.contains("- [ ] 1.1 first"), "副本不被寫入: {wt_tasks}");
+        assert!(wt_tasks.contains("- [ ] 1.1 first"), "副本不被写入: {wt_tasks}");
 
-        // 刪除守門同樣退場——這次擋下來的是既有的開工痕跡，不是 worktree。
-        let err = delete_change_at(fx.root(), "add-auth").expect_err("已有痕跡，刪除仍被擋");
-        assert!(!err.contains("worktree-merge"), "worktree 守門須已退場: {err}");
+        // 删除守门同样退场——这次挡下来的是既有的开工痕迹，不是 worktree。
+        let err = delete_change_at(fx.root(), "add-auth").expect_err("已有痕迹，删除仍被挡");
+        assert!(!err.contains("worktree-merge"), "worktree 守门须已退场: {err}");
     }
 
     fn fixture_with_tasks(tag: &str) -> PathBuf {
         let root = fixture_with_change(tag, "task-change");
-        let dir = root.join("speclink").join("changes").join("task-change");
+        let dir = root.join("specseal").join("changes").join("task-change");
         fs::write(
             dir.join("tasks.md"),
             "## 1. Group A\n\n- [ ] 1.1 first\n- [x] 1.2 second\n\n## 2. Group B\n\n- [ ] 2.1 third\n",
@@ -892,7 +892,7 @@ mod tests {
 
     fn read_tasks(root: &PathBuf) -> String {
         fs::read_to_string(
-            root.join("speclink").join("changes").join("task-change").join("tasks.md"),
+            root.join("specseal").join("changes").join("task-change").join("tasks.md"),
         )
         .unwrap()
     }
@@ -913,8 +913,8 @@ mod tests {
 
     #[test]
     fn uncheck_star_bullet_task_flips_the_line() {
-        // 取消勾選 delegate 引擎後，`* ` bullet 與 `- ` 同樣正確翻轉
-        // （舊桌面 regex 只認 `- `，此案例於 delegate 前紅燈）。
+        // 取消勾选 delegate 引擎后，`* ` bullet 与 `- ` 同样正确翻转
+        // （旧桌面 regex 只认 `- `，此案例于 delegate 前红灯）。
         let root = fixture_with_tasks_md(
             "star-uncheck",
             "## 1. Group\n\n- [x] 1.1 first\n* [x] 1.2 star\n",
@@ -929,14 +929,14 @@ mod tests {
     #[test]
     fn move_task_reorders_checkbox_lines_only() {
         let root = fixture_with_tasks("move");
-        // 把第 3 個任務移到第 1 位——落入群組 1 並依新順序重編號。
+        // 把第 3 个任务移到第 1 位——落入群组 1 并依新顺序重编号。
         move_task_at(&root, "task-change", 3, 1, None).expect("move up");
         let text = read_tasks(&root);
         let tasks: Vec<&str> = text.lines().filter(|l| l.trim_start().starts_with("- [")).collect();
         assert_eq!(tasks[0], "- [ ] 1.1 third");
         assert_eq!(tasks[1], "- [ ] 1.2 first");
         assert_eq!(tasks[2], "- [x] 1.3 second");
-        // 群組標題數不變
+        // 群组标题数不变
         assert_eq!(text.matches("## ").count(), 2);
         assert!(move_task_at(&root, "task-change", 0, 1, None).is_err(), "0 index errors");
         let _ = fs::remove_dir_all(&root);
@@ -944,7 +944,7 @@ mod tests {
 
     fn fixture_with_tasks_md(tag: &str, tasks: &str) -> PathBuf {
         let root = fixture_with_change(tag, "task-change");
-        let dir = root.join("speclink").join("changes").join("task-change");
+        let dir = root.join("specseal").join("changes").join("task-change");
         fs::write(dir.join("tasks.md"), tasks).unwrap();
         root
     }
@@ -959,10 +959,10 @@ mod tests {
 
     #[test]
     fn move_within_group_renumbers_prefixes_per_spec_example() {
-        // spec Example「組內移動重編號」：把 1.1 甲拖到末位 → 乙丙甲，前綴重寫 1.1/1.2/1.3。
+        // spec Example「组内移动重编号」：把 1.1 甲拖到末位 → 乙丙甲，前缀重写 1.1/1.2/1.3。
         let root = fixture_with_tasks_md(
             "renum-within",
-            "## 1. 群組\n\n- [ ] 1.1 甲\n- [x] 1.2 乙\n- [ ] 1.3 丙\n",
+            "## 1. 群组\n\n- [ ] 1.1 甲\n- [x] 1.2 乙\n- [ ] 1.3 丙\n",
         );
         move_task_at(&root, "task-change", 1, 3, None).expect("move ok");
         assert_eq!(
@@ -970,16 +970,16 @@ mod tests {
             vec!["- [x] 1.1 乙", "- [ ] 1.2 丙", "- [ ] 1.3 甲"],
             "prefixes must follow the new order"
         );
-        assert!(read_tasks(&root).contains("## 1. 群組"), "group heading untouched");
+        assert!(read_tasks(&root).contains("## 1. 群组"), "group heading untouched");
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn move_across_groups_takes_the_new_groups_numbering() {
-        // 把群組 1 的乙拖到群組 2 的丙之後 → 乙取得新群組編號 2.2，丁後移 2.3。
+        // 把群组 1 的乙拖到群组 2 的丙之后 → 乙取得新群组编号 2.2，丁后移 2.3。
         let root = fixture_with_tasks_md(
             "renum-cross",
-            "## 1. 前段\n\n說明文字原樣保留。\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n\n## 2. 後段\n\n- [ ] 2.1 丙\n- [ ] 2.2 丁\n",
+            "## 1. 前段\n\n说明文本原样保留。\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n\n## 2. 后段\n\n- [ ] 2.1 丙\n- [ ] 2.2 丁\n",
         );
         move_task_at(&root, "task-change", 2, 3, None).expect("move ok");
         assert_eq!(
@@ -987,8 +987,8 @@ mod tests {
             vec!["- [ ] 1.1 甲", "- [ ] 2.1 丙", "- [ ] 2.2 乙", "- [ ] 2.3 丁"]
         );
         let text = read_tasks(&root);
-        assert!(text.contains("說明文字原樣保留。"), "prose lines byte-identical");
-        assert!(text.contains("## 1. 前段") && text.contains("## 2. 後段"));
+        assert!(text.contains("说明文本原样保留。"), "prose lines byte-identical");
+        assert!(text.contains("## 1. 前段") && text.contains("## 2. 后段"));
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -996,12 +996,12 @@ mod tests {
     fn tasks_without_numeric_prefix_keep_their_text_verbatim() {
         let root = fixture_with_tasks_md(
             "renum-noprefix",
-            "## 1. 群組\n\n- [ ] 1.1 甲\n- [ ] 補充說明不帶編號\n- [ ] 1.2 乙\n",
+            "## 1. 群组\n\n- [ ] 1.1 甲\n- [ ] 补充说明不带编号\n- [ ] 1.2 乙\n",
         );
         move_task_at(&root, "task-change", 3, 1, None).expect("move ok");
         assert_eq!(
             task_lines(&root),
-            vec!["- [ ] 1.1 乙", "- [ ] 1.2 甲", "- [ ] 補充說明不帶編號"],
+            vec!["- [ ] 1.1 乙", "- [ ] 1.2 甲", "- [ ] 补充说明不带编号"],
             "unprefixed task text must stay untouched while others renumber"
         );
         let _ = fs::remove_dir_all(&root);
@@ -1011,7 +1011,7 @@ mod tests {
     fn groups_without_numeric_heading_are_not_renumbered() {
         let root = fixture_with_tasks_md(
             "renum-unnumbered",
-            "## 準備\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n",
+            "## 准备\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n",
         );
         move_task_at(&root, "task-change", 1, 2, None).expect("move ok");
         assert_eq!(
@@ -1024,12 +1024,12 @@ mod tests {
 
     #[test]
     fn before_true_crosses_the_heading_and_becomes_group_head() {
-        // spec Example「標題落點成組首」：把 1.2 乙拖到「## 2. 後段」標題上——
-        // 前端解析為（to=組首任務 ordinal, before=true）→ 乙插於丙行之前、
-        // 跨過標題成為群組 2 第一個任務。
+        // spec Example「标题落点成组首」：把 1.2 乙拖到「## 2. 后段」标题上——
+        // 前端解析为（to=组首任务 ordinal, before=true）→ 乙插于丙行之前、
+        // 跨过标题成为群组 2 第一个任务。
         let root = fixture_with_tasks_md(
             "side-head",
-            "## 1. 前段\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n\n## 2. 後段\n\n- [ ] 2.1 丙\n- [ ] 2.2 丁\n",
+            "## 1. 前段\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n\n## 2. 后段\n\n- [ ] 2.1 丙\n- [ ] 2.2 丁\n",
         );
         move_task_at(&root, "task-change", 2, 3, Some(true)).expect("move ok");
         assert_eq!(
@@ -1038,17 +1038,17 @@ mod tests {
             "before=true must insert ahead of the anchor line, across the heading"
         );
         let text = read_tasks(&root);
-        let g2 = text.split("## 2. 後段").nth(1).unwrap();
+        let g2 = text.split("## 2. 后段").nth(1).unwrap();
         assert!(g2.contains("乙"), "乙 must live under group 2: {text}");
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn before_false_explicitly_inserts_after_the_anchor() {
-        // 明確側別覆蓋方向推斷：向上移動＋before=false → 落在錨任務之後。
+        // 明确侧别覆盖方向推断：向上移动＋before=false → 落在锚任务之后。
         let root = fixture_with_tasks_md(
             "side-after",
-            "## 1. 群組\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n- [ ] 1.3 丙\n",
+            "## 1. 群组\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n- [ ] 1.3 丙\n",
         );
         move_task_at(&root, "task-change", 3, 1, Some(false)).expect("move ok");
         assert_eq!(
@@ -1063,13 +1063,13 @@ mod tests {
     fn side_parameter_keeps_out_of_range_errors_and_none_inference() {
         let root = fixture_with_tasks_md(
             "side-oob",
-            "## 1. 前段\n\n- [ ] 1.1 甲\n- [x] 1.2 乙\n- [ ] 1.3 丙\n\n## 2. 後段\n\n- [ ] 2.1 丁\n",
+            "## 1. 前段\n\n- [ ] 1.1 甲\n- [x] 1.2 乙\n- [ ] 1.3 丙\n\n## 2. 后段\n\n- [ ] 2.1 丁\n",
         );
         let before_text = read_tasks(&root);
         assert!(move_task_at(&root, "task-change", 9, 1, Some(true)).is_err());
         assert!(move_task_at(&root, "task-change", 0, 2, Some(false)).is_err());
         assert_eq!(read_tasks(&root), before_text, "failed side moves must not rewrite");
-        // None 維持方向推斷：向下拖到群組末位仍留在原群組（既有行為）。
+        // None 维持方向推断：向下拖到群组末位仍留在原群组（既有行为）。
         move_task_at(&root, "task-change", 1, 3, None).expect("move ok");
         assert_eq!(
             task_lines(&root),
@@ -1080,11 +1080,11 @@ mod tests {
 
     #[test]
     fn downward_move_to_group_end_stays_in_the_origin_group() {
-        // 真實視窗抓到的邊界缺陷：向下拖到群組末位時，「插在下一個 checkbox 前」
-        // 會把任務吞進下一群組——向下移動必須落在目標 checkbox 之後（留在原群組）。
+        // 真实窗口抓到的边界缺陷：向下拖到群组末位时，「插在下一个 checkbox 前」
+        // 会把任务吞进下一群组——向下移动必须落在目标 checkbox 之后（留在原群组）。
         let root = fixture_with_tasks_md(
             "renum-boundary",
-            "## 1. 前段\n\n- [ ] 1.1 甲\n- [x] 1.2 乙\n- [ ] 1.3 丙\n\n## 2. 後段\n\n- [ ] 2.1 丁\n- [ ] 2.2 戊\n",
+            "## 1. 前段\n\n- [ ] 1.1 甲\n- [x] 1.2 乙\n- [ ] 1.3 丙\n\n## 2. 后段\n\n- [ ] 2.1 丁\n- [ ] 2.2 戊\n",
         );
         move_task_at(&root, "task-change", 1, 3, None).expect("move ok");
         assert_eq!(
@@ -1093,24 +1093,24 @@ mod tests {
             "a downward move onto the last task of a group must not leak into the next group"
         );
         let text = read_tasks(&root);
-        let g2 = text.split("## 2. 後段").nth(1).unwrap();
+        let g2 = text.split("## 2. 后段").nth(1).unwrap();
         assert!(!g2.contains("甲"), "甲 must stay under group 1: {text}");
         let _ = fs::remove_dir_all(&root);
     }
 
     #[test]
     fn sub_versioned_prefixes_are_never_mangled() {
-        // sharp-edge：`1.2.3` 的「1.2」後面是「.」不是空白——比對要求前綴後必須
-        // 是空白，否則改寫會把子版號絞成「2.1.3」這種殘骸。
+        // sharp-edge：`1.2.3` 的「1.2」后面是「.」不是空白——比对要求前缀后必须
+        // 是空白，否则改写会把子版号绞成「2.1.3」这种残骸。
         let root = fixture_with_tasks_md(
             "renum-subver",
-            "## 1. 群組\n\n- [ ] 1.1 甲\n- [ ] 1.2.3 子版號文字\n",
+            "## 1. 群组\n\n- [ ] 1.1 甲\n- [ ] 1.2.3 子版号文本\n",
         );
         move_task_at(&root, "task-change", 2, 1, None).expect("move ok");
-        // 子版號列逐字元保留；甲成為組內第 2 個 checkbox，依「群組編號.組內序」重寫 1.2。
+        // 子版号列逐字符保留；甲成为组内第 2 个 checkbox，依「群组编号.组内序」重写 1.2。
         assert_eq!(
             task_lines(&root),
-            vec!["- [ ] 1.2.3 子版號文字", "- [ ] 1.2 甲"],
+            vec!["- [ ] 1.2.3 子版号文本", "- [ ] 1.2 甲"],
             "sub-versioned prefixes must be preserved verbatim"
         );
         let _ = fs::remove_dir_all(&root);
@@ -1118,10 +1118,10 @@ mod tests {
 
     #[test]
     fn overflowing_group_numbers_fail_soft_to_no_renumber() {
-        // sharp-edge：標題數字超出 u64——解析失敗即視為無數字標題，任務保留原文。
+        // sharp-edge：标题数字超出 u64——解析失败即视为无数字标题，任务保留原文。
         let root = fixture_with_tasks_md(
             "renum-overflow",
-            "## 99999999999999999999999. 巨數\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n",
+            "## 99999999999999999999999. 巨数\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙\n",
         );
         move_task_at(&root, "task-change", 1, 2, None).expect("move ok");
         assert_eq!(
@@ -1134,13 +1134,13 @@ mod tests {
 
     #[test]
     fn set_task_done_accepts_stable_id_and_ordinal_domains() {
-        // spec task-identity「桌面顯示無標記且勾選命中」的 desktop core 端：
-        // tsk_ 定址命中帶該 ID 的任務（重排無虞）、註解原文保留；純數字走
-        // ordinal 相容路徑；其餘值回 Err。
+        // spec task-identity「桌面显示无标记且勾选命中」的 desktop core 端：
+        // tsk_ 寻址命中带该 ID 的任务（重排无虞）、注解原文保留；纯数字走
+        // ordinal 兼容路径；其余值回 Err。
         const TID: &str = "tsk_01ARZ3NDEKTSV4RRFFQ69G5FAV";
         let root = fixture_with_tasks_md(
             "dual-domain",
-            &format!("## 1. 群組\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙 <!-- speclink-task:{TID} -->\n"),
+            &format!("## 1. 群组\n\n- [ ] 1.1 甲\n- [ ] 1.2 乙 <!-- specseal-task:{TID} -->\n"),
         );
         set_task_done_at(&root, "task-change", TID, true).expect("stable id toggle ok");
         let lines = task_lines(&root);
@@ -1157,9 +1157,9 @@ mod tests {
 
     #[test]
     fn set_task_done_does_not_renumber() {
-        // 勾選不改順序，也不得觸發重編號——就算既有編號是亂的。
-        // （task done 對無 ID 目標行會單行補章 stable ID 註解，故目標行以前綴比對。）
-        let root = fixture_with_tasks_md("renum-toggle", "## 1. 群組\n\n- [ ] 1.9 甲\n- [ ] 1.5 乙\n");
+        // 勾选不改顺序，也不得触发重编号——就算既有编号是乱的。
+        // （task done 对无 ID 目标行会单行补章 stable ID 注解，故目标行以前缀比对。）
+        let root = fixture_with_tasks_md("renum-toggle", "## 1. 群组\n\n- [ ] 1.9 甲\n- [ ] 1.5 乙\n");
         set_task_done_at(&root, "task-change", "1", true).expect("toggle ok");
         let lines = task_lines(&root);
         assert_eq!(lines.len(), 2);
@@ -1174,7 +1174,7 @@ mod tests {
 
     #[test]
     fn out_of_range_move_leaves_the_file_untouched() {
-        let root = fixture_with_tasks_md("renum-oob", "## 1. 群組\n\n- [ ] 1.1 甲\n");
+        let root = fixture_with_tasks_md("renum-oob", "## 1. 群组\n\n- [ ] 1.1 甲\n");
         let before = read_tasks(&root);
         assert!(move_task_at(&root, "task-change", 9, 1, None).is_err());
         assert!(move_task_at(&root, "task-change", 0, 1, None).is_err());
@@ -1182,12 +1182,12 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
     }
 
-    // --- 完成語意：GUI 勾任務與 CLI 完成語意一致（desktop-app spec）---
+    // --- 完成语意：GUI 勾任务与 CLI 完成语意一致（desktop-app spec）---
 
     const META_UNSTARTED: &str =
         "schema: spec-driven\ncreated: 2026-07-05\ncreated_by: momo\ncreated_with: claude\n";
 
-    /// fixture 根轉為 git repo（本地身分固定）；`dirty_rel` 給一個未認領的 dirty 程式檔。
+    /// fixture 根转为 git repo（本地身分固定）；`dirty_rel` 给一个未认领的 dirty 程序档。
     fn giterize(root: &Path, dirty_rel: Option<&str>) {
         let git = |args: &[&str]| {
             let ok = std::process::Command::new("git")
@@ -1208,10 +1208,10 @@ mod tests {
         }
     }
 
-    // spec「任務寫回非阻塞且序列化」Scenario「並發寫回序列化」（design D3：寫入序列化（全域寫鎖））
+    // spec「任务写回非阻塞且串行化」Scenario「并发写回串行化」（design D3：写入串行化（全域写锁））
     #[test]
     fn concurrent_task_writes_serialize_without_lost_updates() {
-        // 讀-改-寫競態窗口極窄，多輪並發提高暴露機率；有鎖後每輪皆確定無遺失。
+        // 读-改-写竞态窗口极窄，多轮并发提高暴露几率；有锁后每轮皆确定无遗失。
         for round in 0..30 {
             let root = fixture_with_tasks_md(
                 &format!("wlock-{round}"),
@@ -1232,7 +1232,7 @@ mod tests {
         }
     }
 
-    /// 對指定目錄 git init 並設定身分（cached_git_identity 測試用，與 giterize 的固定身分區隔）。
+    /// 对指定目录 git init 并设置身分（cached_git_identity 测试用，与 giterize 的固定身分区隔）。
     fn git_with_identity(root: &Path, name: &str, email: &str) {
         for args in [
             vec!["init", "-q"],
@@ -1249,17 +1249,17 @@ mod tests {
         }
     }
 
-    // spec「任務寫回非阻塞且序列化」Scenario「git 身分快取重用」（design D1）
+    // spec「任务写回非阻塞且串行化」Scenario「git 身分缓存重用」（design D1）
     #[test]
     fn cached_git_identity_is_per_root_and_stable() {
         let a = crate::testfixture::FixtureRoot::new("idcache-a");
         let b = crate::testfixture::FixtureRoot::new("idcache-b");
         git_with_identity(a.root(), "Alice", "alice@example.com");
         git_with_identity(b.root(), "Bob", "bob@example.com");
-        // 快取按根區分。
+        // 缓存按根区分。
         assert_eq!(cached_git_identity(a.root()).as_deref(), Some("Alice <alice@example.com>"));
         assert_eq!(cached_git_identity(b.root()).as_deref(), Some("Bob <bob@example.com>"));
-        // 同根重複呼叫回傳快取值——事後改 config 不重抓（app 存續期語意，重啟才更新）。
+        // 同根重复调用回传缓存值——事后改 config 不重抓（app 存续期语意，重启才更新）。
         let _ = std::process::Command::new("git")
             .args(["config", "user.name", "Changed"])
             .current_dir(a.root())
@@ -1268,18 +1268,18 @@ mod tests {
     }
 
     fn change_file(fx: &crate::testfixture::FixtureRoot, name: &str, file: &str) -> PathBuf {
-        fx.root().join("speclink").join("changes").join(name).join(file)
+        fx.root().join("specseal").join("changes").join(name).join(file)
     }
 
     fn meta_of(fx: &crate::testfixture::FixtureRoot, name: &str) -> String {
         fs::read_to_string(change_file(fx, name, ".meta.yaml")).unwrap()
     }
 
-    /// 證據記錄的家：change 目錄的 `.evidence.json`（隨 change 提交與封存移動）。
+    /// 证据记录的家：change 目录的 `.evidence.json`（随 change 提交与封存移动）。
     fn touched_of(fx: &crate::testfixture::FixtureRoot, name: &str) -> Option<String> {
         fs::read_to_string(
             fx.root()
-                .join("speclink")
+                .join("specseal")
                 .join("changes")
                 .join(name)
                 .join(".evidence.json"),
@@ -1303,11 +1303,11 @@ mod tests {
 
         let tasks = fs::read_to_string(change_file(&fx, "demo", "tasks.md")).unwrap();
         assert!(tasks.contains("- [x] 1.1 First task"), "task must be checked: {tasks}");
-        // 與 CLI task done 相同的檔案效果：meta 蓋開工章（identity 沿 git 身分、agent 缺席）。
+        // 与 CLI task done 相同的文件效果：meta 盖开工章（identity 沿 git 身分、agent 缺席）。
         let meta = meta_of(&fx, "demo");
         assert!(meta.starts_with(META_UNSTARTED), "existing meta preserved verbatim: {meta}");
         assert!(
-            meta.contains(&format!("started_at: {}", speclink_core::util::today())),
+            meta.contains(&format!("started_at: {}", specseal_core::util::today())),
             "first completion must stamp started_at: {meta}"
         );
         assert!(
@@ -1315,7 +1315,7 @@ mod tests {
             "git identity must be attributed: {meta}"
         );
         assert!(!meta.contains("started_with"), "no agent source → started_with absent: {meta}");
-        // touched 記錄與 CLI 同語意：未認領 dirty 檔記於本任務項下。
+        // touched 记录与 CLI 同语意：未认领 dirty 档记于本任务项下。
         let touched = touched_of(&fx, "demo").expect("touched record written");
         assert!(touched.contains("src/main.rs"), "dirty file must be recorded: {touched}");
         assert!(touched.contains("\"task_id\": \"1\""), "entry attributed to task 1: {touched}");
@@ -1325,7 +1325,7 @@ mod tests {
     fn set_task_done_true_on_done_task_is_an_idempotent_no_op() {
         let fx = crate::testfixture::FixtureRoot::new("done-idem");
         fx.add_change("demo", META_UNSTARTED);
-        // 唯讀 tasks.md：任何寫入企圖都會失敗——冪等成功必須完全不寫檔。
+        // 唯读 tasks.md：任何写入企图都会失败——幂等成功必须完全不写档。
         let tasks_path = change_file(&fx, "demo", "tasks.md");
         let before = fs::read_to_string(&tasks_path).unwrap();
         set_readonly(&tasks_path, true);
@@ -1341,10 +1341,10 @@ mod tests {
     fn uncheck_and_move_never_touch_meta_or_touched_record() {
         let fx = crate::testfixture::FixtureRoot::new("no-sideeffect");
         fx.add_change("demo", META_UNSTARTED);
-        // dirty 檔在場更能證明「不記 touched」是行為而非碰巧無料可記。
+        // dirty 档在场更能证明「不记 touched」是行为而非碰巧无料可记。
         giterize(fx.root(), Some("src/lib.rs"));
         let touched_before = "{\n  \"change\": \"demo\",\n  \"touched\": []\n}";
-        fx.write("speclink/changes/demo/.evidence.json", touched_before);
+        fx.write("specseal/changes/demo/.evidence.json", touched_before);
 
         set_task_done_at(fx.root(), "demo", "2", false).expect("uncheck ok");
         move_task_at(fx.root(), "demo", 1, 2, None).expect("move ok");
@@ -1359,16 +1359,16 @@ mod tests {
 
     #[test]
     fn desktop_ordinal_matches_engine_task_id_on_mixed_fixture() {
-        // D3 風險釘死：同一 tasks.md（群組標題＋巢狀縮排＋非 checkbox 行混排），
-        // desktop ordinal N 與引擎 task id N 必指同一任務。
-        let mixed = "## 1. 群組甲\n\n前言說明不列入計數。\n\n- [ ] 1.1 首任務\n  - [ ] 巢狀子任務\n  - 純列表項非 checkbox\n- [ ] 1.2 次任務\n\n## 2. 群組乙\n\n- [ ] 2.1 尾任務\n";
+        // D3 风险钉死：同一 tasks.md（群组标题＋嵌套缩进＋非 checkbox 行混排），
+        // desktop ordinal N 与引擎 task id N 必指同一任务。
+        let mixed = "## 1. 群组甲\n\n前言说明不列入计数。\n\n- [ ] 1.1 首任务\n  - [ ] 嵌套子任务\n  - 纯列表项非 checkbox\n- [ ] 1.2 次任务\n\n## 2. 群组乙\n\n- [ ] 2.1 尾任务\n";
         for n in 1..=4 {
             let fx = crate::testfixture::FixtureRoot::new(&format!("align-{n}"));
             fx.add_change("demo", META_UNSTARTED);
-            fx.write("speclink/changes/demo/tasks.md", mixed);
+            fx.write("specseal/changes/demo/tasks.md", mixed);
             set_task_done_at(fx.root(), "demo", &n.to_string(), true).expect("check ok");
             let text = fs::read_to_string(change_file(&fx, "demo", "tasks.md")).unwrap();
-            let parsed = speclink_core::tasks::parse(&text);
+            let parsed = specseal_core::tasks::parse(&text);
             assert_eq!(parsed.len(), 4, "engine must see the same 4 checkboxes");
             assert!(
                 parsed[n - 1].done,
@@ -1378,11 +1378,11 @@ mod tests {
         }
     }
 
-    // --- 批次任務動詞（desktop-task-interactions spec「任務分頁提供批次操作工具列」）---
+    // --- 批量任务动词（desktop-task-interactions spec「任务分页提供批量操作工具列」）---
 
     #[test]
     fn set_all_tasks_done_checks_everything_and_stamps_once() {
-        // 全勾單次寫回；開工章語意與逐一勾選一致；touched 僅記一筆（歸於首個翻轉任務）。
+        // 全勾单次写回；开工章语意与逐一勾选一致；touched 仅记一笔（归于首个翻转任务）。
         let fx = crate::testfixture::FixtureRoot::new("all-done");
         fx.add_change("demo", META_UNSTARTED);
         giterize(fx.root(), Some("src/main.rs"));
@@ -1390,14 +1390,14 @@ mod tests {
         set_all_tasks_at(fx.root(), "demo", true).expect("batch check ok");
 
         let tasks = fs::read_to_string(change_file(&fx, "demo", "tasks.md")).unwrap();
-        let parsed = speclink_core::tasks::parse(&tasks);
+        let parsed = specseal_core::tasks::parse(&tasks);
         assert_eq!(parsed.len(), 2, "checkbox count unchanged");
         assert!(parsed.iter().all(|t| t.done), "every task must be checked: {tasks}");
         assert!(tasks.contains("## 1. Group"), "non-checkbox lines intact");
         let meta = meta_of(&fx, "demo");
         assert!(meta.starts_with(META_UNSTARTED), "existing meta preserved verbatim: {meta}");
         assert!(
-            meta.contains(&format!("started_at: {}", speclink_core::util::today())),
+            meta.contains(&format!("started_at: {}", specseal_core::util::today())),
             "batch first completion must stamp started_at: {meta}"
         );
         assert!(
@@ -1421,7 +1421,7 @@ mod tests {
         let tasks_path = change_file(&fx, "demo", "tasks.md");
         let tasks_before = fs::read_to_string(&tasks_path).unwrap();
         let meta_before = meta_of(&fx, "demo");
-        // 唯讀鎖檔：冪等路徑必須零寫檔。
+        // 唯读锁档：幂等路径必须零写档。
         set_readonly(&tasks_path, true);
         let r = set_all_tasks_at(fx.root(), "demo", true);
         set_readonly(&tasks_path, false);
@@ -1432,7 +1432,7 @@ mod tests {
 
     #[test]
     fn set_all_tasks_reset_unchecks_without_stamp_or_touched() {
-        // 重置：全部取消勾選、不蓋開工章、不記 touched（dirty 檔在場更能證明是行為）。
+        // 重置：全部取消勾选、不盖开工章、不记 touched（dirty 档在场更能证明是行为）。
         let fx = crate::testfixture::FixtureRoot::new("all-reset");
         fx.add_change("demo", META_UNSTARTED);
         giterize(fx.root(), Some("src/lib.rs"));
@@ -1441,12 +1441,12 @@ mod tests {
 
         let tasks = fs::read_to_string(change_file(&fx, "demo", "tasks.md")).unwrap();
         assert!(
-            speclink_core::tasks::parse(&tasks).iter().all(|t| !t.done),
+            specseal_core::tasks::parse(&tasks).iter().all(|t| !t.done),
             "every task must be unchecked: {tasks}"
         );
         assert_eq!(meta_of(&fx, "demo"), META_UNSTARTED, "reset must not stamp");
         assert!(touched_of(&fx, "demo").is_none(), "reset must not record touched");
-        // 全未勾再重置：冪等成功、零寫檔（唯讀鎖檔驗證）。
+        // 全未勾再重置：幂等成功、零写档（唯读锁档验证）。
         let tasks_path = change_file(&fx, "demo", "tasks.md");
         set_readonly(&tasks_path, true);
         let r = set_all_tasks_at(fx.root(), "demo", false);
@@ -1456,7 +1456,7 @@ mod tests {
 
     #[test]
     fn set_all_tasks_preserves_structure_and_rejects_bad_input() {
-        // 群組標題與行序原樣保留、僅 checkbox 標記翻轉；守衛與單發一致。
+        // 群组标题与行序原样保留、仅 checkbox 标记翻转；守卫与单发一致。
         let root = fixture_with_tasks("all-preserve");
         set_all_tasks_at(&root, "task-change", true).expect("batch ok");
         assert_eq!(
@@ -1477,16 +1477,16 @@ mod tests {
         let root = fixture_with_change("safe", "kept-change");
         assert!(delete_change_at(&root, "no-such-xyz").is_err(), "unknown change errors");
         assert!(delete_change_at(&root, "../specs").is_err(), "traversal rejected");
-        // 原 change 不受影響
+        // 原 change 不受影响
         let ctx = crate::init_core_context(&root).unwrap();
         assert!(ctx.store.change_exists("kept-change"));
         let _ = fs::remove_dir_all(&root);
     }
 
-    // --- 看板拖排寫回（design D3/D5；desktop-card-reorder） ---
+    // --- 看板拖排写回（design D3/D5；desktop-card-reorder） ---
 
     /// 含 board_rank 的 change meta（add_change 的 tasks 固定 1 完成 1 未完成
-    /// → 全卡同屬 in-progress 欄）。
+    /// → 全卡同属 in-progress 栏）。
     fn ranked_meta(rank: &str) -> String {
         format!("schema: spec-driven\ncreated: 2026-07-01\ncreated_by: momo\nboard_rank: {rank}\n")
     }
@@ -1494,13 +1494,13 @@ mod tests {
     use crate::testfixture::board_names;
 
     fn rank_of(meta: &str) -> Option<String> {
-        speclink_core::model::ChangeMeta::from_text(Some(meta)).expect("meta parses").board_rank
+        specseal_core::model::ChangeMeta::from_text(Some(meta)).expect("meta parses").board_rank
     }
 
     #[test]
     fn reorder_change_steady_state_writes_only_dragged_meta() {
-        // spec「欄內拖排以中點 rank 單檔寫回」：穩態下只改被拖卡 meta，
-        // 其餘內容逐位元組不變、鄰居檔案不動。
+        // spec「栏内拖排以中点 rank 单档写回」：稳态下只改被拖卡 meta，
+        // 其余内容逐字节不变、邻居文件不动。
         let fx = crate::testfixture::FixtureRoot::new("r-steady");
         fx.add_change("one", &ranked_meta("b"));
         fx.add_change("two", &ranked_meta("f"));
@@ -1519,7 +1519,7 @@ mod tests {
             "b" < new_rank.as_str() && new_rank.as_str() < "f",
             "new rank must be strictly between neighbors: {new_rank}"
         );
-        // 除 board_rank 行外逐位元組不變（原 rank 行原位代換）。
+        // 除 board_rank 行外逐字节不变（原 rank 行原位代换）。
         assert_eq!(
             three.replacen(&format!("board_rank: {new_rank}\n"), "board_rank: t\n", 1),
             ranked_meta("t"),
@@ -1530,21 +1530,21 @@ mod tests {
 
     #[test]
     fn reorder_change_stamps_whole_column_when_unranked_present() {
-        // spec「欄內存在缺 rank 卡時整欄補章」：依當前顯示序整欄派發後套用移動，
-        // 不波及他欄。
+        // spec「栏内存在缺 rank 卡时整栏补章」：依当前显示序整栏派发后套用移动，
+        // 不波及他栏。
         let fx = crate::testfixture::FixtureRoot::new("r-stamp");
         fx.add_change("a", META_UNSTARTED);
         fx.add_change("b", META_UNSTARTED);
         fx.add_change("c", META_UNSTARTED);
-        // 他欄卡（proposed：零完成、未開工）不得被補章。
+        // 他栏卡（proposed：零完成、未开工）不得被补章。
         fx.add_change("other-col", META_UNSTARTED);
         fx.write(
-            "speclink/changes/other-col/tasks.md",
+            "specseal/changes/other-col/tasks.md",
             "## 1. Group\n\n- [ ] 1.1 First task\n- [ ] 1.2 Second task\n",
         );
         let other_before = meta_of(&fx, "other-col");
 
-        // 把 c 拖到欄頂（a 之前）。
+        // 把 c 拖到栏顶（a 之前）。
         reorder_card_at(fx.root(), "change", "c", None, Some("a")).expect("stamp reorder ok");
 
         let (ra, rb, rc) = (
@@ -1554,25 +1554,25 @@ mod tests {
         );
         assert!(rc < ra && ra < rb, "order must be c < a < b, got c={rc} a={ra} b={rb}");
         assert_eq!(meta_of(&fx, "other-col"), other_before, "other column must be untouched");
-        // 頂層順序＝plan 配置序（階段在前：進行中欄的三卡先於提案中的 other-col），
-        // 欄內為 c、a、b。
+        // 顶层顺序＝plan 配置序（阶段在前：进行中栏的三卡先于提案中的 other-col），
+        // 栏内为 c、a、b。
         assert_eq!(board_names(fx.root()), ["c", "a", "b", "other-col"]);
-        // 補章後 meta 仍以既有欄位開頭（byte 保留）。
+        // 补章后 meta 仍以既有字段开头（byte 保留）。
         assert!(meta_of(&fx, "a").starts_with(META_UNSTARTED));
     }
 
-    /// `.meta.yaml` 存在但解析失敗的固定樣本（與 core 測試同款）。
+    /// `.meta.yaml` 存在但解析失败的固定样本（与 core 测试同款）。
     const BAD_META: &str = ": : :\n\t bad yaml [unclosed\n";
 
     #[test]
     fn reorder_backfill_excludes_invalid_card_and_ranks_the_rest() {
-        // spec「補章排除 invalid 卡且不中止」：同欄含缺 rank 有效卡與壞 metadata
-        // 卡，觸發整欄補章——僅有效卡被寫入 board_rank，壞卡逐位元不變，
-        // 其餘補章照常完成（單一壞卡不得癱瘓整欄）。
+        // spec「补章排除 invalid 卡且不中止」：同栏含缺 rank 有效卡与坏 metadata
+        // 卡，触发整栏补章——仅有效卡被写入 board_rank，坏卡逐比特不变，
+        // 其余补章照常完成（单一坏卡不得瘫痪整栏）。
         let fx = crate::testfixture::FixtureRoot::new("r-invalid-backfill");
         fx.add_change("a", META_UNSTARTED);
         fx.add_change("b", META_UNSTARTED);
-        fx.add_change("broken", BAD_META); // 同欄（相同任務進度）但 metadata 損壞
+        fx.add_change("broken", BAD_META); // 同栏（相同任务进度）但 metadata 损坏
 
         reorder_card_at(fx.root(), "change", "b", None, Some("a"))
             .expect("backfill must not die on the invalid card");
@@ -1589,15 +1589,15 @@ mod tests {
 
     #[test]
     fn reorder_of_the_invalid_card_itself_is_refused() {
-        // spec「排序寫入對壞 metadata 拒絕」桌面端到端：拖壞卡本身 → 引擎
-        // 錯誤拒絕且檔案逐位元不變。
+        // spec「排序写入对坏 metadata 拒绝」桌面端到端：拖坏卡本身 → 引擎
+        // 错误拒绝且文件逐比特不变。
         let fx = crate::testfixture::FixtureRoot::new("r-invalid-drag");
         fx.add_change("a", META_UNSTARTED);
         fx.add_change("broken", BAD_META);
         let err = reorder_card_at(fx.root(), "change", "broken", Some("a"), None)
             .expect_err("dragging the invalid card must be refused");
         assert!(
-            err.contains("speclink/changes/broken/.meta.yaml"),
+            err.contains("specseal/changes/broken/.meta.yaml"),
             "error must name the metadata file: {err}"
         );
         assert_eq!(meta_of(&fx, "broken"), BAD_META, "meta byte-identical");
@@ -1605,27 +1605,27 @@ mod tests {
 
     #[test]
     fn reorder_discussion_writes_single_frontmatter_file() {
-        // 討論卡同語意：中點寫回單檔、鄰居不動。
+        // 讨论卡同语意：中点写回单档、邻居不动。
         let fx = crate::testfixture::FixtureRoot::new("r-disc");
         let doc = |slug: &str, rank: &str| {
             format!(
                 "---\ntopic: T {slug}\nslug: {slug}\nstatus: open\nboard_rank: {rank}\ncreated: 2026-07-01\n---\n\n# Discussion: T {slug}\n\n## Context\n\nx\n\n## Rounds\n\n## Conclusion\n\n<!-- p -->\n"
             )
         };
-        fx.write("speclink/discussions/alpha.md", &doc("alpha", "b"));
-        fx.write("speclink/discussions/beta.md", &doc("beta", "n"));
-        fx.write("speclink/discussions/gamma.md", &doc("gamma", "t"));
-        let alpha_before = fs::read_to_string(fx.root().join("speclink/discussions/alpha.md")).unwrap();
+        fx.write("specseal/discussions/alpha.md", &doc("alpha", "b"));
+        fx.write("specseal/discussions/beta.md", &doc("beta", "n"));
+        fx.write("specseal/discussions/gamma.md", &doc("gamma", "t"));
+        let alpha_before = fs::read_to_string(fx.root().join("specseal/discussions/alpha.md")).unwrap();
 
         reorder_card_at(fx.root(), "discussion", "gamma", Some("alpha"), Some("beta"))
             .expect("discussion reorder ok");
 
         assert_eq!(
-            fs::read_to_string(fx.root().join("speclink/discussions/alpha.md")).unwrap(),
+            fs::read_to_string(fx.root().join("specseal/discussions/alpha.md")).unwrap(),
             alpha_before,
             "neighbor discussion files must not change"
         );
-        let gamma = fs::read_to_string(fx.root().join("speclink/discussions/gamma.md")).unwrap();
+        let gamma = fs::read_to_string(fx.root().join("specseal/discussions/gamma.md")).unwrap();
         let new_rank = {
             let line = gamma.lines().find(|l| l.starts_with("board_rank:")).expect("rank line");
             line.trim_start_matches("board_rank:").trim().to_string()
@@ -1638,12 +1638,12 @@ mod tests {
         );
     }
 
-    // --- 拖排前的依賴檢查（design D3；spec「欄內拖排以中點 rank 單檔寫回」）---
+    // --- 拖排前的依赖检查（design D3；spec「栏内拖排以中点 rank 单档写回」）---
 
     #[test]
     fn reorder_across_a_declared_prerequisite_is_refused_and_keeps_the_rank() {
-        // Scenario「跨越宣告前置被拒」：c depends_on a、同欄，把 c 拖到 a 之前 →
-        // Err 帶引擎的 Display 文字、c 的 meta 逐位元不變、刷新後仍 a 在 c 前。
+        // Scenario「跨越声明前置被拒」：c depends_on a、同栏，把 c 拖到 a 之前 →
+        // Err 带引擎的 Display 文本、c 的 meta 逐比特不变、刷新后仍 a 在 c 前。
         let fx = crate::testfixture::FixtureRoot::new("r-dep-refused");
         fx.add_change("a", &ranked_meta("b"));
         fx.add_change("c", &format!("{}depends_on: a\n", ranked_meta("f")));
@@ -1659,8 +1659,8 @@ mod tests {
 
     #[test]
     fn reorder_refusal_writes_nothing_even_when_the_column_needs_stamps() {
-        // 依賴檢查在任何寫入之前（引擎 move_rank，與 CLI 的 change rank 同一份）：
-        // 欄內有缺 rank 卡、本該先補章，但移動被拒——a 與 c 都不寫，順序照舊。
+        // 依赖检查在任何写入之前（引擎 move_rank，与 CLI 的 change rank 同一份）：
+        // 栏内有缺 rank 卡、本该先补章，但移动被拒——a 与 c 都不写，顺序照旧。
         let fx = crate::testfixture::FixtureRoot::new("r-dep-refused-stamp");
         fx.add_change("a", META_UNSTARTED);
         fx.add_change("c", &format!("{META_UNSTARTED}depends_on: a\n"));
@@ -1676,14 +1676,14 @@ mod tests {
 
     #[test]
     fn overlap_partners_may_swap_places() {
-        // 只因 delta 重疊而依序的夥伴可互換先後（spec：僅因 delta 重疊而依序的
-        // 夥伴 SHALL NOT 構成拒絕）。
+        // 只因 delta 重叠而依序的伙伴可互换先后（spec：仅因 delta 重叠而依序的
+        // 伙伴 SHALL NOT 构成拒绝）。
         let fx = crate::testfixture::FixtureRoot::new("r-overlap-swap");
         fx.add_change("a", &ranked_meta("b"));
         fx.add_change("b", &ranked_meta("f"));
         for name in ["a", "b"] {
             fx.write(
-                &format!("speclink/changes/{name}/specs/shared-cap/spec.md"),
+                &format!("specseal/changes/{name}/specs/shared-cap/spec.md"),
                 "## ADDED Requirements\n\n### Requirement: R\n\nText.\n",
             );
         }
@@ -1699,9 +1699,9 @@ mod tests {
 
     #[test]
     fn reorder_restamps_the_column_when_rank_order_disagrees_with_the_display_order() {
-        // Scenario「依賴修正後的欄拖排」：c（rank g）宣告前置 a（rank n）→ 顯示 a、c 但
-        // rank 序 c<a；把 x 拖到 a、c 之間時中點鍵表達不了這個位置（審查 Round 1：
-        // 舊行為鍵落到 c 之後、畫面靜默不動）。整欄先依顯示序重派再套移動。
+        // Scenario「依赖修正后的栏拖排」：c（rank g）声明前置 a（rank n）→ 显示 a、c 但
+        // rank 序 c<a；把 x 拖到 a、c 之间时中点键表达不了这个位置（审查 Round 1：
+        // 旧行为键落到 c 之后、画面静默不动）。整栏先依显示序重派再套移动。
         let fx = crate::testfixture::FixtureRoot::new("r-restamp-inverted");
         fx.add_change("a", &ranked_meta("n"));
         fx.add_change("c", &format!("{}depends_on: a\n", ranked_meta("g")));
@@ -1717,14 +1717,14 @@ mod tests {
 
     #[test]
     fn set_depends_rechecks_the_cycle_on_the_board_view_when_the_change_has_a_worktree() {
-        // 審查 Round 1：a 有 worktree 映射時引擎的成環守門只看副本；分支後主 checkout
-        // 才加的 b→a 邊副本看不到。寫入後以看板同源視圖（overlay）複檢，成環即撤銷
-        // 這條邊、回引擎的成環訊息，副本逐位元不變、看板不出 planError。
+        // 审查 Round 1：a 有 worktree 映射时引擎的成环守门只看副本；分支后主 checkout
+        // 才加的 b→a 边副本看不到。写入后以看板同源视图（overlay）复检，成环即撤销
+        // 这条边、回引擎的成环消息，副本逐比特不变、看板不出 planError。
         let fx = crate::testfixture::FixtureRoot::new("m-depends-wt-cycle");
         fx.add_change("a", META_UNSTARTED);
         fx.add_change("b", META_UNSTARTED);
         let wt = fx.attach_worktree("a");
-        fx.write("speclink/changes/b/.meta.yaml", &format!("{META_UNSTARTED}depends_on: a\n"));
+        fx.write("specseal/changes/b/.meta.yaml", &format!("{META_UNSTARTED}depends_on: a\n"));
         let a_wt = wt.change_dir("a").join(".meta.yaml");
         let a_before = fs::read_to_string(&a_wt).unwrap();
 
@@ -1735,7 +1735,7 @@ mod tests {
         assert!(crate::query::list_changes_at(fx.root())["planError"].is_null());
     }
 
-    // --- 前置的新增與移除（design D6；spec「詳情抽屜的排程分頁」）---
+    // --- 前置的添加与移除（design D6；spec「详情抽屉的调度分页」）---
 
     fn on(names: &[&str]) -> Vec<String> {
         names.iter().map(|n| n.to_string()).collect()
@@ -1743,8 +1743,8 @@ mod tests {
 
     #[test]
     fn set_depends_writes_and_removes_the_prerequisite_in_the_meta() {
-        // Scenario「新增前置寫回」：寫入後 meta 含 depends_on: a，其餘位元組保留、
-        // 前置卡不動；移除後該行消失。
+        // Scenario「添加前置写回」：写入后 meta 含 depends_on: a，其余字节保留、
+        // 前置卡不动；移除后该行消失。
         let fx = crate::testfixture::FixtureRoot::new("m-depends");
         fx.add_change("a", META_UNSTARTED);
         fx.add_change("b", META_UNSTARTED);
@@ -1771,7 +1771,7 @@ mod tests {
 
     #[test]
     fn set_depends_refusals_come_from_the_engine_and_write_nothing() {
-        // Scenario「引擎拒絕新增」：自依賴、不存在、成環 → Err 帶引擎文字、meta 不變。
+        // Scenario「引擎拒绝添加」：自依赖、不存在、成环 → Err 带引擎文本、meta 不变。
         let fx = crate::testfixture::FixtureRoot::new("m-depends-refused");
         fx.add_change("a", &format!("{META_UNSTARTED}depends_on: b\n"));
         fx.add_change("b", META_UNSTARTED);
@@ -1790,8 +1790,8 @@ mod tests {
 
     #[test]
     fn depends_candidates_come_from_the_worktree_roster_when_the_change_has_one() {
-        // desktop-app Scenario「worktree 映射時候選來自副本名冊」：add-late 在分支後才於
-        // 主 checkout 建立、副本裡沒有——選了會被引擎拒絕，所以不能列成候選。
+        // desktop-app Scenario「worktree 映射时候选来自副本名册」：add-late 在分支后才于
+        // 主 checkout 创建、副本里没有——选了会被引擎拒绝，所以不能列成候选。
         let fx = crate::testfixture::FixtureRoot::new("m-candidates-wt");
         fx.add_change("add-auth", META_UNSTARTED);
         fx.add_change("add-dark-mode", META_UNSTARTED);
@@ -1804,7 +1804,7 @@ mod tests {
             listed["changes"].as_array().unwrap().iter().any(|c| c["name"] == "add-late"),
             "the board still lists add-late"
         );
-        // 候選就是寫入接受的名冊：add-auth 可寫、add-late 被拒。
+        // 候选就是写入接受的名册：add-auth 可写、add-late 被拒。
         set_depends_at(fx.root(), "add-dark-mode", &on(&["add-auth"]), false)
             .expect("a roster candidate is accepted");
         let err = set_depends_at(fx.root(), "add-dark-mode", &on(&["add-late"]), false)
@@ -1824,13 +1824,13 @@ mod tests {
 
     #[test]
     fn reorder_survives_vanished_neighbors_without_corrupting_meta() {
-        // spec「鄰居於寫回前消失」：以現存鄰居重導或落欄頂／欄底，不損壞 meta、不 panic。
+        // spec「邻居于写回前消失」：以现存邻居重导或落栏顶／栏底，不损坏 meta、不 panic。
         let fx = crate::testfixture::FixtureRoot::new("r-race");
         fx.add_change("solo", &ranked_meta("f"));
         reorder_card_at(fx.root(), "change", "solo", Some("ghost-prev"), Some("ghost-next"))
             .expect("vanished neighbors must not fail");
         let meta = meta_of(&fx, "solo");
-        let parsed = speclink_core::model::ChangeMeta::from_text(Some(&meta)).expect("meta parses");
+        let parsed = specseal_core::model::ChangeMeta::from_text(Some(&meta)).expect("meta parses");
         assert_eq!(parsed.schema.as_deref(), Some("spec-driven"), "meta must keep parsing");
         assert!(parsed.board_rank.is_some(), "card keeps a valid rank");
     }

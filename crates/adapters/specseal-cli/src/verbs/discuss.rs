@@ -1,0 +1,224 @@
+//! The discuss family: every discussion subcommand, both arms.
+//!
+//! Dual at the family level — the subcommand enum is matched exhaustively with
+//! no catch-all in either arm, so a new subcommand fails to build until both
+//! modes answer for it.
+
+use anyhow::Result;
+use specseal_core as core;
+use specseal_protocol::query as protocol_query;
+
+use crate::common::{
+    emit, engine_command, open_project, read_stdin_content, render_options, run, stdin_for,
+};
+use crate::remote_base::RemoteCtx;
+use specseal_verbs::families::discuss::{DiscussArgs, DiscussCommands};
+use specseal_verbs::render::discuss::{
+    self as render, Concluded, DiscussBind, NewDiscussionLines, Promoted, RecordedRound,
+};
+use specseal_verbs::render::fields::{self as render_fields, FieldKind};
+use specseal_verbs::{ToCommand, VerbInputs};
+
+pub(crate) fn cmd_discuss(a: DiscussArgs) -> Result<()> {
+    let (ws, store) = open_project()?;
+    let stdin = stdin_for(a.stdin_policy());
+    let cmd = engine_command(a.to_command(VerbInputs { stdin, ..Default::default() }))?;
+    match a.command {
+        DiscussCommands::New { json, .. } => {
+            let info: core::discuss::DiscussionInfo = run(&store, Some(&ws), cmd)?;
+            emit(render::new(&info, render_options(json)));
+        }
+        DiscussCommands::List { archived, json } => {
+            let items: Vec<core::discuss::DiscussionInfo> = run(&store, Some(&ws), cmd)?;
+            emit(render::list(&items, archived, render_options(json)));
+        }
+        DiscussCommands::Show { json, .. } => {
+            let show: core::command::DiscussShowOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::show(&show, render_options(json)));
+        }
+        DiscussCommands::Search { terms, json } => {
+            let hits: Vec<core::discuss::DiscussionHit> = run(&store, Some(&ws), cmd)?;
+            emit(render::search(&terms, &hits, render_options(json)));
+        }
+        DiscussCommands::Context { json, .. } => {
+            let o: core::command::DiscussSubjectOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::context(&o.slug, render_options(json)));
+        }
+        DiscussCommands::AddRound { json, .. } => {
+            let o: core::command::DiscussRoundOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::round_recorded(&o, render_options(json)));
+        }
+        DiscussCommands::Conclude { json, .. } => {
+            let o: core::command::DiscussConcludeOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::concluded(&o, render_options(json)));
+            // 闭环封存步失败：结论与 restale 已落盘（上面照常呈现），这里以非零
+            // exit code 收场、stderr 说明原因；重跑 discuss archive 即可收尾。
+            if let Some(reason) = &o.closing_error {
+                anyhow::bail!("{}", render::closing_error_message(reason));
+            }
+        }
+        DiscussCommands::Archive { json, .. } => {
+            let o: core::command::DiscussArchiveOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::archived(&o, render_options(json)));
+        }
+        DiscussCommands::Discard { json, .. } => {
+            let o: core::command::DiscussSubjectOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::discard(&o.slug, render_options(json)));
+        }
+        DiscussCommands::Promote { json, .. } => {
+            let o: core::command::DiscussPromoteOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::promoted(&o, render_options(json)));
+        }
+        DiscussCommands::Link { json, .. } => {
+            let o: core::command::DiscussBindOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::bind(DiscussBind::Link, &o.slug, &o.change, render_options(json)));
+        }
+        DiscussCommands::Seal { json, .. } => {
+            let o: core::command::DiscussBindOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render::bind(DiscussBind::Seal, &o.slug, &o.change, render_options(json)));
+        }
+        DiscussCommands::Field(field) => {
+            let o: core::command::FieldsOutcome = run(&store, Some(&ws), cmd)?;
+            emit(render_fields::edited(FieldKind::Discussion, &o, render_options(field.json())));
+        }
+    }
+    Ok(())
+}
+pub(crate) fn remote_discuss(ctx: &RemoteCtx, a: DiscussArgs) -> Result<()> {
+    match a.command {
+        DiscussCommands::List { archived, json } => {
+            let items: Vec<_> = ctx
+                .client
+                .list_discussions(archived)?
+                .discussions
+                .iter()
+                .map(to_discussion_info)
+                .collect();
+            emit(render::list(&items, archived, render_options(json)));
+        }
+        DiscussCommands::Search { terms, json } => {
+            // 同一支输出函数：wire hit 转回引擎类型（信息字段走既有 to_discussion_info，
+            // promotedTo／concluded 沿 list 的既定分歧落下）。
+            let hits: Vec<core::discuss::DiscussionHit> = ctx
+                .client
+                .search_discussions(&terms)?
+                .hits
+                .iter()
+                .map(|h| core::discuss::DiscussionHit {
+                    info: to_discussion_info(&h.info),
+                    matches: h
+                        .matches
+                        .iter()
+                        .map(|m| core::discuss::DiscussionMatch {
+                            kind: m.kind.clone(),
+                            where_: m.where_.clone(),
+                            text: m.text.clone(),
+                        })
+                        .collect(),
+                })
+                .collect();
+            emit(render::search(&terms, &hits, render_options(json)));
+        }
+        DiscussCommands::Show { slug, json } => {
+            let payload = ctx.client.show_discussion(&slug)?;
+            emit(render::show(
+                &core::command::DiscussShowOutcome {
+                    info: Some(to_discussion_info(&payload.info)),
+                    content: payload.content,
+                },
+                render_options(json),
+            ));
+        }
+        DiscussCommands::New { topic, slug, kind, field, json } => {
+            // --slug 与 --kind 随请求上 wire；验证的单一事实来源在引擎（server 端），
+            // CLI 不预验（design D1）。`--field` 只在这里拆成键值，规则同样由 server 检查。
+            let fields = specseal_verbs::families::fields::parse_pairs(&field)?;
+            let resp = ctx.client.new_discussion_with_fields(&topic, slug.as_deref(), kind.as_deref(), &fields)?;
+            ctx.warn_if_fields_were_not_kept(&fields);
+            // remote 的 --json 契约是 wire 回应原样（slug／topic／path）——
+            // 组 core 类型会捏造 server 没说的字段，形状冻结不允许。
+            emit(render::new_from(
+                &resp,
+                NewDiscussionLines { slug: &resp.slug, topic: &resp.topic, path: &resp.path },
+                render_options(json),
+            ));
+        }
+        DiscussCommands::Context { slug, stdin, json } => {
+            let content = read_stdin_content(stdin);
+            ctx.client.discussion_context(&slug, &content)?;
+            emit(render::context(&slug, render_options(json)));
+        }
+        DiscussCommands::AddRound { slug, mode, stdin, json } => {
+            let content = read_stdin_content(stdin);
+            let round = ctx.client.discussion_add_round(&slug, &mode, &content)?.round;
+            emit(render::add_round(
+                &RecordedRound { slug: &slug, round: round as usize, mode: &mode },
+                render_options(json),
+            ));
+        }
+        DiscussCommands::Conclude { slug, stdin, hold, json } => {
+            let content = read_stdin_content(stdin);
+            let resp = ctx.client.discussion_conclude(&slug, &content, hold)?;
+            emit(render::conclude(
+                &Concluded {
+                    slug: &slug,
+                    restale_flagged: &resp.restale_flagged,
+                    auto_archived: resp.auto_archived,
+                    held: resp.held,
+                    closing_error: None,
+                },
+                render_options(json),
+            ));
+        }
+        DiscussCommands::Archive { slug, json } => {
+            let archived_to = ctx.client.discussion_archive(&slug)?.archived_to;
+            emit(render::archive(&slug, &archived_to, render_options(json)));
+        }
+        DiscussCommands::Promote { slug, name, last, json } => {
+            let change = ctx.client.discussion_promote(&slug, name.as_deref(), last)?.change;
+            // 明文分歧（design D5）：新变更目录是 store 端位置，remote 不印，
+            // 与 `new change` 的 Path 行同一条裁定。
+            emit(render::promote(
+                &Promoted { slug: &slug, change: &change, path: None },
+                render_options(json),
+            ));
+        }
+        DiscussCommands::Discard { slug, force, json } => {
+            let slug = ctx.client.discard_discussion(&slug, force)?.slug;
+            emit(render::discard(&slug, render_options(json)));
+        }
+        DiscussCommands::Link { slug, change, json } => {
+            let bound = ctx.client.link_discussion(&slug, &change)?;
+            emit(render::bind(DiscussBind::Link, &bound.slug, &bound.change, render_options(json)));
+        }
+        DiscussCommands::Seal { slug, change, last, json } => {
+            let bound = ctx.client.seal_discussion(&slug, &change, last)?;
+            emit(render::bind(DiscussBind::Seal, &bound.slug, &bound.change, render_options(json)));
+        }
+        DiscussCommands::Field(field) => ctx.edit_fields(FieldKind::Discussion, &field)?,
+    }
+    Ok(())
+}
+/// The wire discussion summary reshaped into the engine's info type, so both
+/// modes render (and serialize) it through one path.
+fn to_discussion_info(d: &protocol_query::DiscussionInfo) -> core::discuss::DiscussionInfo {
+    // wire DTO 带 promotedTo／concluded／hold（缺席＝旧 server，视同未保留）；
+    // board_rank 不上链，取缺省。CLI 不显示 hold，映过来只为 head 与 fs 模式同形。
+    let mut head = core::discuss::DiscussionHead::default();
+    head.promoted_to = d.promoted_to.clone();
+    head.hold = d.hold.unwrap_or(false);
+    core::discuss::DiscussionInfo {
+        slug: d.slug.clone(),
+        topic: d.topic.clone(),
+        status: d.status.clone(),
+        rounds: d.rounds,
+        created: d.created.clone(),
+        created_by: d.created_by.clone(),
+        kind: d.kind.clone(),
+        path: d.path.clone(),
+        archived: d.archived,
+        fields: d.fields.clone(),
+        concluded: d.concluded.unwrap_or(false),
+        head,
+    }
+}

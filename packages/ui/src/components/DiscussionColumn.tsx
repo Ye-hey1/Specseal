@@ -21,9 +21,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { CopyButton, REVEAL_ON_HOVER } from "./CopyButton";
 
 /**
- * promoted_to 子變更的階段標示（純前端由清單存在性派生）——active 清單命中
- * 依看板欄位規則；封存清單命中為已封存；兩者皆無為已刪除（討論維持已轉出
- * 不回退，歷史事實不回滾）。回傳 i18n key，呼叫端以 t() 取顯示字串。
+ * promoted_to 子变更的阶段标示（纯前端由清单存在性派生）——active 清单命中
+ * 依看板字段规则；封存清单命中为已封存；两者皆无为已删除（讨论维持已转出
+ * 不回退，历史事实不回滚）。回传 i18n key，调用端以 t() 取显示字符串。
  */
 export function discussionChipStage(
   name: string,
@@ -37,9 +37,9 @@ export function discussionChipStage(
 }
 
 /**
- * promoted 子變更 chip 的配色（design D2）——與 discussionChipStage 同分類規則：
- * active 命中取看板階段的 STAGE_BADGE 色相、封存命中為中性色、皆無為
- * destructive 加刪除線（已刪除）。與看板欄配色同一來源，不引入新色輪。
+ * promoted 子变更 chip 的配色（design D2）——与 discussionChipStage 同分类规则：
+ * active 命中取看板阶段的 STAGE_BADGE 色相、封存命中为中性色、皆无为
+ * destructive 加删除线（已删除）。与看板栏配色同一来源，不引入新色轮。
  */
 export function discussionChipClass(
   name: string,
@@ -53,34 +53,34 @@ export function discussionChipClass(
 }
 
 interface DiscussionColumnBaseProps {
-  /** 看板上的討論（active 清單；封存討論不進此欄）。 */
+  /** 看板上的讨论（active 清单；封存讨论不进此栏）。 */
   discussions: DiscussionItem[];
-  /** active change 清單（chips 階段派生）。 */
+  /** active change 清单（chips 阶段派生）。 */
   changes: ChangeItem[];
-  /** 已封存 change 清單（chips 已封存態派生）。 */
+  /** 已封存 change 清单（chips 已封存态派生）。 */
   archived: ArchivedItem[];
   onOpenDiscussion?: (slug: string) => void;
-  /** concluded 卡的封存動詞（app 端接確認流程）。轉為變更（promote）已自 GUI 撤除。 */
+  /** concluded 卡的封存动词（app 端接确认流程）。转为变更（promote）已自 GUI 撤除。 */
   onArchiveDiscussion?: (slug: string) => void;
   /**
-   * 欄內拖排（design D6）：true 時全卡（open／concluded）掛 sortable——
-   * 需在宿主的 DndContext 內；promoted 收合列是衍生樹檢視，不參與拖排。
+   * 栏内拖排（design D6）：true 时全卡（open／concluded）挂 sortable——
+   * 需在宿主的 DndContext 内；promoted 收合列是衍生树查看，不参与拖排。
    */
   sortable?: boolean;
-  /** 搜尋字串（design D7）：slug 子字串命中時高亮。 */
+  /** 搜索字符串（design D7）：slug 子字符串命中时高亮。 */
   highlight?: string;
-  /** 全文命中（design D6）：命中的討論卡呈 snippet 行。 */
+  /** 全文命中（design D6）：命中的讨论卡呈 snippet 行。 */
   fulltextHits?: SearchHit[];
-  /** 首訪載入中：以佔位卡呈現，欄名照常、不出空態文案與計數（design D2）。 */
+  /** 首访加载中：以占位卡呈现，栏名照常、不出空态文案与计数（design D2）。 */
   loading?: boolean;
-  /** 首訪載入失敗：卡片區顯示載入失敗提示，取代空態文案（呼叫端已排除 loading）。 */
+  /** 首访加载失败：卡片区显示加载失败提示，取代空态文案（调用端已排除 loading）。 */
   loadFailed?: boolean;
 }
 
 /**
- * 欄底「已轉出」收合列的展開狀態（design D2）：兩者同進同出——皆提供時受控（展開狀態
- * 由宿主持有，桌面 app 存於 app 本機跨啟動保留）；皆缺席時元件內部狀態、不持久化。
- * 只給其一在型別層就擋下，免得值被忽略或回呼永不觸發。
+ * 栏底「已转出」收合列的展开状态（design D2）：两者同进同出——皆提供时受控（展开状态
+ * 由宿主持有，桌面 app 存于 app 本机跨启动保留）；皆缺席时组件内部状态、不持久化。
+ * 只给其一在类型层就挡下，免得值被忽略或回呼永不触发。
  */
 export type PromotedExpansionProps =
   | { promotedExpanded: boolean; onPromotedExpandedChange: (expanded: boolean) => void }
@@ -88,7 +88,7 @@ export type PromotedExpansionProps =
 
 export type DiscussionColumnProps = DiscussionColumnBaseProps & PromotedExpansionProps;
 
-/** 討論欄的色相組：桃紫專屬，與系統匣討論分區同一來源（DISCUSSION_TONE）。 */
+/** 讨论栏的色相组：桃紫专属，与系统匣讨论分区同一来源（DISCUSSION_TONE）。 */
 const DISCUSSION_COLUMN_TONE: ColumnTone = {
   icon: MessageSquareText,
   bar: "bg-stage-discussion",
@@ -99,8 +99,8 @@ const DISCUSSION_COLUMN_TONE: ColumnTone = {
 const STATUS_BADGE: Record<string, { labelKey: string; cls: string }> = {
   open: { labelKey: "discussion.statusOpen", cls: "bg-primary/8 text-primary/70" },
   concluded: { labelKey: "discussion.statusConcluded", cls: "bg-primary/12 text-primary" },
-  // 上區的 promoted 卡有兩種：尚無結論的，與已有結論但保留在途（hold）的。
-  // 兩者同為 warning 語意色（沿 tone.ts 單一來源），標示由 statusBadge 選。
+  // 上区的 promoted 卡有两种：尚无结论的，与已有结论但保留在途（hold）的。
+  // 两者同为 warning 语意色（沿 tone.ts 单一来源），标示由 statusBadge 选。
   promoted: {
     labelKey: "discussion.statusPromotedUnconcluded",
     cls: `${SEMANTIC_SURFACE.warning} ${SEMANTIC_TONE.warning}`,
@@ -108,9 +108,9 @@ const STATUS_BADGE: Record<string, { labelKey: string; cls: string }> = {
 };
 
 /**
- * 全卡的狀態標：尚無結論（concluded 為 false）的 promoted 卡標「已轉出・尚無結論」；
- * 其餘還留在上區的 promoted 卡只可能是被 hold 留下的（判準與收合列同一份），
- * 換標為「已轉出・保留中」、色系不變。非 promoted 態沿狀態表。
+ * 全卡的状态标：尚无结论（concluded 为 false）的 promoted 卡标「已转出・尚无结论」；
+ * 其余还留在上区的 promoted 卡只可能是被 hold 留下的（判准与收合列同一份），
+ * 换标为「已转出・保留中」、色系不变。非 promoted 态沿状态表。
  */
 function statusBadge(d: DiscussionItem): { labelKey: string; cls: string } {
   const base = STATUS_BADGE[d.status] ?? STATUS_BADGE.open;
@@ -121,11 +121,11 @@ function statusBadge(d: DiscussionItem): { labelKey: string; cls: string } {
 }
 
 /**
- * 收合列判準：只收「引擎會自動收走的討論」——promoted、已有結論（concluded 非
- * false）且未保留（hold 非 true）。這正是最後一刀封存時引擎會隨行封存的集合；
- * 帶 hold 的討論整個分期系列都留在上區全卡。concluded 或 hold 缺席（舊 server）
- * 一律退回既有分區：缺席不得補成「尚無結論」或「保留中」。KanbanBoard 的拖排
- * 落點清單共用此判準——上區卡集與可拖集必須恆等，否則落點解析吞手勢。
+ * 收合列判准：只收「引擎会自动收走的讨论」——promoted、已有结论（concluded 非
+ * false）且未保留（hold 非 true）。这正是最后一刀封存时引擎会随行封存的集合；
+ * 带 hold 的讨论整个分期系列都留在上区全卡。concluded 或 hold 缺席（旧 server）
+ * 一律退回既有分区：缺席不得补成「尚无结论」或「保留中」。KanbanBoard 的拖排
+ * 落点清单共用此判准——上区卡集与可拖集必须恒等，否则落点解析吞手势。
  */
 export function isCollapsedPromoted(d: DiscussionItem): boolean {
   return d.status === "promoted" && d.concluded !== false && d.hold !== true;
@@ -152,16 +152,16 @@ export function DiscussionCard({
       onClick={() => onOpenDiscussion?.(d.slug)}
     >
       <CardHeader className="p-3 flex-row items-start gap-1.5">
-        {/* slug（檔名）為標題——CLI 動詞把手，等寬強調；topic 降為卡身描述（LANGUAGE.md
-            受控例外）。名稱列與變更卡共用（骨架統一）。 */}
+        {/* slug（文件名）为标题——CLI 动词把手，等宽强调；topic 降为卡身描述（LANGUAGE.md
+            受控例外）。名称列与变更卡共用（骨架统一）。 */}
         <CardNameRow text={d.slug} copyLabel={t("discussion.copySlug")} highlight={highlight} />
         <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${badge.cls}`}>
           {t(badge.labelKey)}
         </span>
-        {/* 改進小章（spec「看板討論卡片的改進標示」）：隨 kind 恆定——已轉出與
-            已封存側同樣顯示，不隨生命週期狀態變化或消失。 */}
+        {/* 改进小章（spec「看板讨论卡片的改进标示」）：随 kind 恒定——已转出与
+            已封存侧同样显示，不随生命周期状态变化或消失。 */}
         {isImproveKind(d.kind) && <ImproveStamp />}
-        {/* 建立者圓點（anatomy 識別列右端）：全名進 tooltip、卡面不直出——與變更卡同款。 */}
+        {/* 创建者圆点（anatomy 识别列右端）：全名进 tooltip、卡面不直出——与变更卡同款。 */}
         {d.createdBy && (
           <TooltipProvider>
             <Tooltip>
@@ -182,12 +182,12 @@ export function DiscussionCard({
         <span className="text-xs leading-snug text-foreground/80">
           <HighlightText text={d.topic} query={highlight} />
         </span>
-        {/* meta 列（anatomy 三列骨架）：輪數與建立時間並排；建立者圓點已上移識別列。 */}
+        {/* meta 列（anatomy 三列骨架）：轮数与创建时间并排；创建者圆点已上移识别列。 */}
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="tabular-nums">{tn("common.rounds", d.rounds)}</span>
           <span className="tabular-nums">{d.created}</span>
         </div>
-        {/* stopPropagation 掛在按鈕自身而非整列：鈕旁空白仍冒泡開討論抽屜。 */}
+        {/* stopPropagation 挂在按钮自身而非整列：钮旁空白仍冒泡开讨论抽屉。 */}
         {d.status === "concluded" && (
           <div className="flex gap-1.5">
             <Button
@@ -203,7 +203,7 @@ export function DiscussionCard({
             </Button>
           </div>
         )}
-        {/* 全文命中 snippet 行（design D6/D7）：記錄全文命中時呈前後文＋高亮。 */}
+        {/* 全文命中 snippet 行（design D6/D7）：记录全文命中时呈前后文＋高亮。 */}
         {hit && (
           <div
             data-snippet
@@ -221,7 +221,7 @@ export function DiscussionCard({
   );
 }
 
-/** 可拖排的全卡包裝：拖曳時原卡留在原位變淡，移動視覺由宿主 DragOverlay 呈現。 */
+/** 可拖排的全卡包装：拖曳时原卡留在原位变淡，移动视觉由宿主 DragOverlay 呈现。 */
 function SortableDiscussionCard({
   d,
   ...rest
@@ -257,9 +257,9 @@ function PromotedRow({
   onOpenDiscussion,
 }: { d: DiscussionItem } & Pick<DiscussionColumnProps, "changes" | "archived" | "onOpenDiscussion">) {
   const { t } = useI18n();
-  // 衍生樹細列：slug（檔名）為首行錨點——CLI 動詞把手，帶複製鈕（LANGUAGE.md
-  // 受控例外，desktop-ux-polish 擴充）；topic 降為次行描述；子變更以樹狀前綴
-  // 逐列列出——父子（討論→衍生變更）關係一眼可讀。
+  // 衍生树细列：slug（文件名）为首行锚点——CLI 动词把手，带拷贝钮（LANGUAGE.md
+  // 受控例外，desktop-ux-polish 扩充）；topic 降为次行描述；子变更以树状前缀
+  // 逐列列出——父子（讨论→衍生变更）关系一眼可读。
   return (
     <div
       role="button"
@@ -271,11 +271,11 @@ function PromotedRow({
         if (e.key === "Enter" || e.key === " ") onOpenDiscussion?.(d.slug);
       }}
     >
-      {/* 複製鈕行內尾隨（design D4 複製鈕位置規則）：break-all 多行 slug 的按鈕
-          直接跟在最後一個字元後流動，不以 flex 推至列右緣。 */}
+      {/* 拷贝钮行内尾随（design D4 拷贝钮位置规则）：break-all 多行 slug 的按钮
+          直接跟在最后一个字符后流动，不以 flex 推至列右缘。 */}
       <span className="min-w-0 break-all font-mono text-xs font-semibold leading-tight">
         {d.slug}
-        {/* 小章隨 kind 恆定（design「標示不隨生命週期變化」）——promoted 收合列同樣要帶。 */}
+        {/* 小章随 kind 恒定（design「标示不随生命周期变化」）——promoted 收合列同样要带。 */}
         {isImproveKind(d.kind) && (
           <span className="ml-1 inline-flex align-text-bottom">
             <ImproveStamp />
@@ -308,12 +308,12 @@ function PromotedRow({
 }
 
 /**
- * 看板第 0 欄「討論」（兩級呈現，上下兩區同屏、不互斥切換；design D3）：
- * - 上區：open／concluded 全尺寸卡（open 唯讀、concluded 帶「封存」動詞——
- *   轉為變更已自 GUI 撤除）。
- * - 欄底：「已轉出 N ›」常駐收合列（有 promoted 時呈現、預設收合），點按就地在
- *   收合列正上方展開 promoted 衍生樹細列（slug 首行＋topic＋衍生變更樹＋階段 chip）；
- *   展開狀態可由宿主受控（桌面 app 跨啟動保留），缺席時元件內部狀態、不持久化。
+ * 看板第 0 栏「讨论」（两级呈现，上下两区同屏、不互斥切换；design D3）：
+ * - 上区：open／concluded 全尺寸卡（open 唯读、concluded 带「封存」动词——
+ *   转为变更已自 GUI 撤除）。
+ * - 栏底：「已转出 N ›」常驻收合列（有 promoted 时呈现、缺省收合），点按就地在
+ *   收合列正上方展开 promoted 衍生树细列（slug 首行＋topic＋衍生变更树＋阶段 chip）；
+ *   展开状态可由宿主受控（桌面 app 跨启动保留），缺席时组件内部状态、不持久化。
  */
 export function DiscussionColumn({
   discussions,
@@ -332,7 +332,7 @@ export function DiscussionColumn({
   const { t } = useI18n();
   const full = discussions.filter((d) => !isCollapsedPromoted(d));
   const promoted = discussions.filter(isCollapsedPromoted);
-  // 收合列展開狀態（design D2）：兩個 props 皆提供時受控，否則內部狀態、預設收合。
+  // 收合列展开状态（design D2）：两个 props 皆提供时受控，否则内部状态、缺省收合。
   const controlled = promotedExpanded !== undefined && onPromotedExpandedChange !== undefined;
   const [localOpen, setLocalOpen] = useState(false);
   const promotedOpen = controlled ? promotedExpanded : localOpen;
@@ -364,7 +364,7 @@ export function DiscussionColumn({
       />
     ),
   );
-  // 欄殼與三個階段欄共用（BoardColumn，design D1）。
+  // 栏壳与三个阶段栏共用（BoardColumn，design D1）。
   return (
     <BoardColumn
       id="discussions"
@@ -380,10 +380,10 @@ export function DiscussionColumn({
         !loading &&
         promoted.length > 0 && (
           <>
-            {/* 展開的 promoted 細列落在收合列正上方的有界區塊（淡灰底上、自捲）：欄內全卡
-                再多也看得到，不會被擠到卡片捲動區的最底部。不加 shrink-0——視窗很矮時區塊
-                可被壓縮，收合列不會被欄外框的 overflow-hidden 切掉。relative 同卡片區：細列
-                內的 absolute 元素受本區裁切。 */}
+            {/* 展开的 promoted 细列落在收合列正上方的有界区块（淡灰底上、自卷）：栏内全卡
+                再多也看得到，不会被挤到卡片卷动区的最底部。不加 shrink-0——窗口很矮时区块
+                可被压缩，收合列不会被栏外框的 overflow-hidden 切掉。relative 同卡片区：细列
+                内的 absolute 元素受本区裁切。 */}
             {promotedOpen && (
               <div className="relative flex max-h-64 flex-col gap-1.5 overflow-y-auto px-2 pb-2">
                 {promoted.map((d) => (
@@ -406,7 +406,7 @@ export function DiscussionColumn({
               <span className="flex-1 text-left tabular-nums">
                 {t("discussion.promotedBar").replace("{n}", String(promoted.length))}
               </span>
-              {/* 收合 ›、展開時指向展開出來的內容：細列展開在收合列上方，故朝上。 */}
+              {/* 收合 ›、展开时指向展开出来的内容：细列展开在收合列上方，故朝上。 */}
               <ChevronRight
                 className={`h-3.5 w-3.5 shrink-0 transition-transform ${promotedOpen ? "-rotate-90" : ""}`}
               />

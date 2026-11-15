@@ -1,4 +1,4 @@
-// spec「提案與設計章節以中文標籤呈現」設計側（desktop-change-doc-views design D4）。
+// spec「提案与设计章节以中文标签呈现」设计侧（desktop-change-doc-views design D4）。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -6,52 +6,52 @@ import type { ReactElement, ReactNode } from "react";
 import { I18nProvider } from "../i18n";
 import { DesignDoc } from "../components/DesignDoc";
 
-const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider locale="zh-TW">{children}</I18nProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider locale="zh-CN">{children}</I18nProvider>;
 const render = (ui: ReactElement) => rtlRender(ui, { wrapper });
 
-const DECISION_TITLES = ["面板底與卡片層", "卡片間距", "標題列", "狀態色", "捲動", "深色模式"];
+const DECISION_TITLES = ["面板底与卡片层", "卡片间距", "标题列", "状态色", "卷动", "深色模式"];
 
 const DESIGN_MD = [
   "## Context",
   "",
-  "- 現況一",
-  "- 現況二",
+  "- 现况一",
+  "- 现况二",
   "",
   "## Goals / Non-Goals",
   "",
   "**Goals:**",
   "",
-  ...["一", "二", "三", "四", "五"].map((n) => `- 目標${n}`),
+  ...["一", "二", "三", "四", "五"].map((n) => `- 目标${n}`),
   "",
   "**Non-Goals:**",
   "",
-  ...["一", "二", "三"].map((n) => `- 非目標${n}`),
+  ...["一", "二", "三"].map((n) => `- 非目标${n}`),
   "",
   "## Decisions",
   "",
-  ...DECISION_TITLES.flatMap((title, i) => [`### D${i + 1} ${title}`, "", `- 決策 ${i + 1} 的第一點`, `- 決策 ${i + 1} 的第二點`, ""]),
+  ...DECISION_TITLES.flatMap((title, i) => [`### D${i + 1} ${title}`, "", `- 决策 ${i + 1} 的第一点`, `- 决策 ${i + 1} 的第二点`, ""]),
   "## Implementation Contract",
   "",
-  "- **Behavior**：開頁看到卡",
-  "- **Failure modes**：降級",
+  "- **Behavior**：开页看到卡",
+  "- **Failure modes**：降级",
   "",
   "## Risks / Trade-offs",
   "",
-  "- [風險一] → 對策一",
-  "- [風險二] → 對策二",
-  "- [風險三] → 對策三",
-  "- 只有風險",
+  "- [风险一] → 对策一",
+  "- [风险二] → 对策二",
+  "- [风险三] → 对策三",
+  "- 只有风险",
   "",
   "## Open Questions",
   "",
-  "無。",
+  "无。",
 ].join("\n");
 
 const decisionCard = (container: HTMLElement, id: string) =>
   container.querySelector(`[data-decision="${id}"]`)!.querySelector("button[aria-expanded]")!;
 
 describe("DesignDoc", () => {
-  it("決策段每個三級標題一張卡：預設收合、D 籤與列點數，標題留在本頁目錄", () => {
+  it("决策段每个三级标题一张卡：缺省收合、D 签与列点数，标题留在本页目录", () => {
     const { container } = render(<DesignDoc content={DESIGN_MD} jump={null} onJumped={() => {}} />);
     const cards = container.querySelectorAll("[data-decision]");
     expect(cards).toHaveLength(6);
@@ -62,16 +62,16 @@ describe("DesignDoc", () => {
     for (const title of DECISION_TITLES) expect(tocTitles).toContain(title);
     const head = decisionCard(container, "D1");
     expect(head.textContent).toContain("D1");
-    expect(head.textContent).toContain("2 點");
-    expect(screen.queryByText("決策 1 的第一點")).toBeNull();
+    expect(head.textContent).toContain("2 点");
+    expect(screen.queryByText("决策 1 的第一点")).toBeNull();
     expect(head.className).toContain("cursor-(--cursor-interaction)");
     expect(head.className).toContain("hover:bg-foreground/5");
     fireEvent.click(head);
     expect(head.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByText("決策 1 的第一點")).toBeTruthy();
+    expect(screen.getByText("决策 1 的第一点")).toBeTruthy();
   });
 
-  it("jump 命中的決策卡展開並回報完成", () => {
+  it("jump 命中的决策卡展开并回报完成", () => {
     const onJumped = vi.fn();
     const { container } = render(<DesignDoc content={DESIGN_MD} jump={{ id: "D3", seq: 1 }} onJumped={onJumped} />);
     expect(decisionCard(container, "D3").getAttribute("aria-expanded")).toBe("true");
@@ -79,34 +79,34 @@ describe("DesignDoc", () => {
     expect(onJumped).toHaveBeenCalledTimes(1);
   });
 
-  it("jump 沒命中只回報完成", () => {
+  it("jump 没命中只回报完成", () => {
     const onJumped = vi.fn();
     const { container } = render(<DesignDoc content={DESIGN_MD} jump={{ id: "D9", seq: 1 }} onJumped={onJumped} />);
     expect(onJumped).toHaveBeenCalledTimes(1);
     expect(container.querySelectorAll('[data-decision] button[aria-expanded="true"]')).toHaveLength(0);
   });
 
-  it("風險與取捨逐條成 warning 提示框（「→」切標題與內文）", () => {
+  it("风险与取舍逐条成 warning 提示框（「→」切标题与内文）", () => {
     const { container } = render(<DesignDoc content={DESIGN_MD} jump={null} onJumped={() => {}} />);
     const risks = container.querySelectorAll("[data-risk]");
     expect(risks).toHaveLength(4);
     expect(risks[0].className).toContain("border-l-4");
-    expect(risks[0].textContent).toBe("風險一對策一");
-    expect(risks[3].textContent).toBe("只有風險");
+    expect(risks[0].textContent).toBe("风险一对策一");
+    expect(risks[3].textContent).toBe("只有风险");
   });
 
-  it("風險標題與決策標題的行內程式碼成等寬籤、粗體不直出星號；風險的巢狀子項接在內文", () => {
+  it("风险标题与决策标题的行内代码成等宽签、粗体不直出星号；风险的嵌套子项接在内文", () => {
     const md = [
       "## Decisions",
       "",
       "### D7 `RequirementBlock` 共用",
       "",
-      "- 點",
+      "- 点",
       "",
       "## Risks / Trade-offs",
       "",
-      "- [`parseSpecSections` 認 **二級標題** 為終點] → 先切 op 區段",
-      "  - 子項說明",
+      "- [`parseSpecSections` 认 **二级标题** 为终点] → 先切 op 区段",
+      "  - 子项说明",
     ].join("\n");
     const { container } = render(<DesignDoc content={md} jump={null} onJumped={() => {}} />);
     const h3 = container.querySelector("[data-decision] h3")!;
@@ -115,24 +115,24 @@ describe("DesignDoc", () => {
     const risk = container.querySelector("[data-risk]")!;
     const title = risk.firstElementChild!;
     expect(title.querySelector("code")!.textContent).toBe("parseSpecSections");
-    expect(title.querySelector("strong")!.textContent).toBe("二級標題");
-    expect(title.textContent).toBe("parseSpecSections 認 二級標題 為終點");
-    expect(risk.textContent).toContain("先切 op 區段");
-    expect(risk.textContent).toContain("子項說明");
+    expect(title.querySelector("strong")!.textContent).toBe("二级标题");
+    expect(title.textContent).toBe("parseSpecSections 认 二级标题 为终点");
+    expect(risk.textContent).toContain("先切 op 区段");
+    expect(risk.textContent).toContain("子项说明");
   });
 
-  it("契約列的值為空時不畫「無內容」占位", () => {
+  it("契约列的值为空时不画「无内容」占位", () => {
     const { container } = render(
-      <DesignDoc content={"## Implementation Contract\n\n- **Behavior**：\n- **Failure modes**：降級\n"} jump={null} onJumped={() => {}} />,
+      <DesignDoc content={"## Implementation Contract\n\n- **Behavior**：\n- **Failure modes**：降级\n"} jump={null} onJumped={() => {}} />,
     );
     expect(Array.from(container.querySelectorAll("dt")).map((d) => d.textContent)).toEqual(["Behavior", "Failure modes"]);
-    expect(container.textContent).not.toContain("（無內容）");
+    expect(container.textContent).not.toContain("（无内容）");
   });
 
-  it("目標與非目標兩欄各自列點數，背景為細線列、契約為鍵值列", () => {
+  it("目标与非目标两栏各自列点数，背景为细线列、契约为键值列", () => {
     const { container } = render(<DesignDoc content={DESIGN_MD} jump={null} onJumped={() => {}} />);
     const cols = container.querySelectorAll("[data-goals-column]");
-    expect(Array.from(cols).map((c) => c.firstElementChild!.textContent)).toEqual(["目標 5", "非目標 3"]);
+    expect(Array.from(cols).map((c) => c.firstElementChild!.textContent)).toEqual(["目标 5", "非目标 3"]);
     expect(cols[0].querySelectorAll("li")).toHaveLength(5);
     expect(cols[1].querySelectorAll("li")).toHaveLength(3);
     expect(container.querySelectorAll('[data-section="sections.context"] [data-row-list] li')).toHaveLength(2);
@@ -142,9 +142,9 @@ describe("DesignDoc", () => {
     ]);
   });
 
-  it("切不到 Goals／Non-Goals 標籤時照 Markdown", () => {
-    const { container } = render(<DesignDoc content={"## Goals / Non-Goals\n\n- 只寫列點\n"} jump={null} onJumped={() => {}} />);
+  it("切不到 Goals／Non-Goals 标签时照 Markdown", () => {
+    const { container } = render(<DesignDoc content={"## Goals / Non-Goals\n\n- 只写列点\n"} jump={null} onJumped={() => {}} />);
     expect(container.querySelector("[data-goals-column]")).toBeNull();
-    expect(screen.getByText("只寫列點")).toBeTruthy();
+    expect(screen.getByText("只写列点")).toBeTruthy();
   });
 });

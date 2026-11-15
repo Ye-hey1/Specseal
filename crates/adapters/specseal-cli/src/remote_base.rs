@@ -1,0 +1,222 @@
+//! Remote-mode plumbing shared by every family's remote arm.
+//!
+//! The handshake lives here and is reached only from dispatch's mode shapes
+//! (design D3): `remote_ctx()` resolves the store mode once, and the families
+//! receive the already-connected client.
+
+use anyhow::{bail, Result};
+use specseal_core as core;
+use specseal_protocol::binding::BindingResponse;
+use specseal_remote::auth as remote_auth;
+use specseal_remote::client::Client as RemoteClient;
+
+use crate::color;
+use specseal_protocol::query as protocol_query;
+
+pub(crate) struct RemoteCtx {
+    pub(crate) client: RemoteClient,
+    /// The workspace the store mode was resolved from. Remote mode implies it
+    /// exists (discovery failure resolves to fs mode), so arms read it here
+    /// instead of re-discovering.
+    pub(crate) ws: core::workspace::Workspace,
+    /// The handshake's `capabilities.fields`: the Server keeps free fields.
+    keeps_fields: bool,
+}
+
+impl RemoteCtx {
+    /// The remote arm of the four field verbs: the Server runs the edit, and
+    /// its answer goes to the output function the local arm uses.
+    pub(crate) fn edit_fields(
+        &self,
+        kind: specseal_verbs::render::fields::FieldKind,
+        field: &specseal_verbs::families::fields::FieldArgs,
+    ) -> Result<()> {
+        use specseal_verbs::render::fields::{edited, FieldKind};
+        let edit = field.edit()?;
+        let written = match kind {
+            FieldKind::Change => self.client.set_change_fields(&edit.subject, &edit.set, &edit.unset),
+            FieldKind::Discussion => self.client.set_discussion_fields(&edit.subject, &edit.set, &edit.unset),
+        }?;
+        let outcome =
+            core::command::FieldsOutcome { subject: edit.subject, fields: written.fields, changed: written.changed };
+        crate::common::emit(edited(kind, &outcome, crate::common::render_options(field.json())));
+        Ok(())
+    }
+
+    /// After a create that sent free fields: a Server from before free fields
+    /// took the create and dropped them without a word, so the user is told
+    /// (host-free-fields D7). One stderr line, with no value in it; the
+    /// create stands and the exit code does not change.
+    pub(crate) fn warn_if_fields_were_not_kept(&self, sent: &specseal_protocol::command::FreeFields) {
+        if !sent.is_empty() && !self.keeps_fields {
+            let keys: Vec<&str> = sent.keys().map(String::as_str).collect();
+            eprintln!(
+                "specseal: warning: this server did not keep the fields ({}) — it does not support free fields",
+                keys.join(", ")
+            );
+        }
+    }
+}
+
+/// Resolve remote mode for the current workspace. `Ok(None)` = fs mode
+/// (including "no workspace at all" — the fs path owns that error).
+pub(crate) fn remote_ctx() -> Result<Option<RemoteCtx>> {
+    // A broken .specseal.yaml fails here — before either the remote or the fs
+    // path runs (fail-closed: no local reads, no remote requests).
+    let Some(ws) = core::workspace::Workspace::discover_cwd()? else {
+        return Ok(None);
+    };
+    let resolution = specseal_host::context::resolve_store_mode(&ws)?;
+    let conn = match resolution.mode {
+        core::workspace::StoreMode::Fs => return Ok(None),
+        core::workspace::StoreMode::Remote(conn) => conn,
+    };
+    if resolution.coexists {
+        eprintln!(
+            "specseal: warning: the remote section in .specseal.yaml and {}/ both exist — remote mode takes effect",
+            ws.spec_dir_name
+        );
+    }
+    let connected = connect(&conn).map_err(|line| anyhow::anyhow!(line))?;
+    // Every remote verb comes through here, so this is the one place that tells a
+    // CLI whose skill templates are older than the Server's.
+    let declared = connected.binding.capabilities.skills.as_ref().map(|skills| skills.version.as_str());
+    crate::skill_notice::after_handshake(&remote_auth::origin_of(&conn.url), declared);
+    let keeps_fields = connected.binding.capabilities.fields;
+    Ok(Some(RemoteCtx { client: connected.client, ws, keeps_fields }))
+}
+
+/// What the binding handshake gave: the client for the requests after it, and
+/// what the Server declared.
+pub(crate) struct Connected {
+    pub(crate) client: RemoteClient,
+    pub(crate) binding: BindingResponse,
+}
+
+/// The binding handshake with the Server `conn` names. It precedes every verb
+/// (fail closed): an incompatible API version or a missing/ambiguous binding
+/// stops here — no verb request leaves the client. It doubles as the
+/// credential's first use, so a cached access token the server has aged out
+/// is caught here and rotated once, invisibly. A failure is the single line
+/// the user sees.
+pub(crate) fn connect(conn: &core::workspace::RemoteConnection) -> std::result::Result<Connected, String> {
+    let origin = remote_auth::origin_of(&conn.url);
+    let authenticated = remote_auth::with_resolved_credential(&origin, |bearer| {
+        RemoteClient::new(&conn.url, bearer, conn.repo.as_deref())
+            .handshake()
+            .map(|binding| (binding, bearer.to_string()))
+    })
+    .map_err(|e| e.message(&origin))?;
+    let (binding, token) = authenticated.value;
+    // The confirmed repo identity rides every subsequent request: a declared
+    // `remote.repo` keeps its value; an undeclared one adopts the server's
+    // unambiguous binding.
+    let repo = if conn.repo.is_none() && !binding.repo.key.is_empty() {
+        Some(binding.repo.key.as_str())
+    } else {
+        conn.repo.as_deref()
+    };
+    let client = RemoteClient::new(&conn.url, &token, repo);
+    Ok(Connected { client, binding })
+}
+
+/// Explicit name passes through; otherwise a single active change
+/// auto-selects, several is an error, and none prints the info line and
+/// returns `Ok(None)` (exit 0, matching fs `info_if_no_changes`).
+pub(crate) fn remote_resolve_change(
+    ctx: &RemoteCtx,
+    name: Option<&str>,
+    specify: &str,
+) -> Result<Option<String>> {
+    if let Some(n) = name {
+        return Ok(Some(n.to_string()));
+    }
+    let mut names: Vec<String> = ctx
+        .client
+        .list_changes()?
+        .changes
+        .into_iter()
+        .map(|c| c.name)
+        .collect();
+    match names.len() {
+        0 => {
+            crate::common::emit(specseal_verbs::render::no_active_changes());
+            Ok(None)
+        }
+        1 => Ok(Some(names.remove(0))),
+        _ => bail!("Multiple changes found. {specify} {}", names.join(", ")),
+    }
+}
+
+// --- repo 归属验证：init 的 remote 初始化与 connection 的 link／auth 共用 ---
+
+/// Check the declared repo against the server's registry (`whoami.repos[]`).
+pub(crate) fn ensure_repo_registered(whoami: &protocol_query::WhoamiResponse, repo: &str) -> Result<()> {
+    let names: Vec<&str> = whoami.repos.iter().map(|r| r.name.as_str()).collect();
+    if names.iter().any(|n| *n == repo) {
+        return Ok(());
+    }
+    bail!(
+        "repo '{repo}' is not registered in this project (available: {})",
+        names.join(", ")
+    )
+}
+/// Post-init/link validation: immediate when credentials exist, deferred with
+/// a login hint otherwise.
+pub(crate) fn validate_or_defer(root: &std::path::Path, url: &str, repo: Option<&str>) -> Result<()> {
+    let origin = remote_auth::origin_of(url);
+    // The full ladder, not just the file: a desktop login already covers this
+    // origin, and reporting "no credentials yet" at it would be a lie.
+    match remote_auth::resolve_credential(&origin).ok().flatten() {
+        Some(resolved) => {
+            let token = resolved.token;
+            let whoami = RemoteClient::new(url, &token, None).whoami()?;
+            if let Some(repo) = repo {
+                ensure_repo_registered(&whoami, repo)?;
+                println!("{} Repo '{repo}' is registered in this project", color::green("✓"));
+            }
+            git_reference_warning(root, repo, &whoami);
+            Ok(())
+        }
+        None => {
+            println!("  No credentials yet — run `specseal auth login` to connect");
+            Ok(())
+        }
+    }
+}
+/// Advisory fork/mirror hint: compare the local `git remote origin` URL with
+/// the server's reference value for this repo. One stderr line on mismatch;
+/// silence when either side has no value; never affects results or exit code.
+pub(crate) fn git_reference_warning(
+    root: &std::path::Path,
+    repo: Option<&str>,
+    whoami: &protocol_query::WhoamiResponse,
+) {
+    let Some(repo) = repo else { return };
+    let reference = whoami
+        .repos
+        .iter()
+        .find(|r| r.name == repo)
+        .map(|r| r.git_url.clone())
+        .unwrap_or_default();
+    if reference.is_empty() {
+        return;
+    }
+    let local = std::process::Command::new("git")
+        .args(["remote", "get-url", "origin"])
+        .current_dir(root)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_default();
+    if local.is_empty() {
+        return; // not a git dir / no origin — silently skip
+    }
+    let norm = |u: &str| u.trim().trim_end_matches('/').trim_end_matches(".git").to_string();
+    if norm(&local) != norm(&reference) {
+        eprintln!(
+            "specseal: warning: local git remote ({local}) differs from the project's reference ({reference}) — you may be working on a fork or mirror"
+        );
+    }
+}

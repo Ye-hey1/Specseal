@@ -1,10 +1,10 @@
-// RemoteDataSource＝薄 invoke 包裝（remote-data-source design 決策 7）：
-// SpeclinkDataSource 全方法對 remote_* command 的參數映射（connectionId＋
-// project＋repo）、不支援方法回拒絕（決策 1 (c)——server 缺什麼就停用什麼，
-// 不在 client 偽造）；createRemoteSession 以 handshake 結果建 session、事件面
-// 訂閱 remote-workspace-changed 並以 locator key 過濾。
+// RemoteDataSource＝薄 invoke 包装（remote-data-source design 决策 7）：
+// SpecsealDataSource 全方法对 remote_* command 的参数映射（connectionId＋
+// project＋repo）、不支持方法回拒绝（决策 1 (c)——server 缺什么就停用什么，
+// 不在 client 伪造）；createRemoteSession 以 handshake 结果建 session、事件面
+// 订阅 remote-workspace-changed 并以 locator key 过滤。
 import { describe, it, expect } from "vitest";
-import { changeStage, RevertBlockedError } from "@speclink/ui";
+import { changeStage, RevertBlockedError } from "@specseal/ui";
 
 import { createRemoteDataSource } from "../adapter/remoteDataSource";
 import {
@@ -18,7 +18,7 @@ const CONN = "conn_abc";
 const PROJECT = "demo";
 const REPO = "backend";
 
-/** remote 討論記錄回應裡的一把刀（server 的 GET /discussions/{slug} 原樣轉交）。 */
+/** remote 讨论记录回应里的一把刀（server 的 GET /discussions/{slug} 原样转交）。 */
 const DISCUSSION_CUT = {
   cut: "cut 1",
   title: "骨架",
@@ -29,7 +29,7 @@ const DISCUSSION_CUT = {
   unpromoted: ["a-one"],
 };
 
-/** 假 invoke：記錄每筆 (cmd, args) 並依 cmd 回覆最小合法 payload。 */
+/** 假 invoke：记录每笔 (cmd, args) 并依 cmd 回复最小合法 payload。 */
 function fakeInvoke() {
   const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
   const results: Record<string, unknown> = {
@@ -151,8 +151,8 @@ function fakeInvoke() {
   return { calls, invoke };
 }
 
-/** handshake 結果 fixture（editor）：全操作面直達，停用清單清空
- *（remote-board-order 決策 7）。 */
+/** handshake 结果 fixture（editor）：全操作面直达，停用清单清空
+ *（remote-board-order 决策 7）。 */
 function openInfo(): RemoteOpenInfo {
   const capabilities: WorkspaceCapabilities = {
     listChanges: true,
@@ -192,7 +192,7 @@ function openInfo(): RemoteOpenInfo {
   };
 }
 
-/** reader 的 handshake 結果：寫入面（含看板拖排）依 role 停用。 */
+/** reader 的 handshake 结果：写入面（含看板拖排）依 role 停用。 */
 function readerInfo(): RemoteOpenInfo {
   const info = openInfo();
   return {
@@ -209,7 +209,7 @@ function readerInfo(): RemoteOpenInfo {
   };
 }
 
-describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
+describe("createRemoteDataSource（决策 7：薄 invoke 包装）", () => {
   it("revertChangeToProposed maps to remote_revert_change_to_proposed and translates the blocked JSON", async () => {
     const { calls, invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
@@ -222,8 +222,8 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
       change: "chg",
     });
 
-    // 守門 JSON → RevertBlockedError——與本地 adapter 同一結構化錯誤形狀
-    //(spec Scenario「remote 模式行為一致」的 adapter 半邊)。
+    // 守门 JSON → RevertBlockedError——与本地 adapter 同一结构化错误形状
+    //(spec Scenario「remote 模式行为一致」的 adapter 半边)。
     const blocked = async () => {
       throw '{"kind":"revertBlocked","checkedTasks":1,"touchedFiles":["src/x.rs"]}';
     };
@@ -283,7 +283,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
       "remote_archive_discussion",
       "remote_reorder_card",
     ]);
-    // 每一擊都帶 locator 識別。
+    // 每一击都带 locator 识别。
     const missing = calls
       .filter(
         (c) =>
@@ -291,7 +291,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
       )
       .map((c) => c.cmd);
     expect(missing).toEqual([]);
-    // 方法專屬參數映射。
+    // 方法专属参数映射。
     expect(calls[3].args).toMatchObject({ change: "chg" });
     expect(calls[4].args).toMatchObject({ change: "chg", artifact: "tasks" });
     expect(calls[5].args).toMatchObject({ capability: "auth" });
@@ -301,8 +301,8 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(calls[9].args).toMatchObject({ change: "chg" });
     expect(calls[10].args).toMatchObject({ change: "chg" });
     expect(calls[11].args).toMatchObject({ change: "chg" });
-    // 桌面 remote 刪除帶 force=false（archive-readiness-gating D2 翻案）：與本地
-    // discard 守門語意對齊，已開工 change 由 server 拒絕、走既有 deleteFailed toast。
+    // 桌面 remote 删除带 force=false（archive-readiness-gating D2 翻案）：与本地
+    // discard 守门语意对齐，已开工 change 由 server 拒绝、走既有 deleteFailed toast。
     expect(calls[12].args).toMatchObject({ change: "chg", force: false });
     expect(calls[13].args).toMatchObject({ change: "chg", from: 1, to: 3, before: null });
     expect(calls[14].args).toMatchObject({
@@ -313,7 +313,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(calls[17].args).toMatchObject({ slug: "s1" });
     expect(calls[18].args).toMatchObject({ slug: "s1", name: null });
     expect(calls[19].args).toMatchObject({ slug: "s1" });
-    // 看板拖排直達（remote-board-order）：鄰居定址與本地 reorder_card 同形。
+    // 看板拖排直达（remote-board-order）：邻居寻址与本地 reorder_card 同形。
     expect(calls[20].args).toMatchObject({
       kind: "change",
       id: "chg",
@@ -322,9 +322,9 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     });
   });
 
-  it("工單分頁的兩個讀取映射到 remote_station_ticket／remote_archived_station_ticket 並帶 locator", async () => {
-    // drawer-quality-ticket-tab D2：活工單走結構化端點、封存工單走原文端點後由
-    // Rust 解析——前端只認 command 名與參數，兩者皆回 StationTicket | null。
+  it("工单分页的两个读取映射到 remote_station_ticket／remote_archived_station_ticket 并带 locator", async () => {
+    // drawer-quality-ticket-tab D2：活工单走结构化端点、封存工单走原文端点后由
+    // Rust 解析——前端只认 command 名与参数，两者皆回 StationTicket | null。
     const { calls, invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     await ds.getStationTicket("chg", "review");
@@ -346,7 +346,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     });
   });
 
-  it("綁有 checkout 時清單請求帶 checkoutRoot，沒有時不帶（station-status-and-landing D7）", async () => {
+  it("绑有 checkout 时清单请求带 checkoutRoot，没有时不带（station-status-and-landing D7）", async () => {
     const bound = fakeInvoke();
     await createRemoteDataSource(CONN, PROJECT, REPO, bound.invoke, "/work/checkout").listChanges();
     expect(bound.calls[0]).toEqual({
@@ -359,7 +359,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(unbound.calls[0].args).toEqual({ connectionId: CONN, project: PROJECT, repo: REPO });
   });
 
-  it("封存對話框的放棄與照樣帶走映射到 remote_discard_station／remote_archive 並帶旗標", async () => {
+  it("封存对话框的放弃与照样带走映射到 remote_discard_station／remote_archive 并带旗标", async () => {
     const { invoke, calls } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     await ds.discardReview?.("chg");
@@ -386,8 +386,8 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     });
   });
 
-  it("listChanges 帶出排程欄位與 planError（add-change-plan-remote D5）", async () => {
-    // setDepends 的 command 映射與 capability 旗標由 planDataSource.test.ts 集中斷言。
+  it("listChanges 带出调度字段与 planError（add-change-plan-remote D5）", async () => {
+    // setDepends 的 command 映射与 capability 旗标由 planDataSource.test.ts 集中断言。
     const cycle = "dependency cycle: a -> b -> a";
     const invoke = async <T,>(cmd: string): Promise<T> => {
       if (cmd === "remote_list_changes") {
@@ -407,8 +407,8 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(payload.changes[0].dependsOn).toEqual(["b"]);
   });
 
-  it("listChanges 帶出頂層 next 與 unpromotedCuts（desktop-roadmap）", async () => {
-    const cut = { discussion: "panel", cut: "cut 3", title: "路線圖", changes: ["add-z"], unpromoted: ["add-z"] };
+  it("listChanges 带出顶层 next 与 unpromotedCuts（desktop-roadmap）", async () => {
+    const cut = { discussion: "panel", cut: "cut 3", title: "路线图", changes: ["add-z"], unpromoted: ["add-z"] };
     const invoke = async <T,>(cmd: string): Promise<T> =>
       (cmd === "remote_list_changes"
         ? { changes: [], planError: null, next: "add-a", unpromotedCuts: [cut] }
@@ -418,7 +418,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(payload.unpromotedCuts).toEqual([cut]);
   });
 
-  it("listChanges 帶出 claimedBy（認領人呈現的資料源）", async () => {
+  it("listChanges 带出 claimedBy（认领人呈现的数据源）", async () => {
     const { invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     const [first] = (await ds.listChanges()).changes;
@@ -446,18 +446,18 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     await expect(ds.archivedCapabilities("2026-01-01-old")).resolves.toEqual(["auth"]);
     await expect(ds.getDiscussionDocument("s1")).resolves.toEqual({ content: "discussion text", cuts: [DISCUSSION_CUT] });
     const discussions = await ds.listDiscussions();
-    // promotedTo 映射 wire 欄位（remote-read-parity）：缺席以空清單容錯、
-    // 非空如實攜帶，不再以 client 端固定值補齊。
+    // promotedTo 映射 wire 字段（remote-read-parity）：缺席以空清单容错、
+    // 非空如实携带，不再以 client 端固定值补齐。
     expect(discussions.active[0]).toMatchObject({ slug: "s1", promotedTo: [] });
     expect(discussions.active[1]).toMatchObject({ slug: "s2", promotedTo: ["cut-a", "cut-b"] });
     // concluded 同律（conclusion-gated-discussion-archive）：映射 wire 值，
-    // 缺席（舊 server）維持未知、不補成 false。
+    // 缺席（旧 server）维持未知、不补成 false。
     expect(discussions.active[0].concluded).toBeUndefined();
     expect(discussions.active[1].concluded).toBe(true);
     expect(discussions.active[2]).toMatchObject({ slug: "s3", concluded: false });
   });
 
-  it("getDiscussionDocument：回應缺 cuts 時補空陣列、不存在時為 null", async () => {
+  it("getDiscussionDocument：回应缺 cuts 时补空数组、不存在时为 null", async () => {
     let reply: unknown = { content: "old server text" };
     const invoke = async <T,>(): Promise<T> => reply as T;
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
@@ -466,9 +466,9 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     await expect(ds.getDiscussionDocument("s1")).resolves.toBeNull();
   });
 
-  it("wire 的 startedAt 進入 ChangeItem，changeStage 對開工零進度卡判進行中", async () => {
-    // spec desktop-app「remote 已開工零進度列於進行中」：startedAt 隨清單
-    // payload 進欄位推導，不以任務完成數替代開工判定。
+  it("wire 的 startedAt 进入 ChangeItem，changeStage 对开工零进度卡判进行中", async () => {
+    // spec desktop-app「remote 已开工零进度列于进行中」：startedAt 随清单
+    // payload 进字段推导，不以任务完成数替代开工判定。
     const invoke = async <T,>(): Promise<T> =>
       ({
         changes: [
@@ -497,9 +497,9 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(changeStage(changes[1])).toBe("proposed");
   });
 
-  it("changeCapabilities 以既有 remote_status 路徑映射 deltaCapabilities", async () => {
-    // remote-read-parity design D2：不開新 Tauri command、不另發 HTTP 請求，
-    // 自 status payload 抽取既有欄位。
+  it("changeCapabilities 以既有 remote_status 路径映射 deltaCapabilities", async () => {
+    // remote-read-parity design D2：不开新 Tauri command、不另发 HTTP 请求，
+    // 自 status payload 抽取既有字段。
     const { calls, invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     await expect(ds.changeCapabilities("chg")).resolves.toEqual(["auth", "user-profile"]);
@@ -512,7 +512,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     });
   });
 
-  it("changeMeta 以 status payload 組出 ChangeMetaInfo、缺席欄位誠實降級", async () => {
+  it("changeMeta 以 status payload 组出 ChangeMetaInfo、缺席字段诚实降级", async () => {
     const { calls, invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     await expect(ds.changeMeta("chg")).resolves.toEqual({
@@ -526,7 +526,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     });
     expect(calls.map((c) => c.cmd)).toEqual(["remote_status"]);
 
-    // 舊 server（無新欄位）：對應欄位為 null／缺席，不偽造預設值、不失敗。
+    // 旧 server（无新字段）：对应字段为 null／缺席，不伪造默认值、不失败。
     const legacyInvoke = async <T,>(): Promise<T> =>
       ({
         changeName: "chg",
@@ -546,10 +546,10 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
     expect(meta?.fromDiscussions ?? []).toEqual([]);
   });
 
-  it("changeCapabilities 與 changeMeta 併發載入共用單次 remote_status 請求", async () => {
-    // spec remote-workspace-data「以單 change 讀取回應既有 payload 映射實作、
-    // 不另開請求」：抽屜同時載入 capability 清單與詮釋資料時只打一次端點；
-    // 落定後的新一輪載入仍重新取值，不留 stale 快取。
+  it("changeCapabilities 与 changeMeta 并发加载共用单次 remote_status 请求", async () => {
+    // spec remote-workspace-data「以单 change 读取回应既有 payload 映射实作、
+    // 不另开请求」：抽屉同时加载 capability 清单与诠释数据时只打一次端点；
+    // 落定后的新一轮加载仍重新取值，不留 stale 缓存。
     const { calls, invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     const [caps, meta] = await Promise.all([ds.changeCapabilities("chg"), ds.changeMeta("chg")]);
@@ -561,7 +561,7 @@ describe("createRemoteDataSource（決策 7：薄 invoke 包裝）", () => {
   });
 });
 
-describe("createRemoteSession（決策 6/7：handshake 結果建 session）", () => {
+describe("createRemoteSession（决策 6/7：handshake 结果建 session）", () => {
   it("derives id from the locator, names the tab Project/Repo, and carries capabilities", () => {
     const { invoke } = fakeInvoke();
     const session = createRemoteSession(CONN, openInfo(), undefined, { invoke });
@@ -581,7 +581,7 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
     expect(session.settings.policyWrite).toBe(true);
   });
 
-  it("capability 依 role：editor 的 reorderCard 真、reader 假（不偽造缺口）", () => {
+  it("capability 依 role：editor 的 reorderCard 真、reader 假（不伪造缺口）", () => {
     const { invoke } = fakeInvoke();
     const editor = createRemoteSession(CONN, openInfo(), undefined, { invoke });
     expect(editor.capabilities.reorderCard).toBe(true);
@@ -590,7 +590,7 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
     expect(reader.capabilities.listChanges).toBe(true);
   });
 
-  it("remote settings 綁 locator，以讀得 revision 作 expectedRevision 寫回", async () => {
+  it("remote settings 绑 locator，以读得 revision 作 expectedRevision 写回", async () => {
     const { calls, invoke } = fakeInvoke();
     const session = createRemoteSession(CONN, openInfo(), undefined, { invoke });
 
@@ -602,7 +602,7 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
         specLocale: "auto",
         tdd: true,
         audit: false,
-        // remote 無 worktree 軸；欄位存在於完整目標狀態，寫入端忽略。
+        // remote 无 worktree 轴；字段存在于完整目标状态，写入端忽略。
         worktree: false,
       }),
     ).resolves.toBe(8);
@@ -632,15 +632,15 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
     });
   });
 
-  it("remote 審查規則寫入只帶 review，context／rules 為 null 且附讀得的 expectedRevision", async () => {
+  it("remote 审查规则写入只带 review，context／rules 为 null 且附读得的 expectedRevision", async () => {
     const { calls, invoke } = fakeInvoke();
     const session = createRemoteSession(CONN, openInfo(), undefined, { invoke });
     await session.settings.readSettings(); // 取得 revision 7
     const review = {
       baseline: "replace" as const,
-      critical: ["不得寫死金鑰"],
+      critical: ["不得写死密钥"],
       warning: [],
-      suggestion: ["函式超過 50 行時宜拆分"],
+      suggestion: ["函数超过 50 行时宜拆分"],
     };
 
     await expect(session.settings.writeWorkflowReview(review)).resolves.toBe(8);
@@ -656,13 +656,13 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
     });
   });
 
-  it("remote 產出流程面：讀走本地內建組裝、切換帶 expectedRevision、fork 拒絕（desktop-schema-panel D2/D3）", async () => {
+  it("remote 产出流程面：读走本地内置组装、切换带 expectedRevision、fork 拒绝（desktop-schema-panel D2/D3）", async () => {
     const { calls, invoke } = fakeInvoke();
     const session = createRemoteSession(CONN, openInfo(), undefined, { invoke });
     await session.settings.readSettings(); // 取得 revision 7
 
     await session.settings.readSchemas();
-    // 不打 server：由 desktop core 以內嵌內建組裝，也不帶任何本機 root。
+    // 不打 server：由 desktop core 以内嵌内置组装，也不带任何本机 root。
     expect(calls.find((c) => c.cmd === "read_schemas")?.args).toEqual({});
 
     await expect(session.settings.writeWorkflowSchema("spec-driven")).resolves.toBe(8);
@@ -674,8 +674,8 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
       expectedRevision: 7,
     });
 
-    // remote 不支援 fork 與建立（spec「remote 模式無 fork 入口」「remote 模式無
-    // 建立入口」的通道面防線）：rejected Promise 且不發任何 invoke。
+    // remote 不支持 fork 与创建（spec「remote 模式无 fork 入口」「remote 模式无
+    // 创建入口」的信道面防线）：rejected Promise 且不发任何 invoke。
     await expect(session.settings.forkSchema("spec-driven")).rejects.toThrow();
     expect(calls.some((c) => c.cmd === "fork_schema")).toBe(false);
     await expect(session.settings.createSchema("my-flow")).rejects.toThrow();
@@ -720,18 +720,18 @@ describe("createRemoteSession（決策 6/7：handshake 結果建 session）", ()
     expect(fired).toBe(1);
   });
 
-  it("local sessions 除 RemoteOnly 的 claim 外全真（決策 2：同一 UI 路徑）", () => {
+  it("local sessions 除 RemoteOnly 的 claim 外全真（决策 2：同一 UI 路径）", () => {
     const { invoke } = fakeInvoke();
     const session = createLocalSession("/proj/a", { invoke });
     const { claim, ...rest } = session.capabilities;
     expect(Object.values(rest).every((on) => on === true)).toBe(true);
-    // claim 是 RemoteOnly 動詞：本地沒有共用者可撞工，能力為假而非偽造為真。
+    // claim 是 RemoteOnly 动词：本地没有共用者可撞工，能力为假而非伪造为真。
     expect(claim).toBe(false);
   });
 });
 
-describe("手冊在 remote 尚不支援（desktop-manual-page spec「無手冊與 remote 模式的空狀態」）", () => {
-  it("listManualPages 回 present false／reason remote 的空索引、getManualPage 回 null，且不發任何請求", async () => {
+describe("手册在 remote 尚不支持（desktop-manual-page spec「无手册与 remote 模式的空状态」）", () => {
+  it("listManualPages 回 present false／reason remote 的空索引、getManualPage 回 null，且不发任何请求", async () => {
     const { calls, invoke } = fakeInvoke();
     const ds = createRemoteDataSource(CONN, PROJECT, REPO, invoke);
     expect(await ds.listManualPages()).toEqual({

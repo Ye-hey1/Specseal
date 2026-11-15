@@ -1,8 +1,8 @@
 import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 
 /**
- * 詳情頁的文件載入：開啟時全量載入、世代遞增時就地重載（不清空）。`load` 收到「此回應仍是最新」
- * 的檢查——回應晚到且已被後一次載入取代即丟棄（latest-wins）。換目標由呼叫端以 key 重掛處理。
+ * 详情页的文档加载：打开时全量加载、世代递增时就地重载（不清空）。`load` 收到「此回应仍是最新」
+ * 的检查——回应晚到且已被后一次加载取代即丢弃（latest-wins）。换目标由调用端以 key 重挂处理。
  */
 export function useGenerationLoad(gen: number, load: (isLatest: () => boolean) => void) {
   const seq = useRef(0);
@@ -16,7 +16,7 @@ export function useGenerationLoad(gen: number, load: (isLatest: () => boolean) =
   }, [gen]);
 }
 
-/** 失敗收斂：還沒有東西可顯示才落終態空值（undefined 停著＝永久骨架）；已有內容維持前值。 */
+/** 失败收敛：还没有东西可显示才落终态空值（undefined 停着＝永久骨架）；已有内容维持前值。 */
 export function settle<T>(apply: Dispatch<SetStateAction<T | undefined>>, empty: NoInfer<T>, isLatest: () => boolean) {
   return () => {
     if (isLatest()) apply((prev) => (prev === undefined ? empty : prev));

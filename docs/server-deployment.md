@@ -2,23 +2,23 @@
 
 [简体中文](server-deployment.zh-CN.md) · **English**
 
-This document shows how to run the official `speclink-server` for a team. It covers the run modes, the configuration, HTTPS, the management commands, and upgrade and rollback. For a first trial, follow [Remote Getting Started](remote-getting-started.md) once. That guide takes you through the first-run setup, the memberships, and the Desktop and CLI connections.
+This document shows how to run the official `specseal-server` for a team. It covers the run modes, the configuration, HTTPS, the management commands, and upgrade and rollback. For a first trial, follow [Remote Getting Started](remote-getting-started.md) once. That guide takes you through the first-run setup, the memberships, and the Desktop and CLI connections.
 
 ## <a id="reference-implementation"></a>The official server is a reference implementation
 
-`speclink-server` is the official Speclink **reference implementation**. It lets you start out of the box and try the remote features. Remote mode does not depend on this server. Two public contracts under `speclink/specs/` define remote mode: `host-runtime` and `client-protocol`. You can write your own server on the Speclink engine and connect your own authentication, database, and permission model. The CLI and the Desktop app connect to it in the same way. This document covers only the deployment of the official server.
+`specseal-server` is the official Specseal **reference implementation**. It lets you start out of the box and try the remote features. Remote mode does not depend on this server. Two public contracts under `specseal/specs/` define remote mode: `host-runtime` and `client-protocol`. You can write your own server on the Specseal engine and connect your own authentication, database, and permission model. The CLI and the Desktop app connect to it in the same way. This document covers only the deployment of the official server.
 
 ## <a id="choose"></a>Choose a run mode
 
 | Run mode | Use it for | Data location |
 | --- | --- | --- |
-| [npx](#npx) | A single-machine trial with Node.js | `./speclink-data/` |
+| [npx](#npx) | A single-machine trial with Node.js | `./specseal-data/` |
 | [Docker](#docker) | One container | `/data` in the container |
 | [Docker Compose (SQLite)](#compose) | The default for a production deployment | A named volume |
 | [Docker Compose (PostgreSQL)](#compose) | Teams that already operate PostgreSQL | PostgreSQL and a named volume |
 | [Build from source](#build-from-source) | Your own binary | The paths in the configuration file |
 
-All run modes use the same binary. The build embeds the browser console (`apps/server-web`) into `speclink-server` at compile time. The console and the API use the same URL. At run time, the server needs no Node.js, no external `dist` folder, no CDN, and no second static file server.
+All run modes use the same binary. The build embeds the browser console (`apps/server-web`) into `specseal-server` at compile time. The console and the API use the same URL. At run time, the server needs no Node.js, no external `dist` folder, no CDN, and no second static file server.
 
 Each storage backend supports only **one** server instance. Do not use `--scale`, and do not point two servers at the same data. SQLite and PostgreSQL do not block a second instance. For details, see [Server Storage Backends](server-store-drivers.md).
 
@@ -33,29 +33,29 @@ After the start, all run modes behave the same:
 You need Node.js 18 or later. The supported platforms are macOS (arm64, x64), Linux (x64, arm64), and Windows (x64).
 
 ```bash
-npx @speclink/server
+npx @specseal/server
 ```
 
 Without arguments, the launcher does three things:
 
-1. It makes `speclink-data/config.yaml` from the [environment variables](#configuration). It writes this file again at each start, so manual edits do not stay.
-2. It uses SQLite by default and keeps the data in `./speclink-data/`.
-3. It starts the server, which listens only on `127.0.0.1:<SPECLINK_PORT>`.
+1. It makes `specseal-data/config.yaml` from the [environment variables](#configuration). It writes this file again at each start, so manual edits do not stay.
+2. It uses SQLite by default and keeps the data in `./specseal-data/`.
+3. It starts the server, which listens only on `127.0.0.1:<SPECSEAL_PORT>`.
 
-With arguments, the launcher gives the arguments to the server binary without changes, for example `npx @speclink/server invite --config ./speclink-data/config.yaml …`. To get a fixed `speclink-server` command, run `npm i -g @speclink/server`.
+With arguments, the launcher gives the arguments to the server binary without changes, for example `npx @specseal/server invite --config ./specseal-data/config.yaml …`. To get a fixed `specseal-server` command, run `npm i -g @specseal/server`.
 
-By default, only the local computer can connect to an npx server. For a team, use Docker Compose with an [HTTPS reverse proxy](#https) in front. If you must use npx, keep your own configuration file and start with `npx @speclink/server --config <file> --addr 0.0.0.0:8080`. With `--config`, the launcher does not change your configuration file.
+By default, only the local computer can connect to an npx server. For a team, use Docker Compose with an [HTTPS reverse proxy](#https) in front. If you must use npx, keep your own configuration file and start with `npx @specseal/server --config <file> --addr 0.0.0.0:8080`. With `--config`, the launcher does not change your configuration file.
 
 ## <a id="docker"></a>Docker
 
 The official image is `ghcr.io/momochenisme/speclink-server`. It supports `linux/amd64` and `linux/arm64`. Each release pushes three tags: the full version (for example `0.8.0`), the `major.minor` version (for example `0.8`), and `latest`.
 
 ```bash
-docker run -d --name speclink \
+docker run -d --name specseal \
   -p 8080:8080 \
-  -v speclink-data:/data \
+  -v specseal-data:/data \
   ghcr.io/momochenisme/speclink-server:latest
-docker logs speclink        # get the one-time setup link
+docker logs specseal        # get the one-time setup link
 ```
 
 The image contains a default configuration. It keeps the store and identity SQLite files in `/data`, and `public_url` is the default `http://localhost:8080`. The server runs as a non-root user with uid 10001. The container health check calls `/healthz`.
@@ -63,10 +63,10 @@ The image contains a default configuration. It keeps the store and identity SQLi
 The configuration file does not expand environment variables. To change `public_url` or the storage backend, mount your own configuration file over the file in the image:
 
 ```bash
-docker run -d --name speclink \
+docker run -d --name specseal \
   -p 8080:8080 \
-  -v speclink-data:/data \
-  -v ./server.yaml:/etc/speclink/config.yaml:ro \
+  -v specseal-data:/data \
+  -v ./server.yaml:/etc/specseal/config.yaml:ro \
   ghcr.io/momochenisme/speclink-server:latest
 ```
 
@@ -89,7 +89,7 @@ PostgreSQL (two services: server and postgres):
 
 ```bash
 cd deploy
-cp .env.example .env         # set SPECLINK_POSTGRES_PASSWORD; .env stays out of version control
+cp .env.example .env         # set SPECSEAL_POSTGRES_PASSWORD; .env stays out of version control
 docker compose -f docker-compose.postgres.yml pull
 docker compose -f docker-compose.postgres.yml up -d
 ```
@@ -102,20 +102,20 @@ After a container restart, the data stays in the volume, and the server does not
 
 ## <a id="build-from-source"></a>Build from source
 
-The build order from source is `npm ci`, then `npm run build -w apps/server-web`, and then the `speclink-server` build. Run these commands in a checkout of the repo:
+The build order from source is `npm ci`, then `npm run build -w apps/server-web`, and then the `specseal-server` build. Run these commands in a checkout of the repo:
 
 ```bash
 npm ci
 npm run build -w apps/server-web
-cargo build --release -p speclink-server
+cargo build --release -p specseal-server
 ```
 
-The output is `target/release/speclink-server`. Step 3 embeds the `apps/server-web/dist` output of step 2 into the binary. If `apps/server-web/dist/index.html` is missing, the release build fails at compile time. It never makes a binary with the API but no console. The Docker image uses a multi-stage build with the same order, and the final image contains no Node.js.
+The output is `target/release/specseal-server`. Step 3 embeds the `apps/server-web/dist` output of step 2 into the binary. If `apps/server-web/dist/index.html` is missing, the release build fails at compile time. It never makes a binary with the API but no console. The Docker image uses a multi-stage build with the same order, and the final image contains no Node.js.
 
 Prepare a configuration file, and then start the server:
 
 ```bash
-./target/release/speclink-server --config /etc/speclink/server.yaml --addr 0.0.0.0:8080
+./target/release/specseal-server --config /etc/specseal/server.yaml --addr 0.0.0.0:8080
 ```
 
 The binary always needs `--config`. The default `--addr` is `127.0.0.1:8080`, so only the local computer can connect. To serve other computers, set the bind address. With a process manager such as systemd, set `Restart=on-failure`.
@@ -126,15 +126,15 @@ The binary always needs `--config`. The default `--addr` is `127.0.0.1:8080`, so
 
 | Variable | Run modes | Default | Description |
 | --- | --- | --- | --- |
-| `SPECLINK_STORE` | npx | `sqlite` | The storage backend: `sqlite`, `serverfs`, or `postgres`. |
-| `SPECLINK_DATA_DIR` | npx | `./speclink-data` | The data folder for the configuration file and the databases. |
-| `SPECLINK_PORT` | npx, Compose | `8080` | npx: the port that the server listens on at `127.0.0.1`. Compose: the host port (the container port is always 8080). |
-| `SPECLINK_PUBLIC_URL` | npx, Compose | `http://localhost:<SPECLINK_PORT>` | The public URL: the scheme, host, and port in the browser address bar of your users. Setup links, invitation links, and the same-origin check use it. Always set it for production. |
-| `SPECLINK_POSTGRES_URL` | npx | None (required for `postgres`) | The PostgreSQL connection URL. Keep the password out of it. |
-| `SPECLINK_POSTGRES_PASSWORD` | All | None (required for the PostgreSQL compose file) | The PostgreSQL password. The server reads this variable itself and adds it to a connection URL without a password. |
-| `SPECLINK_CONFIG` | npx | None | Use an existing configuration file. With it, the npx-only variables above have no effect, and the launcher does not set `--addr`, so the server listens on `127.0.0.1:8080`. Subcommands such as `invite` still need their own `--config`. |
+| `SPECSEAL_STORE` | npx | `sqlite` | The storage backend: `sqlite`, `serverfs`, or `postgres`. |
+| `SPECSEAL_DATA_DIR` | npx | `./specseal-data` | The data folder for the configuration file and the databases. |
+| `SPECSEAL_PORT` | npx, Compose | `8080` | npx: the port that the server listens on at `127.0.0.1`. Compose: the host port (the container port is always 8080). |
+| `SPECSEAL_PUBLIC_URL` | npx, Compose | `http://localhost:<SPECSEAL_PORT>` | The public URL: the scheme, host, and port in the browser address bar of your users. Setup links, invitation links, and the same-origin check use it. Always set it for production. |
+| `SPECSEAL_POSTGRES_URL` | npx | None (required for `postgres`) | The PostgreSQL connection URL. Keep the password out of it. |
+| `SPECSEAL_POSTGRES_PASSWORD` | All | None (required for the PostgreSQL compose file) | The PostgreSQL password. The server reads this variable itself and adds it to a connection URL without a password. |
+| `SPECSEAL_CONFIG` | npx | None | Use an existing configuration file. With it, the npx-only variables above have no effect, and the launcher does not set `--addr`, so the server listens on `127.0.0.1:8080`. Subcommands such as `invite` still need their own `--config`. |
 
-When you run the binary directly or with `docker run`, the server reads only `SPECLINK_POSTGRES_PASSWORD`. All other settings are in the configuration file.
+When you run the binary directly or with `docker run`, the server reads only `SPECSEAL_POSTGRES_PASSWORD`. All other settings are in the configuration file.
 
 ### Configuration file
 
@@ -152,11 +152,11 @@ Example:
 ```yaml
 store:
   driver: sqlite
-  path: /var/lib/speclink/store.db
+  path: /var/lib/specseal/store.db
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
-public_url: https://speclink.example.com
+  path: /var/lib/specseal/identity.db
+public_url: https://specseal.example.com
 ```
 
 The old `tokens` and `projects` sections are no longer valid. If the file contains one of them, the server does not start, and the error shows what to use instead.
@@ -171,7 +171,7 @@ The reverse proxy must do these things:
 
 - Provide HTTPS and send the requests to the server port.
 - Set `public_url` to the HTTPS URL that your users open. If the scheme, host, or port is different, the server rejects write requests from the browser (`403`, `same_origin_required`).
-- Do not buffer `/api/speclink/v1/projects/<project key>/events`. This is a long-lived event stream (Server-Sent Events). The server sends a heartbeat every 15 seconds, so the idle timeout of the proxy must be longer than that.
+- Do not buffer `/api/specseal/v1/projects/<project key>/events`. This is a long-lived event stream (Server-Sent Events). The server sends a heartbeat every 15 seconds, so the idle timeout of the proxy must be longer than that.
 
 ## <a id="manage"></a>Management commands
 
@@ -191,12 +191,12 @@ The start of the command depends on the run mode:
 
 ```bash
 # npx (run it in the folder that contains the data folder)
-npx @speclink/server invite --config ./speclink-data/config.yaml \
+npx @specseal/server invite --config ./specseal-data/config.yaml \
   --email dev@example.com --display "Dev" --project demo
 
 # Docker Compose (while the server runs)
-docker compose exec server speclink-server invite \
-  --config /etc/speclink/config.yaml \
+docker compose exec server specseal-server invite \
+  --config /etc/specseal/config.yaml \
   --email dev@example.com --display "Dev" --project demo
 ```
 
@@ -235,7 +235,7 @@ To upgrade, change to the new version and restart. The server runs as one instan
 1. Make a backup first, and make sure that `verify-backup` passes. See [Server Backup and Restore](server-backup.md).
 2. Change to the new version and restart:
    - Docker Compose: `docker compose pull && docker compose up -d`. The volume does not change.
-   - npx: `npx @speclink/server@<new version>`.
+   - npx: `npx @specseal/server@<new version>`.
    - Your own binary: replace the binary and restart.
 3. Make sure that `/healthz` and `/readyz` both return `200`.
 
@@ -246,7 +246,7 @@ If the new version needs a newer account database (identity) structure, the serv
 To roll back, deploy the **previous** binary or image:
 
 - Docker Compose: change `image:` in the compose file to the previous tag (for example `ghcr.io/momochenisme/speclink-server:0.7.0`), and then run `docker compose up -d`. The volume does not change.
-- npx: `npx @speclink/server@<previous version>`.
+- npx: `npx @specseal/server@<previous version>`.
 - Your own binary: check out the previous tag and build again, or use the previous image.
 
 Up to 0.8.0, all versions use the same data format (account database structure version 6, storage format version 1). A rollback needs no data change. The "Data schema version" on the console "System" page shows the current account database version.

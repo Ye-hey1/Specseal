@@ -1,5 +1,5 @@
-// spec「進行中變更可自看板退回提案中」的守門對話框:渲染引擎證據(已勾任務數
-// 與 touched 檔案清單)與出路說明;不提供任何清理或強制退回的機械出路。
+// spec「进行中变更可自看板退回提案中」的守门对话框:渲染引擎证据(已勾任务数
+// 与 touched 文档清单)与出路说明;不提供任何清理或强制退回的机械出路。
 import { describe, it, expect, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, within } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -8,7 +8,7 @@ import { I18nProvider } from "../i18n";
 import { RevertBlockedDialog } from "../components/RevertBlockedDialog";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW">{children}</I18nProvider>
+  <I18nProvider locale="zh-CN">{children}</I18nProvider>
 );
 function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: zhWrapper });
@@ -28,8 +28,8 @@ describe("RevertBlockedDialog", () => {
     expect(dialog.textContent).toContain("3");
     expect(dialog.textContent).toContain("src/a.rs");
     expect(dialog.textContent).toContain("src/b.ts");
-    // 出路說明:已勾任務可於任務分頁取消後重試;touched 需請 agent 判斷。
-    expect(dialog.textContent).toContain("取消勾選");
+    // 出路说明:已勾任务可于任务分页取消后重试;touched 需请 agent 判断。
+    expect(dialog.textContent).toContain("取消勾选");
     expect(dialog.textContent).toContain("agent");
   });
 
@@ -52,7 +52,7 @@ describe("RevertBlockedDialog", () => {
     );
     const dialog = screen.getByRole("alertdialog");
     expect(dialog.textContent).toContain("2");
-    expect(dialog.textContent).toContain("取消勾選");
+    expect(dialog.textContent).toContain("取消勾选");
     expect(dialog.textContent).not.toContain("agent");
   });
 

@@ -1,9 +1,9 @@
-// 詳情頁內容卡標頭的「開啟 ▾」（spec desktop-app「詳情頁的文件動作」；design D4）。
+// 详情页内容卡标头的「打开 ▾」（spec desktop-app「详情页的文档动作」；design D4）。
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement, ReactNode } from "react";
-import { I18nProvider, type DocumentTarget } from "@speclink/ui";
+import { I18nProvider, type DocumentTarget } from "@specseal/ui";
 
 import { DocumentActionsMenu } from "../components/DocumentActionsMenu";
 import type { DocumentLocation } from "../adapter/fsActions";
@@ -11,7 +11,7 @@ import { APP_MESSAGES } from "../i18n/messages";
 import type { Platform } from "../platform";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -23,8 +23,8 @@ afterEach(cleanup);
 
 const DOC = { change: "add-auth", artifact: "proposal.md" };
 const LOC: DocumentLocation = {
-  path: "/work/app/speclink/changes/add-auth/proposal.md",
-  relative: "speclink/changes/add-auth/proposal.md",
+  path: "/work/app/specseal/changes/add-auth/proposal.md",
+  relative: "specseal/changes/add-auth/proposal.md",
 };
 
 function setup({
@@ -46,11 +46,11 @@ function setup({
 
 const user = () => userEvent.setup();
 const openMenu = async (u: ReturnType<typeof userEvent.setup>) =>
-  u.click(screen.getByRole("button", { name: /開啟/ }));
+  u.click(screen.getByRole("button", { name: /打开/ }));
 const itemNames = () => screen.getAllByRole("menuitem").map((item) => item.textContent);
 
 describe("DocumentActionsMenu", () => {
-  it("本機：展開時向宿主查位置，首列為等寬灰字相對路徑，其後三項（macOS 標籤為 Finder）", async () => {
+  it("本机：展开时向宿主查位置，首列为等宽灰字相对路径，其后三项（macOS 标签为 Finder）", async () => {
     const u = user();
     const cb = setup();
     await openMenu(u);
@@ -58,96 +58,96 @@ describe("DocumentActionsMenu", () => {
     expect(cb.locate).toHaveBeenCalledWith(DOC);
     expect(label.className).toContain("font-mono");
     expect(label.className).toContain("text-muted-foreground");
-    expect(itemNames()).toEqual(["以預設 App 開啟", "在 Finder 顯示", "複製路徑"]);
+    expect(itemNames()).toEqual(["以缺省 App 打开", "在 Finder 显示", "拷贝路径"]);
   });
 
-  it("首列與動作採宿主回報的實際位置（已封存討論的日期檔名）", async () => {
+  it("首列与动作采宿主回报的实际位置（已封存讨论的日期文档名）", async () => {
     const u = user();
     const archived = {
-      path: "/work/app/speclink/discussions/archive/2026-01-03-old-topic.md",
-      relative: "speclink/discussions/archive/2026-01-03-old-topic.md",
+      path: "/work/app/specseal/discussions/archive/2026-01-03-old-topic.md",
+      relative: "specseal/discussions/archive/2026-01-03-old-topic.md",
     };
     const cb = setup({
-      target: { doc: { discussion: "old-topic" }, content: "# 記錄" },
+      target: { doc: { discussion: "old-topic" }, content: "# 记录" },
       locate: vi.fn().mockResolvedValue(archived),
     });
     await openMenu(u);
     await screen.findByText(archived.relative);
-    await u.click(screen.getByRole("menuitem", { name: "複製路徑" }));
+    await u.click(screen.getByRole("menuitem", { name: "拷贝路径" }));
     expect(cb.locate).toHaveBeenCalledWith({ discussion: "old-topic" });
     expect(cb.onCopyPath).toHaveBeenCalledWith(archived);
   });
 
-  it("位置查詢中或查不到時三項停用、無首列", async () => {
+  it("位置查找中或查不到时三项停用、无首列", async () => {
     const u = user();
     setup({ locate: vi.fn().mockResolvedValue(null) });
     await openMenu(u);
-    const item = await screen.findByRole("menuitem", { name: "複製路徑" });
+    const item = await screen.findByRole("menuitem", { name: "拷贝路径" });
     expect(item.getAttribute("aria-disabled")).toBe("true");
     expect(screen.queryByText(LOC.relative)).toBeNull();
   });
 
-  it("Windows 標籤為檔案總管", async () => {
+  it("Windows 标签为文档总管", async () => {
     const u = user();
     setup({ platform: "windows" });
     await openMenu(u);
-    expect(itemNames()).toContain("在檔案總管顯示");
+    expect(itemNames()).toContain("在文档总管显示");
   });
 
-  it("各項以實際位置呼叫對應 callback", async () => {
+  it("各项以实际位置调用对应 callback", async () => {
     const u = user();
     const cb = setup();
     await openMenu(u);
     await screen.findByText(LOC.relative);
-    await u.click(screen.getByRole("menuitem", { name: "以預設 App 開啟" }));
+    await u.click(screen.getByRole("menuitem", { name: "以缺省 App 打开" }));
     await openMenu(u);
     await screen.findByText(LOC.relative);
-    await u.click(screen.getByRole("menuitem", { name: "在 Finder 顯示" }));
+    await u.click(screen.getByRole("menuitem", { name: "在 Finder 显示" }));
     await openMenu(u);
     await screen.findByText(LOC.relative);
-    await u.click(screen.getByRole("menuitem", { name: "複製路徑" }));
+    await u.click(screen.getByRole("menuitem", { name: "拷贝路径" }));
     expect(cb.onOpenDefault).toHaveBeenCalledWith(LOC);
     expect(cb.onReveal).toHaveBeenCalledWith(LOC);
     expect(cb.onCopyPath).toHaveBeenCalledWith(LOC);
     expect(cb.onCopyContent).not.toHaveBeenCalled();
   });
 
-  it("remote 無本機 checkout：只有「複製內容」且無路徑首列、不查位置，選後寫入原文", async () => {
+  it("remote 无本机 checkout：只有「拷贝内容」且无路径首列、不查位置，选后写入原文", async () => {
     const u = user();
-    const cb = setup({ local: false, target: { doc: { discussion: "alpha" }, content: "# 討論原文" } });
+    const cb = setup({ local: false, target: { doc: { discussion: "alpha" }, content: "# 讨论原文" } });
     await openMenu(u);
-    expect(itemNames()).toEqual(["複製內容"]);
+    expect(itemNames()).toEqual(["拷贝内容"]);
     expect(cb.locate).not.toHaveBeenCalled();
-    await u.click(screen.getByRole("menuitem", { name: "複製內容" }));
-    expect(cb.onCopyContent).toHaveBeenCalledWith("# 討論原文");
+    await u.click(screen.getByRole("menuitem", { name: "拷贝内容" }));
+    expect(cb.onCopyContent).toHaveBeenCalledWith("# 讨论原文");
   });
 
-  it("remote 且原文未載完：「複製內容」停用", async () => {
+  it("remote 且原文未载完：「拷贝内容」停用", async () => {
     const u = user();
     setup({ local: false, target: { doc: DOC, content: null } });
     await openMenu(u);
-    const item = screen.getByRole("menuitem", { name: "複製內容" });
+    const item = screen.getByRole("menuitem", { name: "拷贝内容" });
     expect(item.getAttribute("aria-disabled")).toBe("true");
   });
 
-  it("remote 且分頁不載原文（工單）時不渲染", () => {
+  it("remote 且分页不载原文（工单）时不渲染", () => {
     const { view } = setup({ local: false, target: { doc: { change: "add-auth", artifact: "review.md" } } });
     expect(view.container.innerHTML).toBe("");
   });
 
-  it("本機但目標不帶檔案（已封存討論）：只有「複製內容」、不查位置", async () => {
+  it("本机但目标不带文档（已封存讨论）：只有「拷贝内容」、不查位置", async () => {
     const u = user();
-    const cb = setup({ target: { doc: null, content: "# 封存討論原文" } });
+    const cb = setup({ target: { doc: null, content: "# 封存讨论原文" } });
     await openMenu(u);
-    expect(itemNames()).toEqual(["複製內容"]);
+    expect(itemNames()).toEqual(["拷贝内容"]);
     expect(cb.locate).not.toHaveBeenCalled();
-    await u.click(screen.getByRole("menuitem", { name: "複製內容" }));
-    expect(cb.onCopyContent).toHaveBeenCalledWith("# 封存討論原文");
+    await u.click(screen.getByRole("menuitem", { name: "拷贝内容" }));
+    expect(cb.onCopyContent).toHaveBeenCalledWith("# 封存讨论原文");
   });
 
-  it("正式規格與封存變更的文件參照原樣交給宿主查位置", async () => {
+  it("正式规格与封存变更的文档参照原样交给宿主查位置", async () => {
     const u = user();
-    const spec = { path: "/work/app/speclink/specs/auth/spec.md", relative: "speclink/specs/auth/spec.md" };
+    const spec = { path: "/work/app/specseal/specs/auth/spec.md", relative: "specseal/specs/auth/spec.md" };
     const cb = setup({ target: { doc: { spec: "auth" }, content: "# spec" }, locate: vi.fn().mockResolvedValue(spec) });
     await openMenu(u);
     await screen.findByText(spec.relative);
@@ -158,7 +158,7 @@ describe("DocumentActionsMenu", () => {
     expect(archived.locate).toHaveBeenCalledWith({ archived: "2026-07-04-old", artifact: "design.md" });
   });
 
-  it("分頁沒有對應檔案（target 為 null）時不渲染", () => {
+  it("分页没有对应文档（target 为 null）时不渲染", () => {
     const { view } = setup({ target: null });
     expect(view.container.innerHTML).toBe("");
   });

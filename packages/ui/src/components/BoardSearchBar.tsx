@@ -6,12 +6,12 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
 /**
- * 看板搜尋工具列（design D5，單列；desktop-board-reskin D4 改為頁標題區右端的
- * 280px 全圓輸入）：搜尋輸入帶圖示、輸入非空時的清除鈕與即時命中數，＋同高的
- * 32px 篩選開關圖示鈕（啟用中篩選帶計數徽章）。
- * 點開關於其下方彈出篩選面板（children，由宿主組裝）；再點開關、點面板外或
- * 按 Esc 關閉——關閉不清除已啟用篩選。Cmd+F／Ctrl+F 聚焦快捷鍵。
- * 純受控元件——query 與面板開闔狀態皆在宿主，本元件不持久化。
+ * 看板搜索工具列（design D5，单列；desktop-board-reskin D4 改为页标题区右端的
+ * 280px 全圆输入）：搜索输入带图标、输入非空时的清除钮与即时命中数，＋同高的
+ * 32px 筛选开关图标钮（激活中筛选带计数徽章）。
+ * 点开关于其下方弹出筛选面板（children，由宿主组装）；再点开关、点面板外或
+ * 按 Esc 关闭——关闭不清除已激活筛选。Cmd+F／Ctrl+F 聚焦快捷键。
+ * 纯受控组件——query 与面板开阖状态皆在宿主，本组件不持久化。
  */
 export function BoardSearchBar({
   query,
@@ -27,23 +27,23 @@ export function BoardSearchBar({
 }: {
   query: string;
   onQuery: (q: string) => void;
-  /** 過濾後各欄卡片總數（僅 query 非空時呈現）。 */
+  /** 过滤后各栏卡片总数（仅 query 非空时呈现）。 */
   hitCount: number;
-  /** 篩選面板是否開啟（宿主狀態）。 */
+  /** 筛选面板是否打开（宿主状态）。 */
   filtersOpen?: boolean;
-  /** 篩選開關鈕（未提供時不渲染開關與面板）。 */
+  /** 筛选开关钮（未提供时不渲染开关与面板）。 */
   onToggleFilters?: () => void;
-  /** 關閉面板（Esc、點面板外）；未提供時退回 onToggleFilters。 */
+  /** 关闭面板（Esc、点面板外）；未提供时退回 onToggleFilters。 */
   onCloseFilters?: () => void;
-  /** 啟用中的篩選維度數——開關鈕上的計數徽章（0＝不顯）。 */
+  /** 激活中的筛选维度数——开关钮上的计数徽章（0＝不显）。 */
   activeFilterCount?: number;
-  /** 篩選面板內容（design D5）——三維度選單與全部清除。 */
+  /** 筛选面板内容（design D5）——三维度菜单与全部清除。 */
   children?: React.ReactNode;
-  /** 搜尋不可用的說明（remote capability 缺口）：提供時輸入 disabled 並以其
-   * 文字為 tooltip（title）、聚焦快捷鍵停用；缺席＝照常。 */
+  /** 搜索不可用的说明（remote capability 缺口）：提供时输入 disabled 并以其
+   * 文本为 tooltip（title）、聚焦快捷键停用；缺席＝照常。 */
   disabledReason?: string;
-  /** 搜尋列所在的卡片檢視被藏起來時由宿主提供：快捷鍵與 speclink:focus-search 改呼叫它（宿主切回
-   * 卡片後再聚焦），不去聚焦藏起來的輸入。 */
+  /** 搜索列所在的卡片查看被藏起来时由宿主提供：快捷键与 specseal:focus-search 改调用它（宿主切回
+   * 卡片后再聚焦），不去聚焦藏起来的输入。 */
   onReveal?: () => void;
 }) {
   const { t, tn } = useI18n();
@@ -51,11 +51,11 @@ export function BoardSearchBar({
   const popoverRef = useRef<HTMLDivElement>(null);
   const revealRef = useRef(onReveal);
   revealRef.current = onReveal;
-  // 全域快捷鍵聚焦：macOS Cmd+F、其他平台 Ctrl+F（spec「快捷鍵聚焦搜尋輸入」）。
-  // macOS 的 ⌘F 也是這裡的 keydown 先收到（preventDefault 後原生選單不再觸發）；原生選單的
-  // 「搜尋看板」項目（點選，或不在看板時按 ⌘F）改派 speclink:focus-search。
+  // 全域快捷键聚焦：macOS Cmd+F、其他平台 Ctrl+F（spec「快捷键聚焦搜索输入」）。
+  // macOS 的 ⌘F 也是这里的 keydown 先收到（preventDefault 后原生菜单不再触发）；原生菜单的
+  // 「搜索看板」项目（点击，或不在看板时按 ⌘F）改派 specseal:focus-search。
   useEffect(() => {
-    if (disabledReason !== undefined) return; // 停用時快捷鍵一併不掛。
+    if (disabledReason !== undefined) return; // 停用时快捷键一并不挂。
     const focus = () => (revealRef.current ? revealRef.current() : inputRef.current?.focus());
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "f") {
@@ -64,13 +64,13 @@ export function BoardSearchBar({
       }
     };
     window.addEventListener("keydown", onKey);
-    window.addEventListener("speclink:focus-search", focus);
+    window.addEventListener("specseal:focus-search", focus);
     return () => {
       window.removeEventListener("keydown", onKey);
-      window.removeEventListener("speclink:focus-search", focus);
+      window.removeEventListener("specseal:focus-search", focus);
     };
   }, [disabledReason]);
-  // 面板關閉路徑：Esc 與點擊面板外（開關鈕在 popoverRef 內，點它走 toggle 不誤關）。
+  // 面板关闭路径：Esc 与点击面板外（开关钮在 popoverRef 内，点它走 toggle 不误关）。
   const close = onCloseFilters ?? onToggleFilters;
   useEffect(() => {
     if (!filtersOpen || !close) return;
@@ -79,9 +79,9 @@ export function BoardSearchBar({
     };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Element | null;
-      // 面板內的 Select 展開後，選單被 Radix portal 到 body，DOM 上不在 popoverRef 內。
-      // 不排除它的話，選任何一個篩選值都會順手把整個面板關掉——原生 select 由作業系統
-      // 繪製、不產生 DOM 事件，換成 Radix 才浮現這條路徑。
+      // 面板内的 Select 展开后，菜单被 Radix portal 到 body，DOM 上不在 popoverRef 内。
+      // 不排除它的话，选任何一个筛选值都会顺手把整个面板关掉——原生 select 由操作系统
+      // 绘制、不产生 DOM 事件，换成 Radix 才浮现这条路径。
       if (target?.closest?.("[data-radix-popper-content-wrapper]")) return;
       if (popoverRef.current && !popoverRef.current.contains(target as Node)) close();
     };
@@ -97,8 +97,8 @@ export function BoardSearchBar({
     <div className="flex shrink-0 items-center gap-1.5">
       <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        {/* 280px 全圓（design D4）：圓角取 Input 的 pill 變體；命中數與清除鈕在右端內側，
-            active 時留 pr-24 給它們（en 三位數命中數也放得下）。 */}
+        {/* 280px 全圆（design D4）：圆角取 Input 的 pill 变体；命中数与清除钮在右端内侧，
+            active 时留 pr-24 给它们（en 三位数命中数也放得下）。 */}
         <Input
           ref={inputRef}
           shape="pill"
@@ -132,7 +132,7 @@ export function BoardSearchBar({
       </div>
       {onToggleFilters && (
         <div ref={popoverRef} className="relative shrink-0">
-          {/* 32px 開關圖示鈕：圓角與展開態底色取 Button 的 toggle 變體（隨 aria-expanded）。 */}
+          {/* 32px 开关图标钮：圆角与展开态底色取 Button 的 toggle 变体（随 aria-expanded）。 */}
           <Button
             type="button"
             variant="toggle"

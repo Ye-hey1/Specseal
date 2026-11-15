@@ -2,7 +2,7 @@
 
 [简体中文](roadmap.zh-CN.md) · **English**
 
-This document collects the directions that Speclink does not complete yet. It describes directions, not a schedule. Thus it has no version numbers and no delivery dates.
+This document collects the directions that Specseal does not complete yet. It describes directions, not a schedule. Thus it has no version numbers and no delivery dates.
 
 Each direction answers three questions:
 
@@ -14,17 +14,17 @@ Each direction answers three questions:
 
 **The problem**
 
-People who want to drive the Speclink engine from their own program must be able to install one package, not a full build toolchain. After the install, the calls must be easy to write, and the errors must be clear.
+People who want to drive the Specseal engine from their own program must be able to install one package, not a full build toolchain. After the install, the calls must be easy to write, and the errors must be clear.
 
 **Where it is now**
 
-- `npm install @speclink/engine` works without a Rust toolchain. npm has native packages for five platforms.
+- `npm install @specseal/engine` works without a Rust toolchain. npm has native packages for five platforms.
 - Tests protect the engine, the Store bridge, and the `dispatch` contract. For usage, see the [Node SDK](sdk-node.md).
 - Not done yet:
   - Typed JS methods. Now all verbs go through `dispatch` with string arguments.
   - A contract version handshake: when the JS package and the native binary have different versions, the engine must stop with an error, not fail silently.
   - Limits for the Store bridge: concurrency, timeouts, and cancellation. The bridge has none of these now.
-  - Rust users can depend on `speclink-core` only through Git. The crate is not on crates.io.
+  - Rust users can depend on `specseal-core` only through Git. The crate is not on crates.io.
 
 **The next visible step**
 
@@ -38,22 +38,22 @@ The desktop app is only one front end of the engine. The CLI, the server, and th
 
 **Where it is now**
 
-- One crate, `speclink-core`, holds all the rules. The Host handles authentication, revisions, transactions, and events.
-- The [Client Protocol spec](../speclink/specs/client-protocol/spec.md) defines the wire contract for all clients. The [Verb and flag contract](verb-contract.md) shows the local and remote mode of each verb and its output shape.
+- One crate, `specseal-core`, holds all the rules. The Host handles authentication, revisions, transactions, and events.
+- The [Client Protocol spec](../specseal/specs/client-protocol/spec.md) defines the wire contract for all clients. The [Verb and flag contract](verb-contract.md) shows the local and remote mode of each verb and its output shape.
 - Missing:
   - A document that shows how to build a client from zero.
-  - A remote HTTP client in JS. Now only the Rust `speclink-remote` client exists.
-  - UI components and an integration contract for other teams. `@speclink/ui` is a private package now.
+  - A remote HTTP client in JS. Now only the Rust `specseal-remote` client exists.
+  - UI components and an integration contract for other teams. `@specseal/ui` is a private package now.
 
 **The next visible step**
 
-You build a small client from the public documents only, without the Speclink source code. The client lists changes, reads a spec, and checks a task. Each place where you get stuck shows a missing document or interface.
+You build a small client from the public documents only, without the Specseal source code. The client lists changes, reads a spec, and checks a task. Each place where you get stuck shows a missing document or interface.
 
 ## <a id="remote"></a>Remote collaboration
 
 **The problem**
 
-For one person in one repo, Speclink is complete. When several people share one set of specs, some parts of the path are not ready yet.
+For one person in one repo, Specseal is complete. When several people share one set of specs, some parts of the path are not ready yet.
 
 **Where it is now**
 
@@ -76,28 +76,28 @@ You check a task on a remote board in the desktop app, and you can see the files
 
 **The problem**
 
-Now Speclink works with agents through generated skill files. A skill file gives workflow knowledge to the model as text. It does not give the model tools to call. Only tools let an agent read specs, start changes, and check tasks directly in the conversation, without a full read of a skill each time.
+Now Specseal works with agents through generated skill files. A skill file gives workflow knowledge to the model as text. It does not give the model tools to call. Only tools let an agent read specs, start changes, and check tasks directly in the conversation, without a full read of a skill each time.
 
 **Where it is now**
 
 - The skills are mature. Claude Code and Codex have a skill for each stage. See the [SDD workflow](workflow.md). Other AI tools can get skills through a custom tool descriptor. See [Configuration](configuration.md).
-- The Claude Code plugin `speclink-skills` adds a skill button row and a side panel.
-- The Herdr mod `speclink` adds a panel and connects the sidebar lists to Speclink.
+- The Claude Code plugin `specseal-skills` adds a skill button row and a side panel.
+- The Herdr mod `specseal` adds a panel and connects the sidebar lists to Specseal.
 - The tools have no entry point yet: no tool package to install and no MCP adapter.
 - The direction under discussion (not final):
-  - First, `@speclink/engine` gets one general tool that takes CLI arguments and stdin, with examples that connect it to agent SDKs.
+  - First, `@specseal/engine` gets one general tool that takes CLI arguments and stdin, with examples that connect it to agent SDKs.
   - The host side sets the identity of each tool call. The model cannot set its own identity.
   - The MCP adapter comes later. Without a checkout, it gives context through MCP resources.
 
 **The next visible step**
 
-You add Speclink as a tool in an agent framework, and you list changes and read specs with tool calls, without asking the model to run the CLI. Tool calls use the same rules as the CLI for the account and for the Store that they can write to.
+You add Specseal as a tool in an agent framework, and you list changes and read specs with tool calls, without asking the model to run the CLI. Tool calls use the same rules as the CLI for the account and for the Store that they can write to.
 
 ## <a id="system"></a>System integration
 
 **The problem**
 
-In a company, Speclink cannot be an island. Accounts must come from the existing identity system. Spec changes must send notifications to other tools. Deployment must follow the existing operations.
+In a company, Specseal cannot be an island. Accounts must come from the existing identity system. Spec changes must send notifications to other tools. Deployment must follow the existing operations.
 
 **Where it is now**
 
@@ -113,7 +113,7 @@ In a company, Speclink cannot be an island. Accounts must come from the existing
 
 **The next visible step**
 
-You log in to the Speclink server with the identity provider of your company, without a separate account. The other items have no visible entry point and no order yet. When they move, [Product status](product-status.md) shows it first.
+You log in to the Specseal server with the identity provider of your company, without a separate account. The other items have no visible entry point and no order yet. When they move, [Product status](product-status.md) shows it first.
 
 ## <a id="related"></a>Related documents
 

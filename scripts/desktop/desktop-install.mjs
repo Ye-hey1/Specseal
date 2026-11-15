@@ -1,76 +1,76 @@
 #!/usr/bin/env node
-// 本機建置安裝入口（desktop-release spec「本機安裝的新鮮度斷言」，決策 7）：
-// 把 sidecar 佈署 → 前端建置 → tauri bundle → 版號斷言收成單一指令，以機械斷言
-// 取代「剛建的應該是新的」這種信任——2026-08-05 就是這份信任讓 v1.11 的 app 裝了
-// 進來，橫幅把 v1.14 的檔案標成舊版、按下更新靜默降級 30 檔。
+// 本机建置安装入口（desktop-release spec「本机安装的新鲜度断言」，决策 7）：
+// 把 sidecar 布署 → 前端建置 → tauri bundle → 版号断言收成单一指令，以机械断言
+// 取代「刚建的应该是新的」这种信任——2026-08-05 就是这份信任让 v1.11 的 app 装了
+// 进来，横幅把 v1.14 的文件标成旧版、按下更新静默降级 30 档。
 //
 // 用法：node scripts/desktop/desktop-install.mjs [--install]
-//   無旗標：建置並斷言 bundle 內 CLI 的引擎版號等於源碼版號
-//   --install：續行覆蓋安裝 /Applications/Speclink.app 並再斷言一次（僅 macOS）
+//   无旗标：建置并断言 bundle 内 CLI 的引擎版号等于源码版号
+//   --install：续行覆盖安装 /Applications/Specseal.app 并再断言一次（仅 macOS）
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const APP = '/Applications/Speclink.app';
-const BUNDLE_APP = path.join(ROOT, 'target/release/bundle/macos/Speclink.app');
-/// bundle 內的 sidecar CLI（Tauri externalBin 在 macOS 落到 Contents/MacOS/）。
-const SIDECAR_IN_APP = 'Contents/MacOS/speclink';
+const APP = '/Applications/Specseal.app';
+const BUNDLE_APP = path.join(ROOT, 'target/release/bundle/macos/Specseal.app');
+/// bundle 内的 sidecar CLI（Tauri externalBin 在 macOS 落到 Contents/MacOS/）。
+const SIDECAR_IN_APP = 'Contents/MacOS/specseal';
 
-/// 源碼的產物層版號：speclink-core 的 ASSET_VERSION 常數是唯一真相。
+/// 源码的产物层版号：specseal-core 的 ASSET_VERSION 常数是唯一真相。
 export function sourceAssetVersion(initRs) {
   const version = initRs.match(/ASSET_VERSION:\s*&str\s*=\s*"([^"]+)"/)?.[1];
-  if (!version) throw new Error('crates/engine/speclink-core/src/workspace/init.rs 讀不到 ASSET_VERSION 常數');
+  if (!version) throw new Error('crates/engine/specseal-core/src/workspace/init.rs 读不到 ASSET_VERSION 常数');
   return version;
 }
 
-/// 從 `speclink --version` 的輸出取引擎版號。舊 binary 不含 engine 段——那本身
-/// 就是「這顆 CLI 比守門還舊」的證據，明確失敗而非當成通過。
+/// 从 `specseal --version` 的输出取引擎版号。旧 binary 不含 engine 段——那本身
+/// 就是「这颗 CLI 比守门还旧」的证据，明确失败而非当成通过。
 export function engineVersionOf(versionOutput) {
   const version = versionOutput.match(/engine (\S+?)\)?\s*$/m)?.[1];
   if (!version) {
-    throw new Error(`--version 輸出不含 engine 版號（過期的 binary？）：${versionOutput.trim()}`);
+    throw new Error(`--version 输出不含 engine 版号（过期的 binary？）：${versionOutput.trim()}`);
   }
   return version;
 }
 
-/// 版號斷言：不等即帶兩邊版號失敗（差在哪一眼可見）。
+/// 版号断言：不等即带两边版号失败（差在哪一眼可见）。
 export function assertSameEngineVersion(label, actual, expected) {
   if (actual !== expected) {
-    throw new Error(`${label} 的引擎版號是 ${actual}，源碼是 ${expected}——建置鏈沿用了過期 binary`);
+    throw new Error(`${label} 的引擎版号是 ${actual}，源码是 ${expected}——建置链沿用了过期 binary`);
   }
 }
 
-/// tauri build 簽章需要的環境變數中缺了哪些（見 desktop-installer-and-updater：
-/// 只認 TAURI_SIGNING_PRIVATE_KEY，_PATH 會在最後簽章步驟才失敗）。
+/// tauri build 签章需要的环境变量中缺了哪些（见 desktop-installer-and-updater：
+/// 只认 TAURI_SIGNING_PRIVATE_KEY，_PATH 会在最后签章步骤才失败）。
 export function missingSigningEnv(env) {
   return ['TAURI_SIGNING_PRIVATE_KEY', 'TAURI_SIGNING_PRIVATE_KEY_PASSWORD'].filter(
     (key) => !env[key],
   );
 }
 
-/// 進入任何建置之前的一次性把關：非 macOS 帶 --install 不該先花十分鐘建置才發現
-/// 裝不了；簽章 env 缺失時 tauri 會在最後一步才失敗，同樣白等整趟。
+/// 进入任何建置之前的一次性把关：非 macOS 带 --install 不该先花十分钟建置才发现
+/// 装不了；签章 env 缺失时 tauri 会在最后一步才失败，同样白等整趟。
 export function preflight({ env, platform, install }) {
   if (install && platform !== 'darwin') {
-    throw new Error(`--install 僅支援 macOS，目前平台為 ${platform}`);
+    throw new Error(`--install 仅支持 macOS，目前平台为 ${platform}`);
   }
   const missing = missingSigningEnv(env);
   if (missing.length > 0) {
-    throw new Error(`簽章環境變數未設定：${missing.join('、')}——bundle 會在簽章步驟失敗`);
+    throw new Error(`签章环境变量未设置：${missing.join('、')}——bundle 会在签章步骤失败`);
   }
 }
 
-/// spawnSync 的失敗形狀收攏：spawn 本身失敗（ENOENT、權限）與被訊號收束時
-/// status 為 null，不能一律報成「非零結束（null）」而丟掉真正的原因。
+/// spawnSync 的失败形状收拢：spawn 本身失败（ENOENT、权限）与被信号收束时
+/// status 为 null，不能一律报成「非零结束（null）」而丢掉真正的原因。
 function checkSpawn(result, command, args) {
   if (result.error) {
-    throw new Error(`${command} ${args.join(' ')} 無法執行：${result.error.message}`);
+    throw new Error(`${command} ${args.join(' ')} 无法运行：${result.error.message}`);
   }
   if (result.status !== 0) {
     const how = result.status === null ? `signal ${result.signal}` : result.status;
-    throw new Error(`${command} ${args.join(' ')} 以非零結束（${how}）`);
+    throw new Error(`${command} ${args.join(' ')} 以非零结束（${how}）`);
   }
 }
 
@@ -85,7 +85,7 @@ function capture(command, args) {
   return result.stdout ?? '';
 }
 
-/// 某顆 CLI binary 自報的引擎版號。
+/// 某颗 CLI binary 自报的引擎版号。
 function engineVersionOfBinary(binary) {
   if (!existsSync(binary)) throw new Error(`找不到 CLI：${binary}`);
   return engineVersionOf(capture(binary, ['--version']));
@@ -93,54 +93,54 @@ function engineVersionOfBinary(binary) {
 
 function main(argv) {
   const install = argv.includes('--install');
-  // (0) 進任何建置之前把關：平台限定與簽章 env 一次驗完。
+  // (0) 进任何建置之前把关：平台限定与签章 env 一次验完。
   preflight({ env: process.env, platform: process.platform, install });
 
-  // (1) 這棵樹是什麼——安裝版只保證等於這棵樹，不保證等於 origin 最新。
+  // (1) 这棵树是什么——安装版只保证等于这棵树，不保证等于 origin 最新。
   const head = capture('git', ['rev-parse', '--short', 'HEAD']).trim();
   const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']).trim();
   const dirty = capture('git', ['status', '--porcelain']).trim() !== '';
   const expected = sourceAssetVersion(
-    readFileSync(path.join(ROOT, 'crates/engine/speclink-core/src/workspace/init.rs'), 'utf8'),
+    readFileSync(path.join(ROOT, 'crates/engine/specseal-core/src/workspace/init.rs'), 'utf8'),
   );
-  console.log(`來源：${branch} @ ${head}${dirty ? '（工作樹有未提交變更）' : '（工作樹乾淨）'}`);
-  console.log(`源碼引擎版號：${expected}`);
+  console.log(`来源：${branch} @ ${head}${dirty ? '（工作树有未提交变更）' : '（工作树干净）'}`);
+  console.log(`源码引擎版号：${expected}`);
 
-  // (2) sidecar 永遠重建：src-tauri/binaries/ 殘留的舊 CLI 會被 externalBin 靜默
-  // 打包，那正是 2026-08-05 裝進 v1.11 引擎的路徑。
+  // (2) sidecar 永远重建：src-tauri/binaries/ 残留的旧 CLI 会被 externalBin 静默
+  // 打包，那正是 2026-08-05 装进 v1.11 引擎的路径。
   run('node', ['scripts/desktop/desktop-sidecar.mjs']);
 
-  // (3) 前端建置與 bundle（簽章 env 已於 preflight 驗過）。
+  // (3) 前端建置与 bundle（签章 env 已于 preflight 验过）。
   run('npm', ['run', 'build', '-w', 'apps/desktop']);
   run('npm', ['run', '-w', 'apps/desktop', 'tauri', '--', 'build', '--bundles', 'app']);
 
-  // (4) 第一道斷言：打包進去的 CLI 是不是這棵樹的。
+  // (4) 第一道断言：打包进去的 CLI 是不是这棵树的。
   assertSameEngineVersion(
-    'bundle 內的 CLI',
+    'bundle 内的 CLI',
     engineVersionOfBinary(path.join(BUNDLE_APP, SIDECAR_IN_APP)),
     expected,
   );
-  console.log(`✓ bundle 內的 CLI 引擎版號為 ${expected}`);
+  console.log(`✓ bundle 内的 CLI 引擎版号为 ${expected}`);
 
   if (!install) {
-    console.log(`建置完成：${path.relative(ROOT, BUNDLE_APP)}（加 --install 覆蓋安裝）`);
+    console.log(`建置完成：${path.relative(ROOT, BUNDLE_APP)}（加 --install 覆盖安装）`);
     return;
   }
 
-  // (5) 執行中的 app 不代關：使用者可能正在裡面工作。pattern 錨定安裝版的
-  // 執行檔路徑，避免 argv 恰含「Speclink.app」的無關程序（tail、grep）誤攔。
-  // pgrep 的 exit code 語意：0＝有符合、1＝沒有符合、其餘＝pgrep 本身失敗——
-  // 失敗不能當成「沒在跑」。
-  const pg = spawnSync('pgrep', ['-f', `${APP}/Contents/MacOS/speclink-desktop`]);
+  // (5) 运行中的 app 不代关：用户可能正在里面工作。pattern 锚定安装版的
+  // 运行档路径，避免 argv 恰含「Specseal.app」的无关进程（tail、grep）误拦。
+  // pgrep 的 exit code 语意：0＝有符合、1＝没有符合、其余＝pgrep 本身失败——
+  // 失败不能当成「没在跑」。
+  const pg = spawnSync('pgrep', ['-f', `${APP}/Contents/MacOS/specseal-desktop`]);
   if (pg.error || (pg.status !== 0 && pg.status !== 1)) {
-    throw new Error(`無法確認 app 是否執行中（pgrep：${pg.error?.message ?? `exit ${pg.status}`}）`);
+    throw new Error(`无法确认 app 是否运行中（pgrep：${pg.error?.message ?? `exit ${pg.status}`}）`);
   }
   if (pg.status === 0) {
-    throw new Error('Speclink 正在執行——請先結束 app 再重跑（不代為結束程序）');
+    throw new Error('Specseal 正在运行——请先结束 app 再重跑（不代为结束进程）');
   }
 
-  // (6) 覆蓋安裝：先整份拷到暫存路徑，cp 失敗時既有的 app 原封不動；成功後
-  // 才刪舊換新，把「app 消失」的視窗縮到 rm＋rename 兩步。
+  // (6) 覆盖安装：先整份拷到暂存路径，cp 失败时既有的 app 原封不动；成功后
+  // 才删旧换新，把「app 消失」的窗口缩到 rm＋rename 两步。
   const staging = `${APP}.new`;
   rmSync(staging, { recursive: true, force: true });
   run('cp', ['-R', BUNDLE_APP, staging]);
@@ -149,20 +149,20 @@ function main(argv) {
     renameSync(staging, APP);
   } catch (error) {
     throw new Error(
-      `舊版已移除但改名失敗（${error.message}）——新版完整保留在 ${staging}，手動改名為 ${APP} 即可完成安裝`,
+      `旧版已移除但改名失败（${error.message}）——新版完整保留在 ${staging}，手动改名为 ${APP} 即可完成安装`,
     );
   }
 
-  // (7) 第二道斷言：裝進去的才算數。
+  // (7) 第二道断言：装进去的才算数。
   assertSameEngineVersion(
-    '安裝版的 CLI',
+    '安装版的 CLI',
     engineVersionOfBinary(path.join(APP, SIDECAR_IN_APP)),
     expected,
   );
-  console.log(`✓ 已安裝至 ${APP}，引擎版號為 ${expected}`);
+  console.log(`✓ 已安装至 ${APP}，引擎版号为 ${expected}`);
 }
 
-// node --test 匯入本模組時只取函式，不執行安裝。
+// node --test 导入本模块时只取函数，不运行安装。
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   try {
     main(process.argv.slice(2));

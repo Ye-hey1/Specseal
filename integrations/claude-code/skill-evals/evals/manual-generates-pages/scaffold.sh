@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 封存過一個 change，speclink/specs/greeting/spec.md 是正式規格。
+# 封存过一个 change，specseal/specs/greeting/spec.md 是正式规格。
 source "$(dirname "$0")/../fixtures.sh"
 eval_init
 eval_greeting_archived

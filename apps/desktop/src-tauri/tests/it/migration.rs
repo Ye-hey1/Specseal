@@ -2,9 +2,9 @@
 
 use crate::common;
 
-use speclink_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
-use speclink_desktop_lib::remote::{self, TokenManager};
-use speclink_remote::client::Client;
+use specseal_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
+use specseal_desktop_lib::remote::{self, TokenManager};
+use specseal_remote::client::Client;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -22,7 +22,7 @@ fn complete_workspace() -> tempfile::TempDir {
             "openspec/config.yaml",
             "schema: spec-driven\nlocale: tw\n",
         ),
-        ("openspec/LANGUAGE.md", "TeamStore: 團隊儲存\n"),
+        ("openspec/LANGUAGE.md", "TeamStore: 团队保存\n"),
         (
             "openspec/changes/active-change/.openspec.yaml",
             "schema: spec-driven\ncreated: 2026-07-21\n",
@@ -125,13 +125,13 @@ fn complete_local_workspace_round_trips_through_import_and_every_read_surface() 
     assert_eq!(result.checkout_root, root.path().display().to_string());
     assert!(!root.path().join("openspec").exists());
     assert!(Path::new(&result.backup_path).is_dir());
-    let marker = std::fs::read_to_string(root.path().join(".speclink.yaml"))
+    let marker = std::fs::read_to_string(root.path().join(".specseal.yaml"))
         .expect("migration writes marker");
-    assert!(marker.contains("/api/speclink/v1/projects/demo"));
+    assert!(marker.contains("/api/specseal/v1/projects/demo"));
     assert!(marker.contains("repo: backend"));
 
     let client = Client::new(
-        &format!("{}/api/speclink/v1/projects/demo", harness.origin),
+        &format!("{}/api/specseal/v1/projects/demo", harness.origin),
         &pat,
         Some("backend"),
     );
@@ -194,7 +194,7 @@ fn complete_local_workspace_round_trips_through_import_and_every_read_surface() 
     );
     assert_eq!(
         client.language().expect("language").content,
-        "TeamStore: 團隊儲存\n"
+        "TeamStore: 团队保存\n"
     );
 }
 
@@ -223,7 +223,7 @@ fn rejected_import_leaves_every_local_file_byte_identical() {
     assert!(error.contains("create-new"));
     assert_eq!(file_snapshot(root.path()), before);
     assert!(root.path().join("openspec").is_dir());
-    assert!(!root.path().join(".speclink.yaml").exists());
+    assert!(!root.path().join(".specseal.yaml").exists());
     assert!(
         std::fs::read_dir(root.path()).unwrap().all(|entry| !entry
             .unwrap()

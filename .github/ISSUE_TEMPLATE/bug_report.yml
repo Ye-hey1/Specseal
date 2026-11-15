@@ -1,5 +1,5 @@
 name: Bug report
-description: Something in Speclink does not work as documented.
+description: Something in Specseal does not work as documented.
 labels: [bug]
 body:
   - type: markdown
@@ -13,9 +13,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: Speclink version
-      description: The output of `speclink --version`. For the desktop app, the version on the About page.
-      placeholder: speclink 0.8.0 (arm64, engine v1.48.0)
+      label: Specseal version
+      description: The output of `specseal --version`. For the desktop app, the version on the About page.
+      placeholder: specseal 0.8.0 (arm64, engine v1.48.0)
     validations:
       required: true
   - type: dropdown
@@ -45,7 +45,7 @@ body:
       label: Steps to reproduce
       description: The commands that you ran or the actions that you took, in order.
       placeholder: |
-        1. speclink init --tools claude
+        1. specseal init --tools claude
         2. ...
     validations:
       required: true

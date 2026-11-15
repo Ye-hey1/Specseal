@@ -9,7 +9,7 @@ import {
   StatusPill,
   useI18n,
   PageHeader,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { CardNote } from "../../components/CardNote";
 import { useAsync } from "../../lib/useAsync";
@@ -17,19 +17,19 @@ import { auditLabel } from "../../lib/auditLabel";
 import { AdminError, AdminLoading } from "./states";
 import type { AdminConnection, AdminTodo } from "../../api/client";
 
-// 管理總覽（server-web-console「總覽提供可行動入口與待辦」；server-web-list-pages design D10）：
-// 768px 置中欄；頂端四格數字磚（與 desktop 閱讀卡同款），其下需要處理、系統健康與最近活動三張
-// 設定型卡。數字是入口而非裝飾——看到數字的下一步一定是去某一頁做事，所以每格都可點。沒有
-// 待處理事項時整張卡不渲染，不留空標題與空清單。
+// 管理总览（server-web-console「总览提供可行动入口与待办」；server-web-list-pages design D10）：
+// 768px 置中栏；顶端四格数字砖（与 desktop 阅读卡同款），其下需要处理、系统健康与最近活动三张
+// 设置型卡。数字是入口而非装饰——看到数字的下一步一定是去某一页做事，所以每格都可点。没有
+// 待处理事项时整张卡不渲染，不留空标题与空清单。
 //
-// setup 完成後 Server 導向 `/admin?welcome=1`，此頁承接連線資訊的呈現
-// （server-setup「完成 setup 即可邀請與連線」）；Store 降級狀態亦於此明示
-// （server-admin「Store 不健康時 identity 管理仍可用」）。
+// setup 完成后 Server 导向 `/admin?welcome=1`，此页承接连接信息的呈现
+// （server-setup「完成 setup 即可邀请与连接」）；Store 降级状态亦于此明示
+// （server-admin「Store 不健康时 identity 管理仍可用」）。
 
-/** 使用者頁的邀請中分頁：待啟用數字磚與「查看邀請」待辦都直接開到這裡。 */
+/** 用户页的邀请中分页：待激活数字砖与「查看邀请」待办都直接开到这里。 */
 const PENDING_INVITATIONS = "/admin/users?tab=pending";
 
-/** 卡片標頭右端的入口連結。 */
+/** 卡片标头右端的入口链接。 */
 const ASIDE_LINK_CLS =
   "rounded-sm hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
@@ -147,7 +147,7 @@ export function OverviewPage() {
   );
 }
 
-// 待辦的文案留在前端：wire 上只有封閉集合的 kind 與目的地，訊息與行動名稱由此對應。
+// 待办的文案留在前端：wire 上只有封闭集合的 kind 与目的地，消息与行动名称由此对应。
 const TODO_KEYS: Record<string, { message: string; action: string }> = {
   "no-active-credentials": {
     message: "overview.todoNoCredentials",
@@ -162,7 +162,7 @@ const TODO_KEYS: Record<string, { message: string; action: string }> = {
 function TodoRow({ todo }: { todo: AdminTodo }) {
   const { t, tn } = useI18n();
   const keys = TODO_KEYS[todo.kind];
-  // 待接受邀請直接開到邀請中分頁；其他待辦照伺服器給的目的地。
+  // 待接受邀请直接开到邀请中分页；其他待办照服务器给的目的地。
   const to = todo.kind === "pending-invitations" ? PENDING_INVITATIONS : todo.destination;
   return (
     <SettingsRow
@@ -176,7 +176,7 @@ function TodoRow({ todo }: { todo: AdminTodo }) {
   );
 }
 
-// setup 完成後的開箱資訊：三個要素各自可複製，並指出下一步是邀請成員。
+// setup 完成后的开箱信息：三个要素各自可拷贝，并指出下一步是邀请成员。
 function WelcomeConnection({ connection }: { connection: AdminConnection }) {
   const { t } = useI18n();
   return (

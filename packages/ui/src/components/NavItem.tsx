@@ -4,28 +4,28 @@ import { Slot, Slottable } from "@radix-ui/react-slot";
 import { cn } from "../lib/utils";
 
 export interface NavItemProps {
-  /** 子項變體不傳。 */
+  /** 子项变体不传。 */
   icon?: ReactNode;
   label: string;
-  /** `sub`：上層分類底下的子項——無圖示、28px 高、文字左緣與預設變體的文字對齊
-   *  （左內距 10px＋圖示 16px＋間距 8px＝34px）。 */
+  /** `sub`：上层分类底下的子项——无图标、28px 高、文本左缘与缺省变体的文本对齐
+   *  （左内距 10px＋图标 16px＋间距 8px＝34px）。 */
   variant?: "default" | "sub";
   active?: boolean;
-  /** 右端計數徽章（如已封存數）；未給即不渲染。 */
+  /** 右端计数徽章（如已封存数）；未给即不渲染。 */
   count?: number;
-  /** 標籤之後的標記槽（如設定分類項的解析失敗警示點）；不併入無障礙名稱時由呼叫端設 aria-hidden。 */
+  /** 标签之后的标记槽（如设置分类项的解析失败警示点）；不并入无障碍名称时由调用端设 aria-hidden。 */
   badge?: ReactNode;
-  /** 設定時無障礙名稱不被徽章數字污染。 */
+  /** 设置时无障碍名称不被徽章数字污染。 */
   ariaLabel?: string;
   onClick?: () => void;
-  /** 渲染成唯一子元素（如路由連結），圖示與標籤放進子元素內。 */
+  /** 渲染成唯一子元素（如路由链接），图标与标签放进子元素内。 */
   asChild?: boolean;
   children?: ReactNode;
   /** 只放版面（如 mt-auto 沉底）。 */
   className?: string;
 }
 
-/** 導覽項（design D4）：desktop 專案欄與 server-web 管理面導覽共用。 */
+/** 导览项（design D4）：desktop 项目栏与 server-web 管理面导览共用。 */
 export function NavItem({
   icon,
   label,

@@ -1,6 +1,6 @@
-// 更新狀態機（desktop-app spec「桌面自動更新」，design D6）：純 reducer、不依賴
-// Tauri。手動／自動檢查的失敗與已最新分流在此決定：自動一律靜默回閒置，手動
-// 才浮出「無法檢查」與「已是最新」；簽章驗證等安裝失敗轉錯誤態，永不進待重啟。
+// 更新状态机（desktop-app spec「桌面自动更新」，design D6）：纯 reducer、不依赖
+// Tauri。手动／自动检查的失败与已最新分流在此决定：自动一律静默回闲置，手动
+// 才浮出「无法检查」与「已是最新」；签章验证等安装失败转错误态，永不进待重启。
 export type UpdaterState =
   | { phase: "idle" }
   | { phase: "checking"; manual: boolean }
@@ -23,29 +23,29 @@ export type UpdaterEvent =
 
 export const initialUpdaterState: UpdaterState = { phase: "idle" };
 
-/** 前景重檢的節流間隔：主視窗回到前景時，距上次檢查滿此值才再查。 */
+/** 前景重检的节流间隔：主窗口回到前景时，距上次检查满此值才再查。 */
 export const FOCUS_RECHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
- * 主視窗回到前景時是否該重檢（desktop-app「回到前景未滿一小時不重檢」）：
- * 從未檢查（null）視為逾時；否則距上次檢查滿 FOCUS_RECHECK_INTERVAL_MS 才重檢。
+ * 主窗口回到前景时是否该重检（desktop-app「回到前景未满一小时不重检」）：
+ * 从未检查（null）视为逾时；否则距上次检查满 FOCUS_RECHECK_INTERVAL_MS 才重检。
  */
 export function focusRecheckDue(lastCheckedAt: number | null, now: number): boolean {
   return lastCheckedAt === null || now - lastCheckedAt >= FOCUS_RECHECK_INTERVAL_MS;
 }
 
 /**
- * 目前狀態是否容許前景重檢（desktop-app「回到前景未滿一小時不重檢」）：只有
- * 沒有東西等使用者處置的狀態才重檢。待同意的提示（available）與安裝失敗的錯誤
- * （error）要留到使用者處置，不能被自動重檢清掉；檢查中、下載中、待重啟不重入。
+ * 目前状态是否容许前景重检（desktop-app「回到前景未满一小时不重检」）：只有
+ * 没有东西等用户处置的状态才重检。待同意的提示（available）与安装失败的错误
+ * （error）要留到用户处置，不能被自动重检清掉；检查中、下载中、待重启不重入。
  */
 export function focusRecheckAllowed(state: UpdaterState): boolean {
   return state.phase === "idle" || state.phase === "upToDate" || state.phase === "checkFailed";
 }
 
 /**
- * 圖示列更新鈕與設定卡「下載與安裝」列共用的呈現判斷（desktop-app「桌面自動更新」）：待同意、
- * 下載中、待重啟與失敗要使用者看到；閒置、檢查中、已最新與檢查失敗不佔畫面。
+ * 图标列更新钮与设置卡「下载与安装」列共用的呈现判断（desktop-app「桌面自动更新」）：待同意、
+ * 下载中、待重启与失败要用户看到；闲置、检查中、已最新与检查失败不占画面。
  */
 export function updateNeedsAttention(
   state: UpdaterState,
@@ -61,7 +61,7 @@ export function updateNeedsAttention(
 export function reduceUpdater(state: UpdaterState, event: UpdaterEvent): UpdaterState {
   switch (event.type) {
     case "checkStarted":
-      // 下載中與待重啟不可被重檢打斷；其餘狀態（含錯誤、已最新）都可再檢查。
+      // 下载中与待重启不可被重检打断；其余状态（含错误、已最新）都可再检查。
       if (state.phase === "downloading" || state.phase === "restartPending") return state;
       return { phase: "checking", manual: event.manual };
     case "updateFound":
@@ -77,8 +77,8 @@ export function reduceUpdater(state: UpdaterState, event: UpdaterEvent): Updater
         ? { phase: "downloading", version: state.version }
         : state;
     case "dismissed":
-      // available＝稍後、error＝關閉錯誤提示、downloading＝取消（放棄本次同意；外掛的下載仍在
-      // 背景跑完，store 見同意已失效就不安裝，其後的 downloaded／installFailed 在閒置態也被忽略）；皆回閒置。
+      // available＝稍后、error＝关闭错误提示、downloading＝取消（放弃本次同意；插件的下载仍在
+      // 背景跑完，store 见同意已失效就不安装，其后的 downloaded／installFailed 在闲置态也被忽略）；皆回闲置。
       return state.phase === "available" || state.phase === "error" || state.phase === "downloading"
         ? { phase: "idle" }
         : state;

@@ -1,0 +1,33 @@
+[package]
+name = "specseal-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "specseal"
+path = "src/main.rs"
+
+[dependencies]
+specseal-core = { path = "../../engine/specseal-core" }
+specseal-fs = { path = "../../engine/specseal-fs" }
+specseal-host = { path = "../../host/specseal-host" }
+specseal-protocol = { path = "../../protocol/specseal-protocol" }
+specseal-remote = { path = "../../protocol/specseal-remote" }
+specseal-verbs = { path = "../specseal-verbs" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+clap_complete = "4"
+# The skill version notice is told once a local calendar day.
+chrono.workspace = true
+
+[dev-dependencies]
+# 测试借 core 的 testkit（技能档版号读写 helper）；feature 只在 dev 构建生效。
+specseal-core = { path = "../../engine/specseal-core", features = ["testkit"] }
+tiny_http = "0.12"
+# The remote-read tests run the real HTTP door on the in-memory store port.
+specseal-store-port = { path = "../../store/specseal-store-port" }

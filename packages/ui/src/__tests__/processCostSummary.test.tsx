@@ -1,5 +1,5 @@
-// spec desktop-app「已封存頁的流程成本摘要」的呈現：四項、每個數字的樣本數、
-// 繁中與英文文案、沒有資料時整個摘要不出現。
+// spec desktop-app「已封存页的流程成本摘要」的呈现：四项、每个数字的样本数、
+// 繁中与英文文案、没有数据时整个摘要不出现。
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 
@@ -19,7 +19,7 @@ function renderIn(locale: UiLocale, items: ArchivedItem[]) {
   ).container;
 }
 
-/** 每一格（DocTiles 的磚）的 [大字, 小字]，依呈現順序。 */
+/** 每一格（DocTiles 的砖）的 [大字, 小字]，依呈现顺序。 */
 function tiles(container: HTMLElement): [string, string][] {
   return [...container.querySelectorAll("[data-process-cost] [data-doc-tile]")].map((tile) => {
     const [value, label] = [...tile.children].map((el) => el.textContent ?? "");
@@ -27,7 +27,7 @@ function tiles(container: HTMLElement): [string, string][] {
   });
 }
 
-// Scenario「顯示中位數、P90 與樣本數」。
+// Scenario「显示中位数、P90 与样本数」。
 const THREE = [
   item("a", { docLines: 100, tasksTotal: 4, leadDays: 0 }),
   item("b", { docLines: 200, tasksTotal: 6, leadDays: 0 }),
@@ -40,22 +40,22 @@ const WITH_ROUNDS = [
 ];
 
 describe("ProcessCostSummary", () => {
-  it("shows medians as the tile values with P90 and sample counts under a 流程成本（中位數） heading", () => {
-    const container = renderIn("zh-TW", THREE);
-    expect(container.querySelector("[data-process-cost] h3")!.textContent).toBe("流程成本（中位數）");
+  it("shows medians as the tile values with P90 and sample counts under a 流程成本（中位数） heading", () => {
+    const container = renderIn("zh-CN", THREE);
+    expect(container.querySelector("[data-process-cost] h3")!.textContent).toBe("流程成本（中位数）");
     expect(tiles(container)).toEqual([
-      ["200", "文件行數（3 筆） · P90 400"],
-      ["6", "任務數（3 筆）"],
-      ["0 天", "建立到封存（3 筆）"],
+      ["200", "文档行数（3 笔） · P90 400"],
+      ["6", "任务数（3 笔）"],
+      ["0 天", "创建到封存（3 笔）"],
     ]);
   });
 
   it("averages an even sample and pairs every number with its own sample count", () => {
-    // Scenario「偶數筆取中間兩值平均」＋輪數各自計樣本。
-    const container = renderIn("zh-TW", WITH_ROUNDS);
+    // Scenario「偶数笔取中间两值平均」＋轮数各自计样本。
+    const container = renderIn("zh-CN", WITH_ROUNDS);
     expect(tiles(container).slice(2)).toEqual([
-      ["0.5 天 · 18.3 小時", "建立到封存（2／2 筆）"],
-      ["審查 2 · 驗證 2", "品質關卡輪數（2／1 筆）"],
+      ["0.5 天 · 18.3 小时", "创建到封存（2／2 笔）"],
+      ["审查 2 · 验证 2", "品质关卡轮数（2／1 笔）"],
     ]);
   });
 
@@ -79,9 +79,9 @@ describe("ProcessCostSummary", () => {
   });
 
   it("keeps every label short enough for a quarter of the default window", () => {
-    // DocTiles 的小字會截斷：1440px 預設視窗扣掉側欄後每格約 245px，11px 字約 40 個半形字元。
-    // 標籤超過就會把樣本數截掉（spec「每個數字標出樣本數」）。
-    for (const locale of ["en", "zh-TW"] as const) {
+    // DocTiles 的小字会截断：1440px 缺省窗口扣掉侧栏后每格约 245px，11px 字约 40 个半角字符。
+    // 标签超过就会把样本数截掉（spec「每个数字标出样本数」）。
+    for (const locale of ["en", "zh-CN"] as const) {
       for (const [, label] of tiles(renderIn(locale, WITH_ROUNDS))) {
         expect(label.length, label).toBeLessThanOrEqual(36);
       }
@@ -89,14 +89,14 @@ describe("ProcessCostSummary", () => {
   });
 
   it("leaves out the quality gate tile when no change carries rounds", () => {
-    // Scenario「舊記錄沒有輪數時不顯示該項」。
-    const container = renderIn("zh-TW", THREE);
-    expect(tiles(container).map(([, label]) => label).some((l) => l.startsWith("品質關卡輪數"))).toBe(false);
+    // Scenario「旧记录没有轮数时不显示该项」。
+    const container = renderIn("zh-CN", THREE);
+    expect(tiles(container).map(([, label]) => label).some((l) => l.startsWith("品质关卡轮数"))).toBe(false);
   });
 
   it("renders nothing without process cost fields", () => {
-    // Scenario「沒有資料時整個摘要不出現」：沒有封存變更，或遠端清單只帶任務數。
-    expect(renderIn("zh-TW", []).innerHTML).toBe("");
-    expect(renderIn("zh-TW", [item("remote", { tasksTotal: 4 })]).innerHTML).toBe("");
+    // Scenario「没有数据时整个摘要不出现」：没有封存变更，或远程清单只带任务数。
+    expect(renderIn("zh-CN", []).innerHTML).toBe("");
+    expect(renderIn("zh-CN", [item("remote", { tasksTotal: 4 })]).innerHTML).toBe("");
   });
 });

@@ -1,15 +1,15 @@
 // @vitest-environment node
-// 純檔案系統斷言：以 node 環境執行，import.meta.url 才是 file:// URL
-// （jsdom 環境會把它換成 http location，導致 fileURLToPath 失敗）。
+// 纯文件系统断言：以 node 环境运行，import.meta.url 才是 file:// URL
+// （jsdom 环境会把它换成 http location，导致 fileURLToPath 失败）。
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { scanSources } from "./sourceScan";
 
-// 共用 semantic theme（D1/D7）：青綠 token 從 apps/desktop/src/index.css 抽到
-// packages/ui/src/theme.css，Desktop 與 Server Web 各自 import 同一份，證明
-// 「抽取只改所有權、不改值」——Desktop 可觀察 token 不得漂移。
+// 共用 semantic theme（D1/D7）：青绿 token 从 apps/desktop/src/index.css 抽到
+// packages/ui/src/theme.css，Desktop 与 Server Web 各自 import 同一份，证明
+// 「抽取只改所有权、不改值」——Desktop 可观察 token 不得漂移。
 const themeCss = () =>
   readFileSync(fileURLToPath(new URL("../theme.css", import.meta.url)), "utf8");
 const desktopCss = () =>
@@ -19,7 +19,7 @@ const desktopCss = () =>
   );
 
 // canonical token 值（desktop-design-foundation D1／D3）：色值只在 theme.css，
-// 逐一釘死，任何值漂移即回歸失敗。原生色階值逐字取自 tailwindcss/theme.css。
+// 逐一钉死，任何值漂移即回归失败。原生色阶值逐字取自 tailwindcss/theme.css。
 const LIGHT_TOKENS = [
   "--background: oklch(1 0 0);",
   "--foreground: oklch(0.145 0 0);",
@@ -70,7 +70,7 @@ const DARK_TOKENS = [
   "--stage-discussion: oklch(74% 0.238 322.16);",
 ];
 
-/** 新增 token 都要映射成 Tailwind utility（bg-status-progress、text-stamp…）。 */
+/** 添加 token 都要映射成 Tailwind utility（bg-status-progress、text-stamp…）。 */
 const NEW_TOKENS = [
   "sidebar",
   "status-progress",
@@ -91,9 +91,9 @@ const THEME_MAP = [
   ...NEW_TOKENS.map((name) => `--color-${name}: var(--${name});`),
 ];
 
-// 元件只能用這份 theme 真的映射出來的語意色。用了沒定義的 token（例如上游 shadcn 的
-// `bg-popover`——這個 theme 沒有 `--popover`）Tailwind 會產出一條解析不到值的宣告，
-// 元件靜默變透明：不會有編譯錯誤、不會有測試紅燈，只有肉眼看得到。
+// 组件只能用这份 theme 真的映射出来的语意色。用了没定义的 token（例如上游 shadcn 的
+// `bg-popover`——这个 theme 没有 `--popover`）Tailwind 会产出一条解析不到值的声明，
+// 组件静默变透明：不会有编译错误、不会有测试红灯，只有肉眼看得到。
 const componentSources = () => {
   const dir = fileURLToPath(new URL("..", import.meta.url));
   const files: string[] = [];
@@ -109,36 +109,36 @@ const componentSources = () => {
   return files.map((f) => [f, stripComments(readFileSync(f, "utf8"))] as const);
 };
 
-/** Tailwind 內建色名（逐字取自 tailwindcss/theme.css 的 --color-*-500）。 */
+/** Tailwind 内置色名（逐字取自 tailwindcss/theme.css 的 --color-*-500）。 */
 const PALETTE_NAMES =
   "red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone|mauve|olive|mist|taupe";
-/** Tailwind 內建色階（bg-amber-500 之類）不經 theme，排除。 */
+/** Tailwind 内置色阶（bg-amber-500 之类）不经 theme，排除。 */
 const PALETTE = new RegExp(`^(?:${PALETTE_NAMES})-\\d{2,3}$`);
 const BUILTIN = new Set(["black", "white", "transparent", "current", "inherit"]);
 
-// 原生色階守門（spec desktop-app「原生色階守門無白名單」場景）：色值只在 theme.css，
-// 集中常數檔只保存「狀態→token class」對照，元件只寫 token class——三個掃描根的
-// 任何原始碼都不得出現原生色階字面，沒有白名單。漂移多半發生在 app 側，只掃
-// packages/ui 擋不住。
-/** 掃描根（相對 repo root）。 */
+// 原生色阶守门（spec desktop-app「原生色阶守门无白名单」场景）：色值只在 theme.css，
+// 集中常数档只保存「状态→token class」对照，组件只写 token class——三个扫描根的
+// 任何原代码都不得出现原生色阶字面，没有白名单。漂移多半发生在 app 侧，只扫
+// packages/ui 挡不住。
+/** 扫描根（相对 repo root）。 */
 const SCAN_ROOTS = ["packages/ui/src", "apps/desktop/src", "apps/server-web/src"];
 
 /**
- * 原生色階字面：任意 utility 前綴（text-、fill-、border-t-、shadow-…）＋全部色名＋
- * Tailwind 色階數字。前綴不列舉——列舉的前綴清單本身就是白名單的缺口。
+ * 原生色阶字面：任意 utility 前缀（text-、fill-、border-t-、shadow-…）＋全部色名＋
+ * Tailwind 色阶数字。前缀不枚举——枚举的前缀清单本身就是白名单的缺口。
  */
 const PALETTE_SCALE = new RegExp(`\\b[a-z][a-z-]*-(?:${PALETTE_NAMES})-(?:50|[1-9]00|950)\\b`, "g");
 
-// 註解裡提到某個 class 名稱（例如解釋為什麼不用它）不該被當成用到了它。
+// 注解里提到某个 class 名称（例如解释为什么不用它）不该被当成用到了它。
 const stripComments = (source: string) =>
   source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 
-/** 掃描範圍內的 .ts／.tsx／.css 原始碼（去註解）。 */
+/** 扫描范围内的 .ts／.tsx／.css 原代码（去注解）。 */
 const scannedSources = () =>
   scanSources(SCAN_ROOTS, [".ts", ".tsx", ".css"]).map(([file, source]) => [file, stripComments(source)] as const);
 
 describe("共用 semantic theme 抽取", () => {
-  it("元件用到的 bg-* 語意色都在 theme.css 有對應 token", () => {
+  it("组件用到的 bg-* 语意色都在 theme.css 有对应 token", () => {
     const mapped = new Set([...themeCss().matchAll(/--color-([a-z0-9-]+):/g)].map((m) => m[1]));
     const unmapped: string[] = [];
     for (const [file, source] of componentSources()) {
@@ -152,8 +152,8 @@ describe("共用 semantic theme 抽取", () => {
   });
 });
 
-describe("原生色階守門", () => {
-  it("比對式涵蓋 Tailwind 全部色名與任意 utility 前綴，不誤中 token class", () => {
+describe("原生色阶守门", () => {
+  it("比对式涵盖 Tailwind 全部色名与任意 utility 前缀，不误中 token class", () => {
     const hits = (source: string) => [...source.matchAll(PALETTE_SCALE)].map((m) => m[0]);
     const caught = [
       "text-blue-600",
@@ -179,7 +179,7 @@ describe("原生色階守門", () => {
     }
   });
 
-  it("三個掃描根的原始碼都不含原生色階字面（無白名單）", () => {
+  it("三个扫描根的原代码都不含原生色阶字面（无白名单）", () => {
     const violations: string[] = [];
     for (const [file, source] of scannedSources()) {
       for (const match of source.matchAll(PALETTE_SCALE)) {
@@ -190,27 +190,27 @@ describe("原生色階守門", () => {
   });
 });
 
-// spec desktop-app「截斷省略號的統一字形」（design D6）：省略號長什麼樣由該處字型
-// 決定——等寬把手畫半形貼基線、中文文字畫全形置中，同一畫面兩種收尾。以限定
-// U+2026 的字型層統一，其餘字元照原字型解析（不換任何一段文字的字型）。
-describe("截斷省略號的統一字形", () => {
+// spec desktop-app「截断省略号的统一字形」（design D6）：省略号长什么样由该处字体
+// 决定——等宽把手画半角贴基线、中文文本画全角置中，同一画面两种收尾。以限定
+// U+2026 的字体层统一，其余字符照原字体解析（不换任何一段文本的字体）。
+describe("截断省略号的统一字形", () => {
   const ELLIPSIS_FALLBACKS = ["Helvetica Neue", "Arial", "Segoe UI", "DejaVu Sans"];
-  /** 既有 body 堆疊——省略號層插在最前，其後必須原封不動。 */
+  /** 既有 body 堆栈——省略号层插在最前，其后必须原封不动。 */
   const EXISTING_STACK =
     '"Noto Sans TC Variable", "Noto Sans TC", "Segoe UI", system-ui, -apple-system, sans-serif';
 
-  it("theme.css 宣告只接管 U+2026 的拉丁字型層", () => {
+  it("theme.css 声明只接管 U+2026 的拉丁字体层", () => {
     const face = themeCss().match(/@font-face\s*\{[^}]*EllipsisLatin[^}]*\}/)?.[0];
     expect(face).toBeTruthy();
-    // 限定單一碼位：沒有 unicode-range 這層會接管整段文字，把中文換成拉丁字型。
+    // 限定单一码位：没有 unicode-range 这层会接管整段文本，把中文换成拉丁字体。
     expect(face).toContain("unicode-range: U+2026;");
-    // 三平台各有一個常駐拉丁字型；全數落空時整層無效、退回既有字型（不破圖）。
+    // 三平台各有一个常驻拉丁字体；全数落空时整层无效、退回既有字体（不花屏）。
     for (const font of ELLIPSIS_FALLBACKS) {
       expect(face).toContain(`local("${font}")`);
     }
   });
 
-  it("body 字型堆疊以省略號層為首，其後既有順序不變", () => {
+  it("body 字体堆栈以省略号层为首，其后既有顺序不变", () => {
     const family = themeCss().match(/body\s*\{[^}]*font-family:\s*([^;]+);/)?.[1]?.trim();
     expect(family).toBeTruthy();
     expect(family!.startsWith('"EllipsisLatin"')).toBe(true);
@@ -226,18 +226,18 @@ describe("共用 semantic theme 抽取（既有）", () => {
     }
   });
 
-  it("theme.css 保留 dark 模式 token 與系統偏好查詢", () => {
+  it("theme.css 保留 dark 模式 token 与系统偏好查找", () => {
     const css = themeCss();
     expect(css).toContain("@media (prefers-color-scheme: dark)");
     for (const token of DARK_TOKENS) {
       expect(css).toContain(token);
     }
-    // 深色基底純中性（D3）：不再帶色相 260 的藍調。
+    // 深色基底纯中性（D3）：不再带色相 260 的蓝调。
     expect(css).not.toContain("0.008 260");
   });
 
-  // 外觀偏好（desktop-settings-mode design D4）：深色 token 由系統偏好與明示深色兩種觸發共用，
-  // 兩份宣告必須逐行相同——漂移即紅。
+  // 外观偏好（desktop-settings-mode design D4）：深色 token 由系统偏好与明示深色两种触发共用，
+  // 两份声明必须逐行相同——漂移即红。
   const darkBlockDeclarations = (css: string, selector: RegExp) => {
     const match = selector.exec(css);
     expect(match, String(selector)).not.toBeNull();
@@ -249,13 +249,13 @@ describe("共用 semantic theme 抽取（既有）", () => {
       .filter((line) => line.startsWith("--"));
   };
 
-  it("系統偏好區塊排除明示淺色、另有明示深色區塊", () => {
+  it("系统偏好区块排除明示浅色、另有明示深色区块", () => {
     const css = themeCss();
     expect(css).toMatch(/@media \(prefers-color-scheme: dark\)\s*\{\s*:root:not\(\[data-theme="light"\]\)\s*\{/);
     expect(css).toMatch(/:root\[data-theme="dark"\]\s*\{/);
   });
 
-  it("兩個深色區塊的宣告逐行相同", () => {
+  it("两个深色区块的声明逐行相同", () => {
     const css = themeCss();
     const media = darkBlockDeclarations(css, /:root:not\(\[data-theme="light"\]\)\s*\{/);
     const explicit = darkBlockDeclarations(css, /:root\[data-theme="dark"\]\s*\{/);
@@ -264,42 +264,42 @@ describe("共用 semantic theme 抽取（既有）", () => {
     for (const token of DARK_TOKENS) expect(media).toContain(token);
   });
 
-  it("dark: 變體與深色 token 同一套觸發（系統深色且未明示淺色、或明示深色）", () => {
+  it("dark: 变体与深色 token 同一套触发（系统深色且未明示浅色、或明示深色）", () => {
     const variant = themeCss().match(/@custom-variant dark \{([\s\S]*?)\n\}/)?.[1] ?? "";
     expect(variant).toContain("@media (prefers-color-scheme: dark)");
     expect(variant).toContain(':root:not([data-theme="light"]) *');
     expect(variant).toContain(':root[data-theme="dark"] *');
   });
 
-  it("theme.css 保留 @theme inline 對 Tailwind utility 的映射", () => {
+  it("theme.css 保留 @theme inline 对 Tailwind utility 的映射", () => {
     const css = themeCss();
     expect(css).toContain("@theme inline");
     for (const mapping of THEME_MAP) {
       expect(css).toContain(mapping);
     }
-    // 圓角改用 Tailwind 預設四階（D2）：不再自訂 --radius 與其衍生覆寫。
+    // 圆角改用 Tailwind 缺省四阶（D2）：不再自订 --radius 与其衍生覆写。
     expect(css).not.toMatch(/--radius/);
   });
 
-  it("theme.css 讓 Tailwind 掃描 Streamdown 的 class（D10，兩個 app 經 @import 共用）", () => {
+  it("theme.css 让 Tailwind 扫描 Streamdown 的 class（D10，两个 app 经 @import 共用）", () => {
     expect(themeCss()).toContain('@source "../../../node_modules/streamdown/dist/*.js";');
   });
 
-  it("theme.css 保留 Noto Sans TC body 字型堆疊", () => {
+  it("theme.css 保留 Noto Sans TC body 字体堆栈", () => {
     const css = themeCss();
     expect(css).toContain('"Noto Sans TC Variable"');
     expect(css).toContain("font-family:");
   });
 
-  it("Desktop index.css 的 markdown 覆寫只留字級行高、code chip、del 與任務清單（D10）", () => {
+  it("Desktop index.css 的 markdown 覆写只留字级行高、code chip、del 与任务清单（D10）", () => {
     const css = desktopCss();
-    // 排版交給 Streamdown：typography 外掛與 prose 變數對照整段移除。
+    // 排版交给 Streamdown：typography 插件与 prose 变量对照整段移除。
     expect(css).not.toContain("@tailwindcss/typography");
     expect(css).not.toContain("--tw-prose-");
     const base = css.match(/\.markdown\s*\{([^}]*)\}/)?.[1] ?? "";
     expect(base).toContain("font-size: 1rem;");
     expect(base).toContain("line-height: 1.7;");
-    // Streamdown 自帶表格容器與程式碼框，這幾條不再需要。
+    // Streamdown 自带表格容器与代码框，这几条不再需要。
     expect(css).not.toMatch(/\.markdown table\s*\{/);
     expect(css).not.toMatch(/\.markdown th\s*\{/);
     expect(css).not.toMatch(/\.markdown pre\s*\{/);
@@ -309,11 +309,11 @@ describe("共用 semantic theme 抽取（既有）", () => {
     expect(css).toContain('.markdown li:has(> input[type="checkbox"])');
   });
 
-  it("Desktop index.css 改為 import 共用 theme，不再自行內嵌 token（單一真相源）", () => {
+  it("Desktop index.css 改为 import 共用 theme，不再自行内嵌 token（单一真相源）", () => {
     const css = desktopCss();
-    // 引用共用 theme.css（相對 workspace 路徑，與既有 @source 慣例一致）。
+    // 引用共用 theme.css（相对 workspace 路径，与既有 @source 惯例一致）。
     expect(css).toMatch(/@import\s+["'][^"']*packages\/ui\/src\/theme\.css["']/);
-    // 不得再就地宣告青綠主色 token——否則兩處各自維護會漂移。
+    // 不得再就地声明青绿主色 token——否则两处各自维护会漂移。
     expect(css).not.toContain("--primary: oklch(0.52 0.085 190);");
   });
 });

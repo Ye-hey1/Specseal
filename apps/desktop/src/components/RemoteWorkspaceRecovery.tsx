@@ -10,7 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useId, useState } from "react";
-import { Button, SEMANTIC_SURFACE, SEMANTIC_TONE, cn, useI18n } from "@speclink/ui";
+import { Button, SEMANTIC_SURFACE, SEMANTIC_TONE, cn, useI18n } from "@specseal/ui";
 
 import type { ConnectionView } from "../adapter/connections";
 import type { RemoteWorkspaceRecoveryState } from "../session";
@@ -76,8 +76,8 @@ export function RemoteWorkspaceRecovery({
   const title = t(`remote.recovery.${failure.kind}Title`);
   const description = t(`remote.recovery.${failure.kind}Desc`);
   const needsReauth = failure.kind === "needs-reauth";
-  // 需重新登入是警示（登入過期、重登即可）；其餘失敗（連不上、無權限、找不到）
-  // 是錯誤——舊版全塗琥珀，看不出哪個自己能解決。
+  // 需重新登录是警示（登录过期、重登即可）；其余失败（连不上、无权限、找不到）
+  // 是错误——旧版全涂琥珀，看不出哪个自己能解决。
   const tone = needsReauth ? "warning" : "danger";
 
   return (
@@ -88,7 +88,7 @@ export function RemoteWorkspaceRecovery({
       data-recovery-kind={failure.kind}
       className="mx-auto flex h-full w-full max-w-2xl flex-col justify-center px-8 py-10"
     >
-      {/* 卡底維持 bg-card（內容要讀得清楚），只借語意色的邊框。 */}
+      {/* 卡底维持 bg-card（内容要读得清楚），只借语意色的边框。 */}
       <div className={cn("rounded-2xl border shadow-sm", SEMANTIC_SURFACE[tone], "bg-card")}>
         <div className="flex gap-4 border-b border-border px-6 py-5">
           <div

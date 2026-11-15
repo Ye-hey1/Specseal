@@ -1,15 +1,15 @@
 [package]
-name = "speclink-desktop"
+name = "specseal-desktop"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Speclink 本地桌面 app（情境 4）"
+description = "Specseal 本地桌面 app（情境 4）"
 
 [lib]
-name = "speclink_desktop_lib"
+name = "specseal_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
-# 沒有任何文件範例可跑，但 rustdoc 仍會把整個 Tauri app 連結成 doc-test
-# 測試殼——這一步在 macOS 上會間歇性掛死（0% CPU 等待），故關閉。
+# 没有任何文档范例可跑，但 rustdoc 仍会把整个 Tauri app 链接成 doc-test
+# 测试壳——这一步在 macOS 上会间歇性挂死（0% CPU 等待），故关闭。
 doctest = false
 
 [build-dependencies]
@@ -26,37 +26,37 @@ tauri-plugin-deep-link = "2"
 chrono = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-speclink-desktop-core = { path = "../core" }
-speclink-core = { path = "../../../crates/engine/speclink-core" }
-speclink-host = { path = "../../../crates/host/speclink-host" }
-speclink-remote = { path = "../../../crates/protocol/speclink-remote" }
-speclink-protocol = { path = "../../../crates/protocol/speclink-protocol" }
-speclink-store = { path = "../../../crates/store/speclink-store" }
+specseal-desktop-core = { path = "../core" }
+specseal-core = { path = "../../../crates/engine/specseal-core" }
+specseal-host = { path = "../../../crates/host/specseal-host" }
+specseal-remote = { path = "../../../crates/protocol/specseal-remote" }
+specseal-protocol = { path = "../../../crates/protocol/specseal-protocol" }
+specseal-store = { path = "../../../crates/store/specseal-store" }
 notify-debouncer-mini = "0.7.0"
 ulid = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
-speclink-server = { path = "../../../crates/host/speclink-server" }
+specseal-server = { path = "../../../crates/host/specseal-server" }
 axum = "0.8"
 tokio = { version = "1", features = ["rt-multi-thread", "net"] }
 tiny_http = "0.12"
 
-# speclink 網址（desktop-deep-link）：Windows、Linux 再次啟動時把網址轉給執行中的 app 並喚起視窗；
-# macOS 由系統確保單一實例，不攜入。
+# specseal 网址（desktop-deep-link）：Windows、Linux 再次启动时把网址转给运行中的 app 并唤起窗口；
+# macOS 由系统确保单一实例，不携入。
 [target.'cfg(any(target_os = "windows", target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
 
-# macOS 面板（tray-status-menu「面板樣式」）的 NSPanel 容器、tray 相對定位與毛玻璃材質：
-# 其他平台建置不攜入（Windows 面板由殼依圖示位置自行定位，tray-panel-windows design D3）。
+# macOS 面板（tray-status-menu「面板样式」）的 NSPanel 容器、tray 相对定位与毛玻璃材质：
+# 其他平台建置不携入（Windows 面板由壳依图标位置自行定位，tray-panel-windows design D3）。
 [target.'cfg(target_os = "macos")'.dependencies]
-# 釘 commit（v2.1 分支 2026-07-16 快照）：git 相依的供應鏈衛生，升級須明改 rev。
+# 钉 commit（v2.1 分支 2026-07-16 快照）：git 相依的供应链卫生，升级须明改 rev。
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel", rev = "a3122e894383aa068ec5365a42994e3ac94ba1b6" }
 tauri-plugin-positioner = { version = "2", features = ["tray-icon"] }
-# 釘 0.6 與 tauri 內建 window effects 的同版共用——不同版本並存會重複連結 objc 類別符號。
+# 钉 0.6 与 tauri 内置 window effects 的同版共用——不同版本并存会重复链接 objc 类别符号。
 window-vibrancy = "0.6"
-# 觸控板滑動返回的手指按下／放開訊號（NSEvent 本地監聽，desktop-swipe-back-finger-lift design D3）：
-# 版本對齊 tauri 已帶入的 objc2 0.6.4／block2 0.6.2／objc2-app-kit 0.3.2，同上理由不得引入第二個版本。
+# 触摸板滑动返回的手指按下／放开信号（NSEvent 本地监听，desktop-swipe-back-finger-lift design D3）：
+# 版本对齐 tauri 已带入的 objc2 0.6.4／block2 0.6.2／objc2-app-kit 0.3.2，同上理由不得引入第二个版本。
 objc2 = "0.6"
 block2 = "0.6"
 objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSEvent", "block2"] }

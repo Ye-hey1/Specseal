@@ -1,5 +1,5 @@
-// 兩鍵式確認框（取消＋確認；spec desktop-app「共用元件唯一來源」、design D7）：
-// 外觀只此一份，文案與狀態由呼叫端以屬性提供。三選項以上的對話框各自組 AlertDialog。
+// 两键式确认框（取消＋确认；spec desktop-app「共用组件唯一来源」、design D7）：
+// 外观只此一份，文案与状态由调用端以属性提供。三选项以上的对话框各自组 AlertDialog。
 import type { ReactNode } from "react";
 
 import { useI18n } from "../../i18n";
@@ -21,17 +21,17 @@ export interface ConfirmDialogProps {
   title: string;
   description?: ReactNode;
   confirmLabel: string;
-  /** 預設 i18n `common.cancel`。 */
+  /** 缺省 i18n `common.cancel`。 */
   cancelLabel?: string;
-  /** 確認鈕用 destructive 變體（實心紅）。 */
+  /** 确认钮用 destructive 变体（实心红）。 */
   destructive?: boolean;
-  /** 動作進行中：確認鈕與取消鈕都不可按。 */
+  /** 动作进行中：确认钮与取消钮都不可按。 */
   busy?: boolean;
-  /** 只停用確認鈕（例如遠端能力不支援該動作）；取消照常可按。 */
+  /** 只停用确认钮（例如远程能力不支持该动作）；取消照常可按。 */
   confirmDisabled?: boolean;
-  /** 按下確認後對話框隨即關閉（onOpenChange(false)）；在此之前先同步呼叫。 */
+  /** 按下确认后对话框随即关闭（onOpenChange(false)）；在此之前先同步调用。 */
   onConfirm: () => void | Promise<void>;
-  /** 標題與說明之後、按鈕之前的額外內容（如工具多選）。 */
+  /** 标题与说明之后、按钮之前的额外内容（如工具多选）。 */
   children?: ReactNode;
 }
 

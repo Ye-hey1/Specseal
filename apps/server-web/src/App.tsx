@@ -6,18 +6,18 @@ import {
   resolveUiLocale,
   writeLocalePreference,
   type LocalePreference,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import type { WebClient } from "./api/client";
 import { ClientProvider } from "./app/context";
 import { LocaleProvider } from "./i18n/LocaleContext";
 import { APP_MESSAGES } from "./i18n/messages";
 import { AppRoutes } from "./routes/AppRoutes";
 
-// Server Web Console 應用殼層。client 是唯一 HTTP 入口（測試注入 fake）；
-// initialEntries 存在時用 MemoryRouter（測試），否則 BrowserRouter（正式）。
+// Server Web Console 应用壳层。client 是唯一 HTTP 入口（测试注入 fake）；
+// initialEntries 存在时用 MemoryRouter（测试），否则 BrowserRouter（正式）。
 //
-// UI 語言：明示偏好優先，未設定則跟隨瀏覽器語言（zh 開頭為 zh-TW，其餘 en）。
-// 與 Desktop 同一套機制與同一個 localStorage 鍵。
+// UI 语言：明示偏好优先，未设置则跟随浏览器语言（zh 开头为 zh-CN，其余 en）。
+// 与 Desktop 同一套机制与同一个 localStorage 键。
 export function App({
   client,
   initialEntries,
@@ -26,7 +26,7 @@ export function App({
   initialEntries?: string[];
 }) {
   const [pref, setPrefState] = useState<LocalePreference>(() => safeReadPreference());
-  // 切換即時生效並持久化（header 的語言三選接這裡）。
+  // 切换即时生效并持久化（header 的语言三选接这里）。
   const setPref = (next: LocalePreference) => {
     safeWritePreference(next);
     setPrefState(next);
@@ -52,8 +52,8 @@ export function App({
   );
 }
 
-// localStorage 在隱私模式或被停用時讀寫會丟例外。讀失敗＝視為未設定（跟隨系統），
-// 寫失敗＝不持久化，兩者都不該讓整個 app 起不來。
+// localStorage 在隐私模式或被停用时读写会丢例外。读失败＝视为未设置（跟随系统），
+// 写失败＝不持久化，两者都不该让整个 app 起不来。
 function safeReadPreference(): LocalePreference {
   try {
     return readLocalePreference();
@@ -66,6 +66,6 @@ function safeWritePreference(pref: LocalePreference): void {
   try {
     writeLocalePreference(pref);
   } catch {
-    // 不持久化即可，本次切換照常生效。
+    // 不持久化即可，本次切换照常生效。
   }
 }

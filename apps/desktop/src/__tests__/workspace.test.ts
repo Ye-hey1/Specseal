@@ -1,8 +1,8 @@
-// 開啟專案 action 三態與分頁列狀態（design D3/D10/D11；spec 需求
-// 「專案分頁列存於 app 本機」）。workspace 探測面與 session 工廠以 mock 注入
-// （workspace-session 決策 6）：資料載入一律經活躍 session 的 dataSource。
+// 打开项目 action 三态与分页列状态（design D3/D10/D11；spec 需求
+// 「项目分页列存于 app 本机」）。workspace 探测面与 session 工厂以 mock 注入
+// （workspace-session 决策 6）：数据加载一律经活跃 session 的 dataSource。
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { SpeclinkDataSource } from "@speclink/ui";
+import type { SpecsealDataSource } from "@specseal/ui";
 
 import { createAppStore } from "../store";
 import { locatorKey, LOCAL_CAPABILITIES, type WorkspaceSession } from "../session";
@@ -14,7 +14,7 @@ import { changeList } from "./helpers/changeList";
 const { toastError } = vi.hoisted(() => ({ toastError: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: toastError } }));
 
-function fakeDataSource(): SpeclinkDataSource {
+function fakeDataSource(): SpecsealDataSource {
   return {
     listChanges: vi.fn().mockResolvedValue(changeList([
       { name: "started", status: "in-progress", totalTasks: 10, completedTasks: 0, startedAt: "2026-07-06" },
@@ -36,7 +36,7 @@ function fakeDataSource(): SpeclinkDataSource {
     moveTask: vi.fn().mockResolvedValue(undefined),
     promoteDiscussion: vi.fn().mockResolvedValue({ change: "x" }),
     archiveDiscussion: vi.fn().mockResolvedValue(undefined),
-  } as unknown as SpeclinkDataSource;
+  } as unknown as SpecsealDataSource;
 }
 
 function fakeWorkspace(over: Partial<WorkspaceAdapter> = {}): WorkspaceAdapter {
@@ -44,7 +44,7 @@ function fakeWorkspace(over: Partial<WorkspaceAdapter> = {}): WorkspaceAdapter {
     openProject: vi.fn().mockResolvedValue({ status: "project", root: "C:\\proj\\alpha", name: "alpha" }),
     initProject: vi.fn().mockResolvedValue({ status: "project", root: "C:\\proj\\fresh", name: "fresh" }),
     adoptProject: vi.fn().mockResolvedValue({ status: "project", root: "C:\\migrated", name: "migrated" }),
-    // 預設非專案語境：首啟回退路徑走 catch、維持零分頁。
+    // 缺省非项目语境：首启回退路径走 catch、维持零分页。
     startupDir: vi.fn().mockRejectedValue("startup dir unavailable in this fake"),
     projectStats: vi.fn().mockResolvedValue({ pendingWrapUp: 2 }),
     watchWorkspace: vi.fn().mockResolvedValue(undefined),
@@ -53,8 +53,8 @@ function fakeWorkspace(over: Partial<WorkspaceAdapter> = {}): WorkspaceAdapter {
   } as WorkspaceAdapter;
 }
 
-/** 假 session：dataSource 共用測試注入的 fake（settings／events 本套件不涉）。 */
-function fakeSession(ds: SpeclinkDataSource, root: string, name: string): WorkspaceSession {
+/** 假 session：dataSource 共用测试注入的 fake（settings／events 本套件不涉）。 */
+function fakeSession(ds: SpecsealDataSource, root: string, name: string): WorkspaceSession {
   return {
     id: `local:${root}`,
     locator: { kind: "local", root },
@@ -82,7 +82,7 @@ function fakeSession(ds: SpeclinkDataSource, root: string, name: string): Worksp
   };
 }
 
-function makeStore(ds: SpeclinkDataSource, ws: WorkspaceAdapter) {
+function makeStore(ds: SpecsealDataSource, ws: WorkspaceAdapter) {
   return createAppStore({
     createSession: (root, name) => fakeSession(ds, root, name),
     workspace: ws,
@@ -102,8 +102,8 @@ beforeEach(() => {
   toastError.mockClear();
 });
 
-describe("開啟專案 action 三態（design D3）", () => {
-  it("命中專案：純探測成功後記入分頁、設 activeKey、重掛監看、整批 refresh", async () => {
+describe("打开项目 action 三态（design D3）", () => {
+  it("命中项目：纯探测成功后记入分页、设 activeKey、重挂监看、整批 refresh", async () => {
     const ds = fakeDataSource();
     const ws = fakeWorkspace();
     const store = makeStore(ds, ws);
@@ -112,10 +112,10 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(ws.openProject).toHaveBeenCalledWith("C:\\proj\\alpha");
     expect(keys(s.tabs)).toEqual(["local:C:\\proj\\alpha"]);
     expect(s.activeKey).toBe("local:C:\\proj\\alpha");
-    // 監看顯式跟隨活躍 session（決策 5）。
+    // 监看显式跟随活跃 session（决策 5）。
     expect(ws.watchWorkspace).toHaveBeenCalledWith("C:\\proj\\alpha");
     expect(ds.listChanges).toHaveBeenCalled();
-    // 持久化：locator＋顯示名＋最後活躍 key。
+    // 持久化：locator＋显示名＋最后活跃 key。
     const persisted = readPersistedTabs();
     expect(persisted.tabs[0]).toEqual({
       locator: { kind: "local", root: "C:\\proj\\alpha" },
@@ -124,7 +124,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(persisted.activeKey).toBe("local:C:\\proj\\alpha");
   });
 
-  it("uninitialized：顯示初始化確認（pendingInit），分頁與資料不動", async () => {
+  it("uninitialized：显示初始化确认（pendingInit），分页与数据不动", async () => {
     const ds = fakeDataSource();
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "uninitialized", dir: "C:\\empty" }),
@@ -137,7 +137,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(ds.listChanges).not.toHaveBeenCalled();
   });
 
-  it("取消初始化：畫面與狀態不動、不呼叫 init", async () => {
+  it("取消初始化：画面与状态不动、不调用 init", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "uninitialized", dir: "C:\\empty" }),
     });
@@ -150,7 +150,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(ws.initProject).not.toHaveBeenCalled();
   });
 
-  it("確認初始化：以所選工具呼叫 init，成功後切入新專案", async () => {
+  it("确认初始化：以所选工具调用 init，成功后切入新项目", async () => {
     const ds = fakeDataSource();
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "uninitialized", dir: "C:\\proj\\fresh" }),
@@ -165,15 +165,15 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(keys(s.tabs)).toContain("local:C:\\proj\\fresh");
   });
 
-  // --- 第四態：未啟用（spec 需求「未啟用資料夾經確認後補齊啟用」；決策 3） ---
+  // --- 第四态：未激活（spec 需求「未激活文件夹经确认后补齐激活」；决策 3） ---
 
-  it("unadopted：顯示啟用確認（pendingAdopt 錨定回報 root），分頁與資料不動", async () => {
+  it("unadopted：显示激活确认（pendingAdopt 锚定回报 root），分页与数据不动", async () => {
     const ds = fakeDataSource();
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "unadopted", root: "C:\\migrated", needsImport: false }),
     });
     const store = makeStore(ds, ws);
-    // 自子目錄開啟：pendingAdopt 必須是探測回報的專案根，非使用者所選路徑。
+    // 自子目录打开：pendingAdopt 必须是探测回报的项目根，非用户所选路径。
     await store.getState().openProjectAt("C:\\migrated\\sub");
     const s = store.getState();
     expect(s.pendingAdopt).toBe("C:\\migrated");
@@ -182,7 +182,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(ds.listChanges).not.toHaveBeenCalled();
   });
 
-  it("unadopted 且需要匯入：記下啟用會改名規格資料夾", async () => {
+  it("unadopted 且需要导入：记下激活会改名规格文件夹", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "unadopted", root: "C:\\legacy", needsImport: true }),
     });
@@ -191,7 +191,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(store.getState().pendingAdoptImport).toBe(true);
   });
 
-  it("取消啟用：狀態清空、無任何寫入呼叫", async () => {
+  it("取消激活：状态清空、无任何写入调用", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "unadopted", root: "C:\\migrated", needsImport: false }),
     });
@@ -205,7 +205,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(ws.initProject).not.toHaveBeenCalled();
   });
 
-  it("確認啟用：以所選工具呼叫 adopt，成功後以回報 root 切入專案", async () => {
+  it("确认激活：以所选工具调用 adopt，成功后以回报 root 切入项目", async () => {
     const ds = fakeDataSource();
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "unadopted", root: "C:\\migrated", needsImport: false }),
@@ -220,7 +220,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(keys(s.tabs)).toContain("local:C:\\migrated");
   });
 
-  it("啟用失敗：單行錯誤 toast、不切換專案", async () => {
+  it("激活失败：单行错误 toast、不切换项目", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "unadopted", root: "C:\\migrated", needsImport: false }),
       adoptProject: vi.fn().mockRejectedValue("cannot adopt 'C:\\migrated': permission denied"),
@@ -238,7 +238,7 @@ describe("開啟專案 action 三態（design D3）", () => {
     expect(message).toContain("permission denied");
   });
 
-  it("開啟與初始化失敗皆以相同固定 id 發出含主詞與 core 錯誤的 toast", async () => {
+  it("打开与初始化失败皆以相同固定 id 发出含主词与 core 错误的 toast", async () => {
     const openWs = fakeWorkspace({
       openProject: vi.fn().mockRejectedValue("cannot open 'C:\\gone': not an existing directory"),
     });
@@ -269,8 +269,8 @@ describe("開啟專案 action 三態（design D3）", () => {
   });
 });
 
-describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () => {
-  it("依序開啟 A、B 再開 A：各一分頁、A 為 active（spec Scenario 去重）", async () => {
+describe("分页列（spec 需求「项目分页列存于 app 本机」）", () => {
+  it("依序打开 A、B 再开 A：各一分页、A 为 active（spec Scenario 去重）", async () => {
     const opened: Record<string, { status: string; root: string; name: string }> = {
       A: { status: "project", root: "A", name: "a" },
       B: { status: "project", root: "B", name: "b" },
@@ -285,7 +285,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     const s = store.getState();
     expect(keys(s.tabs)).toEqual(["local:A", "local:B"]);
     expect(s.activeKey).toBe("local:A");
-    // 重啟還原：持久化內容一致。
+    // 重启还原：持久化内容一致。
     expect(readPersistedTabs().tabs.map((t) => locatorKey(t.locator))).toEqual([
       "local:A",
       "local:B",
@@ -293,7 +293,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(readPersistedTabs().activeKey).toBe("local:A");
   });
 
-  it("點分頁切換走與開啟專案相同語意（spec Scenario 點擊分頁切換專案）", async () => {
+  it("点分页切换走与打开项目相同语意（spec Scenario 点击分页切换项目）", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "project", root: "B", name: "b" }),
     });
@@ -306,7 +306,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(ds.listChanges).toHaveBeenCalled();
   });
 
-  it("關閉分頁即自持久化清單移除，session 一併回收", async () => {
+  it("关闭分页即自持久化清单移除，session 一并回收", async () => {
     const store = makeStore(fakeDataSource(), fakeWorkspace());
     const tabs: ProjectTab[] = [tab("A", "a"), tab("B", "b")];
     store.setState({ tabs, activeKey: "local:A" });
@@ -317,7 +317,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(store.getState().sessions["local:B"]).toBeUndefined();
   });
 
-  it("restoreTabs：依持久化 activeKey 還原活躍分頁、背景 local 分頁各探測一次路徑有效性", async () => {
+  it("restoreTabs：依持久化 activeKey 还原活跃分页、背景 local 分页各探测一次路径有效性", async () => {
     persistTabs([tab("A", "a"), tab("B", "b")], "local:A");
     const ws = fakeWorkspace({
       openProject: vi
@@ -332,14 +332,14 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     const s = store.getState();
     expect(keys(s.tabs)).toEqual(["local:A", "local:B"]);
     expect(s.activeKey).toBe("local:A");
-    // 背景分頁 B 探測一次路徑；active 分頁 A 不經 project_stats。分頁不攜帶計數徽章。
+    // 背景分页 B 探测一次路径；active 分页 A 不经 project_stats。分页不携带计数徽章。
     expect(ws.projectStats).toHaveBeenCalledWith("B");
     expect(ws.projectStats).not.toHaveBeenCalledWith("A");
     expect(s.tabs.every((t) => !("badge" in t))).toBe(true);
   });
 
-  // speclink 網址以 restoreTabs 為就緒訊號：某個背景分頁卡住（例如網路磁碟斷線）不得拖住它。
-  it("restoreTabs：活躍分頁還原完成即 resolve，不等背景分頁的路徑探測", async () => {
+  // specseal 网址以 restoreTabs 为就绪信号：某个背景分页卡住（例如网络磁盘断线）不得拖住它。
+  it("restoreTabs：活跃分页还原完成即 resolve，不等背景分页的路径探测", async () => {
     persistTabs([tab("A", "a"), tab("B", "b")], "local:A");
     const ws = fakeWorkspace({
       openProject: vi
@@ -359,7 +359,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(ws.projectStats).toHaveBeenCalledWith("B");
   });
 
-  it("首啟無持久化分頁：啟動目錄（cwd 探索）為專案時自動記入（決策 4 首啟路徑）", async () => {
+  it("首启无持久化分页：启动目录（cwd 探索）为项目时自动记入（决策 4 首启路径）", async () => {
     const ws = fakeWorkspace({
       startupDir: vi.fn().mockResolvedValue("C:\\proj\\alpha"),
     });
@@ -370,7 +370,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(store.getState().activeKey).toBe("local:C:\\proj\\alpha");
   });
 
-  it("首啟且啟動目錄非專案：維持零分頁空狀態", async () => {
+  it("首启且启动目录非项目：维持零分页空状态", async () => {
     const ws = fakeWorkspace({
       startupDir: vi.fn().mockResolvedValue("C:\\nowhere"),
       openProject: vi.fn().mockRejectedValue("cannot open 'C:\\nowhere'"),
@@ -381,9 +381,9 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(store.getState().activeKey).toBeNull();
   });
 
-  it("refresh 後分頁不攜帶計數徽章（spec「分頁不顯示計數徽章」）", async () => {
+  it("refresh 后分页不携带计数徽章（spec「分页不显示计数徽章」）", async () => {
     const ds = fakeDataSource();
-    // 契約範例：2 個已就緒變更＋1 份已結論未轉出討論 → 徽章 3。
+    // 契约范例：2 个已就绪变更＋1 份已结论未转出讨论 → 徽章 3。
     ds.listChanges = vi.fn().mockResolvedValue(changeList([
       { name: "ready-a", status: "in-progress", totalTasks: 5, completedTasks: 5 },
       { name: "ready-b", status: "in-progress", totalTasks: 3, completedTasks: 3 },
@@ -407,7 +407,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect("badge" in store.getState().tabs[0]).toBe(false);
   });
 
-  it("切換以純探測回報值為準（決策 4：probe 即後端真相，無 current-root 全域）", async () => {
+  it("切换以纯探测回报值为准（决策 4：probe 即后端真相，无 current-root 全域）", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "project", root: "B", name: "fresh-name" }),
     });
@@ -418,7 +418,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     ).toBe("fresh-name");
   });
 
-  it("cycleTab 循環切至下一分頁（Ctrl+Tab，走開啟專案語意）", async () => {
+  it("cycleTab 循环切至下一分页（Ctrl+Tab，走打开项目语意）", async () => {
     const ws = fakeWorkspace({
       openProject: vi
         .fn()
@@ -432,12 +432,12 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
       activeKey: "local:C",
     });
     await store.getState().cycleTab();
-    expect(store.getState().activeKey).toBe("local:A"); // 尾端循環回首位
+    expect(store.getState().activeKey).toBe("local:A"); // 尾端循环回首位
     await store.getState().cycleTab();
     expect(store.getState().activeKey).toBe("local:B");
   });
 
-  it("gotoTab 直達第 N 個分頁（Ctrl+1..9，1-based；超界不動作）", async () => {
+  it("gotoTab 直达第 N 个分页（Ctrl+1..9，1-based；超界不动作）", async () => {
     const ws = fakeWorkspace({
       openProject: vi
         .fn()
@@ -457,7 +457,7 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     expect(ws.openProject).toHaveBeenCalledTimes(1);
   });
 
-  it("失效分頁：點擊轉錯誤態、顯示錯誤、可自專案列移除且不切換（spec Scenario）", async () => {
+  it("失效分页：点击转错误态、显示错误、可自项目列移除且不切换（spec Scenario）", async () => {
     const ws = fakeWorkspace({
       openProject: vi.fn().mockRejectedValue("cannot open 'B': not an existing directory"),
     });
@@ -470,14 +470,14 @@ describe("分頁列（spec 需求「專案分頁列存於 app 本機」）", () 
     const s = store.getState();
     expect(s.activeKey).toBe("local:A");
     expect(s.tabErrors["local:B"]).toContain("not an existing directory");
-    // 自專案列移除後持久化清單同步消失。
+    // 自项目列移除后持久化清单同步消失。
     store.getState().closeTab("local:B");
     expect(keys(store.getState().tabs)).toEqual(["local:A"]);
     expect(store.getState().tabErrors["local:B"]).toBeUndefined();
   });
 });
 
-describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 成功開啟即記入、D5 升級補種）", () => {
+describe("最近打开清单（spec 需求「最近打开清单」；design D2 成功打开即记入、D5 升级补种）", () => {
   function openable() {
     return fakeWorkspace({
       openProject: vi
@@ -488,7 +488,7 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 �
     });
   }
 
-  it("依序開啟 A、B：記錄最新在前並寫入 localStorage", async () => {
+  it("依序打开 A、B：记录最新在前并写入 localStorage", async () => {
     const store = makeStore(fakeDataSource(), openable());
     await store.getState().openProjectAt("A");
     await store.getState().openProjectAt("B");
@@ -503,8 +503,8 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 �
     ]);
   });
 
-  // spec Example「順序、去重與上限」第二列：A, B, C 且 B 分頁其後被關閉 → C, B, A。
-  it("關閉分頁不動記錄（spec Scenario 關閉分頁後仍列於最近開啟）", async () => {
+  // spec Example「顺序、去重与上限」第二列：A, B, C 且 B 分页其后被关闭 → C, B, A。
+  it("关闭分页不动记录（spec Scenario 关闭分页后仍列于最近打开）", async () => {
     const store = makeStore(fakeDataSource(), openable());
     await store.getState().openProjectAt("A");
     await store.getState().openProjectAt("B");
@@ -523,7 +523,7 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 �
     ]);
   });
 
-  it("forgetRecent 自狀態與 localStorage 移除該筆", async () => {
+  it("forgetRecent 自状态与 localStorage 移除该笔", async () => {
     const store = makeStore(fakeDataSource(), openable());
     await store.getState().openProjectAt("A");
     await store.getState().openProjectAt("B");
@@ -532,8 +532,8 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 �
     expect(readPersistedRecents()?.map((r) => locatorKey(r.locator))).toEqual(["local:B"]);
   });
 
-  it("restoreTabs：鍵缺席時以持久化分頁反序補種並立即寫入（spec Scenario 升級後首次啟動自分頁補種）", async () => {
-    // 依序開啟 A、B 後關閉 app：B 是最後開啟也是活躍分頁。
+  it("restoreTabs：键缺席时以持久化分页反序补种并立即写入（spec Scenario 升级后首次启动自分页补种）", async () => {
+    // 依序打开 A、B 后关闭 app：B 是最后打开也是活跃分页。
     persistTabs([tab("A", "a"), tab("B", "b")], "local:B");
     const store = makeStore(fakeDataSource(), openable());
     await store.getState().restoreTabs();
@@ -547,7 +547,7 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 �
     ]);
   });
 
-  it("restoreTabs：鍵已存在（空清單）時不補種", async () => {
+  it("restoreTabs：键已存在（空清单）时不补种", async () => {
     persistTabs([tab("A", "a"), tab("B", "b")], null);
     persistRecents([]);
     const store = makeStore(fakeDataSource(), openable());
@@ -556,20 +556,20 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D2 �
     expect(readPersistedRecents()).toEqual([]);
   });
 
-  it("restoreTabs：鍵為壞資料時歸零且不補種（spec Scenario 壞資料歸零且不補種）", async () => {
+  it("restoreTabs：键为坏数据时归零且不补种（spec Scenario 坏数据归零且不补种）", async () => {
     persistTabs([tab("A", "a"), tab("B", "b")], null);
     localStorage.setItem(RECENTS_STORAGE_KEY, "{not json");
     const store = makeStore(fakeDataSource(), openable());
     await store.getState().restoreTabs();
     expect(store.getState().recents).toEqual([]);
     expect(localStorage.getItem(RECENTS_STORAGE_KEY)).toBe("{not json");
-    // 下一次成功開啟即把鍵寫回 version 1 的合法內容，且只含這一筆。
+    // 下一次成功打开即把键写回 version 1 的合法内容，且只含这一笔。
     await store.getState().openProjectAt("A");
     expect(readPersistedRecents()?.map((r) => locatorKey(r.locator))).toEqual(["local:A"]);
     expect(JSON.parse(localStorage.getItem(RECENTS_STORAGE_KEY) ?? "{}").version).toBe(1);
   });
 
-  it("restoreTabs 還原活躍分頁不把其他分頁記入記錄", async () => {
+  it("restoreTabs 还原活跃分页不把其他分页记入记录", async () => {
     persistTabs([tab("A", "a"), tab("B", "b")], "local:A");
     persistRecents([{ locator: { kind: "local", root: "A" }, name: "a" }]);
     const store = makeStore(fakeDataSource(), openable());

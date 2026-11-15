@@ -1,16 +1,16 @@
-// workspace 管理操作的桌面 adapter（design D6；workspace-session 決策 3/4）：
-// 直接 invoke 桌面專屬 command，不經 packages/ui 的 SpeclinkDataSource——該介面
-// 是 change／spec 瀏覽管理抽象，專案與設定語意屬宿主。探測面（開啟／初始化／
-// 統計）收路徑參數；設定面經 createWorkspaceSettings 將 root 綁入閉包，每支
-// command 顯式帶 root。
+// workspace 管理操作的桌面 adapter（design D6；workspace-session 决策 3/4）：
+// 直接 invoke 桌面专属 command，不经 packages/ui 的 SpecsealDataSource——该接口
+// 是 change／spec 浏览管理抽象，项目与设置语意属宿主。探测面（打开／初始化／
+// 统计）收路径参数；设置面经 createWorkspaceSettings 将 root 绑入闭包，每支
+// command 显式带 root。
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { ReviewRules } from "@speclink/ui";
+import type { ReviewRules } from "@specseal/ui";
 
 import type { InvokeFn, WorkspaceSettingsProvider } from "../session";
 
-/** open_project／init_project／adopt_project 的判定 payload（錯誤走 rejected Promise）。 */
+/** open_project／init_project／adopt_project 的判定 payload（错误走 rejected Promise）。 */
 export type ProjectProbe =
   | { status: "project"; root: string; name: string }
   | {
@@ -20,26 +20,26 @@ export type ProjectProbe =
       hasLocalOpenspec: boolean;
     }
   | { status: "uninitialized"; dir: string }
-  /** needsImport：規格資料夾是舊佈局 openspec/，啟用會先改名為 speclink/。 */
+  /** needsImport：规格文件夹是旧布局 openspec/，激活会先改名为 specseal/。 */
   | { status: "unadopted"; root: string; needsImport: boolean };
 
-/** schema 的來源層級（引擎的 resolution 層命名：內建／專案層／user 層）。 */
+/** schema 的来源层级（引擎的 resolution 层命名：内置／项目层／user 层）。 */
 export type SchemaSource = "package" | "project" | "user";
 
-/** 產出流程清單一項（read_schemas 的 payload；desktop-schema-panel D1/D2）：
- * error 有值＝該 schema 解析失敗，內容欄位一律空。 */
+/** 产出流程清单一项（read_schemas 的 payload；desktop-schema-panel D1/D2）：
+ * error 有值＝该 schema 解析失败，内容字段一律空。 */
 export interface SchemaEntry {
   name: string;
   source: SchemaSource;
-  /** artifact 圖（引擎顯示序，與產出規則分節固定鍵同源）。 */
+  /** artifact 图（引擎显示序，与产出规则分节固定键同源）。 */
   artifactIds: string[];
   artifacts: SchemaArtifactDetail[];
-  /** schema 目錄絕對路徑（開啟所在資料夾的把手）；內建為 null。 */
+  /** schema 目录绝对路径（打开所在文件夹的把手）；内置为 null。 */
   path: string | null;
   error: string | null;
 }
 
-/** 一個 artifact 的唯讀詳情全文。 */
+/** 一个 artifact 的唯读详情全文。 */
 export interface SchemaArtifactDetail {
   id: string;
   description: string;
@@ -47,16 +47,16 @@ export interface SchemaArtifactDetail {
   template: string | null;
 }
 
-/** config.yaml 的 subagent_model 區塊：兩站各工具的模型與各工具的自訂清單（鍵為工具名稱）。 */
+/** config.yaml 的 subagent_model 区块：两站各工具的模型与各工具的自订清单（键为工具名称）。 */
 export interface SubagentModelConfig {
   review: Record<string, string>;
   verify: Record<string, string>;
   choices: Record<string, string[]>;
 }
 
-/** read_settings 的快照 payload（欄位值＋各檔可選的 parseError）。 */
+/** read_settings 的快照 payload（字段值＋各档可选的 parseError）。 */
 export interface SettingsSnapshot {
-  /** 規格資料夾的專案根相對路徑（speclink、舊佈局 openspec 或明寫的 spec_dir）；遠端快照不帶。 */
+  /** 规格文件夹的项目根相对路径（specseal、旧布局 openspec 或明写的 spec_dir）；远程快照不带。 */
   specDir?: string;
   app: { tools: string[]; customTools: string[]; parseError: string | null };
   workflow: {
@@ -64,44 +64,44 @@ export interface SettingsSnapshot {
     specLocale: string | null;
     tdd: boolean;
     audit: boolean;
-    /** worktree 政策現值；remote 快照恆為 false（該面不支援此軸）。 */
+    /** worktree 政策现值；remote 快照恒为 false（该面不支持此轴）。 */
     worktree: boolean;
-    /** 專案說明現值（config.yaml 的 context；null＝未設定）。 */
+    /** 项目说明现值（config.yaml 的 context；null＝未设置）。 */
     context: string | null;
-    /** 產出規則現值（依 artifact id 分組；條目順序即檔案順序）。 */
+    /** 产出规则现值（依 artifact id 分组；条目顺序即文件顺序）。 */
     rules: Record<string, string[]>;
-    /** 審查規則現值（config.yaml 的 review）。 */
+    /** 审查规则现值（config.yaml 的 review）。 */
     review: ReviewRules;
-    /** 預設清單的 12 個 smell 名稱——引擎單一提供，前端只顯示、不另存。 */
+    /** 缺省清单的 12 个 smell 名称——引擎单一提供，前端只显示、不另存。 */
     reviewBaselineSmells: string[];
-    /** 子代理模型現值（config.yaml 的 subagent_model；缺席時三個空物件）。 */
+    /** 子代理模型现值（config.yaml 的 subagent_model；缺席时三个空对象）。 */
     subagentModel: SubagentModelConfig;
-    /** 引擎的內建子代理模型清單（工具名稱 → 名稱；只有 claude）——前端只顯示、不另存。 */
+    /** 引擎的内置子代理模型清单（工具名称 → 名称；只有 claude）——前端只显示、不另存。 */
     builtinSubagentModels: Record<string, string[]>;
-    /** 活躍 schema 的 artifact id（引擎顯示序）——產出規則分節的固定鍵。 */
+    /** 活跃 schema 的 artifact id（引擎显示序）——产出规则分节的固定键。 */
     schemaArtifacts: string[];
-    /** 活躍 schema 名稱（config 的 schema 鍵；缺席預設 spec-driven、壞檔空字串）。 */
+    /** 活跃 schema 名称（config 的 schema 键；缺席缺省 spec-driven、坏档空字符串）。 */
     schemaName: string;
-    /** false＝remote 快照遇非內建 schema 名稱（遠端自訂尚不支援）；其餘恆 true。 */
+    /** false＝remote 快照遇非内置 schema 名称（远程自订尚不支持）；其余恒 true。 */
     schemaKnown: boolean;
     parseError: string | null;
-    /** remote policy 的 scope revision；local 快照不帶此欄。 */
+    /** remote policy 的 scope revision；local 快照不带此栏。 */
     revision?: number;
   };
 }
 
-/** write_workflow_config 的完整目標狀態（null/false＝設回預設即移除鍵）。 */
+/** write_workflow_config 的完整目标状态（null/false＝设回缺省即移除键）。 */
 export interface WorkflowFields {
   locale: string | null;
   specLocale: string | null;
   tdd: boolean;
   audit: boolean;
-  /** 並行 apply 的 worktree 流程；remote 無此軸（寫入時忽略）。 */
+  /** 并行 apply 的 worktree 流程；remote 无此轴（写入时忽略）。 */
   worktree: boolean;
 }
 
-/** probe_assets 的回報（引擎 AssetProbe 的 camelCase 序列化）：
- * 五態判定、目前產物層版號、逐工具狀態與將被新建或改寫的受管檔清單。 */
+/** probe_assets 的回报（引擎 AssetProbe 的 camelCase 串行化）：
+ * 五态判定、目前产物层版号、逐工具状态与将被新建或改写的受管档清单。 */
 export interface AssetProbeResult {
   status: "missing" | "stale" | "newer" | "current" | "unknown";
   currentVersion: string;
@@ -109,21 +109,21 @@ export interface AssetProbeResult {
     tool: string;
     workspaceVersion: string | null;
     stale: boolean;
-    /** 此工具的檔案領先引擎（app 本體是舊版）；與 stale 互斥。 */
+    /** 此工具的文件领先引擎（app 本体是旧版）；与 stale 互斥。 */
     newer: boolean;
     missing: boolean;
   }>;
   differingFiles: string[];
-  /** 規格資料夾遷移狀態（desktop-spec-dir-migration D1）。 */
+  /** 规格文件夹迁移状态（desktop-spec-dir-migration D1）。 */
   migration: MigrationProbe;
-  /** remote 專案才有（probe_remote_assets）：Server 提供的技能版本——比對的基準是它，
-   * `currentVersion` 仍是這個 app 內建的技能版號。 */
+  /** remote 项目才有（probe_remote_assets）：Server 提供的技能版本——比对的基准是它，
+   * `currentVersion` 仍是这个 app 内置的技能版号。 */
   serverVersion?: string;
-  /** remote 專案才有：這個 app 內建的技能版號比 Server 的舊。 */
+  /** remote 项目才有：这个 app 内置的技能版号比 Server 的旧。 */
   appOlderThanServer?: boolean;
 }
 
-/** 有 checkout 的 remote 專案：連線、Project／Repo 與 checkout 的資料夾。 */
+/** 有 checkout 的 remote 项目：连接、Project／Repo 与 checkout 的文件夹。 */
 export interface RemoteCheckout {
   connectionId: string;
   project: string;
@@ -131,7 +131,7 @@ export interface RemoteCheckout {
   checkout: string;
 }
 
-/** 遷移暫緩的原因（引擎 DeferReason 的代碼）。 */
+/** 迁移暂缓的原因（引擎 DeferReason 的代码）。 */
 export type MigrationDeferReason =
   | "linkedWorktree"
   | "otherWorktrees"
@@ -139,45 +139,45 @@ export type MigrationDeferReason =
   | "symlinkedFolder"
   | "specFolderTaken";
 
-/** `folder` 是資料檔現在所在的資料夾：openspec 會改名為 speclink，speclink 只改名舊檔名的資料檔。 */
+/** `folder` 是数据档现在所在的文件夹：openspec 会改名为 specseal，specseal 只改名旧文件名的数据档。 */
 export type MigrationProbe =
   | { state: "none" }
   | { state: "pending"; folder: string; metaFiles: number }
   | { state: "deferred"; folder: string; reason: MigrationDeferReason; worktrees: string[] };
 
-/** update_assets 的回報中桌面用到的部分：這次遷移做了什麼。 */
+/** update_assets 的回报中桌面用到的部分：这次迁移做了什么。 */
 export interface AssetUpdateResult {
   migrated: { movedFolder: boolean; renamed: number };
 }
 
-/** 探測面：開啟／初始化／統計皆收路徑參數、無全域語意（設定面見
- * createWorkspaceSettings，經 session 綁 root）。 */
+/** 探测面：打开／初始化／统计皆收路径参数、无全域语意（设置面见
+ * createWorkspaceSettings，经 session 绑 root）。 */
 export interface WorkspaceAdapter {
   openProject(path: string): Promise<ProjectProbe>;
   initProject(path: string, tools: string[]): Promise<ProjectProbe>;
-  /** 對未啟用專案根補齊工作區檔（既有規格內容零觸碰），成功回報 project。 */
+  /** 对未激活项目根补齐工作区档（既有规格内容零触碰），成功回报 project。 */
   adoptProject(path: string, tools: string[]): Promise<ProjectProbe>;
-  /** 啟動語境的預設目錄（首啟無持久化分頁時據此顯式開啟）；純讀。 */
+  /** 启动语境的缺省目录（首启无持久化分页时据此显式打开）；纯读。 */
   startupDir(): Promise<string>;
   projectStats(path: string): Promise<{ pendingWrapUp: number }>;
-  /** 技能檔過期探測（唯讀）；探測失敗以 status=unknown 表達，不 reject。 */
+  /** 技能档过期探测（唯读）；探测失败以 status=unknown 表达，不 reject。 */
   probeAssets(path: string): Promise<AssetProbeResult>;
-  /** 技能檔整套再生（委派引擎 update()，含規格資料夾遷移；呼叫期間暫停監看）；
-   * 失敗為單行錯誤訊息。 */
+  /** 技能档整套再生（委派引擎 update()，含规格文件夹迁移；调用期间暂停监看）；
+   * 失败为单行错误消息。 */
   updateAssets(path: string): Promise<AssetUpdateResult>;
-  /** remote 專案的技能檔探測：以 Server 提供的技能為基準（只比摘要，不下載全文）。
-   * Server 沒有提供技能時為 null；連不上時 reject。 */
+  /** remote 项目的技能档探测：以 Server 提供的技能为基准（只比摘要，不下载全文）。
+   * Server 没有提供技能时为 null；连不上时 reject。 */
   probeRemoteAssets(target: RemoteCheckout): Promise<AssetProbeResult | null>;
-  /** 把 Server 提供的技能寫進 checkout（呼叫期間暫停監看）；失敗為單行錯誤訊息。 */
+  /** 把 Server 提供的技能写进 checkout（调用期间暂停监看）；失败为单行错误消息。 */
   updateRemoteAssets(target: RemoteCheckout): Promise<AssetUpdateResult>;
-  /** 監看重掛（workspace-session 決策 5）：顯式跟隨活躍 session。 */
+  /** 监看重挂（workspace-session 决策 5）：显式跟随活跃 session。 */
   watchWorkspace(root: string): Promise<void>;
-  /** 有 checkout 的 remote 專案的監看重掛：監看 checkout 裡各工具的技能目錄與
-   * `.speclink.yaml`（不是整個 checkout）。和本機的監看共用同一個槽位。 */
+  /** 有 checkout 的 remote 项目的监看重挂：监看 checkout 里各工具的技能目录与
+   * `.specseal.yaml`（不是整个 checkout）。和本机的监看共用同一个槽位。 */
   watchCheckoutSkills(checkout: string): Promise<void>;
-  /** 訂閱 `checkout` 的技能檔變動；回傳退訂函式。只通知，不帶內容——收到後重新探測。 */
+  /** 订阅 `checkout` 的技能档变动；回传退订函数。只通知，不带内容——收到后重新探测。 */
   onCheckoutSkillsChanged(checkout: string, handler: () => void): () => void;
-  /** 原生資料夾選擇器；取消回 null。 */
+  /** 原生文件夹选择器；取消回 null。 */
   pickFolder(): Promise<string | null>;
 }
 
@@ -209,8 +209,8 @@ export function createWorkspaceAdapter(): WorkspaceAdapter {
   };
 }
 
-/** 設定面工廠（workspace-session 決策 3）：root 綁入閉包，每支 command 顯式
- * 帶 root 直通 desktop-core 的帶路徑函式。invoke 可注入以利測試。 */
+/** 设置面工厂（workspace-session 决策 3）：root 绑入闭包，每支 command 显式
+ * 带 root 直通 desktop-core 的带路径函数。invoke 可注入以利测试。 */
 export function createWorkspaceSettings(
   root: string,
   invoke: InvokeFn = tauriInvoke as InvokeFn,
@@ -240,14 +240,14 @@ export function createWorkspaceSettings(
     writeWorkflowSchema: (name) => invoke("write_workflow_schema", { root, name }),
     forkSchema: (source) => invoke("fork_schema", { root, source }),
     createSchema: (name) => invoke("init_schema", { root, name }),
-    // reveal 以快照給的絕對路徑為準（user 層路徑前端拼不出來；design D6）。
+    // reveal 以快照给的绝对路径为准（user 层路径前端拼不出来；design D6）。
     revealSchema: (path) => invoke("reveal_in_folder", { path }),
     deleteSchema: (name) => invoke("delete_schema", { root, name }),
   };
 }
 
-/** remote 設定面：locator 綁入閉包；read 保存 server revision，三種 targeted
- * write 都必須帶該 expectedRevision，成功後才前進本地 token。 */
+/** remote 设置面：locator 绑入闭包；read 保存 server revision，三种 targeted
+ * write 都必须带该 expectedRevision，成功后才前进本地 token。 */
 export function createRemoteSettings(
   connectionId: string,
   project: string,
@@ -259,8 +259,8 @@ export function createRemoteSettings(
   let revision: number | null = null;
 
   const expectedRevision = () => {
-    if (!policyWrite) throw new Error("你的角色為檢視者，只能查看此 Workflow 政策。");
-    if (revision === null) throw new Error("尚未讀取 policy revision，無法儲存");
+    if (!policyWrite) throw new Error("你的角色为查看者，只能查看此 Workflow 政策。");
+    if (revision === null) throw new Error("尚未读取 policy revision，无法保存");
     return revision;
   };
   const adoptRevision = async (request: Promise<number>) => {
@@ -277,10 +277,10 @@ export function createRemoteSettings(
       revision = snapshot.workflow.revision ?? null;
       return snapshot;
     },
-    // fork／建立／reveal／刪除在 remote 一律拒絕：能力邊界的顯性表達——UI 依
-    // kind 不渲染入口，拒絕是第二道防線，非 Refused Bequest（介面成員對 remote
-    // 語意上就是「尚不支援」，與 writeAppTools 同款）。
-    writeAppTools: () => Promise.reject(new Error("remote Workflow 無 .speclink.yaml 工具設定")),
+    // fork／创建／reveal／删除在 remote 一律拒绝：能力边界的显性表达——UI 依
+    // kind 不渲染入口，拒绝是第二道防线，非 Refused Bequest（接口成员对 remote
+    // 语意上就是「尚不支持」，与 writeAppTools 同款）。
+    writeAppTools: () => Promise.reject(new Error("remote Workflow 无 .specseal.yaml 工具设置")),
     writeWorkflowConfig: (fields) =>
       adoptRevision(
         invoke<number>("remote_write_workflow_config", {
@@ -331,7 +331,7 @@ export function createRemoteSettings(
           expectedRevision: expectedRevision(),
         }),
       ),
-    // remote 產出流程清單：desktop core 以內嵌內建組裝（不打 server、不帶 root）。
+    // remote 产出流程清单：desktop core 以内嵌内置组装（不打 server、不带 root）。
     readSchemas: () => invoke("read_schemas", {}),
     writeWorkflowSchema: (name) =>
       adoptRevision(
@@ -341,9 +341,9 @@ export function createRemoteSettings(
           expectedRevision: expectedRevision(),
         }),
       ),
-    forkSchema: () => Promise.reject(new Error("遠端專案尚不支援 fork 產出流程")),
-    createSchema: () => Promise.reject(new Error("遠端專案尚不支援建立產出流程")),
-    revealSchema: () => Promise.reject(new Error("遠端專案沒有本機檔案可顯示")),
-    deleteSchema: () => Promise.reject(new Error("遠端專案尚不支援刪除產出流程")),
+    forkSchema: () => Promise.reject(new Error("远程项目尚不支持 fork 产出流程")),
+    createSchema: () => Promise.reject(new Error("远程项目尚不支持创建产出流程")),
+    revealSchema: () => Promise.reject(new Error("远程项目没有本机文件可显示")),
+    deleteSchema: () => Promise.reject(new Error("远程项目尚不支持删除产出流程")),
   };
 }

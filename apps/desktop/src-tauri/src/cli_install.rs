@@ -1,7 +1,7 @@
-//! CLI 佈署的殼層（desktop-app spec「安裝 CLI 指令到 PATH」，design D5）：
-//! 收集環境事實（平台、PATH、sidecar 路徑、已佈署版本輸出）與執行佈署計畫
-//! （symlink／copy）。狀態判定與平台分流的決策歸前端 core（vitest 覆蓋），
-//! 此處不做任何判斷。
+//! CLI 布署的壳层（desktop-app spec「安装 CLI 指令到 PATH」，design D5）：
+//! 收集环境事实（平台、PATH、sidecar 路径、已布署版本输出）与运行布署计划
+//! （symlink／copy）。状态判定与平台分流的决策归前端 core（vitest 覆盖），
+//! 此处不做任何判断。
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -16,8 +16,8 @@ pub struct CliInstallProbe {
     pub bundled_cli_path: Option<String>,
     pub app_version: String,
     pub deployed_version_output: Option<String>,
-    /// ~/.zprofile 現有內容（macOS；讀不到或非 macOS 為 None）——前端 core 的
-    /// PATH 冪等追加判定輸入（design D12）。
+    /// ~/.zprofile 现有内容（macOS；读不到或非 macOS 为 None）——前端 core 的
+    /// PATH 幂等追加判定输入（design D12）。
     pub zprofile: Option<String>,
 }
 
@@ -29,38 +29,38 @@ fn platform_key() -> String {
     } else if std::env::var_os("APPIMAGE").is_some() {
         "linux-appimage".into()
     } else {
-        // 非 AppImage 的 Linux 執行（開發建置或手動解開的 app）：deb 已退場
-        // （release-assets-trim D7），沒有套件管理器佈署的 /usr/bin 可探。
+        // 非 AppImage 的 Linux 运行（开发建置或手动解开的 app）：deb 已退场
+        // （release-assets-trim D7），没有套件管理器布署的 /usr/bin 可探。
         "linux-unpackaged".into()
     }
 }
 
-/// 隨附 CLI 的位置：Tauri externalBin 佈於主執行檔同目錄。
+/// 随附 CLI 的位置：Tauri externalBin 布于主运行档同目录。
 fn bundled_cli_path() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
-    let name = if cfg!(target_os = "windows") { "speclink.exe" } else { "speclink" };
+    let name = if cfg!(target_os = "windows") { "specseal.exe" } else { "specseal" };
     let path = exe.parent()?.join(name);
     path.exists().then_some(path)
 }
 
-/// 已佈署 CLI 的 `--version` 原始輸出（解析歸前端 core）；不存在／不可執行＝None。
+/// 已布署 CLI 的 `--version` 原始输出（解析归前端 core）；不存在／不可运行＝None。
 fn deployed_version_output(platform: &str, home: Option<&str>) -> Option<String> {
     let program: PathBuf = match platform {
         "macos" | "linux-appimage" | "linux-unpackaged" => {
-            PathBuf::from(home?).join(".local/bin/speclink")
+            PathBuf::from(home?).join(".local/bin/specseal")
         }
-        // Windows 由安裝器把 CLI 佈於 app 同目錄並寫 PATH；剛裝完時 PATH
-        // broadcast 未及已執行程序，走程序 PATH 會誤報未安裝——直接以
-        // sidecar 同目錄（即 $INSTDIR）執行。
+        // Windows 由安装器把 CLI 布于 app 同目录并写 PATH；刚装完时 PATH
+        // broadcast 未及已运行进程，走进程 PATH 会误报未安装——直接以
+        // sidecar 同目录（即 $INSTDIR）运行。
         _ => bundled_cli_path()?,
     };
     let output = Command::new(program).arg("--version").output().ok()?;
     output.status.success().then(|| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// PATH 提示的判定基準是「使用者終端」的 PATH——macOS GUI app 從 Dock 啟動
-/// 不繼承 shell 設定檔，程序 PATH 只有系統預設，直接用會誤報「不在 PATH」。
-/// 以 login shell 解析真實 PATH；失敗（非 unix、shell 異常）退回程序 PATH。
+/// PATH 提示的判定基准是「用户终端」的 PATH——macOS GUI app 从 Dock 启动
+/// 不继承 shell 设置档，进程 PATH 只有系统缺省，直接用会误报「不在 PATH」。
+/// 以 login shell 解析真实 PATH；失败（非 unix、shell 异常）退回进程 PATH。
 pub(crate) fn user_shell_path() -> String {
     #[cfg(unix)]
     {
@@ -99,10 +99,10 @@ pub fn probe(app_version: String) -> CliInstallProbe {
     }
 }
 
-/// 追加一行至 ~/.zprofile（macOS PATH 自動設定；冪等判定歸前端 core，此處只
-/// 負責安全地寫：保留既有內容、必要時補結尾換行）。
+/// 追加一行至 ~/.zprofile（macOS PATH 自动设置；幂等判定归前端 core，此处只
+/// 负责安全地写：保留既有内容、必要时补结尾换行）。
 pub fn zprofile_append(line: &str) -> Result<(), String> {
-    let home = std::env::var("HOME").map_err(|_| "找不到 HOME 目錄".to_string())?;
+    let home = std::env::var("HOME").map_err(|_| "找不到 HOME 目录".to_string())?;
     let path = PathBuf::from(home).join(".zprofile");
     let mut content = std::fs::read_to_string(&path).unwrap_or_default();
     if !content.is_empty() && !content.ends_with('\n') {
@@ -113,7 +113,7 @@ pub fn zprofile_append(line: &str) -> Result<(), String> {
     std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
-/// 前端 core 產出的佈署計畫（「none」不會被送來——前端已擋）。
+/// 前端 core 产出的布署计划（「none」不会被送来——前端已挡）。
 #[derive(serde::Deserialize)]
 #[serde(tag = "action", rename_all = "camelCase")]
 pub enum CliDeployPlan {
@@ -126,9 +126,9 @@ pub enum CliDeployPlan {
 pub fn deploy(plan: CliDeployPlan) -> Result<(), String> {
     match plan {
         CliDeployPlan::Symlink { link_path, target_path } => {
-            let parent = link_path.parent().ok_or("symlink 路徑缺少父目錄")?;
+            let parent = link_path.parent().ok_or("symlink 路径缺少父目录")?;
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-            // 既有 symlink／檔案先移除，重複安裝與換目標皆冪等。
+            // 既有 symlink／文件先移除，重复安装与换目标皆幂等。
             if std::fs::symlink_metadata(&link_path).is_ok() {
                 std::fs::remove_file(&link_path).map_err(|e| e.to_string())?;
             }
@@ -137,11 +137,11 @@ pub fn deploy(plan: CliDeployPlan) -> Result<(), String> {
             #[cfg(not(unix))]
             {
                 let _ = target_path;
-                Err("此平台不支援 symlink 佈署".into())
+                Err("此平台不支持 symlink 布署".into())
             }
         }
         CliDeployPlan::Copy { dest_path, source_path } => {
-            let parent = dest_path.parent().ok_or("複製目的地缺少父目錄")?;
+            let parent = dest_path.parent().ok_or("拷贝目的地缺少父目录")?;
             std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
             std::fs::copy(&source_path, &dest_path).map_err(|e| e.to_string())?;
             #[cfg(unix)]

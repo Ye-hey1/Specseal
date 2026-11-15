@@ -1,7 +1,7 @@
-// 審查規則頁（spec 需求「設定頁編輯審查規則」）：預設清單卡（模式＋可展開的 12 條名稱）與
-// 專案規則卡（CRITICAL／WARNING／SUGGESTION 三個固定節）。編輯沿用產出規則頁的頁標題右側
-// 編輯／取消／儲存 ⌘S 與純文字 CodeEditor；預設清單是列右側的共用下拉（與產出流程頁同一元件），
-// 展開鈕與產出流程頁的「檢視內容」同一種按鈕。12 條名稱取自快照（引擎提供）。
+// 审查规则页（spec 需求「设置页编辑审查规则」）：缺省清单卡（模式＋可展开的 12 条名称）与
+// 项目规则卡（CRITICAL／WARNING／SUGGESTION 三个固定节）。编辑沿用产出规则页的页标题右侧
+// 编辑／取消／保存 ⌘S 与纯文本 CodeEditor；缺省清单是列右侧的共用下拉（与产出流程页同一组件），
+// 展开钮与产出流程页的「查看内容」同一种按钮。12 条名称取自快照（引擎提供）。
 import { useState } from "react";
 import {
   BaselineSmellList,
@@ -14,7 +14,7 @@ import {
   SeverityTag,
   useI18n,
   type ReviewBaseline,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { CodeEditor } from "../../components/CodeEditor";
 import { CardEditControls, FieldHelp, PageAlerts, PageNote, useSaveShortcut } from "./parts";

@@ -5,44 +5,44 @@ import { cn } from "../lib/utils";
 import { CopyButton, REVEAL_ON_HOVER } from "./CopyButton";
 
 interface ListRowBase {
-  /** 標題（spec 名、change 名、討論 slug；預設等寬）。 */
+  /** 标题（spec 名、change 名、讨论 slug；缺省等宽）。 */
   title: string;
-  /** false 時標題改一般字（人名、專案名）；預設 true 等寬。 */
+  /** false 时标题改一般字（人名、项目名）；缺省 true 等宽。 */
   mono?: boolean;
-  /** 給了就在標題後緊跟 hover 才顯現的複製鈕：value 寫入剪貼簿、label 為無障礙名稱。 */
+  /** 给了就在标题后紧跟 hover 才显现的拷贝钮：value 写入剪贴板、label 为无障碍名称。 */
   copy?: { value: string; label: string };
-  /** 標題下方一行截斷的描述列；缺席時列退回單行。 */
+  /** 标题下方一行截断的描述列；缺席时列退回单行。 */
   description?: ReactNode;
   /** 最左槽（已封存列的日期）。 */
   leading?: ReactNode;
-  /** 右端 meta 槽（計數、徽章、相對時間），› 緊接其後。 */
+  /** 右端 meta 槽（计数、徽章、相对时间），› 紧接其后。 */
   meta?: ReactNode;
-  /** 不可點的列（規格溯源的無封存記錄來源）：灰字、無 hover、無 ›，點擊與按鍵不觸發。 */
+  /** 不可点的列（规格溯源的无封存记录来源）：灰字、无 hover、无 ›，点击与按键不触发。 */
   disabled?: boolean;
-  /** 複製鈕之後的章（如改進小章）。 */
+  /** 拷贝钮之后的章（如改进小章）。 */
   children?: ReactNode;
-  /** 呼叫端的 DOM 錨點（data-spec、data-archived…）。 */
+  /** 调用端的 DOM 锚点（data-spec、data-archived…）。 */
   [dataAttr: `data-${string}`]: string | undefined;
 }
 
-/** 可點的列與帶動作槽的靜態列互斥：可點的列是 role=button，槽內再放按鈕就成了巢狀互動元素。 */
+/** 可点的列与带动作槽的静态列互斥：可点的列是 role=button，槽内再放按钮就成了嵌套交互元素。 */
 export type ListRowProps = ListRowBase &
   (
     | { onClick: () => void; actions?: never }
     | {
-        /** 不給就是靜態列：沒有按鈕語意、不可聚焦、無 hover 與 ›。 */
+        /** 不给就是静态列：没有按钮语意、不可聚焦、无 hover 与 ›。 */
         onClick?: never;
-        /** 靜態列 meta 之後的列尾動作槽（撤銷鈕）。 */
+        /** 静态列 meta 之后的列尾动作槽（撤销钮）。 */
         actions?: ReactNode;
       }
   );
 
 /**
- * 共用列（spec desktop-app「規格與封存卡片收合資訊」；design D1）：整列可點、細線
- * 分隔、hover 微灰、右端 › 收尾。鍵盤 Enter／Space 觸發開啟——只認列本體上的按鍵，
- * 複製鈕自己的 Enter 不冒成開列；複製鈕點擊由 CopyButton 停止冒泡。列的朗讀名稱只取
- * 標題（aria-labelledby），不把描述與 meta 串成一長串。不給 onClick 是靜態列，可帶列尾
- * 動作槽（server-web-list-pages design D1：憑證列、邀請列）。
+ * 共用列（spec desktop-app「规格与封存卡片收合信息」；design D1）：整列可点、细线
+ * 分隔、hover 微灰、右端 › 收尾。键盘 Enter／Space 触发打开——只认列本体上的按键，
+ * 拷贝钮自己的 Enter 不冒成开列；拷贝钮点击由 CopyButton 停止冒泡。列的朗读名称只取
+ * 标题（aria-labelledby），不把描述与 meta 串成一长串。不给 onClick 是静态列，可带列尾
+ * 动作槽（server-web-list-pages design D1：凭证列、邀请列）。
  */
 export function ListRow({
   title,

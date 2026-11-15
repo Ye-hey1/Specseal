@@ -1,11 +1,11 @@
-// 圖示列（design D3；desktop-config「專案分頁列存於 app 本機」、desktop-app「分頁切換中
-// 即時回饋」）：品牌標記、每專案一個首字母方塊、「＋」、底部齒輪。原 projectTabs.test.tsx
-// 的案例逐條搬過來（方塊取代分頁），再補 tooltip、角落狀態點、錯誤選單與齒輪。
+// 图标列（design D3；desktop-config「项目分页列存于 app 本机」、desktop-app「分页切换中
+// 即时回馈」）：品牌标记、每项目一个首字母方块、「＋」、底部齿轮。原 projectTabs.test.tsx
+// 的案例逐条搬过来（方块取代分页），再补 tooltip、角落状态点、错误菜单与齿轮。
 import { describe, it, expect, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement, ReactNode } from "react";
-import { I18nProvider, SEMANTIC_TONE } from "@speclink/ui";
+import { I18nProvider, SEMANTIC_TONE } from "@specseal/ui";
 
 import { ProjectRail, type ProjectRailProps } from "../components/ProjectRail";
 import type { ProjectActions } from "../components/ProjectActionsMenu";
@@ -13,9 +13,9 @@ import { APP_MESSAGES } from "../i18n/messages";
 import type { ProjectTab } from "../tabs";
 import type { RemoteWorkspaceRecoveryState, WorkspaceLocator } from "../session";
 
-const zh = APP_MESSAGES["zh-TW"];
+const zh = APP_MESSAGES["zh-CN"];
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -62,10 +62,10 @@ const square = (key: string) =>
   ) as HTMLElement;
 
 describe("ProjectRail", () => {
-  it("品牌標記在頂、方塊依序一個專案一個、作用中為主色底", () => {
+  it("品牌标记在顶、方块依序一个项目一个、作用中为主色底", () => {
     renderRail();
     const rail = document.querySelector("[data-project-rail]") as HTMLElement;
-    expect(rail.firstElementChild?.getAttribute("aria-label")).toBe("Speclink");
+    expect(rail.firstElementChild?.getAttribute("aria-label")).toBe("Specseal");
     const list = screen.getByRole("tablist", { name: zh["app.projectRail"] });
     const squares = within(list).getAllByRole("tab");
     expect(squares.map((s) => s.textContent)).toEqual(["A", "B"]);
@@ -76,18 +76,18 @@ describe("ProjectRail", () => {
     expect(squares[1].className).toContain("bg-muted");
   });
 
-  it("方塊無任何計數徽章（spec「分頁不顯示計數徽章」）", () => {
+  it("方块无任何计数徽章（spec「分页不显示计数徽章」）", () => {
     renderRail();
     expect(document.querySelector("[data-badge]")).toBeNull();
     for (const tab of screen.getAllByRole("tab")) expect(tab.textContent).toMatch(/^[A-Z]$/);
   });
 
-  it("CJK 顯示名取第一個字", () => {
-    renderRail({ tabs: [{ locator: local("/w/規格"), name: "規格中心" }], activeKey: null });
-    expect(screen.getByRole("tab").textContent).toBe("規");
+  it("CJK 显示名取第一个字", () => {
+    renderRail({ tabs: [{ locator: local("/w/规格"), name: "规格中心" }], activeKey: null });
+    expect(screen.getByRole("tab").textContent).toBe("规");
   });
 
-  it("點背景方塊以其 locator key 呼叫 onActivate；點作用中方塊不動作", () => {
+  it("点背景方块以其 locator key 调用 onActivate；点作用中方块不动作", () => {
     const onActivate = vi.fn();
     renderRail({ onActivate });
     fireEvent.click(square(KEY_BETA));
@@ -95,17 +95,17 @@ describe("ProjectRail", () => {
     expect(onActivate.mock.calls).toEqual([[KEY_BETA]]);
   });
 
-  it("右鍵方塊彈出專案動作選單；「關閉專案」以該 key 呼叫 close、不切換", () => {
+  it("右键方块弹出项目动作菜单；「关闭项目」以该 key 调用 close、不切换", () => {
     const onActivate = vi.fn();
     const { actions } = renderRail({ onActivate });
     fireEvent.contextMenu(square(KEY_BETA));
     expect(screen.getAllByRole("menuitem")).toHaveLength(6);
-    fireEvent.click(screen.getByRole("menuitem", { name: /^關閉專案/ }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^关闭项目/ }));
     expect(actions.close).toHaveBeenCalledWith(KEY_BETA);
     expect(onActivate).not.toHaveBeenCalled();
   });
 
-  it("「＋」虛線方塊呼叫 onOpen", () => {
+  it("「＋」虚线方块调用 onOpen", () => {
     const onOpen = vi.fn();
     renderRail({ onOpen });
     const plus = screen.getByRole("button", { name: zh["app.newProject"] });
@@ -114,7 +114,7 @@ describe("ProjectRail", () => {
     expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
-  it("底部齒輪呼叫 onOpenSettings，settingsActive 時為主色底", () => {
+  it("底部齿轮调用 onOpenSettings，settingsActive 时为主色底", () => {
     const onOpenSettings = vi.fn();
     renderRail({ onOpenSettings, settingsActive: true });
     const gear = screen.getByRole("button", { name: zh["app.navSettings"] });
@@ -123,38 +123,38 @@ describe("ProjectRail", () => {
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("齒輪非作用中時無主色底", () => {
+  it("齿轮非作用中时无主色底", () => {
     renderRail({ settingsActive: false });
     expect(screen.getByRole("button", { name: zh["app.navSettings"] }).className).not.toContain(
       "bg-primary",
     );
   });
 
-  it("路徑失效的本機方塊：角落紅點、點擊開錯誤選單（訊息＋自專案列移除）而不切換", async () => {
+  it("路径失效的本机方块：角落红点、点击开错误菜单（消息＋自项目列移除）而不切换", async () => {
     const user = userEvent.setup();
     const onActivate = vi.fn();
-    const { actions } = renderRail({ onActivate, tabErrors: { [KEY_BETA]: "目錄不存在" } });
+    const { actions } = renderRail({ onActivate, tabErrors: { [KEY_BETA]: "目录不存在" } });
     const beta = square(KEY_BETA);
     expect(beta.getAttribute("data-error")).toBe("true");
     expect(beta.querySelector("[data-tab-dot]")?.className).toContain("bg-destructive");
     await user.click(beta);
     expect(onActivate).not.toHaveBeenCalled();
-    expect(screen.getByText("目錄不存在")).toBeTruthy();
+    expect(screen.getByText("目录不存在")).toBeTruthy();
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual([zh["app.removeTab"]]);
     await user.click(screen.getByRole("menuitem", { name: zh["app.removeTab"] }));
     expect(actions.close).toHaveBeenCalledWith(KEY_BETA);
   });
 
-  it("路徑失效的本機方塊按右鍵：同樣彈出錯誤變體（訊息＋自專案列移除）", () => {
-    const { actions } = renderRail({ tabErrors: { [KEY_BETA]: "目錄不存在" } });
+  it("路径失效的本机方块按右键：同样弹出错误变体（消息＋自项目列移除）", () => {
+    const { actions } = renderRail({ tabErrors: { [KEY_BETA]: "目录不存在" } });
     fireEvent.contextMenu(square(KEY_BETA));
-    expect(screen.getByText("目錄不存在")).toBeTruthy();
+    expect(screen.getByText("目录不存在")).toBeTruthy();
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual([zh["app.removeTab"]]);
     fireEvent.click(screen.getByRole("menuitem", { name: zh["app.removeTab"] }));
     expect(actions.close).toHaveBeenCalledWith(KEY_BETA);
   });
 
-  it("本機方塊 tooltip 顯示顯示名與完整路徑", async () => {
+  it("本机方块 tooltip 显示显示名与完整路径", async () => {
     renderRail();
     fireEvent.focus(square(KEY_BETA));
     const tip = await screen.findByRole("tooltip");
@@ -162,7 +162,7 @@ describe("ProjectRail", () => {
     expect(tip.textContent).toContain("C:\\proj\\beta");
   });
 
-  it("remote 有 checkout：tooltip 明示連接的 checkout 路徑", async () => {
+  it("remote 有 checkout：tooltip 明示连接的 checkout 路径", async () => {
     renderRail({
       tabs: [
         {
@@ -181,10 +181,10 @@ describe("ProjectRail", () => {
     fireEvent.focus(screen.getByRole("tab"));
     const tip = await screen.findByRole("tooltip");
     expect(tip.textContent).toContain("Demo/backend");
-    expect(tip.textContent).toContain("已連接 checkout：/work/backend");
+    expect(tip.textContent).toContain("已连接 checkout：/work/backend");
   });
 
-  it("remote 無 checkout：tooltip 顯示連線名稱加 Project/Repo", async () => {
+  it("remote 无 checkout：tooltip 显示连接名称加 Project/Repo", async () => {
     renderRail({
       tabs: [
         {
@@ -200,7 +200,7 @@ describe("ProjectRail", () => {
     expect(tip.textContent).toContain("公司 Server · demo/api");
   });
 
-  it("remote 復原錯誤仍是可選的目的地：紅點、tooltip 只給精簡狀態不露技術細節", async () => {
+  it("remote 复原错误仍是可选的目的地：红点、tooltip 只给精简状态不露技术细节", async () => {
     const onActivate = vi.fn();
     const recoveryStates: Record<string, RemoteWorkspaceRecoveryState> = {
       "remote:c1/demo/backend": {
@@ -227,7 +227,7 @@ describe("ProjectRail", () => {
     });
     const tab = screen.getByRole("tab", { name: /Demo\/backend/ });
     expect(tab.getAttribute("data-status")).toBe("error");
-    // spec「錯誤態以紅呈現」：連不上是錯誤，不能與 offline／需重新登入的琥珀同色。
+    // spec「错误态以红呈现」：连不上是错误，不能与 offline／需重新登录的琥珀同色。
     const dot = tab.querySelector("[data-tab-dot]") as HTMLElement;
     expect(dot.className).toContain("bg-destructive");
     expect(dot.className).not.toContain("status-warning");
@@ -235,11 +235,11 @@ describe("ProjectRail", () => {
     expect(onActivate).toHaveBeenCalledWith("remote:c1/demo/backend");
     fireEvent.focus(tab);
     const tip = await screen.findByRole("tooltip");
-    expect(tip.textContent).toContain("無法連線");
+    expect(tip.textContent).toContain("无法连接");
     expect(tip.textContent).not.toContain("technical detail");
   });
 
-  it("remote 離線或需重新登入：角落琥珀點", () => {
+  it("remote 脱机或需重新登录：角落琥珀点", () => {
     renderRail({
       tabs: [
         {
@@ -262,25 +262,25 @@ describe("ProjectRail", () => {
     }
   });
 
-  it("assetPrompts 有值的背景方塊：角落琥珀點、tooltip 附「技能檔需要處理」（spec「其他專案的狀況以琥珀點提示」）", async () => {
+  it("assetPrompts 有值的背景方块：角落琥珀点、tooltip 附「技能档需要处理」（spec「其他项目的状况以琥珀点提示」）", async () => {
     renderRail({
       assetPrompts: {
         [KEY_ALPHA]: null,
         [KEY_BETA]: { kind: "stale", fileCount: 2, version: "v1.3.0", projectVersion: "v0.9.0" },
       },
     });
-    // 與 remote 離線點同一顆、同色；無狀況的方塊無點。
+    // 与 remote 脱机点同一颗、同色；无状况的方块无点。
     expect(square(KEY_BETA).querySelector("[data-tab-dot]")?.className).toContain("bg-status-warning");
     expect(square(KEY_ALPHA).querySelector("[data-tab-dot]")).toBeNull();
-    expect(square(KEY_BETA).getAttribute("aria-label")).toContain("技能檔需要處理");
+    expect(square(KEY_BETA).getAttribute("aria-label")).toContain("技能档需要处理");
     fireEvent.focus(square(KEY_BETA));
     const tip = await screen.findByRole("tooltip");
-    expect(tip.textContent).toContain("技能檔需要處理");
-    // 文案不含版號：背景分頁的點是上次看過時的狀態。
+    expect(tip.textContent).toContain("技能档需要处理");
+    // 文案不含版号：背景分页的点是上次看过时的状态。
     expect(tip.textContent).not.toContain("v1.3.0");
   });
 
-  it("背景復原中的方塊：滑鼠與鍵盤皆可啟用，還原 spinner 為進行中色", () => {
+  it("背景复原中的方块：鼠标与键盘皆可激活，还原 spinner 为进行中色", () => {
     const onActivate = vi.fn();
     renderRail({
       tabs: [
@@ -304,9 +304,9 @@ describe("ProjectRail", () => {
   });
 });
 
-// spec「分頁切換中即時回饋」（design D1）：探測擋在翻頁前，目標方塊先出 spinner。
-describe("切換中方塊 spinner", () => {
-  it("pendingKey 指向的方塊以 spinner 取代首字母，aria-label 含「正在切換」", () => {
+// spec「分页切换中即时回馈」（design D1）：探测挡在翻页前，目标方块先出 spinner。
+describe("切换中方块 spinner", () => {
+  it("pendingKey 指向的方块以 spinner 取代首字母，aria-label 含「正在切换」", () => {
     renderRail({ pendingKey: KEY_BETA });
     const beta = square(KEY_BETA);
     expect(beta.textContent).toBe("");
@@ -316,25 +316,25 @@ describe("切換中方塊 spinner", () => {
     expect(beta.getAttribute("aria-label")).toContain(zh["app.tabSwitching"]);
   });
 
-  it("spinner 帶切換中語意的無障礙標籤", () => {
+  it("spinner 带切换中语意的无障碍标签", () => {
     renderRail({ pendingKey: KEY_BETA });
     expect(screen.getByLabelText(zh["app.tabSwitching"])).toBeTruthy();
   });
 
-  it("非 pending 的方塊不出 spinner", () => {
+  it("非 pending 的方块不出 spinner", () => {
     renderRail({ pendingKey: KEY_BETA });
     expect(square(KEY_ALPHA).querySelector('[data-tab-status="pending"]')).toBeNull();
     expect(square(KEY_ALPHA).textContent).toBe("A");
   });
 
-  it("未給 pendingKey → 全部方塊照舊，無 spinner", () => {
+  it("未给 pendingKey → 全部方块照旧，无 spinner", () => {
     renderRail();
     expect(document.querySelector('[data-tab-status="pending"]')).toBeNull();
   });
 
-  // 錯誤方塊經快捷鍵重探：仍在錯誤態但正在重探，切換中回饋優先，紅點照舊。
-  it("重探錯誤方塊時 spinner 蓋過首字母，錯誤紅點照舊", () => {
-    renderRail({ tabErrors: { [KEY_BETA]: "目錄不存在" }, pendingKey: KEY_BETA });
+  // 错误方块经快捷键重探：仍在错误态但正在重探，切换中回馈优先，红点照旧。
+  it("重探错误方块时 spinner 盖过首字母，错误红点照旧", () => {
+    renderRail({ tabErrors: { [KEY_BETA]: "目录不存在" }, pendingKey: KEY_BETA });
     const beta = square(KEY_BETA);
     expect(beta.querySelectorAll("[data-tab-status]")).toHaveLength(1);
     expect(beta.querySelector('[data-tab-status="pending"]')).toBeTruthy();

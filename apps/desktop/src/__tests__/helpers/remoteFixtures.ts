@@ -1,15 +1,15 @@
-// remote 測試共用 fixtures：capability 矩陣（決策 1）、假 remote dataSource
-// 與假 remote session——remoteOpen（store 面）與 remoteCapabilities（App 面）
-// 測試共用。
+// remote 测试共用 fixtures：capability 矩阵（决策 1）、假 remote dataSource
+// 与假 remote session——remoteOpen（store 面）与 remoteCapabilities（App 面）
+// 测试共用。
 import { vi } from "vitest";
-import type { SpeclinkDataSource } from "@speclink/ui";
+import type { SpecsealDataSource } from "@specseal/ui";
 
 import type { WorkspaceCapabilities, WorkspaceSession } from "../../session";
 import { changeList } from "./changeList";
 
 export const REMOTE_KEY = "remote:c1/demo/backend";
 
-/** remote capability 描述：直達／組合真、不支援假（決策 1 矩陣）。 */
+/** remote capability 描述：直达／组合真、不支持假（决策 1 矩阵）。 */
 export const REMOTE_CAPS: WorkspaceCapabilities = {
   listChanges: true,
   listSpecs: true,
@@ -40,12 +40,12 @@ export const REMOTE_CAPS: WorkspaceCapabilities = {
   liveUpdates: true,
 };
 
-/** 假 remote dataSource：直達方法回真值樣本；其餘不支援方法拒絕（鏡射 remote adapter）。 */
-export function fakeRemoteDs(over: Partial<SpeclinkDataSource> = {}): SpeclinkDataSource {
+/** 假 remote dataSource：直达方法回真值样本；其余不支持方法拒绝（镜射 remote adapter）。 */
+export function fakeRemoteDs(over: Partial<SpecsealDataSource> = {}): SpecsealDataSource {
   const refuse = () => Promise.reject(new Error("此 server 尚未提供——功能已停用"));
   return {
     listChanges: vi.fn().mockResolvedValue(changeList([
-      // 已就緒（2/2）：抽屜封存鈕的階段守門放行，capability 測試聚焦能力缺口本身。
+      // 已就绪（2/2）：抽屉封存钮的阶段守门放行，capability 测试聚焦能力缺口本身。
       { name: "remote-change", status: "in-progress", totalTasks: 2, completedTasks: 2 },
     ])),
     listSpecs: vi.fn().mockResolvedValue([{ id: "auth" }]),
@@ -57,8 +57,8 @@ export function fakeRemoteDs(over: Partial<SpeclinkDataSource> = {}): SpeclinkDa
         tasksTotal: 1,
         tasksDone: 1,
         specCount: 1,
-        // 與抽屜詮釋資料的 "Remote Creator" 錯開——負向斷言（舊 server 缺
-        // 歸屬欄位）以 queryByText 驗缺席，封存卡字串不得撞名。
+        // 与抽屉诠释数据的 "Remote Creator" 错开——负向断言（旧 server 缺
+        // 归属字段）以 queryByText 验缺席，封存卡字符串不得撞名。
         createdBy: "Archived Author",
         fromDiscussions: [],
       },
@@ -73,7 +73,7 @@ export function fakeRemoteDs(over: Partial<SpeclinkDataSource> = {}): SpeclinkDa
     getDocument: vi.fn().mockResolvedValue("- [ ] 1.1 First\n- [ ] 1.2 Second\n"),
     getSpecDocument: vi.fn().mockResolvedValue("# auth Specification\n\nRemote canonical truth.\n"),
     searchWorkspace: vi.fn().mockResolvedValue([]),
-    // remote-read-parity：詮釋資料與 capability 清單以 status payload 映射直達。
+    // remote-read-parity：诠释数据与 capability 清单以 status payload 映射直达。
     changeCapabilities: vi.fn().mockResolvedValue(["auth"]),
     changeMeta: vi.fn().mockResolvedValue({
       schema: "spec-driven",
@@ -98,11 +98,11 @@ export function fakeRemoteDs(over: Partial<SpeclinkDataSource> = {}): SpeclinkDa
     reorderCard: vi.fn(refuse),
     claim: vi.fn().mockResolvedValue(undefined),
     ...over,
-  } as unknown as SpeclinkDataSource;
+  } as unknown as SpecsealDataSource;
 }
 
-/** 假 remote session（handshake 成功後的形狀）。 */
-export function fakeRemoteSession(ds: SpeclinkDataSource): WorkspaceSession {
+/** 假 remote session（handshake 成功后的形状）。 */
+export function fakeRemoteSession(ds: SpecsealDataSource): WorkspaceSession {
   return {
     id: REMOTE_KEY,
     locator: { kind: "remote", connectionId: "c1", projectId: "demo", repoId: "backend" },

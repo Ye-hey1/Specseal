@@ -1,14 +1,14 @@
-// 連線登入的共用回饋元件（design 決策三）：等待授權面與 PAT 輸入由伺服器頁籤
-// 的連線列與工作區選擇器的新增並登入區共用——登入回饋跟著發起登入的介面走，
-// 兩處無重複實作。credential 不經此層：PAT 僅單次過境 onSubmit。
+// 连接登录的共用回馈组件（design 决策三）：等待授权面与 PAT 输入由服务器页签
+// 的连接列与工作区选择器的添加并登录区共用——登录回馈跟着发起登录的接口走，
+// 两处无重复实作。credential 不经此层：PAT 仅单次过境 onSubmit。
 import { useEffect, useState } from "react";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import { Button, CopyButton, Input, SEMANTIC_TONE, useI18n } from "@speclink/ui";
+import { Button, CopyButton, Input, SEMANTIC_TONE, useI18n } from "@specseal/ui";
 
 import type { LoginPhase } from "../adapter/connections";
 
-/** 授權有效期限的剩餘時間（分:秒）：以截止時刻減現在時間計算、每秒更新，
- * 不依賴輪詢節奏（design 決策三）；歸零即停在 0:00。 */
+/** 授权有效期限的剩余时间（分:秒）：以截止时刻减现在时间计算、每秒更新，
+ * 不依赖轮询节奏（design 决策三）；归零即停在 0:00。 */
 function Countdown({ expiresAt }: { expiresAt: number }) {
   const { t } = useI18n();
   const [now, setNow] = useState(() => Date.now());
@@ -25,7 +25,7 @@ function Countdown({ expiresAt }: { expiresAt: number }) {
   );
 }
 
-/** 等待面裡的一列：標籤、內容與複製鈕。裝置碼要人照著輸入，字放大並拉開字距。 */
+/** 等待面里的一列：标签、内容与拷贝钮。设备码要人照着输入，字放大并拉开字距。 */
 function CopyRow({
   label,
   value,
@@ -50,11 +50,11 @@ function CopyRow({
   );
 }
 
-/** 登入等待面（規格「device login 預設與 PAT fallback」；client-browser-login D9）：
- * 標題、一句說明、可複製的內容、倒數與取消。等待裝置核准時是裝置碼與驗證網址
- * ——使用者無需依賴已開啟的分頁即可換裝置核准；等待瀏覽器登入時是授權網址——
- * 瀏覽器沒有自動開啟時自己複製去開（網址只帶 state 與 challenge，不含任何
- * credential）。伺服器頁的連線列與工作區選擇器共用這一個元件。 */
+/** 登录等待面（规格「device login 缺省与 PAT fallback」；client-browser-login D9）：
+ * 标题、一句说明、可拷贝的内容、倒数与取消。等待设备核准时是设备码与验证网址
+ * ——用户无需依赖已打开的分页即可换设备核准；等待浏览器登录时是授权网址——
+ * 浏览器没有自动打开时自己拷贝去开（网址只带 state 与 challenge，不含任何
+ * credential）。服务器页的连接列与工作区选择器共用这一个组件。 */
 export function LoginWaiting({
   origin,
   phase,
@@ -108,8 +108,8 @@ export function LoginWaiting({
   );
 }
 
-/** PAT 輸入（規格 PAT fallback）：草稿只存在提交前的元件狀態，提交即清空
- * ——單次過境，不留任何拷貝。 */
+/** PAT 输入（规格 PAT fallback）：草稿只存在提交前的组件状态，提交即清空
+ * ——单次过境，不留任何拷贝。 */
 export function PatLoginInput({
   error,
   onSubmit,

@@ -1,24 +1,24 @@
-# Node SDK (@speclink/engine)
+# Node SDK (@specseal/engine)
 
 [简体中文](sdk-node.zh-CN.md) · **English**
 
-`@speclink/engine` lets a Node.js program run Speclink verbs, store specs in its own database, and make skill files for any AI tool. It is the same Rust engine that the CLI uses, bound to Node with [napi-rs](https://napi.rs). It is not a second implementation, so verb behavior, `--json` output shapes, and skill content match the CLI.
+`@specseal/engine` lets a Node.js program run Specseal verbs, store specs in its own database, and make skill files for any AI tool. It is the same Rust engine that the CLI uses, bound to Node with [napi-rs](https://napi.rs). It is not a second implementation, so verb behavior, `--json` output shapes, and skill content match the CLI.
 
 Two common uses:
 
-- Connect Speclink to an existing flow, such as a script, an internal tool, or a service that runs an AI agent.
-- Use it as **the engine of your own server**. The official `speclink-server` is only a reference implementation. Two public contracts under `speclink/specs/` define remote mode: `host-runtime` and `client-protocol`. You can follow these contracts and build your own server on this engine, with your own authentication, database, and permission model. The CLI and the desktop app connect to it the same way. For the official server, see [Remote Getting Started](remote-getting-started.md).
+- Connect Specseal to an existing flow, such as a script, an internal tool, or a service that runs an AI agent.
+- Use it as **the engine of your own server**. The official `specseal-server` is only a reference implementation. Two public contracts under `specseal/specs/` define remote mode: `host-runtime` and `client-protocol`. You can follow these contracts and build your own server on this engine, with your own authentication, database, and permission model. The CLI and the desktop app connect to it the same way. For the official server, see [Remote Getting Started](remote-getting-started.md).
 
 ## <a id="install"></a>Install
 
 ```bash
-npm install @speclink/engine
+npm install @specseal/engine
 ```
 
-You can install it from npm from version 0.2.0 on. Its version follows the Speclink release. It needs Node.js 18 or later. Prebuilt packages exist for five platforms: Windows x64, macOS x64 and arm64, Linux x64 and arm64 (glibc). npm downloads only the package for your platform, and you do not need Rust. No prebuilt package exists for musl Linux, such as Alpine.
+You can install it from npm from version 0.2.0 on. Its version follows the Specseal release. It needs Node.js 18 or later. Prebuilt packages exist for five platforms: Windows x64, macOS x64 and arm64, Linux x64 and arm64 (glibc). npm downloads only the package for your platform, and you do not need Rust. No prebuilt package exists for musl Linux, such as Alpine.
 
 ```js
-const { createEngine, skills } = require('@speclink/engine')
+const { createEngine, skills } = require('@specseal/engine')
 ```
 
 ### Alternative: build from the repository
@@ -27,7 +27,7 @@ Build from source when you change the engine itself, or when your platform has n
 
 ```bash
 git clone https://github.com/MomoChenisMe/speclink.git
-cd speclink/crates/adapters/speclink-node
+cd specseal/crates/adapters/specseal-node
 npm ci
 npm run build          # builds the .node file for the current platform
 ```
@@ -35,7 +35,7 @@ npm run build          # builds the .node file for the current platform
 Then require it by path:
 
 ```js
-const { createEngine } = require('/path/to/speclink/crates/adapters/speclink-node')
+const { createEngine } = require('/path/to/specseal/crates/adapters/specseal-node')
 ```
 
 `npm run build` builds a file for the current platform only. Build it on the platform that you deploy to.
@@ -44,11 +44,11 @@ const { createEngine } = require('/path/to/speclink/crates/adapters/speclink-nod
 
 `createEngine` supports two storage forms.
 
-**Local files**: point the engine at a project root that contains `speclink/` (or `openspec/`, for a project that an older version created). This form suits local tools and tests.
+**Local files**: point the engine at a project root that contains `specseal/` (or `openspec/`, for a project that an older version created). This form suits local tools and tests.
 
 ```js
 const engine = createEngine({ store: { type: 'fs', root: '/path/to/project' } })
-// optional: specDir (default: the same folder the CLI uses — spec_dir in .speclink.yaml, else speclink/, else openspec/, else "speclink")
+// optional: specDir (default: the same folder the CLI uses — spec_dir in .specseal.yaml, else specseal/, else openspec/, else "specseal")
 ```
 
 **Your own Store**: pass an object that implements the Store interface (see [Implement your own Store](#store)). The engine reads and writes documents through it.
@@ -92,7 +92,7 @@ On failure, the Promise rejects with an `Error`. The `message` is the same text 
 | --- | --- |
 | `invalid_argv` | The arguments are wrong, the verb needs a checkout, or the written content has a bad format (for example, tasks with no `- [ ]`, or a review round without a `**Scope**:` line) |
 | `not_found` | The change or the discussion does not exist |
-| `invalid_config` | A config file exists but cannot be parsed (Speclink never uses defaults instead) |
+| `invalid_config` | A config file exists but cannot be parsed (Specseal never uses defaults instead) |
 | `refused` | A precondition is not met |
 | `error` | Any other engine error. `claim` on the local-files form, or on a Store without `claim`, also gives this code |
 | A code from your Store | Your Store method throws an error with a `code`, and the SDK passes it on unchanged, for example `ownership_lost` |
@@ -101,7 +101,7 @@ On failure, the Promise rejects with an `Error`. The `message` is the same text 
 
 ## <a id="store"></a>Implement your own Store
 
-A Store is an object that the engine uses to read and write changes, artifacts, specs, and discussions. You decide how to keep the data: tables, files, or object storage. [`index.d.ts`](../crates/adapters/speclink-node/index.d.ts) has the full method signatures. Each method can return a value or a Promise.
+A Store is an object that the engine uses to read and write changes, artifacts, specs, and discussions. You decide how to keep the data: tables, files, or object storage. [`index.d.ts`](../crates/adapters/specseal-node/index.d.ts) has the full method signatures. Each method can return a value or a Promise.
 
 **Required methods** (31):
 
@@ -200,7 +200,7 @@ await engine.dispatch(['review', 'stamp', 'add-auth', '--agent', 'claude', '--st
 
 ## <a id="render"></a>Make skill files
 
-`skills` uses the same generator as `speclink init` and `speclink update`, so its content always matches the CLI.
+`skills` uses the same generator as `specseal init` and `specseal update`, so its content always matches the CLI.
 
 ```js
 skills.list() // [{ name: 'analyze', description: '…' }, …]
@@ -210,29 +210,29 @@ const skillMd = skills.render('propose', { target: 'neutral', invocation: 'tool-
 
 | Option | Values | Notes |
 | --- | --- | --- |
-| `target` | `claude`, `codex`, `copilot`, `pi`, `cursor`, `neutral` | `neutral` is for custom tools: no `/speclink-` slash commands and no plan-mode text |
-| `invocation` | `cli` (default), `tool-call` | `tool-call` writes verbs as "call the speclink tool with an argv array", for a tool built on `dispatch`. `cli` writes shell commands |
-| `specDir` | A string | The spec directory name in the skill text. Default: `speclink` |
-| `toolName` | A string | `neutral` only: the tool name in the skill text. Default: `speclink` |
+| `target` | `claude`, `codex`, `copilot`, `pi`, `cursor`, `neutral` | `neutral` is for custom tools: no `/specseal-` slash commands and no plan-mode text |
+| `invocation` | `cli` (default), `tool-call` | `tool-call` writes verbs as "call the specseal tool with an argv array", for a tool built on `dispatch`. `cli` writes shell commands |
+| `specDir` | A string | The spec directory name in the skill text. Default: `specseal` |
+| `toolName` | A string | `neutral` only: the tool name in the skill text. Default: `specseal` |
 
 Write each `SKILL.md` into a directory, and let your agent load it. The `description` of each skill says when to use it. The Next steps section at the end says what to suggest after it. You do not need a separate system prompt. Your agent must read the skill descriptions for this to work.
 
 ## <a id="example"></a>Full example: Copilot SDK
 
-This example makes one tool named `speclink` with an argv array parameter, and adds the generated skill files. The official Copilot SDK documents are the authority for its API. This example uses `@github/copilot-sdk` 1.0.16.
+This example makes one tool named `specseal` with an argv array parameter, and adds the generated skill files. The official Copilot SDK documents are the authority for its API. This example uses `@github/copilot-sdk` 1.0.16.
 
 ```js
-const { createEngine, skills } = require('@speclink/engine')
+const { createEngine, skills } = require('@specseal/engine')
 const { CopilotClient, defineTool } = require('@github/copilot-sdk')
 const { mkdirSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 
 const engine = createEngine({ store: myDatabaseStore, actor: 'Alice <alice@example.com>' })
 
-// 1. The speclink tool: argv in, result out; errors go back to the agent as text.
-const speclinkTool = defineTool('speclink', {
+// 1. The specseal tool: argv in, result out; errors go back to the agent as text.
+const specsealTool = defineTool('specseal', {
   description:
-    'Run a speclink verb. Pass the argv array exactly as the skill says, ' +
+    'Run a specseal verb. Pass the argv array exactly as the skill says, ' +
     "e.g. ['status', '--change', 'add-auth', '--json'].",
   parameters: {
     type: 'object',
@@ -254,7 +254,7 @@ const speclinkTool = defineTool('speclink', {
 // 2. Make the skill files.
 const skillsRoot = join(process.cwd(), '.my-agent', 'skills')
 for (const { name } of skills.list()) {
-  const dir = join(skillsRoot, `speclink-${name}`)
+  const dir = join(skillsRoot, `specseal-${name}`)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), skills.render(name, { target: 'neutral', invocation: 'tool-call' }))
 }
@@ -262,11 +262,11 @@ for (const { name } of skills.list()) {
 // 3. Give the tool and the skill directory to the session.
 async function startSession() {
   const client = new CopilotClient()
-  return client.createSession({ tools: [speclinkTool], skillDirectories: [skillsRoot] })
+  return client.createSession({ tools: [specsealTool], skillDirectories: [skillsRoot] })
 }
 ```
 
-The skills describe each verb as a tool call. The tool sends the call to the engine in the same process, and the engine saves through your Store. No CLI, no child process, and no local `speclink/` directory take part.
+The skills describe each verb as a tool call. The tool sends the call to the engine in the same process, and the engine saves through your Store. No CLI, no child process, and no local `specseal/` directory take part.
 
 ## <a id="limits"></a>Current limits
 

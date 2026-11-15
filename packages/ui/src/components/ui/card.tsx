@@ -3,8 +3,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../../lib/utils";
 
-/** 卡片：細框白底無陰影；容器內的小卡（看板卡片、對話框內清單卡）用 nested；接在卡片標頭
- *  分頁列（Tabs card variant）下方的內容卡用 attached="top"。呼叫端不以 className 覆蓋圓角與陰影。 */
+/** 卡片：细框白底无阴影；容器内的小卡（看板卡片、对话框内清单卡）用 nested；接在卡片标头
+ *  分页列（Tabs card variant）下方的内容卡用 attached="top"。调用端不以 className 覆盖圆角与阴影。 */
 const cardVariants = cva("border border-border bg-card text-card-foreground", {
   variants: {
     size: { default: "rounded-2xl", nested: "rounded-xl" },

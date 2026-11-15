@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../../lib/utils";
 
-/** 輸入框：8px 圓角；搜尋列的全圓膠囊用 shape="pill"。呼叫端不以 className 覆蓋圓角與顏色。 */
+/** 输入框：8px 圆角；搜索列的全圆胶囊用 shape="pill"。调用端不以 className 覆盖圆角与颜色。 */
 const inputVariants = cva(
   "flex h-8 w-full border border-input bg-background px-3 py-1 text-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30 disabled:cursor-default disabled:opacity-50",
   {

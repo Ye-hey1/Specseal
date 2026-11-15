@@ -29,18 +29,18 @@ import { ticketSummary } from "./TicketView";
 
 type Doc = string | null | undefined;
 
-/** 頁已持有的文件狀態：undefined＝載入在途、null＝不存在。 */
+/** 页已持有的文档状态：undefined＝加载在途、null＝不存在。 */
 export interface ChangeDocData {
   proposal: Doc;
   design: Doc;
   tasksMd: Doc;
   specDocs: Record<string, string | null> | undefined;
-  /** 作用中變更（排程用）；已封存頁為 null。 */
+  /** 作用中变更（调度用）；已封存页为 null。 */
   change: ChangeItem | null;
   tickets: Record<TicketStation, StationTicket | null | undefined>;
-  /** 唯讀（已封存）：工單不給「可以蓋章」提示框。 */
+  /** 唯读（已封存）：工单不给「可以盖章」提示框。 */
   readOnly?: boolean;
-  /** 手動提示框的「前往」：頁讓任務文件捲到第 ordinal 個任務並高亮；缺席時不出「前往」鈕。 */
+  /** 手动提示框的「前往」：页让任务文档卷到第 ordinal 个任务并高亮；缺席时不出「前往」钮。 */
   onLocateTask?: (ordinal: number) => void;
 }
 
@@ -48,15 +48,15 @@ const EMPTY: DocSummary = { badges: null, tiles: [], callout: null };
 
 const SHAPE_KEYS = { bugFix: "doc.shapeBugFix", refactor: "doc.shapeRefactor", feature: "doc.shapeFeature" } as const;
 
-/** 籤槽的 delta 操作順序（spec「規格的籤槽與數字磚」：修改在前）。 */
+/** 签槽的 delta 操作顺序（spec「规格的签槽与数字砖」：修改在前）。 */
 const OP_ORDER: (keyof DeltaCounts)[] = ["modified", "added", "removed", "renamed"];
 
 const sectionOf = (sections: H2Section[], ...keys: string[]) => sections.find((s) => s.key !== null && keys.includes(s.key));
 const itemCount = (md: string) => listItemsOf(parseListItems(md)).length;
 
 /**
- * 閱讀卡標題區的推導單一入口（design D9）：依目前文件回籤槽、數字磚與提示框，全部由文件結構推出；
- * 文件未載入或無內容時三者皆空。提案的提示框由頁放在能力段尾，其他文件放在數字磚與內文之間。
+ * 阅读卡标题区的推导单一入口（design D9）：依目前文档回签槽、数字砖与提示框，全部由文档结构推出；
+ * 文档未加载或无内容时三者皆空。提案的提示框由页放在能力段尾，其他文档放在数字砖与内文之间。
  */
 export function changeDocSummary(tab: string, data: ChangeDocData, i18n: Translator): DocSummary {
   const { t } = i18n;
@@ -91,7 +91,7 @@ function proposalSummary(proposal: string, specDocs: ChangeDocData["specDocs"], 
     parseCapabilities(caps?.subsections.find((sub) => sub.key === key)?.content ?? "").filter((r) => r.name);
   const impact = sectionOf(sections, "sections.impact");
   const parsedImpact = impact ? parseImpact(impact.content) : null;
-  // spec 順序取章節存在的前四格；影響段不符形狀時「影響的檔案」缺席。
+  // spec 顺序取章节存在的前四格；影响段不符形状时「影响的文件」缺席。
   const candidates: (DocTile | null)[] = [
     tileFrom(sectionOf(sections, "sections.whatChanges", "sections.proposedSolution"), "doc.tileSteps", t),
     tileFrom(sectionOf(sections, "sections.nonGoals"), "doc.tileNonGoals", t),
@@ -105,7 +105,7 @@ function proposalSummary(proposal: string, specDocs: ChangeDocData["specDocs"], 
     parsedImpact ? { value: impactFileCount(parsedImpact), label: t("doc.tileFiles") } : null,
     tileFrom(sectionOf(sections, "sections.alternatives"), "doc.tileAlternatives", t),
   ];
-  // 改寫提示框：修改的能力中、本變更已載入 delta 規格者各一行。
+  // 改写提示框：修改的能力中、本变更已加载 delta 规格者各一行。
   const notes = capRows("sections.modifiedCapabilities")
     .map((r) => r.name!)
     .filter((cap) => specDocs?.[cap])
@@ -131,7 +131,7 @@ function proposalSummary(proposal: string, specDocs: ChangeDocData["specDocs"], 
   };
 }
 
-/** 列式章節的列點數磚；章節缺席為 null。 */
+/** 列式章节的列点数砖；章节缺席为 null。 */
 function tileFrom(section: H2Section | undefined, label: string, t: (key: string) => string): DocTile | null {
   return section ? { value: itemCount(section.content), label: t(label) } : null;
 }
@@ -164,7 +164,7 @@ function tasksSummary(
   if (tasks.length === 0) return EMPTY;
   const done = tasks.filter((x) => x.done).length;
   const manual = tasks.filter((x) => x.manual);
-  // 提示框只提醒還要親手做的：已勾的手動任務不列，數字磚仍計總數。
+  // 提示框只提醒还要亲手做的：已勾的手动任务不列，数字砖仍计总数。
   const pendingManual = manual.filter((x) => !x.done);
   return {
     badges:

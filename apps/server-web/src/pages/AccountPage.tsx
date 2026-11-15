@@ -8,7 +8,7 @@ import {
   StatusPill,
   useI18n,
   PageHeader,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../app/context";
 import { fillUser } from "../lib/userLabel";
 import { useAsync, useLastData } from "../lib/useAsync";
@@ -20,10 +20,10 @@ import { RevocationPill } from "../components/RevocationPill";
 import { RevokeButton } from "../components/RevokeButton";
 import type { AccountSummary, DeviceFamilyMeta, PatMeta } from "../api/client";
 
-// 帳號自助頁（server-identity「帳號 browser API 保持憑證祕密邊界」, D4／D6；server-web-list-pages
-// design D8、D10）：768px 置中欄，由上而下為我的專案、存取金鑰、裝置登入、登入工作階段四張設定型卡。
-// 金鑰明文只在建立對話框內顯示一次（server-web-detail-pages design D7）；存取金鑰與裝置登入的撤銷鈕
-// 滑過才出現，撤銷等破壞性操作先以確認框確認且立即生效。所有 server 資料留在本 route 的 component
+// 帐号自助页（server-identity「帐号 browser API 保持凭证秘密边界」, D4／D6；server-web-list-pages
+// design D8、D10）：768px 置中栏，由上而下为我的项目、访问密钥、设备登录、登录工作阶段四张设置型卡。
+// 密钥明文只在创建对话框内显示一次（server-web-detail-pages design D7）；访问密钥与设备登录的撤销钮
+// 滑过才出现，撤销等破坏性操作先以确认框确认且立即生效。所有 server 数据留在本 route 的 component
 // state（D1）。
 
 type Confirm = { title: string; run: () => Promise<void> };
@@ -32,8 +32,8 @@ export function AccountPage() {
   const { t } = useI18n();
   const client = useClient();
   const { loading, data: fresh, error, reload } = useAsync(() => client.getAccount(), []);
-  // 建立金鑰或撤銷後重讀期間留著上一份：頁面若退回載入中，開著的建立對話框（連同只顯示一次的
-  // 明文）會一起被卸掉。
+  // 创建密钥或撤销后重读期间留着上一份：页面若退回加载中，开着的创建对话框（连同只显示一次的
+  // 明文）会一起被卸掉。
   const data = useLastData(fresh, error);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [busy, setBusy] = useState(false);
@@ -71,7 +71,7 @@ export function AccountPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[768px] flex-col gap-6">
-      {/* 與管理列表頁一致：頁面唯一 primary action 開對話框，建立欄位不常駐頁面。 */}
+      {/* 与管理列表页一致：页面唯一 primary action 开对话框，创建字段不常驻页面。 */}
       <PageHeader
         level={1}
         title={t("account.title")}
@@ -101,7 +101,7 @@ export function AccountPage() {
         }
       />
 
-      {/* 只在開著時掛載：每次開啟都是空白表單。 */}
+      {/* 只在开着时挂载：每次打开都是空白表单。 */}
       {createOpen && <CreateKeyDialog onClose={() => setCreateOpen(false)} onCreated={reload} />}
 
       <ConfirmDialog
@@ -118,11 +118,11 @@ export function AccountPage() {
   );
 }
 
-// 四張卡（design D10）。我的專案（server-web-console「帳號頁呈現我的專案」）是唯讀的個人視角，
-// 資料只來自 account summary——admin 與一般成員看到同一張卡、同一形狀，全部專案的治理視角在
-// /admin/registry；顯示名缺席時以等寬代號為名、不再重複一次代號。存取金鑰的建立走頁面的 primary
-// action 開對話框；登入工作階段唯讀（登出由殼層的登出動作處理）；裝置登入撤銷後立即使 access
-// token 與 refresh credential 失效。
+// 四张卡（design D10）。我的项目（server-web-console「帐号页呈现我的项目」）是唯读的个人视角，
+// 数据只来自 account summary——admin 与一般成员看到同一张卡、同一形状，全部项目的治理视角在
+// /admin/registry；显示名缺席时以等宽代号为名、不再重复一次代号。访问密钥的创建走页面的 primary
+// action 开对话框；登录工作阶段唯读（注销由壳层的注销动作处理）；设备登录撤销后立即使 access
+// token 与 refresh credential 失效。
 function AccountCards({
   account,
   busy,
@@ -241,8 +241,8 @@ function AccountCards({
   );
 }
 
-// 建立存取金鑰的對話框（design D7）：送出成功後同一個對話框換成已建立狀態，一次性明文只在這裡出現、
-// 關掉就看不到；成功當下即重載，存取金鑰卡隨之多出一列。
+// 创建访问密钥的对话框（design D7）：送出成功后同一个对话框换成已创建状态，一次性明文只在这里出现、
+// 关掉就看不到；成功当下即重载，访问密钥卡随之多出一列。
 function CreateKeyDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const { t } = useI18n();
   const client = useClient();

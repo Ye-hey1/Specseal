@@ -1,10 +1,10 @@
 ---
 name: manual-generates-pages
-description: manual 從正式規格產生 speclink/manual/ 下的手冊頁。
+description: manual 从正式规格产生 specseal/manual/ 下的手册页。
 tags: [skill:manual]
 max_turns: 50
 timeout_seconds: 1200
 allowed_tools: [Read, Glob, Grep, Bash, Edit, Write, Skill, Agent]
 ---
 
-/speclink-manual 產生操作手冊
+/specseal-manual 产生操作手册

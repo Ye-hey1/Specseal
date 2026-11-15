@@ -2,10 +2,10 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-// shadcn Table（Tailwind v4）：語意 <table> 結構＋themed 邊框。外層 div 提供窄容器
-// 橫向捲動，避免寬表格撐破版面。列邊框明確用 border-border——裸 border 於 Tailwind v4
-// 會落到 currentColor（≈黑框）。`wrapped={false}` 不包外層：呼叫端自己就是捲動區（列表卡）時，
-// 外層的 overflow-x-auto 會自成捲動容器，sticky 表頭就黏在那層、隨捲動區捲走。
+// shadcn Table（Tailwind v4）：语意 <table> 结构＋themed 边框。外层 div 提供窄容器
+// 横向卷动，避免宽表格撑破版面。列边框明确用 border-border——裸 border 于 Tailwind v4
+// 会落到 currentColor（≈黑框）。`wrapped={false}` 不包外层：调用端自己就是卷动区（列表卡）时，
+// 外层的 overflow-x-auto 会自成卷动容器，sticky 表头就黏在那层、随卷动区卷走。
 export const Table = React.forwardRef<
   HTMLTableElement,
   React.HTMLAttributes<HTMLTableElement> & { wrapped?: boolean }
@@ -15,7 +15,7 @@ export const Table = React.forwardRef<
 });
 Table.displayName = "Table";
 
-/** `sticky`：表頭固定在捲動區頂端並帶卡片底色蓋住底下的列（列表卡內的表格；搭配 `Table wrapped={false}`）。 */
+/** `sticky`：表头固定在卷动区顶端并带卡片底色盖住底下的列（列表卡内的表格；搭配 `Table wrapped={false}`）。 */
 export const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement> & { sticky?: boolean }
@@ -32,7 +32,7 @@ export const TableBody = React.forwardRef<
 ));
 TableBody.displayName = "TableBody";
 
-/** `hoverable={false}`：滑過不加底色（列裡放下拉、輸入框等控制項的表格，底色會干擾操作）。 */
+/** `hoverable={false}`：滑过不加底色（列里放下拉、输入框等控制项的表格，底色会干扰操作）。 */
 export const TableRow = React.forwardRef<
   HTMLTableRowElement,
   React.HTMLAttributes<HTMLTableRowElement> & { hoverable?: boolean }

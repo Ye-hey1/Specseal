@@ -3,13 +3,13 @@ import { useCallback, useEffect, useState } from "react";
 import { WebApiError } from "../api/client";
 import { useSession } from "../app/context";
 
-// 每個 route 以此表示 loading／success／error 狀態（D6：一致且可恢復）。
-// server 資料留在呼叫 route 的 component state，不進全域 store（D1）。
+// 每个 route 以此表示 loading／success／error 状态（D6：一致且可恢复）。
+// server 数据留在调用 route 的 component state，不进全域 store（D1）。
 
-// 401 有兩種語意：session 失效（code=unauthenticated）與登入密碼錯誤
-// （code=invalid_credentials）。只有前者代表已載入的 route 失去授權，須重讀
-// session 讓 route guard 導回登入頁並保留 returnTo；後者屬登入表單的欄位錯誤，
-// 由 LoginPage 自行呈現，不走這裡（LoginPage 不使用 useAsync）。
+// 401 有两种语意：session 失效（code=unauthenticated）与登录密码错误
+// （code=invalid_credentials）。只有前者代表已加载的 route 失去授权，须重读
+// session 让 route guard 导回登录页并保留 returnTo；后者属登录表单的字段错误，
+// 由 LoginPage 自行呈现，不走这里（LoginPage 不使用 useAsync）。
 function isSessionExpired(error: unknown): boolean {
   return error instanceof WebApiError && error.status === 401 && error.code === "unauthenticated";
 }
@@ -41,14 +41,14 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
       },
       (error) => {
         if (alive) setState({ loading: false, data: null, error });
-        // session 失效：重讀 session 真相，由 route guard 導向登入頁並帶安全 returnTo。
+        // session 失效：重读 session 真相，由 route guard 导向登录页并带安全 returnTo。
         if (isSessionExpired(error)) void refresh();
       },
     );
     return () => {
       alive = false;
     };
-    // fn 每次 render 皆為新閉包，故以呼叫端的 deps 控制重跑；nonce 觸發 reload。
+    // fn 每次 render 皆为新闭包，故以调用端的 deps 控制重跑；nonce 触发 reload。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, nonce]);
 
@@ -56,8 +56,8 @@ export function useAsync<T>(fn: () => Promise<T>, deps: unknown[]): AsyncState<T
 }
 
 /**
- * 留著最近一次成功的回應：`useAsync` 重抓時會先清空 data，畫面若照著清空就會退回載入中、把裡面
- * 開著的對話框或分頁一起卸掉。這裡在重抓期間回傳上一份；出錯時回 null，讓呼叫端呈現錯誤。
+ * 留着最近一次成功的回应：`useAsync` 重抓时会先清空 data，画面若照着清空就会退回加载中、把里面
+ * 开着的对话框或分页一起卸掉。这里在重抓期间回传上一份；出错时回 null，让调用端呈现错误。
  */
 export function useLastData<T>(fresh: T | null, error: unknown): T | null {
   const [last, setLast] = useState<T | null>(null);

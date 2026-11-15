@@ -1,20 +1,20 @@
-// 看板拖排的落點解析（design D6）——與 tasks.ts 的 resolveDropTarget 同款
-// 「純函式＋薄 dragEnd 接線」模式：jsdom 測純函式、真實拖曳留真視窗驗證。
+// 看板拖排的落点解析（design D6）——与 tasks.ts 的 resolveDropTarget 同款
+// 「纯函数＋薄 dragEnd 接线」模式：jsdom 测纯函数、真实拖曳留真窗口验证。
 
 import type { CardKind } from "./adapter";
 
-/** 一欄的可見卡識別碼（視覺序）。變更卡＝變更名、討論卡＝slug。 */
+/** 一栏的可见卡识别码（视觉序）。变更卡＝变更名、讨论卡＝slug。 */
 export interface ColumnCards {
   kind: CardKind;
   ids: string[];
 }
 
-/** dnd id 前綴：變更名與討論 slug 可能撞名，入 DndContext 前加種類前綴。 */
+/** dnd id 前缀：变更名与讨论 slug 可能撞名，入 DndContext 前加种类前缀。 */
 export function cardDndId(kind: CardKind, id: string): string {
   return kind === "change" ? `chg:${id}` : `disc:${id}`;
 }
 
-/** 自 dnd id 還原種類與識別碼；非卡片 id（欄容器、封存落點）回 null。 */
+/** 自 dnd id 还原种类与识别码；非卡片 id（栏容器、封存落点）回 null。 */
 export function parseCardDndId(dndId: string): { kind: CardKind; id: string } | null {
   if (dndId.startsWith("chg:")) return { kind: "change", id: dndId.slice(4) };
   if (dndId.startsWith("disc:")) return { kind: "discussion", id: dndId.slice(5) };
@@ -22,9 +22,9 @@ export function parseCardDndId(dndId: string): { kind: CardKind; id: string } | 
 }
 
 /**
- * 封存落點浮層的浮現條件（spec「拖曳封存落點以浮層呈現」）：僅拖曳**已就緒**
- * 變更卡（名列 `readyIds`）時浮現——非就緒變更卡的拖曳＝純排序，討論卡不可
- * 拖曳封存，兩者皆不得造成任何佈局變動。
+ * 封存落点浮层的浮现条件（spec「拖曳封存落点以浮层呈现」）：仅拖曳**已就绪**
+ * 变更卡（名列 `readyIds`）时浮现——非就绪变更卡的拖曳＝纯排序，讨论卡不可
+ * 拖曳封存，两者皆不得造成任何布局变动。
  */
 export function archiveZoneVisible(
   activeDndId: string | null,
@@ -36,9 +36,9 @@ export function archiveZoneVisible(
 }
 
 /**
- * dragEnd 落點解析：active 與 over 屬**同一欄**的卡片時，回傳 arrayMove 後
- * 的前後鄰居（欄頂／欄底為 null）；跨欄、欄容器、封存落點、原位放開一律
- * 回 null——呼叫端不觸發任何寫回（spec「跨欄拖曳不改變變更階段」）。
+ * dragEnd 落点解析：active 与 over 属**同一栏**的卡片时，回传 arrayMove 后
+ * 的前后邻居（栏顶／栏底为 null）；跨栏、栏容器、封存落点、原位放开一律
+ * 回 null——调用端不触发任何写回（spec「跨栏拖曳不改变变更阶段」）。
  */
 export function resolveCardDrop(
   columns: ColumnCards[],
@@ -64,10 +64,10 @@ export function resolveCardDrop(
 }
 
 /**
- * 不合法落點集合（spec desktop-app「拖排時不合法落點灰化」）：拖動 `activeId` 期間，
- * 同欄中它的宣告前置及其上方所有卡（落在那裡會排到前置之前）、宣告依賴它的卡及
- * 其下方所有卡（落在那裡會排到依賴者之後）。只用 `deps`（每張卡的 dependsOn），
- * 不看 delta 重疊——重疊夥伴可互換先後。被拖卡不在欄內時沒有落點可標。
+ * 不合法落点集合（spec desktop-app「拖排时不合法落点灰化」）：拖动 `activeId` 期间，
+ * 同栏中它的声明前置及其上方所有卡（落在那里会排到前置之前）、声明依赖它的卡及
+ * 其下方所有卡（落在那里会排到依赖者之后）。只用 `deps`（每张卡的 dependsOn），
+ * 不看 delta 重叠——重叠伙伴可互换先后。被拖卡不在栏内时没有落点可标。
  */
 export function invalidDropTargets(
   column: ColumnCards,
@@ -78,9 +78,9 @@ export function invalidDropTargets(
   const out = new Set<string>();
   if (!ids.includes(activeId)) return out;
   const prereqs = deps.get(activeId) ?? [];
-  // 最靠下的前置：它與其上方全部不合法。
+  // 最靠下的前置：它与其上方全部不合法。
   let lowestPrereq = -1;
-  // 最靠上的依賴者：它與其下方全部不合法。
+  // 最靠上的依赖者：它与其下方全部不合法。
   let highestDependent = ids.length;
   ids.forEach((id, i) => {
     if (prereqs.includes(id)) lowestPrereq = Math.max(lowestPrereq, i);

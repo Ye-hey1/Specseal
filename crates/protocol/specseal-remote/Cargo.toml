@@ -1,0 +1,35 @@
+[package]
+name = "specseal-remote"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+specseal-core = { path = "../../engine/specseal-core" }
+specseal-host = { path = "../../host/specseal-host" }
+specseal-protocol = { path = "../specseal-protocol" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+anyhow.workspace = true
+ureq = { version = "2", features = ["json"] }
+# credential 唯一落点 OS Keychain（cli-desktop-credential-sharing）：仅激活
+# macOS/Windows 原生后端——其他平台退 keyring 内置 mock，桌面支持面即 macOS
+# Keychain／Windows Credential Manager。CLI 在无 keyring 的平台静默下探至 PAT。
+keyring = { version = "3", features = ["apple-native", "windows-native"] }
+# 换发的跨行进程列化锁：跨平台语意一致，胜过手写 flock。
+fs2 = "0.4"
+# 浏览器登录的 PKCE（client-browser-login D3）：S256 challenge、base64url 编码与
+# 操作系统的随机来源。三者都已由其他 crate 带进 lock 档，不另引 OAuth 函数库。
+sha2 = "0.10"
+base64 = "0.22"
+getrandom = "0.3"
+
+[dev-dependencies]
+tiny_http = "0.12"
+specseal-server = { path = "../../host/specseal-server" }
+specseal-store = { path = "../../store/specseal-store" }
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "net"] }
+chrono = { workspace = true }
+tempfile = "3"

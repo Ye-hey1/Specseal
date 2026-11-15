@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# 「價格顯示」這一個概念散在 src/price/ 的三個小模組，cart.js 與 checkout.js 各自重拼同一串呼叫
-# （friction 訊號 1：理解一個概念要在多個小模組之間跳）。
+# 「价格显示」这一个概念散在 src/price/ 的三个小模块，cart.js 与 checkout.js 各自重拼同一串调用
+# （friction 信号 1：理解一个概念要在多个小模块之间跳）。
 source "$(dirname "$0")/../fixtures.sh"
 eval_git_init
 eval_init

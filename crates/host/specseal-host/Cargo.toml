@@ -1,0 +1,23 @@
+[package]
+name = "specseal-host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Canonical Rust Host application layer: ExecutionContext, binding fail-closed validation, policy injection, lifecycle gate, TeamStore composition"
+
+[dependencies]
+specseal-core = { path = "../../engine/specseal-core" }
+specseal-protocol = { path = "../../protocol/specseal-protocol" }
+specseal-store = { path = "../../store/specseal-store" }
+specseal-store-port = { path = "../../store/specseal-store-port" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2 = "0.10"
+chrono.workspace = true
+percent-encoding = "2"
+serde_urlencoded = "0.7"
+
+[dev-dependencies]
+specseal-fs = { path = "../../engine/specseal-fs" }
+tempfile = "3"

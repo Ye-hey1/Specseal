@@ -1,10 +1,10 @@
-// WorkspaceSession 模型（workspace-session design 決策 1/3）：
-// 分頁身分＝WorkspaceLocator、locatorKey 為去重／持久化 activeKey／tray 識別
-// 的唯一身分函式。remote 變體的建構路徑是 WorkspaceChooser 的遠端開啟
+// WorkspaceSession 模型（workspace-session design 决策 1/3）：
+// 分页身分＝WorkspaceLocator、locatorKey 为去重／持久化 activeKey／tray 识别
+// 的唯一身分函数。remote 变体的建构路径是 WorkspaceChooser 的远程打开
 // （skip 或 folder 模式）→ remote_open handshake → createRemoteSession。
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen as tauriListen } from "@tauri-apps/api/event";
-import type { ReviewRules, SpeclinkDataSource } from "@speclink/ui";
+import type { ReviewRules, SpecsealDataSource } from "@specseal/ui";
 
 import { createRemoteDataSource } from "./adapter/remoteDataSource";
 import { createTauriDataSource } from "./adapter/tauriDataSource";
@@ -27,56 +27,56 @@ export type WorkspaceLocator =
       checkoutRoot?: string;
     };
 
-/** 分頁去重、持久化 activeKey 與 tray 選單識別的唯一身分（design 決策 1）：
- * local 為 local:{root}、remote 為 remote:{connectionId}/{projectId}/{repoId}
- * （checkoutRoot 屬工作副本位置、不參與身分）。 */
+/** 分页去重、持久化 activeKey 与 tray 菜单识别的唯一身分（design 决策 1）：
+ * local 为 local:{root}、remote 为 remote:{connectionId}/{projectId}/{repoId}
+ * （checkoutRoot 属工作副本位置、不参与身分）。 */
 export function locatorKey(locator: WorkspaceLocator): string {
   return locator.kind === "local"
     ? `local:${locator.root}`
     : `remote:${locator.connectionId}/${locator.projectId}/${locator.repoId}`;
 }
 
-/** 顯示資訊（§10.4 descriptor）：承接現有分頁顯示欄位（name、badge）。 */
+/** 显示信息（§10.4 descriptor）：承接现有分页显示字段（name、badge）。 */
 export interface WorkspaceDescriptor {
   name: string;
-  /** 待收尾數；null＝尚未取得。 */
+  /** 待收尾数；null＝尚未取得。 */
   badge: number | null;
 }
 
-/** 設定面（design 決策 3）：現 WorkspaceAdapter 設定面的 root 綁定版——
- * 方法不收 root，root 已綁入 session 閉包。 */
+/** 设置面（design 决策 3）：现 WorkspaceAdapter 设置面的 root 绑定版——
+ * 方法不收 root，root 已绑入 session 闭包。 */
 export interface WorkspaceSettingsProvider {
   kind: "local" | "remote";
-  /** remote 取自 handshake；local 固定為 true。server 仍是最終防線。 */
+  /** remote 取自 handshake；local 固定为 true。server 仍是最终防线。 */
   policyWrite: boolean;
   readSettings(): Promise<SettingsSnapshot>;
   writeAppTools(tools: string[]): Promise<void>;
-  /** remote 成功回新 revision；local 維持 void。 */
+  /** remote 成功回新 revision；local 维持 void。 */
   writeWorkflowConfig(fields: WorkflowFields): Promise<number | void>;
   writeWorkflowContext(context: string): Promise<number | void>;
   writeWorkflowRules(rules: Array<[string, string[]]>): Promise<number | void>;
-  /** 審查規則整塊代換（只寫 review 鍵）；remote 成功回新 revision、local 維持 void。 */
+  /** 审查规则整块代换（只写 review 键）；remote 成功回新 revision、local 维持 void。 */
   writeWorkflowReview(review: ReviewRules): Promise<number | void>;
-  /** 子代理模型整塊代換（只寫 subagent_model 鍵）；remote 成功回新 revision、local 維持 void。 */
+  /** 子代理模型整块代换（只写 subagent_model 键）；remote 成功回新 revision、local 维持 void。 */
   writeWorkflowSubagentModel(config: SubagentModelConfig): Promise<number | void>;
-  /** 產出流程清單（desktop-schema-panel D2）：local 三層、remote 僅內嵌內建。 */
+  /** 产出流程清单（desktop-schema-panel D2）：local 三层、remote 仅内嵌内置。 */
   readSchemas(): Promise<SchemaEntry[]>;
-  /** 切換專案 schema；remote 成功回新 revision、local 維持 void。 */
+  /** 切换项目 schema；remote 成功回新 revision、local 维持 void。 */
   writeWorkflowSchema(name: string): Promise<number | void>;
-  /** fork 到專案層（複本名固定為引擎預設 <source>-custom），回新 schema 名稱；
-   * remote 不支援（rejected Promise）。 */
+  /** fork 到项目层（复本名固定为引擎缺省 <source>-custom），回新 schema 名称；
+   * remote 不支持（rejected Promise）。 */
   forkSchema(source: string): Promise<string>;
-  /** 建立自訂 schema 骨架（D5；引擎預設佈局）；remote 不支援（rejected Promise）。 */
+  /** 创建自订 schema 骨架（D5；引擎缺省布局）；remote 不支持（rejected Promise）。 */
   createSchema(name: string): Promise<void>;
-  /** 在檔案管理器顯示 schema 目錄（D6；path 來自快照）；remote 不支援。 */
+  /** 在文件管理器显示 schema 目录（D6；path 来自快照）；remote 不支持。 */
   revealSchema(path: string): Promise<void>;
-  /** 刪除專案層自訂 schema（D7；使用中拒刪）；remote 不支援。 */
+  /** 删除项目层自订 schema（D7；使用中拒删）；remote 不支持。 */
   deleteSchema(name: string): Promise<void>;
 }
 
-/** 事件面（design 決策 5）：workspace-changed 以自身 locator 過濾後才觸發。 */
+/** 事件面（design 决策 5）：workspace-changed 以自身 locator 过滤后才触发。 */
 export interface WorkspaceEvents {
-  /** 訂閱過濾後的變更通知；回傳解除訂閱函式。 */
+  /** 订阅过滤后的变更通知；回传解除订阅函数。 */
   subscribe(onChange: () => void, onConnectionState?: (event: RemoteConnectionStateEvent) => void): () => void;
 }
 
@@ -88,9 +88,9 @@ export interface RemoteConnectionStateEvent {
   message: string | null;
 }
 
-/** 逐操作的 capability 描述（remote-data-source 決策 2）：UI 據此停用
- * affordance——欄位鏡射 Rust RemoteCapabilities 的 camelCase 序列化。
- * 本地 session 全真、同一 UI 路徑零分岐維護。 */
+/** 逐操作的 capability 描述（remote-data-source 决策 2）：UI 据此停用
+ * affordance——字段镜射 Rust RemoteCapabilities 的 camelCase 串行化。
+ * 本地 session 全真、同一 UI 路径零分岐维护。 */
 export interface WorkspaceCapabilities {
   listChanges: boolean;
   listSpecs: boolean;
@@ -115,17 +115,17 @@ export interface WorkspaceCapabilities {
   promoteDiscussion: boolean;
   archiveDiscussion: boolean;
   reorderCard: boolean;
-  /** 前置編輯（排程分頁的新增／移除）：local 真；remote 依 membership role（與 reorderCard 同源）。 */
+  /** 前置编辑（调度分页的添加／移除）：local 真；remote 依 membership role（与 reorderCard 同源）。 */
   setDepends: boolean;
-  /** 認領（RemoteOnly）：remote 依 membership role；local 固定為 false。 */
+  /** 认领（RemoteOnly）：remote 依 membership role；local 固定为 false。 */
   claim: boolean;
-  /** remote membership 是否可寫 policy；local 固定為 true。 */
+  /** remote membership 是否可写 policy；local 固定为 true。 */
   policyWrite: boolean;
-  /** server 是否宣告事件能力（SSE／polling）；缺席時退化為手動重整。 */
+  /** server 是否声明事件能力（SSE／polling）；缺席时退化为手动重整。 */
   liveUpdates: boolean;
 }
 
-/** 本地 session 的 capability 描述：全真（決策 2）。 */
+/** 本地 session 的 capability 描述：全真（决策 2）。 */
 export const LOCAL_CAPABILITIES: WorkspaceCapabilities = {
   listChanges: true,
   listSpecs: true,
@@ -151,25 +151,25 @@ export const LOCAL_CAPABILITIES: WorkspaceCapabilities = {
   archiveDiscussion: true,
   reorderCard: true,
   setDepends: true,
-  // claim 是 RemoteOnly 動詞——本地沒有共用者可撞工，連停用的入口都不長。
+  // claim 是 RemoteOnly 动词——本地没有共用者可撞工，连停用的入口都不长。
   claim: false,
   policyWrite: true,
   liveUpdates: true,
 };
 
-/** WorkspaceSession（§10.4 全欄位）：id 以 locatorKey 衍生——同 locator 同
- * session（獨立 id 留給多視窗需求出現時）。 */
+/** WorkspaceSession（§10.4 全字段）：id 以 locatorKey 衍生——同 locator 同
+ * session（独立 id 留给多窗口需求出现时）。 */
 export interface WorkspaceSession {
   id: string;
   locator: WorkspaceLocator;
   descriptor: WorkspaceDescriptor;
-  dataSource: SpeclinkDataSource;
+  dataSource: SpecsealDataSource;
   settings: WorkspaceSettingsProvider;
   events: WorkspaceEvents;
   capabilities: WorkspaceCapabilities;
-  /** handshake 原始 capability；offline mask 解除時由此精確還原。 */
+  /** handshake 原始 capability；offline mask 解除时由此精确还原。 */
   baseCapabilities?: WorkspaceCapabilities;
-  /** local 為缺席；remote 初始 online，之後只接受 Rust 事件更新。 */
+  /** local 为缺席；remote 初始 online，之后只接受 Rust 事件更新。 */
   connectionState?: RemoteConnectionStateEvent;
 }
 
@@ -180,23 +180,23 @@ export type ListenFn = (
 ) => Promise<() => void>;
 
 export interface LocalSessionDeps {
-  /** 測試注入假 invoke；預設 Tauri invoke。 */
+  /** 测试注入假 invoke；缺省 Tauri invoke。 */
   invoke?: InvokeFn;
-  /** 測試注入假 listen；預設 Tauri listen。 */
+  /** 测试注入假 listen；缺省 Tauri listen。 */
   listen?: ListenFn;
-  /** 顯示名（探測回報）；未給時以 root 末段推導。 */
+  /** 显示名（探测回报）；未给时以 root 末段推导。 */
   name?: string;
 }
 
-/** root 末段作為預設顯示名（Windows 反斜線與 POSIX 斜線皆可）。 */
+/** root 末段作为缺省显示名（Windows 反斜线与 POSIX 斜线皆可）。 */
 function basenameOf(root: string): string {
   const trimmed = root.replace(/[\\/]+$/, "");
   return trimmed.split(/[\\/]/).pop() || root;
 }
 
-/** local session 工廠（design 決策 3）：root 綁入 dataSource／settings 閉包，
- * events 訂閱 workspace-changed 並以自身 root 過濾 payload（決策 5）——
- * 非活躍 session 的訂閱者天然收不到（watcher 只掛在活躍 root）。 */
+/** local session 工厂（design 决策 3）：root 绑入 dataSource／settings 闭包，
+ * events 订阅 workspace-changed 并以自身 root 过滤 payload（决策 5）——
+ * 非活跃 session 的订阅者天然收不到（watcher 只挂在活跃 root）。 */
 export function createLocalSession(root: string, deps: LocalSessionDeps = {}): WorkspaceSession {
   const invoke = deps.invoke ?? (tauriInvoke as InvokeFn);
   const listen = deps.listen ?? (tauriListen as unknown as ListenFn);
@@ -221,8 +221,8 @@ export function createLocalSession(root: string, deps: LocalSessionDeps = {}): W
   };
 }
 
-/** remote_open 的回傳 payload（Rust RemoteOpenInfo 的 camelCase 序列化）：
- * handshake 裁定後的 project/repo 識別、顯示名與 capability 描述。 */
+/** remote_open 的回传 payload（Rust RemoteOpenInfo 的 camelCase 串行化）：
+ * handshake 裁定后的 project/repo 识别、显示名与 capability 描述。 */
 export interface RemoteOpenInfo {
   projectKey: string;
   projectName: string;
@@ -256,8 +256,8 @@ export type RemoteWorkspaceStatus =
   | "needs-reauth"
   | "error";
 
-/** 主視窗 tab、復原頁與 Tray 共用的單一狀態裁決。無 session 且無明確
- * recovery state 是不完整狀態，安全降階為 error，絕不偽裝成 ready。 */
+/** 主窗口 tab、复原页与 Tray 共用的单一状态裁决。无 session 且无明确
+ * recovery state 是不完整状态，安全降阶为 error，绝不伪装成 ready。 */
 export function remoteWorkspaceStatus(
   session: WorkspaceSession | undefined,
   recovery: RemoteWorkspaceRecoveryState | undefined,
@@ -291,8 +291,8 @@ function structuredRemoteOpenFailure(
   };
 }
 
-/** 將 Tauri object rejection 與舊版 string/Error rejection 收斂成封閉分類。
- * `message` 僅保留作 technical detail，分類永不比對其文字。 */
+/** 将 Tauri object rejection 与旧版 string/Error rejection 收敛成封闭分类。
+ * `message` 仅保留作 technical detail，分类永不比对其文本。 */
 export function normalizeRemoteOpenFailure(error: unknown): RemoteOpenFailure {
   if (error instanceof RemoteOpenError) return error.failure;
   const failure = structuredRemoteOpenFailure(error);
@@ -389,10 +389,10 @@ function isRemoteConnectionStateEvent(payload: unknown): payload is RemoteConnec
   );
 }
 
-/** remote session 工廠（決策 6/7）：以 remote_open（handshake）的結果建
- * session——handshake 成功是建立前置，這裡不再打 server。dataSource 為
- * remote_* 的薄 invoke 包裝；事件面訂閱時掛 remote_watch（Rust 端同
- * connection 同 scope 共用單流）、以 locator key 過濾 payload，解除時
+/** remote session 工厂（决策 6/7）：以 remote_open（handshake）的结果建
+ * session——handshake 成功是创建前置，这里不再打 server。dataSource 为
+ * remote_* 的薄 invoke 包装；事件面订阅时挂 remote_watch（Rust 端同
+ * connection 同 scope 共用单流）、以 locator key 过滤 payload，解除时
  * remote_unwatch。 */
 export function createRemoteSession(
   connectionId: string,

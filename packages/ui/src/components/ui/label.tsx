@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-/** 表單標籤。原生 `<label>`（`htmlFor` 已提供點擊聚焦與可存取關聯，毋需 Radix）。 */
+/** 表单标签。原生 `<label>`（`htmlFor` 已提供点击聚焦与可访问关联，毋需 Radix）。 */
 export const Label = React.forwardRef<
   HTMLLabelElement,
   React.LabelHTMLAttributes<HTMLLabelElement>

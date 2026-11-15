@@ -3,41 +3,41 @@ import type { EngineInterface, Register, RenderChildren } from 'claude-code'
 
 import type { Board, Detail, Focus, Lang, PanelChange, PanelDiscussion, PanelTab, PanelView, Quality, Skill, Ticket } from '../types'
 
-import { buildBoard, discussionBody, isNoTicket, parseTasks, proposedRows, speclinkArgv, toTicket } from './board'
+import { buildBoard, discussionBody, isNoTicket, parseTasks, proposedRows, specsealArgv, toTicket } from './board'
 import type { DiscussJson, DiscussShowJson, ListJson, PlanJson, ShowJson, StatusJson, TicketJson } from './board'
-import { afterPrompt, commandChange, focusFromHistory, focusFromTitle, PLAIN_TITLE, speclinkCommand, titleOf, withVerb } from './focus'
+import { afterPrompt, commandChange, focusFromHistory, focusFromTitle, PLAIN_TITLE, specsealCommand, titleOf, withVerb } from './focus'
 import type { GroupId } from './groups'
 import { commandHead, groupSkills, PREFIX, withArgument, withCommand } from './skills'
 import { resolveLang, TEXT } from './text'
 
-const PANE = 'speclink-panel'
-const PANEL_COMMAND = 'speclink-panel'
-const skills = atom({ plugin: 'speclink-skills', key: 'skills' } as const, [] as Skill[])
-const tab = atom({ plugin: 'speclink-skills', key: 'tab' } as const, '')
-const board = atom({ plugin: 'speclink-skills', key: 'board' } as const, null as Board | null)
-const lang = atom({ plugin: 'speclink-skills', key: 'lang' } as const, 'en' as Lang)
-const view = atom({ plugin: 'speclink-skills', key: 'view' } as const, { tab: 'board', closed: [], open: [] } as PanelView)
-const details = atom({ plugin: 'speclink-skills', key: 'details' } as const, {} as Record<string, Detail>)
-const quality = atom({ plugin: 'speclink-skills', key: 'quality' } as const, null as Quality | null)
-// 這個 session 正在跑的步驟與 change，畫在技能列上，也拿來當 session 標題。
-const focus = atom({ plugin: 'speclink-skills', key: 'focus' } as const, { verb: null, change: null } as Focus)
+const PANE = 'specseal-panel'
+const PANEL_COMMAND = 'specseal-panel'
+const skills = atom({ plugin: 'specseal-skills', key: 'skills' } as const, [] as Skill[])
+const tab = atom({ plugin: 'specseal-skills', key: 'tab' } as const, '')
+const board = atom({ plugin: 'specseal-skills', key: 'board' } as const, null as Board | null)
+const lang = atom({ plugin: 'specseal-skills', key: 'lang' } as const, 'en' as Lang)
+const view = atom({ plugin: 'specseal-skills', key: 'view' } as const, { tab: 'board', closed: [], open: [] } as PanelView)
+const details = atom({ plugin: 'specseal-skills', key: 'details' } as const, {} as Record<string, Detail>)
+const quality = atom({ plugin: 'specseal-skills', key: 'quality' } as const, null as Quality | null)
+// 这个 session 正在跑的步骤与 change，画在技能列上，也拿来当 session 标题。
+const focus = atom({ plugin: 'specseal-skills', key: 'focus' } as const, { verb: null, change: null } as Focus)
 
-// 已知的 change 名稱與 worktree 資料夾（`speclink list`），用來從指令裡認出 change。
+// 已知的 change 名称与 worktree 文件夹（`specseal list`），用来从指令里认出 change。
 let known: { names: string[]; worktrees: { name: string; path: string }[]; loadedAt: number } = { names: [], worktrees: [], loadedAt: 0 }
-// /clear 帶過來的標題是這個 mod 設的：下一次送出時改回「Claude Code」（/clear 當下引擎不讓 mod 改標題）。
+// /clear 带过来的标题是这个 mod 设的：下一次送出时改回「Claude Code」（/clear 当下引擎不让 mod 改标题）。
 let staleTitle = false
-// 送出的技能指令換掉焦點之前的那一個；模型開始跑工具時清掉。這一輪在那之前就被 Esc 中斷，焦點回到它。
+// 送出的技能指令换掉焦点之前的那一个；模型开始跑工具时清掉。这一轮在那之前就被 Esc 中断，焦点回到它。
 let undo: Focus | null = null
-// 輸入框 `#` 選單用的 change 與階段（`speclink plan`）。每打一個字都會問一次，5 秒內用同一份。
+// 输入框 `#` 菜单用的 change 与阶段（`specseal plan`）。每打一个字都会问一次，5 秒内用同一份。
 let planned: { changes: PlanJson['changes']; loadedAt: number } = { changes: [], loadedAt: 0 }
 
-// 上一次回報給 Herdr 的 change。undefined 是還沒回報過。
+// 上一次回报给 Herdr 的 change。undefined 是还没回报过。
 let reported: string | null | undefined
 
-// 用 `$` 的函式都留在這個檔：`$` 只能傳進同檔宣告的函式，不能跨 import。
+// 用 `$` 的函数都留在这个档：`$` 只能传进同档声明的函数，不能跨 import。
 
-// 在 Herdr 的終端機裡，把目前的 change 寫成標籤，Herdr 面板才能和技能列同步：標題只有送出訊息時才能改。
-// 沒有 change 也要寫（`-`），面板才知道不用再看標題。不在 Herdr 裡就什麼都不做，回報失敗也不影響技能列。
+// 在 Herdr 的终端机里，把目前的 change 写成标签，Herdr 面板才能和技能列同步：标题只有送出消息时才能改。
+// 没有 change 也要写（`-`），面板才知道不用再看标题。不在 Herdr 里就什么都不做，回报失败也不影响技能列。
 const reportFocus = async ($: EngineInterface, change: string | null) => {
   if (reported === change) {
     return
@@ -45,7 +45,7 @@ const reportFocus = async ($: EngineInterface, change: string | null) => {
   reported = change
   const terminal = await $.env.get('HC_TERMINAL_ID')
   if (terminal !== undefined && terminal !== '') {
-    await $.process.run(['hc', 'label', terminal, `speclink.focus=${change ?? '-'}`]).catch(() => undefined)
+    await $.process.run(['hc', 'label', terminal, `specseal.focus=${change ?? '-'}`]).catch(() => undefined)
   }
 }
 
@@ -61,7 +61,7 @@ const refresh = async ($: EngineInterface) => {
   await update($, skills, () => found)
 }
 
-// 語言、面板指令與技能清單都跟著 session 走。
+// 语言、面板指令与技能清单都跟着 session 走。
 const setup = async ($: EngineInterface, language: unknown) => {
   const chosen = resolveLang(language, (await $.settings.read()).language)
   await update($, lang, () => chosen)
@@ -70,10 +70,10 @@ const setup = async ($: EngineInterface, language: unknown) => {
   await loadKnown($)
 }
 
-// 讀不到（不是 speclink 專案、沒裝 CLI）就當作沒有 change。
+// 读不到（不是 specseal 项目、没装 CLI）就当作没有 change。
 const loadKnown = async ($: EngineInterface) => {
   try {
-    const list = await speclinkJson<ListJson>($, ['list'])
+    const list = await specsealJson<ListJson>($, ['list'])
     known = {
       names: list.changes.map(c => c.name),
       worktrees: list.changes.flatMap(c => (c.worktree === undefined ? [] : [{ name: c.name, path: c.worktree.path }])),
@@ -84,10 +84,10 @@ const loadKnown = async ($: EngineInterface) => {
   }
 }
 
-// 讀不到時當作沒有 change，選單不出現。
+// 读不到时当作没有 change，菜单不出现。
 const loadPlanned = async ($: EngineInterface) => {
   if (Date.now() - planned.loadedAt > 5_000) {
-    const changes = await speclinkJson<PlanJson>($, ['plan']).then(
+    const changes = await specsealJson<PlanJson>($, ['plan']).then(
       p => p.changes,
       () => [],
     )
@@ -96,8 +96,8 @@ const loadPlanned = async ($: EngineInterface) => {
   return planned.changes
 }
 
-// 還不知道焦點時（剛開 session、/resume 接回）：在某個 change 的 worktree 裡開的 session 就是那個
-// change；否則從對話紀錄找最後的步驟與 change，再找不到就看 session 標題是不是這個 mod 設的。
+// 还不知道焦点时（刚开 session、/resume 接回）：在某个 change 的 worktree 里开的 session 就是那个
+// change；否则从对话纪录找最后的步骤与 change，再找不到就看 session 标题是不是这个 mod 设的。
 const recall = async ($: EngineInterface, title?: string) => {
   const current = await read($, focus)
   if (current.verb !== null || current.change !== null) {
@@ -111,12 +111,12 @@ const recall = async ($: EngineInterface, title?: string) => {
   return found
 }
 
-// speclink 指令跑完後認 change；認不出來時可能是剛建的 change，重讀一次清單（最多每 10 秒一次）。
-// 封存指令跑完也重讀：change 從清單消失就是封存好了，標上 ✓。名稱要用封存前的清單認。
+// specseal 指令跑完后认 change；认不出来时可能是刚建的 change，重读一次清单（最多每 10 秒一次）。
+// 封存指令跑完也重读：change 从清单消失就是封存好了，标上 ✓。名称要用封存前的清单认。
 const noteCommand = async ($: EngineInterface, command: string) => {
   const current = await read($, focus)
   let change = commandChange(current, command, known.names)
-  const archiving = /(^|[\s;&|(])speclink\s+archive\b/.test(command)
+  const archiving = /(^|[\s;&|(])specseal\s+archive\b/.test(command)
   if (archiving || (change === null && Date.now() - known.loadedAt > 10_000)) {
     await loadKnown($)
     change ??= commandChange(current, command, known.names)
@@ -140,17 +140,17 @@ const putArgument = async ($: EngineInterface, arg: string) => {
   await $.prompt.fill({ text: withArgument(text, arg) })
 }
 
-// worktree 裡的 change 要在它的資料夾跑，才讀得到它那份 tasks.md。
-const runSpeclink = async ($: EngineInterface, args: string[], cwd: string | null = null) => {
+// worktree 里的 change 要在它的文件夹跑，才读得到它那份 tasks.md。
+const runSpecseal = async ($: EngineInterface, args: string[], cwd: string | null = null) => {
   const isWindows = (await $.env.get('OS')) === 'Windows_NT'
-  return $.process.run(speclinkArgv([...args, '--json'], isWindows), cwd === null ? undefined : { cwd })
+  return $.process.run(specsealArgv([...args, '--json'], isWindows), cwd === null ? undefined : { cwd })
 }
 
 const failure = (args: string[], ran: { exitCode: number; stderr: string }) =>
-  new Error(`speclink ${args.join(' ')}: ${ran.stderr.trim() || `exit ${ran.exitCode}`}`)
+  new Error(`specseal ${args.join(' ')}: ${ran.stderr.trim() || `exit ${ran.exitCode}`}`)
 
-const speclinkJson = async <T,>($: EngineInterface, args: string[], cwd: string | null = null): Promise<T> => {
-  const ran = await runSpeclink($, args, cwd)
+const specsealJson = async <T,>($: EngineInterface, args: string[], cwd: string | null = null): Promise<T> => {
+  const ran = await runSpecseal($, args, cwd)
   if (ran.exitCode !== 0) {
     throw failure(args, ran)
   }
@@ -159,14 +159,14 @@ const speclinkJson = async <T,>($: EngineInterface, args: string[], cwd: string 
 
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
-// 讀取失敗時保留上一份資料，並記下原因。
+// 读取失败时保留上一份数据，并记下原因。
 const loadBoard = async ($: EngineInterface, last: Board | null): Promise<Board> => {
   const loadedAt = new Date().toISOString()
   try {
     const [list, plan, talk] = await Promise.all([
-      speclinkJson<ListJson>($, ['list']),
-      speclinkJson<PlanJson>($, ['plan']),
-      speclinkJson<DiscussJson>($, ['discuss', 'list']),
+      specsealJson<ListJson>($, ['list']),
+      specsealJson<PlanJson>($, ['plan']),
+      specsealJson<DiscussJson>($, ['discuss', 'list']),
     ])
     return { ...buildBoard(list, plan, talk), loadedAt, error: null }
   } catch (err) {
@@ -174,7 +174,7 @@ const loadBoard = async ($: EngineInterface, last: Board | null): Promise<Board>
   }
 }
 
-// 展開一列時才讀：change 讀文件狀態與任務，討論讀內文。重讀時先留著舊內容，畫面不閃。
+// 展开一列时才读：change 读文档状态与任务，讨论读内文。重读时先留着旧内容，画面不闪。
 const loadDetail = async ($: EngineInterface, id: string) => {
   await update($, details, d => (d[id] === undefined ? { ...d, [id]: { kind: 'loading' as const } } : d))
   let detail: Detail
@@ -183,8 +183,8 @@ const loadDetail = async ($: EngineInterface, id: string) => {
       const name = id.slice('change:'.length)
       const cwd = (await read($, board))?.changes.find(c => c.name === name)?.cwd ?? null
       const [shown, status] = await Promise.all([
-        speclinkJson<ShowJson>($, ['show', name], cwd),
-        speclinkJson<StatusJson>($, ['status', '--change', name], cwd),
+        specsealJson<ShowJson>($, ['show', name], cwd),
+        specsealJson<StatusJson>($, ['status', '--change', name], cwd),
       ])
       detail = {
         kind: 'change',
@@ -192,7 +192,7 @@ const loadDetail = async ($: EngineInterface, id: string) => {
         groups: parseTasks(shown.tasks),
       }
     } else {
-      const shown = await speclinkJson<DiscussShowJson>($, ['discuss', 'show', id.slice('talk:'.length)])
+      const shown = await specsealJson<DiscussShowJson>($, ['discuss', 'show', id.slice('talk:'.length)])
       detail = { kind: 'talk', body: discussionBody(shown.content) }
     }
   } catch (err) {
@@ -201,10 +201,10 @@ const loadDetail = async ($: EngineInterface, id: string) => {
   await update($, details, d => ({ ...d, [id]: detail }))
 }
 
-// 沒有工單時 CLI 以失敗回報，算「沒有」；其他失敗才是錯誤。
+// 没有工单时 CLI 以失败回报，算「没有」；其他失败才是错误。
 const ticketOf = async ($: EngineInterface, station: 'review' | 'verify', change: string, cwd: string | null) => {
   const args = [station, 'show', change]
-  const ran = await runSpeclink($, args, cwd)
+  const ran = await runSpecseal($, args, cwd)
   if (ran.exitCode === 0) {
     return toTicket(JSON.parse(ran.stdout) as TicketJson)
   }
@@ -214,7 +214,7 @@ const ticketOf = async ($: EngineInterface, station: 'review' | 'verify', change
   throw failure(args, ran)
 }
 
-// 每個 change 各問一次 review 與 verify，所以只在品質分頁開著時讀。
+// 每个 change 各问一次 review 与 verify，所以只在品质分页开着时读。
 const loadQuality = async ($: EngineInterface) => {
   const changes = (await read($, board))?.changes ?? []
   let loaded: Quality
@@ -235,11 +235,11 @@ const loadQuality = async ($: EngineInterface) => {
   await update($, quality, () => loaded)
 }
 
-// 按鈕不等這些讀完：讀取跑超過 10 秒，按鈕會被引擎判逾時。
+// 按钮不等这些读完：读取跑超过 10 秒，按钮会被引擎判逾时。
 const toggleRow = async ($: EngineInterface, id: string) => {
   const opening = !(await read($, view)).open.includes(id)
   await update($, view, v => ({ ...v, open: opening ? [...v.open, id] : v.open.filter(o => o !== id) }))
-  // ticket 列的發現已在品質資料裡，不用另外讀。
+  // ticket 列的发现已在品质数据里，不用另外读。
   if (opening && !id.startsWith('ticket:')) {
     await loadDetail($, id)
   }
@@ -257,7 +257,7 @@ const chooseTab = async ($: EngineInterface, tab: PanelTab) => {
 
 const isPanelOpen = async ($: EngineInterface) => (await $.ui.panes()).some(p => p.id === PANE)
 
-// 展開中的列與品質分頁跟著重讀；不等它們，免得拖住呼叫的 hook。
+// 展开中的列与品质分页跟着重读；不等它们，免得拖住调用的 hook。
 const refreshBoard = async ($: EngineInterface) => {
   const loaded = await loadBoard($, await read($, board))
   await update($, board, () => loaded)
@@ -274,18 +274,18 @@ const refreshBoard = async ($: EngineInterface) => {
   }
 }
 
-// 回傳切換後面板是否開著。
+// 回传切换后面板是否开着。
 const togglePanel = async ($: EngineInterface) => {
   if (await isPanelOpen($)) {
     await $.ui.close({ id: PANE })
     return false
   }
-  await $.ui.open({ id: PANE, title: 'speclink' })
+  await $.ui.open({ id: PANE, title: 'specseal' })
   await refreshBoard($)
   return true
 }
 
-// 分頁顏色用主題色鍵，跟著使用者的深淺主題走。
+// 分页颜色用主题色键，跟着用户的深浅主题走。
 const GROUP_COLOR: Record<GroupId, string> = {
   plan: 'merged',
   build: 'ide',
@@ -308,7 +308,7 @@ const STAGES = [
 const cut = (text: string, room: number) =>
   text.length <= room ? text : `${text.slice(0, Math.max(1, room - 1))}…`
 
-// 文字在終端機佔幾格：中日韓文字（U+2E80 起）一個字兩格。
+// 文本在终端机占几格：中日韩文本（U+2E80 起）一个字两格。
 export const cells = (text: string) => [...text].reduce((n, ch) => n + (ch.codePointAt(0)! >= 0x2e80 ? 2 : 1), 0)
 
 const mini = (done: number, total: number) => {
@@ -327,10 +327,10 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // `/clear`、`/resume` 換成另一個 session，卻不發 session.start；技能清單空著，技能列就整列不畫。
-  // 面板留在畫面上，資料卻是新 session 的（空的），開著就重讀，否則會一直停在「讀取中」。
-  // /clear：新 session 沒有焦點；Claude Code 會把舊標題帶過來，是這個 mod 設的就在下一次送出時改回
-  // 「Claude Code」，你自己取的不動。/resume：接回的 session 帶著它的標題，從標題找回步驟與 change。
+  // `/clear`、`/resume` 换成另一个 session，却不发 session.start；技能清单空着，技能列就整列不画。
+  // 面板留在画面上，数据却是新 session 的（空的），开着就重读，否则会一直停在「读取中」。
+  // /clear：新 session 没有焦点；Claude Code 会把旧标题带过来，是这个 mod 设的就在下一次送出时改回
+  // 「Claude Code」，你自己取的不动。/resume：接回的 session 带着它的标题，从标题找回步骤与 change。
   on('classic.SessionStart', async ($, e, next) => {
     if (e.source !== 'clear' && e.source !== 'resume') {
       return next(e)
@@ -345,14 +345,14 @@ export const register: Register = (on, options) => {
     } else if (fromTitle !== null) {
       await setFocus($, f => (f.verb === null && f.change === null ? fromTitle : f))
     }
-    // /clear、/resume 換了 session，焦點也跟著換。
+    // /clear、/resume 换了 session，焦点也跟着换。
     await reportFocus($, (await read($, focus)).change)
 
     return next(e)
   })
 
-  // `speclink update` 可能在 session 中途增減技能；這一輪也可能動到面板上的 change。送出技能指令後
-  // 還沒跑任何工具就按了 Esc：那一步沒有開始，技能列回到原本的焦點（標題等下一次送出才改得回來）。
+  // `specseal update` 可能在 session 中途增减技能；这一轮也可能动到面板上的 change。送出技能指令后
+  // 还没跑任何工具就按了 Esc：那一步没有开始，技能列回到原本的焦点（标题等下一次送出才改得回来）。
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (e.agentId === undefined) {
@@ -370,11 +370,11 @@ export const register: Register = (on, options) => {
     return done
   })
 
-  // 一輪做到一半的 `speclink task done`（或任何 speclink 呼叫）立刻反映到面板；指令裡的 change 名稱
-  // 就是這個 session 正在處理的 change。subagent 的指令（帶 agentId）不算。
+  // 一轮做到一半的 `specseal task done`（或任何 specseal 调用）立刻反映到面板；指令里的 change 名称
+  // 就是这个 session 正在处理的 change。subagent 的指令（带 agentId）不算。
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
-    const command = speclinkCommand(e.command)
+    const command = specsealCommand(e.command)
     if (command !== null) {
       if (e.agentId === undefined) {
         await noteCommand($, command)
@@ -387,7 +387,7 @@ export const register: Register = (on, options) => {
     return ran
   }).catch(($, e, next) => next(e))
 
-  // 主對話開始跑工具，送出的那一步就算開始了，之後被中斷也不回到上一步。
+  // 主对话开始跑工具，送出的那一步就算开始了，之后被中断也不回到上一步。
   on('tool.call', async ($, e, next) => {
     if (e.agentId === undefined) {
       undo = null
@@ -396,7 +396,7 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
-  // 模型自己呼叫的 speclink 技能（例如 quality 裡接著跑 review）：換成那一步。
+  // 模型自己调用的 specseal 技能（例如 quality 里接着跑 review）：换成那一步。
   on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
     if (e.agentId === undefined && e.skill.startsWith(PREFIX)) {
       await setFocus($, f => withVerb(f, e.skill.slice(PREFIX.length)))
@@ -405,9 +405,9 @@ export const register: Register = (on, options) => {
     return next(e)
   }).catch(($, e, next) => next(e))
 
-  // 你送出訊息時：speclink 技能指令換成新的步驟；然後把「步驟 · change」設成 session 標題，Warp
-  // 側欄的分頁名稱就是它。標題只能在送出訊息與開 session 時改，所以技能中途才認出的 change，
-  // 要到下一次送出才會出現在標題上。
+  // 你送出消息时：specseal 技能指令换成新的步骤；然后把「步骤 · change」设成 session 标题，Warp
+  // 侧栏的分页名称就是它。标题只能在送出消息与开 session 时改，所以技能中途才认出的 change，
+  // 要到下一次送出才会出现在标题上。
   on('classic.UserPromptSubmit', async ($, e, next) => {
     const done = await next(e)
     const before = staleTitle ? await read($, focus) : await recall($, e.session_title)
@@ -422,7 +422,7 @@ export const register: Register = (on, options) => {
     return title === null ? done : { ...done, sessionTitle: title }
   }).catch(($, e, next) => next(e))
 
-  // 輸入框打 `#`：下拉選單列出提案中的 change，選了就填入名稱，例如 `/speclink-apply #` 再選一個。
+  // 输入框打 `#`：下拉列表列出提案中的 change，选了就填入名称，例如 `/specseal-apply #` 再选一个。
   on('prompt.autocomplete', { token: /^#/ }, async ($, e, next) => {
     const below = await next(e)
     const t = TEXT[await read($, lang)]
@@ -437,9 +437,9 @@ export const register: Register = (on, options) => {
     return { text: isOpen ? t.panelOpened : t.panelClosed }
   })
 
-  // 上方空一列，和 Claude Code 自己的訊息分開。每個分頁前面一顆同色圓點，選中的
-  // 分頁是有底色的膠囊；沒選中的左右各留一格，切換分頁時位置不會跳動。滑鼠移到技能上，
-  // 技能和技能列右邊的說明同屬一個 hover scope，一起亮起來；說明平常藏著，不佔位置。
+  // 上方空一列，和 Claude Code 自己的消息分开。每个分页前面一颗同色圆点，选中的
+  // 分页是有底色的胶囊；没选中的左右各留一格，切换分页时位置不会跳动。鼠标移到技能上，
+  // 技能和技能列右边的说明同属一个 hover scope，一起亮起来；说明平常藏着，不占位置。
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const below = await next(e)
     const installed = await read($, skills)
@@ -453,7 +453,7 @@ export const register: Register = (on, options) => {
     const chosen = await read($, tab)
     const current = groups.find(g => g.id === chosen) ?? groups[0]!
     const color = GROUP_COLOR[current.id]
-    // 合併鈕沒有自己的 description，只列指令，不分語言。
+    // 合并钮没有自己的 description，只列指令，不分语言。
     const about = (skill: string) =>
       skill.includes('+')
         ? skill.split('+').map(commandHead).join(' → ')
@@ -482,7 +482,7 @@ export const register: Register = (on, options) => {
       </Box>
     )
     const panelButton = <Button key="panel" label={`◧ ${t.panel}`} plain dimColor onPress={() => togglePanel($)} />
-    // 這個 session 正在跑的步驟與 change：「▸ apply · add-x」，步驟用它所在分頁的顏色。
+    // 这个 session 正在跑的步骤与 change：「▸ apply · add-x」，步骤用它所在分页的颜色。
     const now = await read($, focus)
     const nowGroup = groups.find(g => now.verb !== null && g.skills.includes(now.verb))
     const nowLine = (now.verb !== null || now.change !== null) && (
@@ -512,12 +512,12 @@ export const register: Register = (on, options) => {
       </Box>
     )
 
-    // 第一列是「speclink」與目前在處理的步驟、change，下面一列分頁與面板鈕，再下面一列技能。技能列的
-    // 寬度（終端機扣掉引擎右邊放 [-] 的五格）放不下「分頁 │ 面板」時改窄版：面板鈕移到第一列最右邊，
-    // 分頁不會從中間拆開。窄版右邊沒有地方放技能說明，所以不顯示。
+    // 第一列是「specseal」与目前在处理的步骤、change，下面一列分页与面板钮，再下面一列技能。技能列的
+    // 宽度（终端机扣掉引擎右边放 [-] 的五格）放不下「分页 │ 面板」时改窄版：面板钮移到第一列最右边，
+    // 分页不会从中间拆开。窄版右边没有地方放技能说明，所以不显示。
     const title = (
       <Box columnGap={2} flexShrink={1}>
-        <Text dimColor>speclink</Text>
+        <Text dimColor>specseal</Text>
         {nowLine}
       </Box>
     )
@@ -580,7 +580,7 @@ export const register: Register = (on, options) => {
       <Button key={`open:${id}`} label={isOpen(id) ? '▾' : '▸'} plain dimColor onPress={() => void toggleRow($, id)} />
     )
 
-    // 可收合的區塊：`▾ 提案中 8`，點 ▾ 收起、點 ▸ 打開。
+    // 可收合的区块：`▾ 提案中 8`，点 ▾ 收起、点 ▸ 打开。
     const section = (id: string, title: string, color: string | undefined, rows: RenderChildren[]) => {
       const closed = v.closed.includes(id)
       return (
@@ -606,7 +606,7 @@ export const register: Register = (on, options) => {
         </Text>
       ) : null
 
-    // 展開的 change：文件打勾，再列任務（已勾的畫暗，手動任務標出來）。
+    // 展开的 change：文档打勾，再列任务（已勾的画暗，手动任务标出来）。
     const changeDetail = (c: PanelChange) => {
       const detail = shown[`change:${c.name}`]
       return (
@@ -701,7 +701,7 @@ export const register: Register = (on, options) => {
       )
     }
 
-    // `審查 第 2 輪 · 1 CRITICAL 2 WARNING`
+    // `审查 第 2 轮 · 1 CRITICAL 2 WARNING`
     const ticketLine = (label: string, ticket: Ticket | null) => (
       <Text wrap="truncate-end">
         <Text dimColor>{`   ${label}  `}</Text>

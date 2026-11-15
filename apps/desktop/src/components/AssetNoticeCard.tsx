@@ -1,8 +1,8 @@
-// 技能檔提示卡（desktop-app spec「指令檔過期提示」；desktop-notice-relocation design D1）：
-// 專案欄底部、專案設定項上方的常駐卡——琥珀淡底、一句標題、一句說明、›；整張可點，開
-// 確認框。提示是「這個專案」的事，住在專案欄而非主區：主區不再為它扣高度或釘選。
+// 技能档提示卡（desktop-app spec「指令档过期提示」；desktop-notice-relocation design D1）：
+// 项目栏底部、项目设置项上方的常驻卡——琥珀淡底、一句标题、一句说明、›；整张可点，开
+// 确认框。提示是「这个项目」的事，住在项目栏而非主区：主区不再为它扣高度或钉选。
 import { AlertCircle, ChevronRight } from "lucide-react";
-import { SEMANTIC_SURFACE, SEMANTIC_TONE, cn, useI18n, type Translator } from "@speclink/ui";
+import { SEMANTIC_SURFACE, SEMANTIC_TONE, cn, useI18n, type Translator } from "@specseal/ui";
 
 import type { AssetPromptState } from "../assetPrompt";
 
@@ -36,17 +36,17 @@ export function AssetNoticeCard({ prompt, onOpen }: AssetNoticeCardProps) {
   );
 }
 
-/** 卡片的標題與說明：技能檔三態代入檔案數；只剩規格資料夾待遷移時說明會改名什麼
+/** 卡片的标题与说明：技能档三态代入文件数；只剩规格文件夹待迁移时说明会改名什么
  * （desktop-spec-dir-migration D2）。 */
 function cardText(prompt: AssetPromptState, t: Translator["t"], tn: Translator["tn"]) {
   const { kind, migration } = prompt;
   if (kind !== "migrate") {
-    // remote 專案的過期是「和 Server 提供的不同」，不一定比較舊。
+    // remote 项目的过期是「和 Server 提供的不同」，不一定比较旧。
     const title = prompt.server && kind === "stale" ? "assets.card.serverStaleTitle" : `assets.card.${kind}Title`;
     return { title: t(title), desc: tn(`assets.card.${kind}Desc`, prompt.fileCount) };
   }
   const desc =
-    migration.state === "pending" && migration.folder === "speclink"
+    migration.state === "pending" && migration.folder === "specseal"
       ? tn("assets.card.migrateFilesDesc", migration.metaFiles)
       : t("assets.card.migrateDesc");
   return { title: t("assets.card.migrateTitle"), desc };

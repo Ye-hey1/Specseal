@@ -1,6 +1,6 @@
-// 關於頁（desktop-about-page design D2／D6；spec「關於頁」）：品牌卡（鎖版、版本列附可點的
-// 更新狀態籤與複製版本資訊鈕、產品描述）、連結卡（原始碼、說明文件、回報問題）、授權卡（授權
-// 條款、第三方授權）。檢查更新與更新日誌只在更新頁，這裡不設。
+// 关于页（desktop-about-page design D2／D6；spec「关于页」）：品牌卡（锁版、版本列附可点的
+// 更新状态签与拷贝版本信息钮、产品描述）、链接卡（原代码、说明文档、回报问题）、授权卡（授权
+// 条款、第三方授权）。检查更新与更新日志只在更新页，这里不设。
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -15,7 +15,7 @@ import {
   StatusPill,
   Wordmark,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { AppInfo } from "../../adapter/appInfo";
 import type { UpdaterState } from "../../core/updater";
@@ -27,33 +27,33 @@ import {
 } from "../../components/LicenseDialog";
 import { latestOf } from "./UpdatesPage";
 
-/** 倉庫網址（原生選單的 GitHub／回報問題也用它；能力檔的 opener 權限只放行這個前綴）。 */
+/** 仓库网址（原生菜单的 GitHub／回报问题也用它；能力档的 opener 权限只放行这个前缀）。 */
 export const REPO_URL = "https://github.com/MomoChenisMe/speclink";
 export const ISSUE_URL = `${REPO_URL}/issues/new`;
 const DOCS_URL = `${REPO_URL}/tree/main/docs`;
 
-/** 以系統瀏覽器開啟網址，失敗以失敗 toast 呈現（原生選單的外部連結共用）。 */
+/** 以系统浏览器打开网址，失败以失败 toast 呈现（原生菜单的外部链接共用）。 */
 export function openExternal(url: string) {
   openUrl(url).catch((e) => toast.error(String(e)));
 }
 
-/** 「複製版本資訊」與回報問題 issue 內文共用的三行。 */
+/** 「拷贝版本信息」与回报问题 issue 内文共用的三行。 */
 function versionLines(info: AppInfo): string {
   return [
-    `Speclink ${info.appVersion}`,
+    `Specseal ${info.appVersion}`,
     `Engine ${info.engineVersion}`,
     `Platform ${info.platform} ${info.arch}`,
   ].join("\n");
 }
 
 export interface AboutPageProps {
-  /** null＝尚未取得（版本列顯示「—」、無複製鈕）。 */
+  /** null＝尚未取得（版本列显示「—」、无拷贝钮）。 */
   appInfo: AppInfo | null;
-  /** 進頁時要求載入版本資訊（store 快取，重複呼叫不重取）。 */
+  /** 进页时要求加载版本信息（store 缓存，重复调用不重取）。 */
   onLoadAppInfo: () => void;
-  /** 與更新頁「最新版本」列同一份更新狀態；未注入時不顯示狀態籤。 */
+  /** 与更新页「最新版本」列同一份更新状态；未注入时不显示状态签。 */
   updaterState?: UpdaterState;
-  /** 點狀態籤：進更新頁。 */
+  /** 点状态签：进更新页。 */
   onOpenUpdates: () => void;
   thirdPartyLicenses?: ThirdPartyLicenses | null;
 }

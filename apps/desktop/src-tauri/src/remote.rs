@@ -1,55 +1,55 @@
-//! remote runtime 的 token 生命週期（design 決策 4「token 生命週期與 401 語意」；
-//! 規格「token 換發全程 Rust 側且 401 語意固定」）。
+//! remote runtime 的 token 生命周期（design 决策 4「token 生命周期与 401 语意」；
+//! 规格「token 换发全程 Rust 侧且 401 语意固定」）。
 //!
-//! per-connection TokenManager：bearer（access token 或 PAT）只在 Rust 記憶體；
-//! 請求前無 bearer 即以 Keychain refresh credential 換發（rotation 新 refresh
-//! credential 由 refresh_connection 立即回寫）、無 refresh credential 則以 PAT
-//! 為 bearer；任何請求 401 → 換發一次 → 重試一次 → 仍 401 即進入 needs-reauth
-//! 狀態——TS 只見布林與繁中訊息，後續操作直接回拒絕錯誤、不再打 server。
-//! access token 的過期採反應式 401 路徑處理（規格「過期自動換發、使用者無感」
-//! 的可觀察契約相同），不另外追蹤 expires_in。
+//! per-connection TokenManager：bearer（access token 或 PAT）只在 Rust 内存；
+//! 请求前无 bearer 即以 Keychain refresh credential 换发（rotation 新 refresh
+//! credential 由 refresh_connection 立即回写）、无 refresh credential 则以 PAT
+//! 为 bearer；任何请求 401 → 换发一次 → 重试一次 → 仍 401 即进入 needs-reauth
+//! 状态——TS 只见布尔与繁中消息，后续操作直接回拒绝错误、不再打 server。
+//! access token 的过期采反应式 401 路径处理（规格「过期自动换发、用户无感」
+//! 的可观察契约相同），不另外追踪 expires_in。
 
 use crate::connections::RefreshFailure;
-use speclink_remote::credentials::{CredentialKind, CredentialStore};
+use specseal_remote::credentials::{CredentialKind, CredentialStore};
 use serde::Serialize;
-use speclink_core::model::{require_valid_meta, ChangeMeta, LEGACY_META_FILE, META_FILE};
-use speclink_core::workspace::{Workspace, DEFAULT_SPEC_DIR, LEGACY_SPEC_DIR};
-use speclink_core::store::Store;
-use speclink_desktop_core::settings::{
+use specseal_core::model::{require_valid_meta, ChangeMeta, LEGACY_META_FILE, META_FILE};
+use specseal_core::workspace::{Workspace, DEFAULT_SPEC_DIR, LEGACY_SPEC_DIR};
+use specseal_core::store::Store;
+use specseal_desktop_core::settings::{
     read_workflow_settings_from_text, rewrite_workflow_content_text, rewrite_workflow_fields_text,
     AppSettings, ContentEdit, WorkflowPolicyFields, WorkflowSettings,
 };
-use speclink_protocol::binding::BindingResponse;
-use speclink_protocol::command::{
+use specseal_protocol::binding::BindingResponse;
+use specseal_protocol::command::{
     ArchiveDiscussionResponse, ArchiveResponse, ClaimResponse, PromoteDiscussionResponse,
     ReviewTicketResponse,
 };
-use speclink_protocol::events::TransportKind;
-use speclink_protocol::query::{
+use specseal_protocol::events::TransportKind;
+use specseal_protocol::query::{
     ArchivedItem, ArtifactContent, BoardOrderDoc, ChangeStatus, ChangeSummary,
     DiscussionCut, DiscussionInfo, ImportBundle, ImportBundleDocument, ImportDocumentId,
     ImportReportResponse, ImportScope, ListSpecsResponse, PlanChangeEntry, PlanResponse,
     PlanUnpromotedCut, ScopesResponse, SearchResponse, ShowDiscussionResponse, SpecDocumentResponse,
     StationOutcome, StationState,
 };
-use speclink_core::model::ReviewedScopeEntry;
-use speclink_core::station::{ArchivedOutcome, Station, StationId, REVIEW, VERIFY};
-use speclink_desktop_core::query::{archived_status_str, put_station_fields, station_view, StationView};
-use speclink_core::config::AppConfig;
-use speclink_core::init::ToolSelection;
-use speclink_protocol::skills::{SkillsRequest, SkillsResponse};
-use speclink_remote::client::Client;
-use speclink_remote::skills as remote_skills;
-use speclink_remote::RemoteError;
-use speclink_store::content_digest;
+use specseal_core::model::ReviewedScopeEntry;
+use specseal_core::station::{ArchivedOutcome, Station, StationId, REVIEW, VERIFY};
+use specseal_desktop_core::query::{archived_status_str, put_station_fields, station_view, StationView};
+use specseal_core::config::AppConfig;
+use specseal_core::init::ToolSelection;
+use specseal_protocol::skills::{SkillsRequest, SkillsResponse};
+use specseal_remote::client::Client;
+use specseal_remote::skills as remote_skills;
+use specseal_remote::RemoteError;
+use specseal_store::content_digest;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-/// needs-reauth 的繁中狀態訊息（完整重新認證 UX 屬後續刀，本刀只回報狀態）。
-const REAUTH_MESSAGE: &str = "此連線的登入已失效——請重新登入";
-const OFFLINE_MESSAGE: &str = "此連線目前離線——顯示最後成功載入的內容";
-const OFFLINE_WRITE_MESSAGE: &str = "此連線目前離線——寫入已拒絕，未排隊或暫存";
+/// needs-reauth 的繁中状态消息（完整重新认证 UX 属后续刀，本刀只回报状态）。
+const REAUTH_MESSAGE: &str = "此连接的登录已失效——请重新登录";
+const OFFLINE_MESSAGE: &str = "此连接目前脱机——显示最后成功加载的内容";
+const OFFLINE_WRITE_MESSAGE: &str = "此连接目前脱机——写入已拒绝，未排队或暂存";
 pub const REMOTE_CONNECTION_STATE_EVENT: &str = "remote-connection-state";
 pub const DEFAULT_FAILURE_THRESHOLD: usize = 3;
 
@@ -69,8 +69,8 @@ pub struct ConnectionStateEvent {
     pub message: Option<String>,
 }
 
-/// `remote_open` 專用的 IPC failure shape。只公開復原分類需要的欄位，
-/// credential、header 與 Keychain 內容都不跨越 Tauri 邊界。
+/// `remote_open` 专用的 IPC failure shape。只公开复原分类需要的字段，
+/// credential、header 与 Keychain 内容都不跨越 Tauri 边界。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteOpenFailure {
@@ -105,14 +105,14 @@ struct ConnectionHealth {
     consecutive_failures: usize,
 }
 
-/// 一條 connection 的 token 生命週期管理者。
+/// 一条 connection 的 token 生命周期管理者。
 pub struct TokenManager {
     origin: String,
-    /// 記憶體持有的 bearer；絕不落盤、絕不過境 TS。
+    /// 内存持有的 bearer；绝不落盘、绝不过境 TS。
     bearer: Mutex<Option<String>>,
-    /// 同一 connection 的 credential 取得／輪替 singleflight。
+    /// 同一 connection 的 credential 取得／轮替 singleflight。
     rotation: Mutex<()>,
-    /// needs-reauth 狀態訊息；Some 之後所有操作直接拒絕。
+    /// needs-reauth 状态消息；Some 之后所有操作直接拒绝。
     needs_reauth: Mutex<Option<String>>,
     health: Mutex<ConnectionHealth>,
     failure_threshold: usize,
@@ -159,14 +159,14 @@ impl TokenManager {
         self.health.lock().expect("health lock").connection_id = Some(connection_id.to_string());
     }
 
-    /// 登入流程換得的 access token 交接進來；重新登入即復原 needs-reauth。
+    /// 登录流程换得的 access token 交接进来；重新登录即复原 needs-reauth。
     pub fn adopt_access_token(&self, token: &str) {
         *self.bearer.lock().expect("bearer lock") = Some(token.to_string());
         *self.needs_reauth.lock().expect("reauth lock") = None;
         self.transition_online();
     }
 
-    /// TS 可查的連線狀態：Some(繁中訊息)＝需重新認證。
+    /// TS 可查的连接状态：Some(繁中消息)＝需重新认证。
     pub fn needs_reauth(&self) -> Option<String> {
         self.needs_reauth.lock().expect("reauth lock").clone()
     }
@@ -175,8 +175,8 @@ impl TokenManager {
         self.health.lock().expect("health lock").state
     }
 
-    /// 以有效 bearer 執行一次請求（呼叫端逐請求建構 speclink-remote Client）：
-    /// 請求前自動換發、401 → 換發一次 → 重試一次 → 仍 401 即 needs-reauth。
+    /// 以有效 bearer 运行一次请求（调用端逐请求建构 specseal-remote Client）：
+    /// 请求前自动换发、401 → 换发一次 → 重试一次 → 仍 401 即 needs-reauth。
     pub fn execute<T>(
         &self,
         credentials: &dyn CredentialStore,
@@ -191,8 +191,8 @@ impl TokenManager {
         };
         match call(&bearer) {
             Err(e) if e.status == Some(401) => {
-                // 快取的 bearer 已死：換發後恰好重試一次。PAT 連線無可換發，
-                // mint 會交回同一枚 PAT，重試再 401 即進 needs-reauth。
+                // 缓存的 bearer 已死：换发后恰好重试一次。PAT 连接无可换发，
+                // mint 会交回同一枚 PAT，重试再 401 即进 needs-reauth。
                 let fresh = match self.recover_after_unauthorized(credentials, &bearer) {
                     Ok(fresh) => fresh,
                     Err(error) => return self.observe_result(Err(error)),
@@ -333,7 +333,7 @@ impl TokenManager {
         }
     }
 
-    /// 請求 bearer：快取優先，否則換發。
+    /// 请求 bearer：缓存优先，否则换发。
     fn acquire(&self, credentials: &dyn CredentialStore) -> Result<String, RemoteError> {
         if let Some(cached) = self.bearer.lock().expect("bearer lock").clone() {
             return Ok(cached);
@@ -348,8 +348,8 @@ impl TokenManager {
         self.mint(credentials)
     }
 
-    /// 401 後只允許一個 caller 輪替；等待者若看到已發布且不同於自己被拒的
-    /// bearer，直接複用先行者結果，不得清掉新 token 再消耗 refresh。
+    /// 401 后只允许一个 caller 轮替；等待者若看到已发布且不同于自己被拒的
+    /// bearer，直接复用先行者结果，不得清掉新 token 再消耗 refresh。
     fn recover_after_unauthorized(
         &self,
         credentials: &dyn CredentialStore,
@@ -365,26 +365,26 @@ impl TokenManager {
             }
         }
         *self.bearer.lock().expect("bearer lock") = None;
-        // 被拒的 bearer 也躺在共用快取裡——不清掉的話下一步會原樣撿回來。
-        speclink_remote::refresh::clear_cached_bearer(&self.origin, credentials);
+        // 被拒的 bearer 也躺在共用缓存里——不清掉的话下一步会原样捡回来。
+        specseal_remote::refresh::clear_cached_bearer(&self.origin, credentials);
         self.mint(credentials)
     }
 
-    /// 記憶體無 bearer 時取得一個：共用的 access token 快取（CLI 可能剛換發過）
-    /// → refresh credential 換發（持跨行程鎖，回寫在下沉層）→ PAT → 皆無即
-    /// needs-reauth。Unavailable（5xx／不可達／Keychain 故障）是暫時性錯誤、
-    /// 不進 needs-reauth——與登入編排同一原則：暫時性失敗不是 credential 失效
-    /// 的語意訊號。
+    /// 内存无 bearer 时取得一个：共用的 access token 缓存（CLI 可能刚换发过）
+    /// → refresh credential 换发（持跨行程锁，回写在下沉层）→ PAT → 皆无即
+    /// needs-reauth。Unavailable（5xx／不可达／Keychain 故障）是暂时性错误、
+    /// 不进 needs-reauth——与登录编排同一原则：暂时性失败不是 credential 失效
+    /// 的语意信号。
     fn mint(&self, credentials: &dyn CredentialStore) -> Result<String, RemoteError> {
         let has_refresh = credentials
             .get(&self.origin, CredentialKind::Refresh)
             .map_err(unavailable)?
             .is_some();
         let bearer = if has_refresh {
-            match speclink_remote::refresh::bearer_for(
+            match specseal_remote::refresh::bearer_for(
                 &self.origin,
                 credentials,
-                &speclink_remote::auth::speclink_config_dir(),
+                &specseal_remote::auth::specseal_config_dir(),
             ) {
                 Ok(access) => access,
                 Err(RefreshFailure::Rejected(_)) => return Err(self.flag_reauth()),
@@ -403,7 +403,7 @@ impl TokenManager {
         Ok(bearer)
     }
 
-    /// 進入 needs-reauth：丟棄記憶體 bearer、記下狀態，回拒絕錯誤。
+    /// 进入 needs-reauth：丢弃内存 bearer、记下状态，回拒绝错误。
     fn flag_reauth(&self) -> RemoteError {
         *self.bearer.lock().expect("bearer lock") = None;
         *self.needs_reauth.lock().expect("reauth lock") = Some(REAUTH_MESSAGE.to_string());
@@ -418,7 +418,7 @@ fn is_transport_failure(error: &RemoteError) -> bool {
         && error.message.starts_with("server unreachable")
 }
 
-/// needs-reauth 的拒絕錯誤：繁中訊息＋機讀 reason。
+/// needs-reauth 的拒绝错误：繁中消息＋机读 reason。
 fn rejected() -> RemoteError {
     RemoteError {
         message: REAUTH_MESSAGE.to_string(),
@@ -437,7 +437,7 @@ fn offline_rejected() -> RemoteError {
     }
 }
 
-/// 暫時性失敗原樣中繼（訊息來自 refresh 編排或 Keychain）。
+/// 暂时性失败原样中继（消息来自 refresh 编排或 Keychain）。
 fn unavailable(message: String) -> RemoteError {
     RemoteError {
         message,
@@ -447,9 +447,9 @@ fn unavailable(message: String) -> RemoteError {
     }
 }
 
-/// SpeclinkDataSource 的 artifact 定址是檔名（proposal.md、tasks.md、
-/// specs/{cap}/spec.md），server 端點吃 artifact id（proposal、tasks、
-/// specs/{cap}）——此處單點正規化，缺席才會是 404 而非 400。
+/// SpecsealDataSource 的 artifact 寻址是文件名（proposal.md、tasks.md、
+/// specs/{cap}/spec.md），server 端点吃 artifact id（proposal、tasks、
+/// specs/{cap}）——此处单点范式，缺席才会是 404 而非 400。
 fn artifact_id(artifact: &str) -> &str {
     if let Some(cap_dir) = artifact.strip_suffix("/spec.md") {
         return cap_dir;
@@ -464,10 +464,10 @@ pub fn build_import_bundle(root: &Path, project: &str, repo: &str) -> Result<Imp
     if project.trim().is_empty() || repo.trim().is_empty() {
         return Err("migration target project and repo must both be selected".to_string());
     }
-    let context = speclink_desktop_core::init_core_context(root)
-        .ok_or_else(|| format!("not a local speclink workspace: {}", root.display()))?;
+    let context = specseal_desktop_core::init_core_context(root)
+        .ok_or_else(|| format!("not a local specseal workspace: {}", root.display()))?;
     let store: &dyn Store = &context.store;
-    let user_dir = speclink_host::context::global_config_dir();
+    let user_dir = specseal_host::context::global_config_dir();
     let mut documents = BTreeMap::<ImportDocumentId, String>::new();
 
     for change in store.list_changes() {
@@ -532,7 +532,7 @@ pub fn build_import_bundle(root: &Path, project: &str, repo: &str) -> Result<Imp
     for dated_name in store.list_archived_changes() {
         let meta = store.read_archived_meta(&dated_name).unwrap_or_default();
         let parsed = ChangeMeta::from_text(Some(&meta)).map_err(|reason| {
-            // 讀取先新後舊：新檔名不在時，壞的是舊檔名那份。
+            // 读取先新后旧：新文件名不在时，坏的是旧文件名那份。
             let dir = format!("{}/changes/archive/{dated_name}", context.workspace.spec_dir_name);
             let file = if context.workspace.root.join(&dir).join(META_FILE).is_file() {
                 META_FILE
@@ -541,7 +541,7 @@ pub fn build_import_bundle(root: &Path, project: &str, repo: &str) -> Result<Imp
             };
             format!("invalid {dir}/{file}: {reason}")
         })?;
-        // 讀取先新後舊，上傳一律以 .meta.yaml 為鍵（desktop-spec-dir-migration D5）。
+        // 读取先新后旧，上传一律以 .meta.yaml 为键（desktop-spec-dir-migration D5）。
         insert_import_document(
             &mut documents,
             ImportDocumentId::ArchivedChange {
@@ -576,7 +576,7 @@ pub fn build_import_bundle(root: &Path, project: &str, repo: &str) -> Result<Imp
     }
 
     Ok(ImportBundle {
-        format_version: speclink_store::BUNDLE_FORMAT_VERSION,
+        format_version: specseal_store::BUNDLE_FORMAT_VERSION,
         scope: ImportScope {
             project: project.to_string(),
             repo: repo.to_string(),
@@ -594,16 +594,16 @@ pub fn build_import_bundle(root: &Path, project: &str, repo: &str) -> Result<Imp
 }
 
 fn resolve_migration_schema(
-    workspace: &speclink_core::workspace::Workspace,
+    workspace: &specseal_core::workspace::Workspace,
     user_dir: &Path,
     name: &str,
-) -> Result<speclink_core::schema::Schema, String> {
-    speclink_core::schema::resolve_with(Some(workspace), Some(user_dir), name)
-        .ok_or_else(|| speclink_core::schema::not_found_msg(name))?
+) -> Result<specseal_core::schema::Schema, String> {
+    specseal_core::schema::resolve_with(Some(workspace), Some(user_dir), name)
+        .ok_or_else(|| specseal_core::schema::not_found_msg(name))?
 }
 
 fn migration_artifact_paths(
-    schema: &speclink_core::schema::Schema,
+    schema: &specseal_core::schema::Schema,
     delta_capabilities: Vec<String>,
 ) -> Result<Vec<String>, String> {
     let mut paths = BTreeSet::new();
@@ -656,27 +656,27 @@ pub struct RemoteAdoptionResult {
     pub checkout_root: String,
 }
 
-/// The spec folder a local-to-remote move works on: the default `speclink/` or
+/// The spec folder a local-to-remote move works on: the default `specseal/` or
 /// the legacy `openspec/`. An explicit custom `spec_dir` is refused before any
 /// remote write (desktop-spec-dir-migration D5).
 fn migratable_spec_dir(workspace: &Workspace, action: &str) -> Result<String, String> {
     let name = &workspace.spec_dir_name;
     if name != DEFAULT_SPEC_DIR && name != LEGACY_SPEC_DIR {
         return Err(format!(
-            "{action} requires the default spec folder (speclink/ or openspec/); this workspace uses {name}/"
+            "{action} requires the default spec folder (specseal/ or openspec/); this workspace uses {name}/"
         ));
     }
-    // 只備份其中一個會留下另一個：轉成 checkout 後一開就是本機與遠端並存。
+    // 只备份其中一个会留下另一个：转成 checkout 后一开就是本机与远程并存。
     let other = if name == DEFAULT_SPEC_DIR { LEGACY_SPEC_DIR } else { DEFAULT_SPEC_DIR };
     let other_dir = workspace.root.join(other);
     let coexists = if other == LEGACY_SPEC_DIR {
         other_dir.is_dir()
     } else {
-        speclink_core::workspace::is_spec_folder(&other_dir)
+        specseal_core::workspace::is_spec_folder(&other_dir)
     };
     if coexists {
         return Err(format!(
-            "{action} cannot run while both speclink/ and openspec/ exist — move or remove {other}/ first"
+            "{action} cannot run while both specseal/ and openspec/ exist — move or remove {other}/ first"
         ));
     }
     Ok(name.clone())
@@ -692,13 +692,13 @@ pub fn migrate_workspace(
     manager: &Arc<TokenManager>,
     credentials: &dyn CredentialStore,
 ) -> Result<MigrationResult, String> {
-    let context = speclink_desktop_core::init_core_context(root)
-        .ok_or_else(|| format!("not a local speclink workspace: {}", root.display()))?;
+    let context = specseal_desktop_core::init_core_context(root)
+        .ok_or_else(|| format!("not a local specseal workspace: {}", root.display()))?;
     let folder = migratable_spec_dir(&context.workspace, "local-to-remote migration")?;
     let checkout_root = context.workspace.root;
     let bundle = build_import_bundle(root, project, repo)?;
     let project_base = format!(
-        "{}/api/speclink/v1/projects/{project}",
+        "{}/api/specseal/v1/projects/{project}",
         origin.trim_end_matches('/')
     );
     let report = manager
@@ -723,8 +723,8 @@ pub fn migrate_workspace(
 /// byte-for-byte intact. Used only after the UI has successfully handshaken
 /// with the marker's server scope.
 pub fn adopt_remote_workspace(root: &Path) -> Result<RemoteAdoptionResult, String> {
-    let context = speclink_desktop_core::init_core_context(root)
-        .ok_or_else(|| format!("not a local speclink workspace: {}", root.display()))?;
+    let context = specseal_desktop_core::init_core_context(root)
+        .ok_or_else(|| format!("not a local specseal workspace: {}", root.display()))?;
     let folder = migratable_spec_dir(&context.workspace, "adopting server truth")?;
     let checkout_root = context.workspace.root;
     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
@@ -743,7 +743,7 @@ fn adopt_remote_workspace_with(
     date: &str,
     rename: impl FnOnce(&Path, &Path) -> std::io::Result<()>,
 ) -> Result<std::path::PathBuf, String> {
-    let marker = root.join(".speclink.yaml");
+    let marker = root.join(".specseal.yaml");
     if !marker.is_file() {
         return Err(format!(
             "cannot adopt server truth without an existing remote marker: {}",
@@ -782,12 +782,12 @@ fn finalize_local_migration_with(
     })?;
 
     let project_url = format!(
-        "{}/api/speclink/v1/projects/{project}",
+        "{}/api/specseal/v1/projects/{project}",
         origin.trim_end_matches('/')
     );
-    speclink_core::config::write_remote_section(root, &project_url, Some(repo)).map_err(|error| {
+    specseal_core::config::write_remote_section(root, &project_url, Some(repo)).map_err(|error| {
         format!(
-            "server import and local backup succeeded, but the remote marker could not be written ({error}). The backup is retained at '{}'; repair .speclink.yaml before opening this folder as a checkout.",
+            "server import and local backup succeeded, but the remote marker could not be written ({error}). The backup is retained at '{}'; repair .specseal.yaml before opening this folder as a checkout.",
             backup.display()
         )
     })?;
@@ -811,10 +811,10 @@ fn next_migration_backup(root: &Path, folder: &str, date: &str) -> std::path::Pa
     }
 }
 
-// --- handshake 與資料面三類矩陣（決策 1、2、6） ---
+// --- handshake 与数据面三类矩阵（决策 1、2、6） ---
 
-/// (c) 類操作的拒絕錯誤（決策 1 凍結原則：server 缺什麼就停用什麼，不在
-/// client 偽造）。TS RemoteDataSource 與任何誤達 Rust 層的呼叫共用此語意。
+/// (c) 类操作的拒绝错误（决策 1 冻结原则：server 缺什么就停用什么，不在
+/// client 伪造）。TS RemoteDataSource 与任何误达 Rust 层的调用共用此语意。
 pub fn unsupported(operation: &str) -> RemoteError {
     RemoteError {
         message: format!("此 server 尚未提供「{operation}」——功能已停用"),
@@ -824,32 +824,32 @@ pub fn unsupported(operation: &str) -> RemoteError {
     }
 }
 
-// --- 看板順序 overlay 與拖排寫回（remote-board-order） ---
+// --- 看板顺序 overlay 与拖排写回（remote-board-order） ---
 //
-// board resource 的內容形狀與寬鬆解析（壞內容＝全員缺 rank）是 protocol 的
-// `BoardOrderDoc::from_content`——server 的 plan 端點讀 rank 用同一份
+// board resource 的内容形状与宽松解析（坏内容＝全员缺 rank）是 protocol 的
+// `BoardOrderDoc::from_content`——server 的 plan 端点读 rank 用同一份
 // （add-change-plan-remote D1）。
 
-/// 桌面 remote 清單的一項（add-change-plan-remote D5）：server 的 ChangeSummary
-/// 原樣攤平，再攤平 plan 那一列的排程欄位——plan 不可得或成環時整組缺席。
+/// 桌面 remote 清单的一项（add-change-plan-remote D5）：server 的 ChangeSummary
+/// 原样摊平，再摊平 plan 那一列的调度字段——plan 不可得或成环时整组缺席。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RemoteChangeItem {
     #[serde(flatten)]
     pub summary: ChangeSummary,
-    /// 由 [`schedule_of`] 照 desktop-core 的 `PLAN_FIELDS` 組成（與本機清單同一份鍵清單）。
+    /// 由 [`schedule_of`] 照 desktop-core 的 `PLAN_FIELDS` 组成（与本机清单同一份键清单）。
     #[serde(flatten)]
     pub schedule: Option<serde_json::Map<String, serde_json::Value>>,
-    /// 審查與驗證的狀態欄位（station-status-and-landing D7）：鍵與本機清單項相同
-    /// （`reviewStatus`、`reviewedAt`、`reviewedBy` 與驗證站的同構三鍵），由 desktop-core
-    /// 的同一份四態判定算出。Server 的回應沒有關卡欄位時是空的——卡片沒有標示。
+    /// 审查与验证的状态字段（station-status-and-landing D7）：键与本机清单项相同
+    /// （`reviewStatus`、`reviewedAt`、`reviewedBy` 与验证站的同构三键），由 desktop-core
+    /// 的同一份四态判定算出。Server 的回应没有关卡字段时是空的——卡片没有标示。
     #[serde(flatten)]
     pub stations: serde_json::Map<String, serde_json::Value>,
 }
 
-/// remote 清單項的任務計數：只有總數與完成數，沒有寫碼任務的分組。章的任務錨因此
-/// 只比總數（spec desktop-app：tasksTotal 與目前的任務數不同 → 其後有變動）。
-fn task_counts(summary: &ChangeSummary) -> speclink_core::tasks::Counts {
-    speclink_core::tasks::Counts {
+/// remote 清单项的任务计数：只有总数与完成数，没有写码任务的分组。章的任务锚因此
+/// 只比总数（spec desktop-app：tasksTotal 与目前的任务数不同 → 其后有变动）。
+fn task_counts(summary: &ChangeSummary) -> specseal_core::tasks::Counts {
+    specseal_core::tasks::Counts {
         total: summary.total_tasks,
         complete: summary.completed_tasks,
         remaining: summary.total_tasks.saturating_sub(summary.completed_tasks),
@@ -859,13 +859,13 @@ fn task_counts(summary: &ChangeSummary) -> speclink_core::tasks::Counts {
     }
 }
 
-/// 一個清單項兩個關卡的狀態欄位，只依線上的事實與任務數（清單不帶 scope，也還沒有
-/// 工作樹可讀）。沒有關卡物件、或 state 是這個用戶端不認得的值：那一站沒有鍵。
+/// 一个清单项两个关卡的状态字段，只依在线的事实与任务数（清单不带 scope，也还没有
+/// 工作树可读）。没有关卡对象、或 state 是这个用户端不认得的值：那一站没有键。
 pub(crate) fn station_fields(summary: &ChangeSummary) -> serde_json::Map<String, serde_json::Value> {
     let counts = task_counts(summary);
     let mut fields = serde_json::Map::new();
     for (st, wire) in [(&REVIEW, &summary.review), (&VERIFY, &summary.verify)] {
-        let Some(status) = wire.as_ref().and_then(speclink_remote::convert::station_status) else {
+        let Some(status) = wire.as_ref().and_then(specseal_remote::convert::station_status) else {
             continue;
         };
         put_station_fields(&mut fields, st, &status, station_view(&status, &counts, None));
@@ -873,29 +873,29 @@ pub(crate) fn station_fields(summary: &ChangeSummary) -> serde_json::Map<String,
     fields
 }
 
-/// 清單項的 `st` 這一站是不是「已蓋章、任務數相符」：只有這種才值得拿 scope 去比檔案。
+/// 清单项的 `st` 这一站是不是「已盖章、任务数相符」：只有这种才值得拿 scope 去比文件。
 fn stamp_holds_so_far(summary: &ChangeSummary, st: &Station) -> bool {
     let wire = match st.id {
         StationId::Review => &summary.review,
         StationId::Verify => &summary.verify,
     };
     wire.as_ref()
-        .and_then(speclink_remote::convert::station_status)
+        .and_then(specseal_remote::convert::station_status)
         .is_some_and(|status| station_view(&status, &task_counts(summary), None) == StationView::Stamped)
 }
 
-/// 章記下的 `commit`，如果 checkout 的 HEAD 包含它。commit 是 server 給的外部輸入，
-/// 先過引擎的形狀檢查（只收十六進位）才交給 git；checkout 不認得它也算不包含。
+/// 章记下的 `commit`，如果 checkout 的 HEAD 包含它。commit 是 server 给的外部输入，
+/// 先过引擎的形状检查（只收十六进位）才交给 git；checkout 不认得它也算不包含。
 fn held_commit(root: &Path, commit: &str) -> Option<String> {
-    let commit = speclink_core::model::checked_commit(commit).ok()?;
-    speclink_core::util::git(root, &["merge-base", "--is-ancestor", &commit, "HEAD"])?;
+    let commit = specseal_core::model::checked_commit(commit).ok()?;
+    specseal_core::util::git(root, &["merge-base", "--is-ancestor", &commit, "HEAD"])?;
     Some(commit)
 }
 
-/// `path` 在 checkout 裡是不是還停在 `commit` 當時的樣子（當時沒有、現在也沒有也算）。
-/// 用 git 的 blob 識別比：現值照 git 存檔時的換行轉換算。
+/// `path` 在 checkout 里是不是还停在 `commit` 当时的样子（当时没有、现在也没有也算）。
+/// 用 git 的 blob 识别比：现值照 git 存盘时的换行转换算。
 fn still_at_commit(root: &Path, commit: &str, path: &str, exists: bool) -> bool {
-    let git = |args: &[&str]| speclink_core::util::git(root, args);
+    let git = |args: &[&str]| specseal_core::util::git(root, args);
     match (exists, git(&["rev-parse", "--verify", "--quiet", &format!("{commit}:{path}")])) {
         (false, None) => true,
         (true, Some(blob)) => git(&["hash-object", "--", path]).is_some_and(|now| now == blob),
@@ -903,27 +903,27 @@ fn still_at_commit(root: &Path, commit: &str, path: &str, exists: bool) -> bool 
     }
 }
 
-/// 章之後 scope 裡有沒有檔案變了（D7）：現值和章的指紋不同，而且也不是章記下的
-/// commit 當時的樣子。章記的是蓋章當下的 HEAD，被審的內容那時可能還沒 commit；checkout
-/// 的檔案若還是那個 commit 的版本，它只是還沒拿到被審的內容，不算其後有變動。scope 的
-/// 路徑是 server 給的外部輸入：不是 repo 內相對路徑的一律不讀，讀作有變。
+/// 章之后 scope 里有没有文件变了（D7）：现值和章的指纹不同，而且也不是章记下的
+/// commit 当时的样子。章记的是盖章当下的 HEAD，被审的内容那时可能还没 commit；checkout
+/// 的文件若还是那个 commit 的版本，它只是还没拿到被审的内容，不算其后有变动。scope 的
+/// 路径是 server 给的外部输入：不是 repo 内相对路径的一律不读，读作有变。
 fn changed_since_stamp(root: &Path, commit: &str, scope: &[ReviewedScopeEntry]) -> bool {
     scope.iter().any(|entry| {
-        if speclink_core::station::ensure_repo_relative(&entry.path).is_err() {
+        if specseal_core::station::ensure_repo_relative(&entry.path).is_err() {
             return true;
         }
-        let current = speclink_core::util::read_bytes_opt(&root.join(&entry.path));
+        let current = specseal_core::util::read_bytes_opt(&root.join(&entry.path));
         let reviewed = current
             .as_deref()
-            .is_some_and(|bytes| speclink_core::station::content_fingerprint_bytes(bytes) == entry.hash);
+            .is_some_and(|bytes| specseal_core::station::content_fingerprint_bytes(bytes) == entry.hash);
         !reviewed && !still_at_commit(root, commit, &entry.path, current.is_some())
     })
 }
 
-/// 綁有 checkout 時的第二步（D7）：對任務數相符的已蓋章關卡，用單筆回應帶來的 scope
-/// 比 checkout 裡的檔案，章之後有變的改成其後有變動（規則見 [`changed_since_stamp`]）。
-/// 只有 checkout 的 HEAD 包含章記下的 commit 時才比：章若蓋在別的分支或別台機器，checkout
-/// 沒有可以對照的那一版——這時（以及章沒有記下 commit 時）維持只比任務數的結果。
+/// 绑有 checkout 时的第二步（D7）：对任务数相符的已盖章关卡，用单笔回应带来的 scope
+/// 比 checkout 里的文件，章之后有变的改成其后有变动（规则见 [`changed_since_stamp`]）。
+/// 只有 checkout 的 HEAD 包含章记下的 commit 时才比：章若盖在别的分支或别台机器，checkout
+/// 没有可以对照的那一版——这时（以及章没有记下 commit 时）维持只比任务数的结果。
 pub(crate) fn refine_with_checkout(
     item: &mut RemoteChangeItem,
     review: Option<&StationState>,
@@ -935,13 +935,13 @@ pub(crate) fn refine_with_checkout(
         if !stamp_holds_so_far(&item.summary, st) {
             continue;
         }
-        let Some(status) = wire.and_then(speclink_remote::convert::station_status) else {
+        let Some(status) = wire.and_then(specseal_remote::convert::station_status) else {
             continue;
         };
-        // 單筆回應若已不是「已蓋章、任務數相符」（清單之後狀態變了），照它的狀態重寫，
-        // 不必比檔案。
+        // 单笔回应若已不是「已盖章、任务数相符」（清单之后状态变了），照它的状态重写，
+        // 不必比文件。
         let mut view = station_view(&status, &counts, None);
-        // 章沒有任務數就不判內容：引擎的規則（`stale_reason`）如此，本機清單也是。
+        // 章没有任务数就不判内容：引擎的规则（`stale_reason`）如此，本机清单也是。
         let held = status.tasks_total.and(status.commit.as_deref()).and_then(|commit| held_commit(root, commit));
         if let (StationView::Stamped, Some(commit)) = (view, held) {
             if changed_since_stamp(root, &commit, &status.scope) {
@@ -952,9 +952,9 @@ pub(crate) fn refine_with_checkout(
     }
 }
 
-/// 已封存清單的一項：server 的 ArchivedItem 原樣攤平，加上與本機同名的結局欄位
-/// （`reviewStatus`：none／reviewed／reviewedNotPassed；驗證站同構）。Server 沒有回報
-/// 結局、或值是這個用戶端不認得的：沒有鍵。
+/// 已封存清单的一项：server 的 ArchivedItem 原样摊平，加上与本机同名的结局字段
+/// （`reviewStatus`：none／reviewed／reviewedNotPassed；验证站同构）。Server 没有回报
+/// 结局、或值是这个用户端不认得的：没有键。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteArchivedItem {
@@ -972,8 +972,8 @@ pub struct RemoteArchivedList {
     pub archived: Vec<RemoteArchivedItem>,
 }
 
-/// 線上的結局對到已封存卡片讀的字串（字串表是 desktop-core 的 [`archived_status_str`]，
-/// 與本機的封存快取同一份）。
+/// 在线的结局对到已封存卡片读的字符串（字符串表是 desktop-core 的 [`archived_status_str`]，
+/// 与本机的封存缓存同一份）。
 fn outcome_status(st: &Station, outcome: Option<&StationOutcome>) -> Option<&'static str> {
     let outcome = match outcome? {
         StationOutcome::None => ArchivedOutcome::None,
@@ -984,18 +984,18 @@ fn outcome_status(st: &Station, outcome: Option<&StationOutcome>) -> Option<&'st
     Some(archived_status_str(st, outcome))
 }
 
-/// plan 那一列帶給清單項的排程欄位：照 `PLAN_FIELDS` 從該列逐鍵照搬，不另算。舊 server
-/// 的列缺 requirementOverlap 與 archiveAfter 時，wire 型別的 default 已把兩者讀成空陣列。
+/// plan 那一列带给清单项的调度字段：照 `PLAN_FIELDS` 从该列逐键照搬，不另算。旧 server
+/// 的列缺 requirementOverlap 与 archiveAfter 时，wire 类型的 default 已把两者读成空数组。
 fn schedule_of(entry: &PlanChangeEntry) -> serde_json::Map<String, serde_json::Value> {
     let row = serde_json::to_value(entry).unwrap_or_default();
-    speclink_desktop_core::query::PLAN_FIELDS
+    specseal_desktop_core::query::PLAN_FIELDS
         .iter()
         .filter_map(|&key| row.get(key).map(|value| (key.to_string(), value.clone())))
         .collect()
 }
 
-/// `remote_list_changes` 的 payload：清單項＋頂層 planError（成環時為訊息，否則 null）、
-/// plan 的 next 與尚未轉出的刀（plan 不可得時為 null 與空陣列）。
+/// `remote_list_changes` 的 payload：清单项＋顶层 planError（成环时为消息，否则 null）、
+/// plan 的 next 与尚未转出的刀（plan 不可得时为 null 与空数组）。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteChangeList {
@@ -1005,9 +1005,9 @@ pub struct RemoteChangeList {
     pub unpromoted_cuts: Vec<PlanUnpromotedCut>,
 }
 
-/// 清單合併 plan（D5）：順序與排程欄位來自 [`display_order`]。GET /plan 唯一的 409
-/// 是依賴成環——planError 帶訊息；其他錯誤（舊 server 的 404、連線失敗）planError
-/// 為 null，不打擾使用者。
+/// 清单合并 plan（D5）：顺序与调度字段来自 [`display_order`]。GET /plan 唯一的 409
+/// 是依赖成环——planError 带消息；其他错误（旧 server 的 404、连接失败）planError
+/// 为 null，不打扰用户。
 pub(crate) fn merge_plan(
     changes: Vec<ChangeSummary>,
     board: &BoardOrderDoc,
@@ -1029,10 +1029,10 @@ pub(crate) fn merge_plan(
     RemoteChangeList { changes, plan_error, next, unpromoted_cuts }
 }
 
-/// 變更卡的顯示序（清單與拖排共用，D5／D6）：有 plan 時照其配置序，plan 沒列到
-/// 的項（兩次請求之間新增、壞 meta 被略過）接在末尾維持 server 序——排列規則與本地
-/// 看板同一條（desktop-core `query::plan_placed`）；無 plan 時照 board overlay。每項
-/// 附上它在 plan 裡的那一列（有的話）。
+/// 变更卡的显示序（清单与拖排共用，D5／D6）：有 plan 时照其配置序，plan 没列到
+/// 的项（两次请求之间添加、坏 meta 被略过）接在末尾维持 server 序——排列规则与本地
+/// 看板同一条（desktop-core `query::plan_placed`）；无 plan 时照 board overlay。每项
+/// 附上它在 plan 里的那一列（有的话）。
 fn display_order<'p>(
     mut changes: Vec<ChangeSummary>,
     board: &BoardOrderDoc,
@@ -1043,7 +1043,7 @@ fn display_order<'p>(
         return changes.into_iter().map(|c| (c, None)).collect();
     };
     let placed: Vec<&str> = plan.changes.iter().map(|e| e.name.as_str()).collect();
-    speclink_desktop_core::query::plan_placed(changes, &placed, |c| c.name.as_str())
+    specseal_desktop_core::query::plan_placed(changes, &placed, |c| c.name.as_str())
         .into_iter()
         .map(|c| {
             let entry = plan.changes.iter().find(|e| e.name == c.name);
@@ -1052,15 +1052,15 @@ fn display_order<'p>(
         .collect()
 }
 
-/// 穩定排序疊上 rank 複合鍵（與本地 board_sorted_changes 同構——決策 4）：
-/// 缺值置頂維持 server 回傳序、具值依 rank 位元組字典序升冪、同值以名稱決斷。
+/// 稳定排序叠上 rank 复合键（与本地 board_sorted_changes 同构——决策 4）：
+/// 缺值置顶维持 server 回传序、具值依 rank 字节字典序升幂、同值以名称决断。
 fn sort_with_ranks<T>(
     items: &mut [T],
     ranks: &BTreeMap<String, String>,
     name_of: impl Fn(&T) -> &str,
 ) {
     items.sort_by(|x, y| match (ranks.get(name_of(x)), ranks.get(name_of(y))) {
-        (None, None) => std::cmp::Ordering::Equal, // 穩定排序保留 server 回傳序
+        (None, None) => std::cmp::Ordering::Equal, // 稳定排序保留 server 回传序
         (None, Some(_)) => std::cmp::Ordering::Less,
         (Some(_), None) => std::cmp::Ordering::Greater,
         (Some(a), Some(b)) => a.cmp(b).then_with(|| name_of(x).cmp(name_of(y))),
@@ -1075,9 +1075,9 @@ pub(crate) fn overlay_discussions_order(items: &mut [DiscussionInfo], board: &Bo
     sort_with_ranks(items, &board.discussions, |d| &d.slug);
 }
 
-/// 變更卡所屬欄——與前端 changeStage 的推導同構：全完成＝已就緒優先；
-/// meta 開工章（wire 的 startedAt）或任務完成數 > 0＝進行中（fallback 涵蓋
-/// 手改 tasks.md 等繞過工具的寫入路徑）；其餘＝提案中。
+/// 变更卡所属栏——与前端 changeStage 的推导同构：全完成＝已就绪优先；
+/// meta 开工章（wire 的 startedAt）或任务完成数 > 0＝进行中（fallback 涵盖
+/// 手改 tasks.md 等绕过工具的写入路径）；其余＝提案中。
 pub fn change_stage(c: &ChangeSummary) -> u8 {
     if c.total_tasks > 0 && c.completed_tasks >= c.total_tasks {
         2
@@ -1088,8 +1088,8 @@ pub fn change_stage(c: &ChangeSummary) -> u8 {
     }
 }
 
-/// reorder 一次嘗試所需的 server 現況：兩份清單（修剪與欄推導用）、board
-/// resource 內容與其 CAS revision，以及 plan（顯示序與宣告依賴圖；不可得為 None）。
+/// reorder 一次尝试所需的 server 现况：两份清单（修剪与栏推导用）、board
+/// resource 内容与其 CAS revision，以及 plan（显示序与声明依赖图；不可得为 None）。
 #[derive(Debug, Clone)]
 pub(crate) struct BoardSnapshot {
     pub(crate) changes: Vec<ChangeSummary>,
@@ -1099,16 +1099,16 @@ pub(crate) struct BoardSnapshot {
     pub(crate) plan: Option<PlanResponse>,
 }
 
-/// `respread`（呼叫端的判定：變更卡為缺 rank 或 rank 序與顯示序不一致，討論卡為缺
-/// rank）時依當前顯示序整欄補章（決策 5——等距鍵只落在 board resource 圖內，與本地
-/// reorder 的補章語意同構），否則沿用現值；回傳欄成員的 id→rank 表。
+/// `respread`（调用端的判定：变更卡为缺 rank 或 rank 序与显示序不一致，讨论卡为缺
+/// rank）时依当前显示序整栏补章（决策 5——等距键只落在 board resource 图内，与本地
+/// reorder 的补章语意同构），否则沿用现值；回传栏成员的 id→rank 表。
 fn ensure_column_ranks<'a>(
     members: &[&'a str],
     map: &mut BTreeMap<String, String>,
     respread: bool,
 ) -> HashMap<&'a str, String> {
     if respread {
-        let keys = speclink_core::rank::spread(members.len());
+        let keys = specseal_core::rank::spread(members.len());
         for (member, key) in members.iter().zip(&keys) {
             map.insert((*member).to_string(), key.clone());
         }
@@ -1123,16 +1123,16 @@ fn ensure_column_ranks<'a>(
 
 fn card_not_found(id: &str) -> RemoteError {
     RemoteError {
-        message: format!("查無此卡：{id}"),
+        message: format!("查无此卡：{id}"),
         reason: Some("not_found".to_string()),
         status: None,
         evidence: None,
     }
 }
 
-/// 計算一次拖排寫回的全文（決策 5；add-change-plan-remote D6）：修剪不在現行清單
-/// 的條目 → 推導被拖卡所在欄成員（顯示序）→ 缺 rank 或 rank 序與顯示序不一致時
-/// 整欄補章 → 落點鄰居中點鍵 → 有 plan 時檢查宣告依賴 → 序列化。
+/// 计算一次拖排写回的全文（决策 5；add-change-plan-remote D6）：修剪不在现行清单
+/// 的条目 → 推导被拖卡所在栏成员（显示序）→ 缺 rank 或 rank 序与显示序不一致时
+/// 整栏补章 → 落点邻居中点键 → 有 plan 时检查声明依赖 → 串行化。
 pub(crate) fn reorder_full_text(
     snapshot: &BoardSnapshot,
     kind: &str,
@@ -1153,17 +1153,17 @@ pub(crate) fn reorder_full_text(
                 .iter()
                 .find(|(c, _)| c.name == id)
                 .ok_or_else(|| card_not_found(id))?;
-            // 被拖卡本身被 plan 略過（壞 meta）：寫進 rank 也會被顯示序排回欄尾——與本地
-            // 寫壞 meta 被拒同構，回引擎同一句錯誤、不發 PUT。
+            // 被拖卡本身被 plan 略过（坏 meta）：写进 rank 也会被显示序排回栏尾——与本地
+            // 写坏 meta 被拒同构，回引擎同一句错误、不发 PUT。
             if let Some(skipped) =
                 snapshot.plan.iter().flat_map(|p| &p.skipped).find(|s| s.change == id)
             {
-                let broken = speclink_core::model::MetaError {
+                let broken = specseal_core::model::MetaError {
                     change: id.to_string(),
-                    file: speclink_core::model::change_meta_file(
-                        speclink_core::workspace::DEFAULT_SPEC_DIR,
+                    file: specseal_core::model::change_meta_file(
+                        specseal_core::workspace::DEFAULT_SPEC_DIR,
                         id,
-                        speclink_core::model::META_FILE,
+                        specseal_core::model::META_FILE,
                     ),
                     reason: skipped.reason.clone(),
                 };
@@ -1175,26 +1175,26 @@ pub(crate) fn reorder_full_text(
                 });
             }
             let stage = change_stage(dragged);
-            // 欄成員＝畫面上同欄的全部卡，含 plan 略過的卡（壞 meta 排在欄尾）：board
-            // resource 寫得進它的 rank，拖到它之後也要落在欄尾，所以它照常參與重派與落點。
+            // 栏成员＝画面上同栏的全部卡，含 plan 略过的卡（坏 meta 排在栏尾）：board
+            // resource 写得进它的 rank，拖到它之后也要落在栏尾，所以它照常参与重派与落点。
             let members: Vec<(&str, bool)> = ordered
                 .iter()
                 .filter(|(c, _)| change_stage(c) == stage)
                 .map(|(c, entry)| (c.name.as_str(), entry.is_some()))
                 .collect();
             let column: Vec<&str> = members.iter().map(|(name, _)| *name).collect();
-            // 缺 rank 或 rank 序與顯示序不一致（plan 以宣告依賴修正過排序）時整欄重派——
-            // 判定與本地拖排同一條（rank::ranked_in_order）。
+            // 缺 rank 或 rank 序与显示序不一致（plan 以声明依赖修正过排序）时整栏重派——
+            // 判定与本地拖排同一条（rank::ranked_in_order）。
             let current: Vec<Option<&str>> =
                 column.iter().map(|m| doc.changes.get(*m).map(String::as_str)).collect();
-            let respread = !speclink_core::rank::ranked_in_order(&current);
+            let respread = !specseal_core::rank::ranked_in_order(&current);
             let ranks = ensure_column_ranks(&column, &mut doc.changes, respread);
-            let key = speclink_core::rank::neighbor_midpoint(&ranks, prev_id, next_id);
+            let key = specseal_core::rank::neighbor_midpoint(&ranks, prev_id, next_id);
             doc.changes.insert(id.to_string(), key);
             if let Some(plan) = &snapshot.plan {
-                // 拖放後的序列＝plan 有配置的欄成員依新 rank 排序：plan 略過的卡不列入——
-                // 引擎視對它的依賴為已滿足，與本機拖排（引擎 move_rank 寫入前的依賴檢查）的判定範圍相同。只擋
-                // 涉及被拖卡的配對，訊息與 local 同一句（引擎的同一判定）。
+                // 拖放后的串行＝plan 有配置的栏成员依新 rank 排序：plan 略过的卡不列入——
+                // 引擎视对它的依赖为已满足，与本机拖排（引擎 move_rank 写入前的依赖检查）的判定范围相同。只挡
+                // 涉及被拖卡的配对，消息与 local 同一句（引擎的同一判定）。
                 let mut sequence: Vec<&str> = members
                     .iter()
                     .filter(|(_, placed)| *placed)
@@ -1206,7 +1206,7 @@ pub(crate) fn reorder_full_text(
                     .iter()
                     .map(|e| (e.name.clone(), e.depends_on.clone()))
                     .collect();
-                speclink_core::plan::blocked_move(&sequence, &depends_on, id).map_err(
+                specseal_core::plan::blocked_move(&sequence, &depends_on, id).map_err(
                     |blocked| RemoteError {
                         message: blocked.to_string(),
                         reason: Some("refused".to_string()),
@@ -1225,12 +1225,12 @@ pub(crate) fn reorder_full_text(
             let column: Vec<&str> = ordered.iter().map(|d| d.slug.as_str()).collect();
             let unranked = column.iter().any(|slug| !doc.discussions.contains_key(*slug));
             let ranks = ensure_column_ranks(&column, &mut doc.discussions, unranked);
-            let key = speclink_core::rank::neighbor_midpoint(&ranks, prev_id, next_id);
+            let key = specseal_core::rank::neighbor_midpoint(&ranks, prev_id, next_id);
             doc.discussions.insert(id.to_string(), key);
         }
         other => {
             return Err(RemoteError {
-                message: format!("無效的卡片類別：{other}"),
+                message: format!("无效的卡片类别：{other}"),
                 reason: Some("invalid_argument".to_string()),
                 status: None,
                 evidence: None,
@@ -1238,15 +1238,15 @@ pub(crate) fn reorder_full_text(
         }
     }
     serde_json::to_string(&doc).map_err(|error| RemoteError {
-        message: format!("board resource 序列化失敗：{error}"),
+        message: format!("board resource 串行化失败：{error}"),
         reason: None,
         status: None,
         evidence: None,
     })
 }
 
-/// remote 的討論記錄回應：與本地的 `speclink_desktop_core::discussions::DiscussionDocument`
-/// 同形（`{ content, cuts }`），`cuts` 原樣轉交 server 回應的 protocol 型別（同
+/// remote 的讨论记录回应：与本地的 `specseal_desktop_core::discussions::DiscussionDocument`
+/// 同形（`{ content, cuts }`），`cuts` 原样转交 server 回应的 protocol 类型（同
 /// [`RemoteChangeList`] 的 `unpromoted_cuts`）。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct RemoteDiscussionDocument {
@@ -1254,8 +1254,8 @@ pub struct RemoteDiscussionDocument {
     pub cuts: Vec<DiscussionCut>,
 }
 
-/// GET /discussions/{slug} 的結果轉成桌面的討論記錄回應（舊 server 缺 `cuts` 時
-/// protocol 已讀作空陣列），404 與本地語意一致為 None。
+/// GET /discussions/{slug} 的结果转成桌面的讨论记录回应（旧 server 缺 `cuts` 时
+/// protocol 已读作空数组），404 与本地语意一致为 None。
 pub(crate) fn discussion_document_of(
     shown: Result<ShowDiscussionResponse, RemoteError>,
 ) -> Result<Option<RemoteDiscussionDocument>, RemoteError> {
@@ -1266,9 +1266,9 @@ pub(crate) fn discussion_document_of(
     }
 }
 
-/// 拖排寫回的 CAS 收斂迴圈（決策 5）：讀現況 → 重算全文 → PUT 帶 If-Match；
-/// 409 重讀重算重試恰一次，再敗原樣回錯——呼叫端刷新 server 現況，絕不保留
-/// 未落檔的假象順序。
+/// 拖排写回的 CAS 收敛循环（决策 5）：读现况 → 重算全文 → PUT 带 If-Match；
+/// 409 重读重算重试恰一次，再败原样回错——调用端刷新 server 现况，绝不保留
+/// 未落档的假象顺序。
 pub(crate) fn reorder_via(
     read: impl Fn() -> Result<BoardSnapshot, RemoteError>,
     put: impl Fn(&str, u64) -> Result<(), RemoteError>,
@@ -1293,13 +1293,13 @@ pub(crate) fn reorder_via(
     }
 }
 
-/// 逐操作的 capability 描述（決策 2）：來源＝決策 1 矩陣常量＋handshake 的
-/// events 宣告。serde 化即隨 remote_open 回 TS 的 payload；UI 據此停用
-/// affordance。本地 session 的對應描述全真——同一 UI 路徑、零分岐維護。
+/// 逐操作的 capability 描述（决策 2）：来源＝决策 1 矩阵常量＋handshake 的
+/// events 声明。serde 化即随 remote_open 回 TS 的 payload；UI 据此停用
+/// affordance。本地 session 的对应描述全真——同一 UI 路径、零分岐维护。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteCapabilities {
-    // (a) 直達
+    // (a) 直达
     pub list_changes: bool,
     pub list_specs: bool,
     pub status: bool,
@@ -1310,42 +1310,42 @@ pub struct RemoteCapabilities {
     pub get_discussion_document: bool,
     pub promote_discussion: bool,
     pub archive_discussion: bool,
-    // (b) 組合
+    // (b) 组合
     pub set_all_tasks: bool,
-    // 新增的 server 純讀取面（封存、搜尋、正式規格內文）
+    // 添加的 server 纯读取面（封存、搜索、正式规格内文）
     pub list_archived: bool,
     pub get_archived_document: bool,
     pub archived_capabilities: bool,
     pub search_workspace: bool,
     pub get_spec_document: bool,
-    // 動詞端點直達（remote-verb-parity）：唯讀衍生查詢全 role 真、寫入動詞
-    // 依 handshake 的 role 呈現（server 仍是最終權限防線）。
+    // 动词端点直达（remote-verb-parity）：唯读衍生查找全 role 真、写入动词
+    // 依 handshake 的 role 呈现（server 仍是最终权限防线）。
     pub validate: bool,
     pub analyze: bool,
     pub delete_change: bool,
     pub move_task: bool,
-    // 看板拖排直達 board resource（remote-board-order 決策 7）：依 role 翻真
-    //（editor 真、reader 假——server 的 PUT /board-order 以同一 role bit 強制）。
+    // 看板拖排直达 board resource（remote-board-order 决策 7）：依 role 翻真
+    //（editor 真、reader 假——server 的 PUT /board-order 以同一 role bit 强制）。
     pub reorder_card: bool,
-    /// 前置編輯（add-change-plan-remote D7）：與 reorderCard 同源依 role 翻真
-    ///（server 的 POST /changes/{name}/depends 以 editor role 強制）——reader
-    /// 的排程分頁因此唯讀、不長編輯控制項。
+    /// 前置编辑（add-change-plan-remote D7）：与 reorderCard 同源依 role 翻真
+    ///（server 的 POST /changes/{name}/depends 以 editor role 强制）——reader
+    /// 的调度分页因此唯读、不长编辑控制项。
     pub set_depends: bool,
-    // change 詮釋資料與 capability 清單（remote-read-parity）：ChangeStatus
-    // 已攜歸屬四欄與 deltaCapabilities，TS 端以既有 remote_status payload
-    // 映射實作——資料在 wire 上，capability 為真；舊 server 不送的欄位以
-    // 缺席呈現（誠實降級，缺的是欄位而非能力）。
+    // change 诠释数据与 capability 清单（remote-read-parity）：ChangeStatus
+    // 已携归属四栏与 deltaCapabilities，TS 端以既有 remote_status payload
+    // 映射实作——数据在 wire 上，capability 为真；旧 server 不送的字段以
+    // 缺席呈现（诚实降级，缺的是字段而非能力）。
     pub change_meta: bool,
     pub change_capabilities: bool,
-    /// 認領（remote-claim-ownership D4）：RemoteOnly 動詞，依 handshake role
-    /// 呈現。wire 的 capability 宣告沒有專屬的 claim 位，而 editor 限定的寫入
-    /// 動詞共用同一道 role 閘門——沿 reorderCard 借 policyWrite 的既有作法，
-    /// 由 deleteChange 這個「本 membership 可寫 change」的宣告代讀角色。
+    /// 认领（remote-claim-ownership D4）：RemoteOnly 动词，依 handshake role
+    /// 呈现。wire 的 capability 声明没有专属的 claim 位，而 editor 限定的写入
+    /// 动词共用同一道 role 闸门——沿 reorderCard 借 policyWrite 的既有作法，
+    /// 由 deleteChange 这个「本 membership 可写 change」的声明代读角色。
     pub claim: bool,
-    /// 此 membership 是否可寫 workflow policy；server 仍是最終權限防線。
+    /// 此 membership 是否可写 workflow policy；server 仍是最终权限防线。
     pub policy_write: bool,
-    /// handshake 宣告了事件能力（SSE transport 或 polling）——缺席時 UI 退化
-    /// 為手動重整。
+    /// handshake 声明了事件能力（SSE transport 或 polling）——缺席时 UI 退化
+    /// 为手动重整。
     pub live_updates: bool,
 }
 
@@ -1357,10 +1357,10 @@ impl RemoteCapabilities {
                 .transports
                 .iter()
                 .any(|t| t.kind == TransportKind::Sse);
-        // 「本 membership 可寫 change」的既有宣告（claim 同源）：server 對 reader
-        // 的每個寫入都回 403，寫入面隨它停用（server-reader-write-guard D5）。
-        // 下方 reorder_card／set_depends 沿用的 policyWrite 與 deleteChange 在
-        // server 端都等於 editor 角色，兩個來源等價。
+        // 「本 membership 可写 change」的既有声明（claim 同源）：server 对 reader
+        // 的每个写入都回 403，写入面随它停用（server-reader-write-guard D5）。
+        // 下方 reorder_card／set_depends 沿用的 policyWrite 与 deleteChange 在
+        // server 端都等于 editor 角色，两个来源等价。
         let writable = binding.capabilities.delete_change;
         RemoteCapabilities {
             list_changes: true,
@@ -1394,8 +1394,8 @@ impl RemoteCapabilities {
     }
 }
 
-/// `/config` 經 desktop-core 文字 seam 後交給前端的設定快照。remote 無
-/// `.speclink.yaml` 面，仍保留空 app 欄位以沿用 SettingsSnapshot 的穩定形狀。
+/// `/config` 经 desktop-core 文本 seam 后交给前端的设置快照。remote 无
+/// `.specseal.yaml` 面，仍保留空 app 字段以沿用 SettingsSnapshot 的稳定形状。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteSettingsSnapshot {
@@ -1411,8 +1411,8 @@ pub struct RemoteWorkflowSettings {
     pub revision: u64,
 }
 
-/// Tauri 保留 remote protocol 的 machine-readable reason/status，讓前端可將
-/// revision_conflict 與一般錯誤分流；message 仍是使用者可讀單行文字。
+/// Tauri 保留 remote protocol 的 machine-readable reason/status，让前端可将
+/// revision_conflict 与一般错误分流；message 仍是用户可读单行文本。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoteSettingsError {
@@ -1449,7 +1449,7 @@ impl From<RemoteError> for RemoteSettingsError {
     }
 }
 
-/// handshake 成功的開啟結果：locator 識別、顯示名與 capability 描述——
+/// handshake 成功的打开结果：locator 识别、显示名与 capability 描述——
 /// serde 化即 remote_open 回 TS 的 payload。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1461,8 +1461,8 @@ pub struct RemoteOpenInfo {
     pub capabilities: RemoteCapabilities,
 }
 
-/// 討論清單的 TS 形狀：active＋archived（決策 1——listDiscussions 直達，
-/// 背後是兩次 `/discussions` 查詢）。
+/// 讨论清单的 TS 形状：active＋archived（决策 1——listDiscussions 直达，
+/// 背后是两次 `/discussions` 查找）。
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DiscussionLists {
@@ -1470,17 +1470,17 @@ pub struct DiscussionLists {
     pub archived: Vec<DiscussionInfo>,
 }
 
-/// 組合類寫入中止時的回報：已完成筆數＋當下錯誤（規格「批次任務操作……
-/// 中途失敗 SHALL 中止並回報已完成筆數」）。
+/// 组合类写入中止时的回报：已完成笔数＋当下错误（规格「批量任务操作……
+/// 中途失败 SHALL 中止并回报已完成笔数」）。
 #[derive(Debug)]
 pub struct SetTasksFailure {
     pub completed: usize,
     pub error: RemoteError,
 }
 
-/// 以 project[/repo] 識別對 origin handshake（決策 6，fail-closed）：成功回
-/// workspace 把手與開啟結果；任何失敗（403/404/多義）原樣回錯、不建立任何
-/// runtime 狀態。
+/// 以 project[/repo] 识别对 origin handshake（决策 6，fail-closed）：成功回
+/// workspace 把手与打开结果；任何失败（403/404/多义）原样回错、不创建任何
+/// runtime 状态。
 pub fn open_workspace(
     origin: &str,
     target: &str,
@@ -1492,7 +1492,7 @@ pub fn open_workspace(
         None => (target.trim(), None),
     };
     let project_base = format!(
-        "{}/api/speclink/v1/projects/{project}",
+        "{}/api/specseal/v1/projects/{project}",
         origin.trim_end_matches('/')
     );
     let repo_header = repo.clone();
@@ -1508,52 +1508,52 @@ pub fn open_workspace(
     };
     let workspace = RemoteWorkspace {
         project_base,
-        // 以 handshake 裁定後的 repo 為準（省略 repo 時 server 綁定唯一 repo）。
+        // 以 handshake 裁定后的 repo 为准（省略 repo 时 server 绑定唯一 repo）。
         repo: binding.repo.key,
         manager: Arc::clone(manager),
     };
     Ok((workspace, info))
 }
 
-/// chooser 在選定 project/repo 前讀取登入者可見 scopes。此請求只有 bearer，
-/// 不攜帶 fabricated repo header；membership 過濾由 server 負責。
+/// chooser 在选定 project/repo 前读取登录者可见 scopes。此请求只有 bearer，
+/// 不携带 fabricated repo header；membership 过滤由 server 负责。
 pub fn list_scopes(
     origin: &str,
     manager: &Arc<TokenManager>,
     credentials: &dyn CredentialStore,
 ) -> Result<ScopesResponse, RemoteError> {
-    let api_root = format!("{}/api/speclink/v1", origin.trim_end_matches('/'));
+    let api_root = format!("{}/api/specseal/v1", origin.trim_end_matches('/'));
     manager.execute(credentials, |token| {
         Client::new(&api_root, token, None).list_scopes()
     })
 }
 
-/// Server 對一個 checkout 的工具回應的技能，連同那個 checkout 的工具選集。
+/// Server 对一个 checkout 的工具回应的技能，连同那个 checkout 的工具选集。
 pub struct ServedSkills {
     selection: ToolSelection,
     response: SkillsResponse,
 }
 
 impl ServedSkills {
-    /// 技能檔更新的後半：把全文寫進 `checkout`。和 CLI 的 `speclink update` 用同一個
-    /// 安裝函式——檔案集合等於 Server 的回應，不經降級守門；回應和 checkout 對不上時在
-    /// 任何寫入之前拒絕。回報和本機的更新同形，失敗為單行訊息。
+    /// 技能档更新的后半：把全文写进 `checkout`。和 CLI 的 `specseal update` 用同一个
+    /// 安装函数——文件集合等于 Server 的回应，不经降级守门；回应和 checkout 对不上时在
+    /// 任何写入之前拒绝。回报和本机的更新同形，失败为单行消息。
     pub fn install(self, checkout: &Path) -> Result<serde_json::Value, RemoteError> {
         let installed = remote_skills::install(checkout, self.selection, self.response)
             .map_err(|e| unavailable(e.to_string().lines().next().unwrap_or_default().to_string()))?;
-        Ok(speclink_desktop_core::project::update_outcome_payload(&installed.outcome))
+        Ok(specseal_desktop_core::project::update_outcome_payload(&installed.outcome))
     }
 }
 
-/// 一個 handshake 成功後的 remote workspace 把手：資料面操作的 (a) 直達與
-/// (b) 組合實作，全部經 TokenManager 逐請求建構 Client（決策 4、7）。
+/// 一个 handshake 成功后的 remote workspace 把手：数据面操作的 (a) 直达与
+/// (b) 组合实作，全部经 TokenManager 逐请求建构 Client（决策 4、7）。
 pub struct RemoteWorkspace {
     project_base: String,
     repo: String,
     manager: Arc<TokenManager>,
 }
 
-// 手寫 Debug：TokenManager 持有 bearer，絕不進任何 Debug 輸出。
+// 手写 Debug：TokenManager 持有 bearer，绝不进任何 Debug 输出。
 impl std::fmt::Debug for RemoteWorkspace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RemoteWorkspace")
@@ -1564,8 +1564,8 @@ impl std::fmt::Debug for RemoteWorkspace {
 }
 
 impl RemoteWorkspace {
-    /// 以已知的 locator 識別直接建構把手——open 之後的資料面呼叫走這裡
-    /// （handshake 是 session 前置、不是逐請求前置），命令層據此無狀態重建。
+    /// 以已知的 locator 识别直接建构把手——open 之后的数据面调用走这里
+    /// （handshake 是 session 前置、不是逐请求前置），命令层据此无状态重建。
     pub fn at(
         origin: &str,
         project: &str,
@@ -1574,7 +1574,7 @@ impl RemoteWorkspace {
     ) -> RemoteWorkspace {
         RemoteWorkspace {
             project_base: format!(
-                "{}/api/speclink/v1/projects/{project}",
+                "{}/api/specseal/v1/projects/{project}",
                 origin.trim_end_matches('/')
             ),
             repo: repo.to_string(),
@@ -1582,7 +1582,7 @@ impl RemoteWorkspace {
         }
     }
 
-    /// 逐請求建構 Client 執行一擊（token 生命週期由 TokenManager 承擔）。
+    /// 逐请求建构 Client 运行一击（token 生命周期由 TokenManager 承担）。
     fn run<T>(
         &self,
         credentials: &dyn CredentialStore,
@@ -1603,14 +1603,14 @@ impl RemoteWorkspace {
         })
     }
 
-    /// 清單同時取 board resource 與 plan 於 Rust 側合併排序（決策 4；
-    /// add-change-plan-remote D5）：UI 與 TS 層不做排序、不知道 board resource
-    /// 存在。board resource 讀取失敗（端點缺席的舊 server）視為缺席；plan 的
-    /// 失敗交給 `merge_plan` 分流。
+    /// 清单同时取 board resource 与 plan 于 Rust 侧合并排序（决策 4；
+    /// add-change-plan-remote D5）：UI 与 TS 层不做排序、不知道 board resource
+    /// 存在。board resource 读取失败（端点缺席的旧 server）视为缺席；plan 的
+    /// 失败交给 `merge_plan` 分流。
     ///
-    /// `checkout` 是這個 remote 專案綁定的本機工作副本（沒有就是 `None`）。有的話，
-    /// 任務數相符的已蓋章變更各多取一次單筆回應，拿它的 scope 比 checkout 裡的檔案
-    /// （[`refine_with_checkout`]）；那一次讀取失敗時維持只比任務數的結果，清單不因此失敗。
+    /// `checkout` 是这个 remote 项目绑定的本机工作副本（没有就是 `None`）。有的话，
+    /// 任务数相符的已盖章变更各多取一次单笔回应，拿它的 scope 比 checkout 里的文件
+    /// （[`refine_with_checkout`]）；那一次读取失败时维持只比任务数的结果，清单不因此失败。
     pub fn list_changes(
         &self,
         credentials: &dyn CredentialStore,
@@ -1635,8 +1635,8 @@ impl RemoteWorkspace {
         Ok(list)
     }
 
-    /// 讀 board resource 並解析為桌面側形狀；任何讀取失敗與缺席同義
-    /// （決策 6：爆炸半徑＝退回預設序）。
+    /// 读 board resource 并解析为桌面侧形状；任何读取失败与缺席同义
+    /// （决策 6：爆炸半径＝退回缺省序）。
     fn board_order_doc(&self, credentials: &dyn CredentialStore) -> BoardOrderDoc {
         let content = self
             .run(credentials, |client| client.board_order())
@@ -1652,17 +1652,17 @@ impl RemoteWorkspace {
         self.run(credentials, |client| client.list_specs())
     }
 
-    /// Server 提供給 `checkout` 的工具的技能（remote-skill-delivery D6），連同解析好的
-    /// 工具選集：握手沒有宣告技能、或 checkout 沒有任何工具時為 None。`contents` 為 false
-    /// 時只有摘要。
+    /// Server 提供给 `checkout` 的工具的技能（remote-skill-delivery D6），连同解析好的
+    /// 工具选集：握手没有声明技能、或 checkout 没有任何工具时为 None。`contents` 为 false
+    /// 时只有摘要。
     fn served_skills(
         &self,
         credentials: &dyn CredentialStore,
         checkout: &Path,
         contents: bool,
     ) -> Result<Option<ServedSkills>, RemoteError> {
-        let app = AppConfig::load(&checkout.join(".speclink.yaml")).map_err(|e| unavailable(e.to_string()))?;
-        // 無效的描述子不成為目標：探測略過它，更新由安裝計畫在寫入前回報。
+        let app = AppConfig::load(&checkout.join(".specseal.yaml")).map_err(|e| unavailable(e.to_string()))?;
+        // 无效的描述子不成为目标：探测略过它，更新由安装计划在写入前回报。
         let selection = ToolSelection::resolve(checkout, &app);
         let targets = remote_skills::targets_of(&selection);
         if targets.is_empty() {
@@ -1676,8 +1676,8 @@ impl RemoteWorkspace {
         Ok(Some(ServedSkills { selection, response }))
     }
 
-    /// 技能檔探測：以 Server 的摘要比對 checkout，不下載全文。Server 沒有提供技能時
-    /// 為 None（沒有可比的基準，前端不提示）。
+    /// 技能档探测：以 Server 的摘要比对 checkout，不下载全文。Server 没有提供技能时
+    /// 为 None（没有可比的基准，前端不提示）。
     pub fn probe_assets(
         &self,
         credentials: &dyn CredentialStore,
@@ -1685,23 +1685,23 @@ impl RemoteWorkspace {
     ) -> Result<Option<serde_json::Value>, RemoteError> {
         Ok(self.served_skills(credentials, checkout, false)?.map(|served| {
             let digests = remote_skills::digests(&served.response);
-            speclink_desktop_core::project::probe_remote_assets_at(checkout, &served.response.version, &digests)
+            specseal_desktop_core::project::probe_remote_assets_at(checkout, &served.response.version, &digests)
         }))
     }
 
-    /// 技能檔更新的前半：向 Server 取得 `checkout` 的工具的技能全文。不寫任何檔案——
-    /// 寫入在 [`ServedSkills::install`]，命令層只在那一段暫停檔案監看。
+    /// 技能档更新的前半：向 Server 取得 `checkout` 的工具的技能全文。不写任何文件——
+    /// 写入在 [`ServedSkills::install`]，命令层只在那一段暂停文件监看。
     pub fn skills_to_install(
         &self,
         credentials: &dyn CredentialStore,
         checkout: &Path,
     ) -> Result<ServedSkills, RemoteError> {
         self.served_skills(credentials, checkout, true)?
-            .ok_or_else(|| unavailable("這台 Server 沒有提供技能".to_string()))
+            .ok_or_else(|| unavailable("这台 Server 没有提供技能".to_string()))
     }
 
-    /// GET `/config` 的文件原文一律經 desktop-core from-text seam；revision
-    /// 與解析結果同一份 response snapshot，避免欄位與 CAS token 分裂。
+    /// GET `/config` 的文档原文一律经 desktop-core from-text seam；revision
+    /// 与解析结果同一份 response snapshot，避免字段与 CAS token 分裂。
     pub fn read_settings(
         &self,
         credentials: &dyn CredentialStore,
@@ -1722,8 +1722,8 @@ impl RemoteWorkspace {
         })
     }
 
-    /// 政策四欄位 targeted rewrite：GET 全文 → 共用文字 seam → PUT 全文＋
-    /// 畫面讀得的 expected revision。PUT 仍由 server 做 role／驗證／CAS。
+    /// 政策四字段 targeted rewrite：GET 全文 → 共用文本 seam → PUT 全文＋
+    /// 画面读得的 expected revision。PUT 仍由 server 做 role／验证／CAS。
     pub fn write_workflow_fields(
         &self,
         credentials: &dyn CredentialStore,
@@ -1746,9 +1746,9 @@ impl RemoteWorkspace {
         .map_err(RemoteSettingsError::from)
     }
 
-    /// schema 鍵 targeted rewrite（desktop-schema-panel design D2）：GET 全文 →
-    /// 引擎 byte-preserving setter → PUT 全文＋expected revision。與政策欄位
-    /// 寫入同一條 revision 守門通道，壞檔在 setter 即拒。
+    /// schema 键 targeted rewrite（desktop-schema-panel design D2）：GET 全文 →
+    /// 引擎 byte-preserving setter → PUT 全文＋expected revision。与政策字段
+    /// 写入同一条 revision 守门信道，坏档在 setter 即拒。
     pub fn write_workflow_schema(
         &self,
         credentials: &dyn CredentialStore,
@@ -1762,7 +1762,7 @@ impl RemoteWorkspace {
             .run(credentials, |client| client.config())
             .map_err(RemoteSettingsError::from)?;
         let rewritten =
-            speclink_core::config::set_workflow_schema_text(config.content.as_deref(), name)
+            specseal_core::config::set_workflow_schema_text(config.content.as_deref(), name)
                 .map_err(|e| RemoteSettingsError::local(e.to_string()))?;
         self.run_write(credentials, |client| {
             client.put_config(&rewritten, expected_revision)
@@ -1771,8 +1771,8 @@ impl RemoteWorkspace {
         .map_err(RemoteSettingsError::from)
     }
 
-    /// context/rules/review targeted rewrite；未指定的區塊不觸及，空值沿用 seam 的
-    /// 移除語意。沒有任何省略 expected revision 的寫入路徑。
+    /// context/rules/review targeted rewrite；未指定的区块不触及，空值沿用 seam 的
+    /// 移除语意。没有任何省略 expected revision 的写入路径。
     pub fn write_workflow_content(
         &self,
         credentials: &dyn CredentialStore,
@@ -1848,10 +1848,10 @@ impl RemoteWorkspace {
         })
     }
 
-    /// 一站的活工單（drawer-quality-ticket-tab D2）：`GET /changes/{name}/{station}`
-    /// 的結構化 rounds。404（無工單或 change 不存在）→ `None`；其他錯誤原樣上拋
-    /// ——離線不得被讀成「沒有工單」。參數順序同鄰近的 `document(credentials, change,
-    /// artifact)`：change 在前、站別在後。
+    /// 一站的活工单（drawer-quality-ticket-tab D2）：`GET /changes/{name}/{station}`
+    /// 的结构化 rounds。404（无工单或 change 不存在）→ `None`；其他错误原样上抛
+    /// ——脱机不得被读成「没有工单」。参数顺序同邻近的 `document(credentials, change,
+    /// artifact)`：change 在前、站别在后。
     pub fn station_ticket(
         &self,
         credentials: &dyn CredentialStore,
@@ -1903,8 +1903,8 @@ impl RemoteWorkspace {
         self.run_write(credentials, |client| client.claim(change))
     }
 
-    /// 前置的新增與移除（add-change-plan-remote D7）：POST /changes/{name}/depends，
-    /// 守門與訊息都是 server 轉發的引擎原文；離線時寫入即拒。
+    /// 前置的添加与移除（add-change-plan-remote D7）：POST /changes/{name}/depends，
+    /// 守门与消息都是 server 转发的引擎原文；脱机时写入即拒。
     pub fn set_depends(
         &self,
         credentials: &dyn CredentialStore,
@@ -1916,41 +1916,41 @@ impl RemoteWorkspace {
             .map(|_| ())
     }
 
-    /// 退回提案中:打 DELETE /changes/{name}/in-progress。200 Ack 涵蓋實際
-    /// 移除與未開工冪等;守門 409 的證據落在 RemoteError::evidence,由
-    /// command 層轉為與本地 bridge 同形狀的結構化錯誤 JSON。
+    /// 退回提案中:打 DELETE /changes/{name}/in-progress。200 Ack 涵盖实际
+    /// 移除与未开工幂等;守门 409 的证据落在 RemoteError::evidence,由
+    /// command 层转为与本地 bridge 同形状的结构化错误 JSON。
     pub fn revert_change_to_proposed(
         &self,
         credentials: &dyn CredentialStore,
         change: &str,
     ) -> Result<(), RemoteError> {
-        // 回應的 removed 旗標 desktop 用不到——看板靠重讀清單刷新，不看這句回報。
+        // 回应的 removed 旗标 desktop 用不到——看板靠重读清单刷新，不看这句回报。
         self.run_write(credentials, |client| client.in_progress_remove(change)).map(|_| ())
     }
 
-    /// validate 動詞（唯讀衍生查詢）：wire DTO 轉回引擎型別，序列化後與本地
+    /// validate 动词（唯读衍生查找）：wire DTO 转回引擎类型，串行化后与本地
     /// verbs::validate_at 的 payload 同形（remote-verb-parity）。
     pub fn validate(
         &self,
         credentials: &dyn CredentialStore,
         change: &str,
-    ) -> Result<speclink_core::validate::ValidationResult, RemoteError> {
+    ) -> Result<specseal_core::validate::ValidationResult, RemoteError> {
         self.run(credentials, |client| client.validate_change(change))
-            .map(speclink_remote::convert::validation_result)
+            .map(specseal_remote::convert::validation_result)
     }
 
-    /// analyze 動詞（唯讀衍生查詢）：payload 與本地 verbs::analyze_at 同形。
+    /// analyze 动词（唯读衍生查找）：payload 与本地 verbs::analyze_at 同形。
     pub fn analyze(
         &self,
         credentials: &dyn CredentialStore,
         change: &str,
-    ) -> Result<speclink_core::analyzer::AnalyzeReport, RemoteError> {
+    ) -> Result<specseal_core::analyzer::AnalyzeReport, RemoteError> {
         self.run(credentials, |client| client.analyze_change(change))
-            .map(speclink_remote::convert::analyze_report)
+            .map(specseal_remote::convert::analyze_report)
     }
 
-    /// 刪除變更＝server 端 discard 全語意（guard/unlink/原子刪除）；force 由
-    /// 呼叫端決定（桌面固定 true——決策 3：與本地無 guard 直刪同模式）。
+    /// 删除变更＝server 端 discard 全语意（guard/unlink/原子删除）；force 由
+    /// 调用端决定（桌面固定 true——决策 3：与本地无 guard 直删同模式）。
     pub fn delete_change(
         &self,
         credentials: &dyn CredentialStore,
@@ -1961,7 +1961,7 @@ impl RemoteWorkspace {
             .map(|_| ())
     }
 
-    /// 任務搬移：index 定址直達 server 端點，重編號效果與本地拖排一致。
+    /// 任务搬移：index 寻址直达 server 端点，重编号效果与本地拖排一致。
     pub fn move_task(
         &self,
         credentials: &dyn CredentialStore,
@@ -1974,8 +1974,8 @@ impl RemoteWorkspace {
             .map(|_| ())
     }
 
-    /// 封存。兩個 carry 旗標是三選項對話框「照樣帶走」的結果（station-status-and-landing
-    /// D7）：帶著該站未結的工單封存。一般封存兩者都是 false。
+    /// 封存。两个 carry 旗标是三选项对话框「照样带走」的结果（station-status-and-landing
+    /// D7）：带着该站未结的工单封存。一般封存两者都是 false。
     pub fn archive(
         &self,
         credentials: &dyn CredentialStore,
@@ -1986,8 +1986,8 @@ impl RemoteWorkspace {
         self.run_write(credentials, |client| client.archive(change, carry_review, carry_verify))
     }
 
-    /// 三選項對話框的「放棄審查／放棄驗證」：刪掉該站的工單。`station` 是引擎的站別詞
-    /// （`review`／`verify`），由呼叫端先認過。
+    /// 三选项对话框的「放弃审查／放弃验证」：删掉该站的工单。`station` 是引擎的站别词
+    /// （`review`／`verify`），由调用端先认过。
     pub fn discard_station(
         &self,
         credentials: &dyn CredentialStore,
@@ -1997,8 +1997,8 @@ impl RemoteWorkspace {
         self.run_write(credentials, |client| client.station_discard(station, change)).map(|_| ())
     }
 
-    /// active 討論同樣疊 board resource 排序 overlay（決策 4）；archived 清單
-    /// 不屬看板、維持 server 回傳序。
+    /// active 讨论同样叠 board resource 排序 overlay（决策 4）；archived 清单
+    /// 不属看板、维持 server 回传序。
     pub fn list_discussions(
         &self,
         credentials: &dyn CredentialStore,
@@ -2014,9 +2014,9 @@ impl RemoteWorkspace {
         })
     }
 
-    /// 看板拖排直達（決策 5）：讀清單＋board resource＋plan → 補章／中點 → 宣告
-    /// 依賴檢查 → PUT 全文帶 If-Match；409 重讀重算重試恰一次，再敗原樣回錯（前端
-    /// 刷新 server 現況，不留假象順序）。全程不觸碰任何卡片 meta／frontmatter。
+    /// 看板拖排直达（决策 5）：读清单＋board resource＋plan → 补章／中点 → 声明
+    /// 依赖检查 → PUT 全文带 If-Match；409 重读重算重试恰一次，再败原样回错（前端
+    /// 刷新 server 现况，不留假象顺序）。全程不触碰任何卡片 meta／frontmatter。
     pub fn reorder_card(
         &self,
         credentials: &dyn CredentialStore,
@@ -2034,10 +2034,10 @@ impl RemoteWorkspace {
                     .run(credentials, |client| client.list_discussions(false))?
                     .discussions;
                 let board = self.run(credentials, |client| client.board_order())?;
-                // 只有變更卡用得到 plan，而且必須在 board resource 之後讀：plan 反映的 board
-                // 狀態因此不早於 If-Match 的 revision——兩次讀取之間有人寫入時 PUT 會 409
-                // 重讀，不會拿舊的顯示序整欄重派、蓋掉別人的拖排。plan 失敗（舊 server、
-                // 成環、連線）不擋拖排：沒有顯示序修正與依賴圖可查。
+                // 只有变更卡用得到 plan，而且必须在 board resource 之后读：plan 反映的 board
+                // 状态因此不早于 If-Match 的 revision——两次读取之间有人写入时 PUT 会 409
+                // 重读，不会拿旧的显示序整栏重派、盖掉别人的拖排。plan 失败（旧 server、
+                // 成环、连接）不挡拖排：没有显示序修正与依赖图可查。
                 let plan = if kind == "change" {
                     self.run(credentials, |client| client.plan()).ok()
                 } else {
@@ -2062,7 +2062,7 @@ impl RemoteWorkspace {
         )
     }
 
-    /// 討論記錄全文與 server 解析的刀，與本地的討論記錄回應同形；404 回 None。
+    /// 讨论记录全文与 server 解析的刀，与本地的讨论记录回应同形；404 回 None。
     pub fn discussion_document(
         &self,
         credentials: &dyn CredentialStore,
@@ -2077,7 +2077,7 @@ impl RemoteWorkspace {
         slug: &str,
         name: Option<&str>,
     ) -> Result<PromoteDiscussionResponse, RemoteError> {
-        // 桌面「轉為變更」不提供最後一刀標記：wire 的 last 一律 false。
+        // 桌面「转为变更」不提供最后一刀标记：wire 的 last 一律 false。
         self.run_write(credentials, |client| client.discussion_promote(slug, name, false))
     }
 
@@ -2089,7 +2089,7 @@ impl RemoteWorkspace {
         self.run_write(credentials, |client| client.discussion_archive(slug))
     }
 
-    /// (b) 組合：逐任務寫回，非原子——中途失敗即中止並回報已完成筆數。
+    /// (b) 组合：逐任务写回，非原子——中途失败即中止并回报已完成笔数。
     pub fn set_tasks(
         &self,
         credentials: &dyn CredentialStore,
@@ -2112,8 +2112,8 @@ impl RemoteWorkspace {
         Ok(completed)
     }
 
-    /// (b) 組合的 setAllTasks：以 server 的任務清單（apply instructions）取
-    /// 未達目標態的任務逐筆寫回。
+    /// (b) 组合的 setAllTasks：以 server 的任务清单（apply instructions）取
+    /// 未达目标态的任务逐笔写回。
     pub fn set_all_tasks(
         &self,
         credentials: &dyn CredentialStore,
@@ -2142,27 +2142,27 @@ impl RemoteWorkspace {
     }
 }
 
-/// 遠端活工單 → 前端工單資料，與本機同一個組裝函式（desktop core 的 `ticket_payload`）。
-/// server 比這支 desktop 新、某輪帶來不認得的 rules baseline 時回 `None`（空態），
-/// 比照封存原文解析失敗——不把它畫成 replace 的套用規則列。
+/// 远程活工单 → 前端工单数据，与本机同一个组装函数（desktop core 的 `ticket_payload`）。
+/// server 比这支 desktop 新、某轮带来不认得的 rules baseline 时回 `None`（空态），
+/// 比照封存原文解析失败——不把它画成 replace 的套用规则列。
 pub fn station_ticket_payload(ticket: ReviewTicketResponse) -> Option<serde_json::Value> {
-    let known = |round: &speclink_protocol::command::ReviewRoundDto| {
+    let known = |round: &specseal_protocol::command::ReviewRoundDto| {
         round
             .rules
             .as_ref()
-            .is_none_or(|rules| speclink_core::config::ReviewBaseline::parse(&rules.baseline).is_some())
+            .is_none_or(|rules| specseal_core::config::ReviewBaseline::parse(&rules.baseline).is_some())
     };
     ticket
         .rounds
         .iter()
         .all(known)
-        .then(|| speclink_desktop_core::query::ticket_payload(ticket.rounds))
+        .then(|| specseal_desktop_core::query::ticket_payload(ticket.rounds))
 }
 
 #[cfg(test)]
 mod capability_tests {
     use super::RemoteCapabilities;
-    use speclink_protocol::binding::{Actor, BindingResponse, Capabilities, ScopeRef};
+    use specseal_protocol::binding::{Actor, BindingResponse, Capabilities, ScopeRef};
 
     fn binding_with(capabilities: Capabilities) -> BindingResponse {
         let scope = |key: &str| ScopeRef {
@@ -2182,8 +2182,8 @@ mod capability_tests {
 
     #[test]
     fn editor_handshake_unlocks_all_write_capabilities_including_board_reorder() {
-        // 規格「capability 驅動停用且不偽造缺口」修訂後語意：editor 全操作面
-        // 直達，停用清單清空（remote-board-order 決策 7）。
+        // 规格「capability 驱动停用且不伪造缺口」修订后语意：editor 全操作面
+        // 直达，停用清单清空（remote-board-order 决策 7）。
         let caps = RemoteCapabilities::from_binding(&binding_with(Capabilities {
             validate: true,
             analyze: true,
@@ -2198,7 +2198,7 @@ mod capability_tests {
         assert!(caps.move_task, "moveTask follows the handshake");
         assert!(caps.reorder_card, "board reorder follows the editor role");
         assert!(caps.set_depends, "prerequisite editing follows the editor role like board reorder");
-        // server-reader-write-guard D5：其餘寫入面同樣隨 deleteChange 的角色宣告。
+        // server-reader-write-guard D5：其余写入面同样随 deleteChange 的角色声明。
         assert!(caps.set_task_done);
         assert!(caps.set_all_tasks);
         assert!(caps.archive);
@@ -2221,7 +2221,7 @@ mod capability_tests {
         assert!(!caps.move_task);
         assert!(!caps.reorder_card, "reader board reorder stays disabled");
         assert!(!caps.set_depends);
-        // server 對 reader 的每個寫入都回 403——寫入面不得呈現可用。
+        // server 对 reader 的每个写入都回 403——写入面不得呈现可用。
         assert!(!caps.set_task_done, "reader task check-off stays disabled");
         assert!(!caps.set_all_tasks);
         assert!(!caps.archive);
@@ -2233,7 +2233,7 @@ mod capability_tests {
 #[cfg(test)]
 mod board_order_tests {
     use super::{overlay_changes_order, overlay_discussions_order, BoardOrderDoc};
-    use speclink_protocol::query::{ChangeSummary, DiscussionInfo};
+    use specseal_protocol::query::{ChangeSummary, DiscussionInfo};
 
     pub(super) fn change(name: &str, completed: usize, total: usize) -> ChangeSummary {
         ChangeSummary {
@@ -2263,7 +2263,7 @@ mod board_order_tests {
 
     #[test]
     fn a_server_without_station_fields_gives_no_station_keys() {
-        // Scenario「舊 Server 沒有欄位」：沒有資料就沒有鍵——卡片沒有標示，封存不出現對話框。
+        // Scenario「旧 Server 没有字段」：没有数据就没有键——卡片没有标示，封存不出现对话框。
         let list = super::merge_plan(vec![change("demo", 1, 2)], &BoardOrderDoc::default(), Err(super::unavailable("no plan".into())));
         assert!(list.changes[0].stations.is_empty());
         let payload = serde_json::to_value(&list).unwrap();
@@ -2274,7 +2274,7 @@ mod board_order_tests {
 
     #[test]
     fn a_state_this_client_does_not_know_reads_as_no_data() {
-        use speclink_protocol::query::{StationPhase, StationState};
+        use specseal_protocol::query::{StationPhase, StationState};
         let mut summary = change("demo", 1, 1);
         summary.review = Some(StationState { state: StationPhase::Unknown("paused".into()), ..Default::default() });
         summary.verify = Some(StationState { state: StationPhase::InProgress, ..Default::default() });
@@ -2308,9 +2308,9 @@ mod board_order_tests {
         scope_path: &str,
         hash: &str,
         commit: Option<&str>,
-    ) -> (super::RemoteChangeItem, speclink_protocol::query::StationState) {
-        use speclink_protocol::command::ReviewScopeEntryDto;
-        use speclink_protocol::query::{StationPhase, StationState};
+    ) -> (super::RemoteChangeItem, specseal_protocol::query::StationState) {
+        use specseal_protocol::command::ReviewScopeEntryDto;
+        use specseal_protocol::query::{StationPhase, StationState};
         let stamped = StationState {
             state: StationPhase::Stamped,
             stamped_at: Some("2026-11-02".into()),
@@ -2329,12 +2329,12 @@ mod board_order_tests {
 
     #[test]
     fn a_scope_path_outside_the_checkout_is_never_read() {
-        // 線上回應的 scope 路徑是外部輸入：絕對路徑與 `..` 不讀，讀作內容有變。
+        // 在线回应的 scope 路径是外部输入：绝对路径与 `..` 不读，读作内容有变。
         let outside = tempfile::tempdir().unwrap();
         let secret = outside.path().join("secret.txt");
         std::fs::write(&secret, "s").unwrap();
         let (checkout, head) = git_checkout();
-        let hash = speclink_core::station::content_fingerprint("s");
+        let hash = specseal_core::station::content_fingerprint("s");
         let folder = outside.path().file_name().unwrap().to_string_lossy().to_string();
         for path in [secret.display().to_string(), format!("../{folder}/secret.txt")] {
             let (mut item, stamped) = stamped_item(&path, &hash, Some(&head));
@@ -2345,20 +2345,20 @@ mod board_order_tests {
 
     #[test]
     fn files_are_compared_only_when_the_checkout_holds_the_stamps_commit() {
-        // 章若蓋在 checkout 還沒有的 commit 上（別的分支、別台機器），checkout 的檔案不是
-        // 那一版，比了只會誤報「其後有變動」：這時維持只比任務數的結果。章沒有 commit 時同樣。
+        // 章若盖在 checkout 还没有的 commit 上（别的分支、别台机器），checkout 的文件不是
+        // 那一版，比了只会误报「其后有变动」：这时维持只比任务数的结果。章没有 commit 时同样。
         let (checkout, head) = git_checkout();
-        // 章之後檔案被改成別的內容（不是章的那一版，也不是 commit 當時的那一版）。
+        // 章之后文件被改成别的内容（不是章的那一版，也不是 commit 当时的那一版）。
         std::fs::write(checkout.path().join("a.rs"), "fn a() { later(); }\n").unwrap();
-        let stale_hash = speclink_core::station::content_fingerprint("fn a() { other(); }\n");
+        let stale_hash = specseal_core::station::content_fingerprint("fn a() { other(); }\n");
         let unknown = "0123456789abcdef0123456789abcdef01234567";
         for (commit, want) in [(Some(head.as_str()), "reviewedStale"), (Some(unknown), "reviewed"), (None, "reviewed"), (Some("--help"), "reviewed")] {
             let (mut item, stamped) = stamped_item("a.rs", &stale_hash, commit);
             super::refine_with_checkout(&mut item, Some(&stamped), None, checkout.path());
             assert_eq!(item.stations["reviewStatus"], want, "{commit:?}");
         }
-        // 檔案內容與章相符、checkout 含那個 commit：維持已審查。
-        let fresh = speclink_core::station::content_fingerprint("fn a() { later(); }\n");
+        // 文件内容与章相符、checkout 含那个 commit：维持已审查。
+        let fresh = specseal_core::station::content_fingerprint("fn a() { later(); }\n");
         let (mut item, stamped) = stamped_item("a.rs", &fresh, Some(&head));
         super::refine_with_checkout(&mut item, Some(&stamped), None, checkout.path());
         assert_eq!(item.stations["reviewStatus"], "reviewed");
@@ -2366,11 +2366,11 @@ mod board_order_tests {
 
     #[test]
     fn a_file_still_at_the_stamps_commit_is_not_a_change_after_the_stamp() {
-        // 被審的內容在蓋章時還沒 commit：章記下的 commit 是它的前一版。checkout 含那個
-        // commit、檔案還是 commit 當時的樣子＝只是還沒拿到被審的內容，不算其後有變動。
+        // 被审的内容在盖章时还没 commit：章记下的 commit 是它的前一版。checkout 含那个
+        // commit、文件还是 commit 当时的样子＝只是还没拿到被审的内容，不算其后有变动。
         let (checkout, head) = git_checkout();
         let reviewed = "fn a() { reviewed(); }\n";
-        let hash = speclink_core::station::content_fingerprint(reviewed);
+        let hash = specseal_core::station::content_fingerprint(reviewed);
         let status = |path: &str| {
             let (mut item, stamped) = stamped_item(path, &hash, Some(&head));
             super::refine_with_checkout(&mut item, Some(&stamped), None, checkout.path());
@@ -2381,7 +2381,7 @@ mod board_order_tests {
         assert_eq!(status("a.rs"), "reviewed", "the reviewed content arrived");
         std::fs::write(checkout.path().join("a.rs"), "fn a() { later(); }\n").unwrap();
         assert_eq!(status("a.rs"), "reviewedStale", "neither the reviewed content nor the commit's");
-        // 蓋章時新增的檔：commit 裡沒有，checkout 也還沒有 → 不算；出現別的內容 → 其後有變動。
+        // 盖章时添加的档：commit 里没有，checkout 也还没有 → 不算；出现别的内容 → 其后有变动。
         assert_eq!(status("new.rs"), "reviewed", "absent at the commit and absent now");
         std::fs::write(checkout.path().join("new.rs"), "fn other() {}\n").unwrap();
         assert_eq!(status("new.rs"), "reviewedStale", "a different file appeared");
@@ -2389,10 +2389,10 @@ mod board_order_tests {
 
     #[test]
     fn a_stamp_without_a_task_count_is_never_compared_with_files() {
-        // 引擎的規則：章沒有任務數就不判內容（本機清單也是這樣）。remote 的比對照同一條。
+        // 引擎的规则：章没有任务数就不判内容（本机清单也是这样）。remote 的比对照同一条。
         let (checkout, head) = git_checkout();
         std::fs::write(checkout.path().join("a.rs"), "fn a() { later(); }\n").unwrap();
-        let hash = speclink_core::station::content_fingerprint("fn a() { other(); }\n");
+        let hash = specseal_core::station::content_fingerprint("fn a() { other(); }\n");
         let (mut item, mut stamped) = stamped_item("a.rs", &hash, Some(&head));
         stamped.tasks_total = None;
         super::refine_with_checkout(&mut item, Some(&stamped), None, checkout.path());
@@ -2401,8 +2401,8 @@ mod board_order_tests {
 
     #[test]
     fn a_station_that_is_no_longer_stamped_keeps_no_stamp_fields() {
-        // 清單與單筆回應之間狀態變了（單筆已是審查中）：章的時間與人不留在項目上。
-        use speclink_protocol::query::{StationPhase, StationState};
+        // 清单与单笔回应之间状态变了（单笔已是审查中）：章的时间与人不留在项目上。
+        use specseal_protocol::query::{StationPhase, StationState};
         let (checkout, head) = git_checkout();
         let (mut item, _) = stamped_item("a.rs", "aa", Some(&head));
         assert!(item.stations.contains_key("reviewedAt"));
@@ -2436,8 +2436,8 @@ mod board_order_tests {
 
     #[test]
     fn ranked_changes_sort_ascending_with_unranked_on_top_in_server_order() {
-        // 規格「remote 排序 overlay 與本地語意同構」＋ board-card-order
-        // Example「四卡混排」：W(b)、X(f)、Y(n)、Z(無 rank) → Z、W、X、Y。
+        // 规格「remote 排序 overlay 与本地语意同构」＋ board-card-order
+        // Example「四卡混排」：W(b)、X(f)、Y(n)、Z(无 rank) → Z、W、X、Y。
         let board = BoardOrderDoc::from_content(Some(
             "{\"changes\":{\"w\":\"b\",\"x\":\"f\",\"y\":\"n\"},\"discussions\":{}}",
         ));
@@ -2448,8 +2448,8 @@ mod board_order_tests {
 
     #[test]
     fn equal_ranks_break_ties_by_name() {
-        // board-card-order Example「同值以名稱決斷」：beta 與 alpha 同 rank n
-        // → alpha 在前，跨機器確定。
+        // board-card-order Example「同值以名称决断」：beta 与 alpha 同 rank n
+        // → alpha 在前，跨机器确定。
         let board = BoardOrderDoc::from_content(Some(
             "{\"changes\":{\"beta\":\"n\",\"alpha\":\"n\"},\"discussions\":{}}",
         ));
@@ -2463,12 +2463,12 @@ mod board_order_tests {
         let board = BoardOrderDoc::from_content(Some("{\"changes\":{\"m\":\"n\"},\"discussions\":{}}"));
         let mut items = vec![change("delta", 0, 2), change("bravo", 0, 2), change("m", 0, 2)];
         overlay_changes_order(&mut items, &board);
-        assert_eq!(names(&items), ["delta", "bravo", "m"], "缺 rank 卡維持 server 回傳序置頂");
+        assert_eq!(names(&items), ["delta", "bravo", "m"], "缺 rank 卡维持 server 回传序置顶");
     }
 
     #[test]
     fn absent_board_resource_leaves_the_server_order_untouched() {
-        // 規格 Scenario「無 board resource 時行為不變」：逐項一致。
+        // 规格 Scenario「无 board resource 时行为不变」：逐项一致。
         let mut items = vec![change("c", 1, 2), change("a", 0, 2), change("b", 2, 2)];
         let before = names(&items).into_iter().map(String::from).collect::<Vec<_>>();
         let board = BoardOrderDoc::from_content(None);
@@ -2478,8 +2478,8 @@ mod board_order_tests {
 
     #[test]
     fn corrupt_board_resource_is_treated_as_all_unranked() {
-        // 規格 Scenario「壞文件退回回退序」＋ design 決策 6：非法 JSON／非預期
-        // 形狀＝全員缺 rank，照常渲染不失效。
+        // 规格 Scenario「坏文档退回回退序」＋ design 决策 6：非法 JSON／非预期
+        // 形状＝全员缺 rank，照常渲染不失效。
         for corrupt in ["not json at all {{{", "[1,2,3]", "{\"changes\":\"not-a-map\"}"] {
             let mut items = vec![change("c", 0, 2), change("a", 0, 2)];
             let board = BoardOrderDoc::from_content(Some(corrupt));
@@ -2501,7 +2501,7 @@ mod board_order_tests {
         ];
         overlay_discussions_order(&mut items, &board);
         let slugs: Vec<&str> = items.iter().map(|i| i.slug.as_str()).collect();
-        // zulu 缺 rank 置頂；delta(b) < charlie(n)==echo(n) 同值以 slug 決斷。
+        // zulu 缺 rank 置顶；delta(b) < charlie(n)==echo(n) 同值以 slug 决断。
         assert_eq!(slugs, ["zulu", "delta", "charlie", "echo"]);
     }
 }
@@ -2510,9 +2510,9 @@ mod board_order_tests {
 mod plan_merge_tests {
     use super::board_order_tests::change;
     use super::{merge_plan, RemoteChangeList};
-    use speclink_desktop_core::query::PLAN_FIELDS;
-    use speclink_protocol::query::{BoardOrderDoc, PlanChangeEntry, PlanResponse, PlanUnpromotedCut};
-    use speclink_remote::RemoteError;
+    use specseal_desktop_core::query::PLAN_FIELDS;
+    use specseal_protocol::query::{BoardOrderDoc, PlanChangeEntry, PlanResponse, PlanUnpromotedCut};
+    use specseal_remote::RemoteError;
 
     pub(super) fn entry(name: &str, wave: usize, depends_on: &[&str], blocked_by: &[&str]) -> PlanChangeEntry {
         PlanChangeEntry {
@@ -2552,14 +2552,14 @@ mod plan_merge_tests {
         list.changes.iter().map(|c| c.summary.name.as_str()).collect()
     }
 
-    /// board 的 rank 讓 b 排在 a 前面。
+    /// board 的 rank 让 b 排在 a 前面。
     fn board() -> BoardOrderDoc {
         BoardOrderDoc::from_content(Some(r#"{"changes":{"b":"b","a":"f"}}"#))
     }
 
     #[test]
     fn the_plan_decides_the_order_and_carries_the_schedule_fields() {
-        // 規格「remote 變更清單的排程欄位」：plan 的配置序優先於 board overlay。
+        // 规格「remote 变更清单的调度字段」：plan 的配置序优先于 board overlay。
         let list = merge_plan(
             vec![change("a", 0, 0), change("b", 0, 0)],
             &board(),
@@ -2572,14 +2572,14 @@ mod plan_merge_tests {
         assert_eq!(b["dependsOn"], serde_json::json!(["a"]));
         assert_eq!(b["blockedBy"], serde_json::json!(["a"]));
         assert_eq!(b["overlaps"], serde_json::json!([]));
-        // 只搬排程欄位：plan 列的 name、stage、ready 不疊到清單項上。
+        // 只搬调度字段：plan 列的 name、stage、ready 不叠到清单项上。
         let keys: Vec<&str> = b.keys().map(String::as_str).collect();
         assert_eq!(keys.len(), PLAN_FIELDS.len(), "{keys:?}");
     }
 
     #[test]
     fn changes_the_plan_does_not_list_trail_in_server_order_without_fields() {
-        // plan 與清單是兩次請求：之間新增或壞 meta 被 plan 略過的項落在末尾。
+        // plan 与清单是两次请求：之间添加或坏 meta 被 plan 略过的项落在末尾。
         let list = merge_plan(
             vec![change("a", 0, 0), change("b", 0, 0), change("c", 0, 0), change("d", 0, 0)],
             &BoardOrderDoc::default(),
@@ -2592,7 +2592,7 @@ mod plan_merge_tests {
 
     #[test]
     fn a_409_cycle_falls_back_to_the_board_overlay_with_the_message() {
-        // 規格 Scenario「remote 成環退回」。
+        // 规格 Scenario「remote 成环退回」。
         let list = merge_plan(
             vec![change("a", 0, 0), change("b", 0, 0)],
             &board(),
@@ -2605,7 +2605,7 @@ mod plan_merge_tests {
 
     #[test]
     fn an_old_server_or_a_lost_connection_falls_back_silently() {
-        // 規格 Scenario「舊 server 退回」：404、連線失敗、5xx 都不打擾使用者。
+        // 规格 Scenario「旧 server 退回」：404、连接失败、5xx 都不打扰用户。
         for error in [
             failure(Some(404), Some("not_found"), "resource not found"),
             failure(None, None, "server unreachable"),
@@ -2647,9 +2647,9 @@ mod plan_merge_tests {
 
     #[test]
     fn merge_plan_old_server_yields_empty_new_fields() {
-        // 規格 Scenario「舊 server 缺新欄位讀作空陣列」：plan 回應每項只有七鍵（in-process
-        // server 一定回九鍵，舊 server 只能在這層以真實回應本文模擬）——兩個新欄位沿
-        // wire 型別的 default 成為空陣列而非缺席，wave 與 blockedBy 照常。
+        // 规格 Scenario「旧 server 缺新字段读作空数组」：plan 回应每项只有七键（in-process
+        // server 一定回九键，旧 server 只能在这层以真实回应本文仿真）——两个新字段沿
+        // wire 类型的 default 成为空数组而非缺席，wave 与 blockedBy 照常。
         let old_server: PlanResponse = serde_json::from_str(
             r#"{"waves":[{"index":1,"changes":["a"]},{"index":2,"changes":["b"]}],
                 "changes":[
@@ -2673,7 +2673,7 @@ mod plan_merge_tests {
             assert_eq!(item["requirementOverlap"], serde_json::json!([]), "{item}");
             assert_eq!(item["archiveAfter"], serde_json::json!([]), "{item}");
         }
-        // 舊 server 的 plan 回應沒有 unpromotedCuts 鍵：頂層讀作空陣列，next 照搬。
+        // 旧 server 的 plan 回应没有 unpromotedCuts 键：顶层读作空数组，next 照搬。
         assert_eq!(list.next.as_deref(), Some("a"));
         assert!(list.unpromoted_cuts.is_empty());
         assert_eq!(json["unpromotedCuts"], serde_json::json!([]), "{json}");
@@ -2683,7 +2683,7 @@ mod plan_merge_tests {
         PlanUnpromotedCut {
             discussion: "panel".into(),
             cut: "cut 3".into(),
-            title: "路線圖".into(),
+            title: "路线图".into(),
             changes: vec!["add-z".into()],
             unpromoted: vec!["add-z".into()],
         }
@@ -2691,8 +2691,8 @@ mod plan_merge_tests {
 
     #[test]
     fn merge_plan_carries_the_next_and_unpromoted_cuts() {
-        // 規格 Scenario「remote 清單帶 next 與尚未轉出的刀」：兩欄逐欄搬運自 GET /plan，
-        // 序列化為頂層的 next 與 unpromotedCuts（五鍵 camelCase）。
+        // 规格 Scenario「remote 清单带 next 与尚未转出的刀」：两栏逐栏搬运自 GET /plan，
+        // 串行化为顶层的 next 与 unpromotedCuts（五键 camelCase）。
         let mut response = plan(vec![entry("add-a", 1, &[], &[])]);
         response.next = Some("add-a".into());
         response.unpromoted_cuts = vec![panel_cut()];
@@ -2706,7 +2706,7 @@ mod plan_merge_tests {
             serde_json::json!([{
                 "discussion": "panel",
                 "cut": "cut 3",
-                "title": "路線圖",
+                "title": "路线图",
                 "changes": ["add-z"],
                 "unpromoted": ["add-z"],
             }])
@@ -2715,8 +2715,8 @@ mod plan_merge_tests {
 
     #[test]
     fn merge_plan_errors_clear_the_next_and_unpromoted_cuts() {
-        // 規格「remote 變更清單的排程欄位」：409（成環）與其他錯誤（404、連線失敗）
-        // 時 next 為 null、unpromotedCuts 為空陣列——兩鍵照樣出現在 payload。
+        // 规格「remote 变更清单的调度字段」：409（成环）与其他错误（404、连接失败）
+        // 时 next 为 null、unpromotedCuts 为空数组——两键照样出现在 payload。
         for error in [
             failure(Some(409), Some("refused"), "dependency cycle: a -> b -> a"),
             failure(Some(404), Some("not_found"), "resource not found"),
@@ -2737,25 +2737,25 @@ mod board_reorder_tests {
     use super::board_order_tests::{change, discussion};
     use super::plan_merge_tests::{entry, plan};
     use super::{reorder_via, BoardOrderDoc, BoardSnapshot};
-    use speclink_protocol::query::PlanSkipped;
-    use speclink_remote::RemoteError;
+    use specseal_protocol::query::PlanSkipped;
+    use specseal_remote::RemoteError;
     use std::cell::{Cell, RefCell};
 
     fn conflict() -> RemoteError {
         RemoteError {
-            message: "revision 衝突".into(),
+            message: "revision 冲突".into(),
             reason: Some("revision_conflict".into()),
             status: Some(409),
             evidence: None,
         }
     }
 
-    /// 依 snapshot 產生 read/put 假 IO；記錄每次 put 的 (content, revision)。
+    /// 依 snapshot 产生 read/put 假 IO；记录每次 put 的 (content, revision)。
     struct FakeIo {
         snapshots: RefCell<Vec<BoardSnapshot>>,
         reads: Cell<usize>,
         puts: RefCell<Vec<(String, u64)>>,
-        /// 依呼叫序回應 put：true＝成功、false＝409。
+        /// 依调用序回应 put：true＝成功、false＝409。
         put_plan: Vec<bool>,
     }
 
@@ -2801,8 +2801,8 @@ mod board_reorder_tests {
     }
 
     fn snapshot(
-        changes: Vec<speclink_protocol::query::ChangeSummary>,
-        discussions: Vec<speclink_protocol::query::DiscussionInfo>,
+        changes: Vec<specseal_protocol::query::ChangeSummary>,
+        discussions: Vec<specseal_protocol::query::DiscussionInfo>,
         content: Option<&str>,
         revision: u64,
     ) -> BoardSnapshot {
@@ -2817,8 +2817,8 @@ mod board_reorder_tests {
 
     #[test]
     fn a_column_whose_ranks_disagree_with_the_plan_order_is_respread_before_the_move() {
-        // 規格 Scenario「rank 序與顯示序不一致時整欄重派」：add-c 依賴 add-a 但
-        // rank 較小，plan 顯示序 add-a、add-c、add-x；把 add-x 拖到兩者之間。
+        // 规格 Scenario「rank 序与显示序不一致时整栏重派」：add-c 依赖 add-a 但
+        // rank 较小，plan 显示序 add-a、add-c、add-x；把 add-x 拖到两者之间。
         let mut snap = snapshot(
             vec![change("add-a", 0, 4), change("add-c", 0, 4), change("add-x", 0, 4)],
             vec![],
@@ -2834,12 +2834,12 @@ mod board_reorder_tests {
         io.run("change", "add-x", Some("add-a"), Some("add-c")).expect("reorder lands");
         let doc = BoardOrderDoc::from_content(Some(&io.puts.borrow()[0].0));
         let (a, x, c) = (&doc.changes["add-a"], &doc.changes["add-x"], &doc.changes["add-c"]);
-        assert!(a < x && x < c, "重派後 add-x 落在兩者之間：{a} < {x} < {c}");
+        assert!(a < x && x < c, "重派后 add-x 落在两者之间：{a} < {x} < {c}");
     }
 
     #[test]
     fn a_drag_across_a_declared_dependency_is_refused_without_a_put() {
-        // 規格 Scenario「remote 拖排違反依賴不發 PUT」：訊息與 local 同一句。
+        // 规格 Scenario「remote 拖排违反依赖不发 PUT」：消息与 local 同一句。
         let mut snap = snapshot(
             vec![change("add-a", 0, 4), change("add-b", 0, 4)],
             vec![],
@@ -2852,7 +2852,7 @@ mod board_reorder_tests {
         assert_eq!(error.message, "cannot move 'add-b' there: it depends on add-a");
         assert!(io.puts.borrow().is_empty(), "a refused move sends no PUT");
 
-        // 把前置拖到依賴者之後同樣被擋。
+        // 把前置拖到依赖者之后同样被挡。
         let io = FakeIo::new(vec![snap], vec![true]);
         let error = io.run("change", "add-a", Some("add-b"), None).expect_err("crossing is refused");
         assert_eq!(error.message, "cannot move 'add-a' there: add-b depend on it");
@@ -2861,9 +2861,9 @@ mod board_reorder_tests {
 
     #[test]
     fn a_skipped_prerequisite_takes_no_part_in_the_dependency_check() {
-        // 引擎視對 plan 略過的卡（壞 meta）的依賴為已滿足，與本機拖排（引擎 move_rank 的
-        // 依賴檢查）的判定範圍相同：add-b 宣告依賴排在欄尾的 add-x，桌面收到把 add-b 移到欄頂的寫回請求時
-        // 照常寫回。
+        // 引擎视对 plan 略过的卡（坏 meta）的依赖为已满足，与本机拖排（引擎 move_rank 的
+        // 依赖检查）的判定范围相同：add-b 声明依赖排在栏尾的 add-x，桌面收到把 add-b 移到栏顶的写回请求时
+        // 照常写回。
         let mut snap = snapshot(
             vec![change("add-a", 0, 4), change("add-b", 0, 4), change("add-x", 0, 4)],
             vec![],
@@ -2876,13 +2876,13 @@ mod board_reorder_tests {
         let io = FakeIo::new(vec![snap], vec![true]);
         io.run("change", "add-b", None, Some("add-a")).expect("a skipped prerequisite blocks nothing");
         let doc = BoardOrderDoc::from_content(Some(&io.puts.borrow()[0].0));
-        assert!(doc.changes["add-b"] < doc.changes["add-a"], "add-b 落在欄頂");
+        assert!(doc.changes["add-b"] < doc.changes["add-a"], "add-b 落在栏顶");
     }
 
     #[test]
     fn a_drop_after_a_trailing_skipped_card_lands_at_the_column_bottom() {
-        // plan 略過的卡顯示在欄尾，前端把它當成上方鄰居送出（prevId＝add-x、nextId＝null）：
-        // 它留在欄內參與落點計算，新鍵排在它之後，不被當成空欄的首鍵。
+        // plan 略过的卡显示在栏尾，前端把它当成上方邻居送出（prevId＝add-x、nextId＝null）：
+        // 它留在栏内参与落点计算，新键排在它之后，不被当成空栏的首键。
         let mut snap = snapshot(
             vec![change("add-a", 0, 4), change("add-b", 0, 4), change("add-x", 0, 4)],
             vec![],
@@ -2896,13 +2896,13 @@ mod board_reorder_tests {
         io.run("change", "add-a", Some("add-x"), None).expect("reorder lands");
         let doc = BoardOrderDoc::from_content(Some(&io.puts.borrow()[0].0));
         let (a, b, x) = (&doc.changes["add-a"], &doc.changes["add-b"], &doc.changes["add-x"]);
-        assert!(b < x && x < a, "add-a 落在欄底：{b} < {x} < {a}");
+        assert!(b < x && x < a, "add-a 落在栏底：{b} < {x} < {a}");
     }
 
     #[test]
     fn dragging_a_skipped_card_is_refused_with_the_local_line_and_no_put() {
-        // 被拖卡本身被 plan 略過（壞 meta）：寫進 rank 也會被顯示序排回欄尾，與本地寫壞 meta
-        // 被拒同構——回同一句 `invalid …/.meta.yaml: <原因>`，不發 PUT。
+        // 被拖卡本身被 plan 略过（坏 meta）：写进 rank 也会被显示序排回栏尾，与本地写坏 meta
+        // 被拒同构——回同一句 `invalid …/.meta.yaml: <原因>`，不发 PUT。
         let mut snap = snapshot(
             vec![change("add-a", 0, 4), change("add-x", 0, 4)],
             vec![],
@@ -2914,14 +2914,14 @@ mod board_reorder_tests {
         snap.plan = Some(skipping);
         let io = FakeIo::new(vec![snap], vec![true]);
         let error = io.run("change", "add-x", None, Some("add-a")).expect_err("a skipped card cannot move");
-        assert_eq!(error.message, "invalid speclink/changes/add-x/.meta.yaml: bad yaml");
+        assert_eq!(error.message, "invalid specseal/changes/add-x/.meta.yaml: bad yaml");
         assert_eq!(error.reason.as_deref(), Some("invalid_config"));
         assert!(io.puts.borrow().is_empty(), "a refused move sends no PUT");
     }
 
     #[test]
     fn without_a_plan_the_dependency_check_is_skipped() {
-        // 舊 server（plan 不可得）：沒有 dependsOn 圖可查，照常寫回。
+        // 旧 server（plan 不可得）：没有 dependsOn 图可查，照常写回。
         let io = FakeIo::new(
             vec![snapshot(
                 vec![change("add-a", 0, 4), change("add-b", 0, 4)],
@@ -2937,8 +2937,8 @@ mod board_reorder_tests {
 
     #[test]
     fn unranked_column_is_backfilled_into_the_board_resource_only() {
-        // design 決策 5：欄內缺 rank → 依當前顯示序整欄補章，等距鍵只落在
-        // board resource 圖內；落點取鄰居中點。
+        // design 决策 5：栏内缺 rank → 依当前显示序整栏补章，等距键只落在
+        // board resource 图内；落点取邻居中点。
         let io = FakeIo::new(
             vec![snapshot(
                 vec![change("a", 0, 4), change("b", 0, 4), change("c", 0, 4)],
@@ -2953,17 +2953,17 @@ mod board_reorder_tests {
         let puts = io.puts.borrow();
         assert_eq!(puts.len(), 1, "恰一次 PUT 全文");
         let (content, revision) = &puts[0];
-        assert_eq!(*revision, 5, "If-Match 帶讀到的 scope revision");
+        assert_eq!(*revision, 5, "If-Match 带读到的 scope revision");
         let doc = BoardOrderDoc::from_content(Some(content));
         let (a, b, c) = (&doc.changes["a"], &doc.changes["b"], &doc.changes["c"]);
-        assert!(a < c && c < b, "c 落在 a 與 b 之間：{a} < {c} < {b}");
-        assert!(doc.discussions.is_empty(), "補章只涵蓋被拖卡所在欄");
+        assert!(a < c && c < b, "c 落在 a 与 b 之间：{a} < {c} < {b}");
+        assert!(doc.discussions.is_empty(), "补章只涵盖被拖卡所在栏");
     }
 
     #[test]
     fn backfill_covers_only_the_dragged_cards_column() {
-        // 欄推導與前端 changeStage 同構：proposed(0) 與 ready(全完成) 分欄，
-        // 拖 proposed 卡不為 ready 卡補章。
+        // 栏推导与前端 changeStage 同构：proposed(0) 与 ready(全完成) 分栏，
+        // 拖 proposed 卡不为 ready 卡补章。
         let io = FakeIo::new(
             vec![snapshot(
                 vec![change("done", 4, 4), change("a", 0, 4), change("b", 0, 4)],
@@ -2976,14 +2976,14 @@ mod board_reorder_tests {
         io.run("change", "b", None, Some("a")).expect("reorder lands");
         let puts = io.puts.borrow();
         let doc = BoardOrderDoc::from_content(Some(&puts[0].0));
-        assert!(!doc.changes.contains_key("done"), "他欄的卡不被補章觸碰");
-        assert!(doc.changes["b"] < doc.changes["a"], "b 落在 a 之前（欄頂）");
+        assert!(!doc.changes.contains_key("done"), "他栏的卡不被补章触碰");
+        assert!(doc.changes["b"] < doc.changes["a"], "b 落在 a 之前（栏顶）");
     }
 
     #[test]
     fn vanished_neighbors_are_open_ends_and_inverted_ranks_drop_the_upper_bound() {
-        // 規格「拖排寫回以全文 CAS 與一次重試收斂」：消失的鄰居視開放端、
-        // 鄰居現值逆序時棄上界保底——沿本地 neighbor_midpoint 語意。
+        // 规格「拖排写回以全文 CAS 与一次重试收敛」：消失的邻居视开放端、
+        // 邻居现值逆序时弃上界保底——沿本地 neighbor_midpoint 语意。
         let board = "{\"changes\":{\"a\":\"f\",\"b\":\"n\",\"drag\":\"t\"},\"discussions\":{}}";
         let io = FakeIo::new(
             vec![snapshot(
@@ -2994,12 +2994,12 @@ mod board_reorder_tests {
             )],
             vec![true],
         );
-        // prev 指向已消失的卡（開放端＝欄頂）、next 為 a(f) → key < f。
+        // prev 指向已消失的卡（开放端＝栏顶）、next 为 a(f) → key < f。
         io.run("change", "drag", Some("ghost"), Some("a")).expect("reorder lands");
         let doc = BoardOrderDoc::from_content(Some(&io.puts.borrow()[0].0));
-        assert!(doc.changes["drag"].as_str() < "f", "消失的 prev 視為欄頂開放端");
+        assert!(doc.changes["drag"].as_str() < "f", "消失的 prev 视为栏顶开放端");
 
-        // 逆序鄰居（prev=b(n)、next=a(f)，n > f）→ 棄上界：key > n。
+        // 逆序邻居（prev=b(n)、next=a(f)，n > f）→ 弃上界：key > n。
         let io = FakeIo::new(
             vec![snapshot(
                 vec![change("a", 0, 4), change("b", 0, 4), change("drag", 0, 4)],
@@ -3011,13 +3011,13 @@ mod board_reorder_tests {
         );
         io.run("change", "drag", Some("b"), Some("a")).expect("reorder lands");
         let doc = BoardOrderDoc::from_content(Some(&io.puts.borrow()[0].0));
-        assert!(doc.changes["drag"].as_str() > "n", "逆序鄰居棄上界保底");
+        assert!(doc.changes["drag"].as_str() > "n", "逆序邻居弃上界保底");
     }
 
     #[test]
     fn entries_absent_from_the_current_lists_are_pruned_on_rewrite() {
-        // 規格 Scenario「已封存卡的條目被修剪」：PUT 全文不含不在現行清單
-        // 的條目——changes 與 discussions 兩段圖皆修剪。
+        // 规格 Scenario「已封存卡的条目被修剪」：PUT 全文不含不在现行清单
+        // 的条目——changes 与 discussions 两段图皆修剪。
         let board = "{\"changes\":{\"gone\":\"d\",\"a\":\"f\",\"b\":\"n\"},\
                      \"discussions\":{\"stale\":\"g\",\"topic\":\"m\"}}";
         let io = FakeIo::new(
@@ -3031,15 +3031,15 @@ mod board_reorder_tests {
         );
         io.run("change", "a", Some("b"), None).expect("reorder lands");
         let doc = BoardOrderDoc::from_content(Some(&io.puts.borrow()[0].0));
-        assert!(!doc.changes.contains_key("gone"), "封存變更的條目被修剪");
-        assert!(!doc.discussions.contains_key("stale"), "孤兒討論條目一併修剪");
-        assert!(doc.discussions.contains_key("topic"), "現行清單內的條目保留");
+        assert!(!doc.changes.contains_key("gone"), "封存变更的条目被修剪");
+        assert!(!doc.discussions.contains_key("stale"), "孤儿讨论条目一并修剪");
+        assert!(doc.discussions.contains_key("topic"), "现行清单内的条目保留");
     }
 
     #[test]
     fn a_conflict_rereads_recomputes_and_retries_exactly_once() {
-        // 規格 Scenario「409 重讀後落位」：重讀 → 重算 → 重試恰一次成功，
-        // 第二次 PUT 帶新 revision 且落點基於他人已寫入的新 board。
+        // 规格 Scenario「409 重读后落位」：重读 → 重算 → 重试恰一次成功，
+        // 第二次 PUT 带新 revision 且落点基于他人已写入的新 board。
         let first = snapshot(
             vec![change("a", 0, 4), change("b", 0, 4), change("drag", 0, 4)],
             vec![],
@@ -3055,19 +3055,19 @@ mod board_reorder_tests {
         let io = FakeIo::new(vec![first, second], vec![false, true]);
         io.run("change", "drag", Some("a"), Some("b")).expect("retry lands");
 
-        assert_eq!(io.reads.get(), 2, "409 後重讀一次");
+        assert_eq!(io.reads.get(), 2, "409 后重读一次");
         let puts = io.puts.borrow();
-        assert_eq!(puts.len(), 2, "重試恰一次");
-        assert_eq!(puts[1].1, 8, "重試帶重讀後的新 revision");
+        assert_eq!(puts.len(), 2, "重试恰一次");
+        assert_eq!(puts[1].1, 8, "重试带重读后的新 revision");
         let doc = BoardOrderDoc::from_content(Some(&puts[1].0));
         let key = doc.changes["drag"].as_str();
-        assert!("c" < key && key < "x", "落點基於重讀後的鄰居現值：c < {key} < x");
+        assert!("c" < key && key < "x", "落点基于重读后的邻居现值：c < {key} < x");
     }
 
     #[test]
     fn a_second_conflict_surfaces_the_error_without_a_third_attempt() {
-        // 規格 Scenario「重試仍敗不留假象」：再敗回錯誤（機器可判），呼叫端
-        // 據此刷新 server 現況；絕不第三次嘗試。
+        // 规格 Scenario「重试仍败不留假象」：再败回错误（机器可判），调用端
+        // 据此刷新 server 现况；绝不第三次尝试。
         let base = snapshot(
             vec![change("a", 0, 4), change("drag", 0, 4)],
             vec![],
@@ -3077,7 +3077,7 @@ mod board_reorder_tests {
         let io = FakeIo::new(vec![base.clone(), base], vec![false, false]);
         let error = io.run("change", "drag", Some("a"), None).expect_err("both attempts conflict");
         assert_eq!(error.reason.as_deref(), Some("revision_conflict"));
-        assert_eq!(io.puts.borrow().len(), 2, "重試上限恰一次，無第三次 PUT");
+        assert_eq!(io.puts.borrow().len(), 2, "重试上限恰一次，无第三次 PUT");
     }
 
     #[test]
@@ -3087,7 +3087,7 @@ mod board_reorder_tests {
             vec![true],
         );
         io.run("change", "ghost", None, None).expect_err("unknown card is refused");
-        assert!(io.puts.borrow().is_empty(), "查無此卡不產生任何寫入");
+        assert!(io.puts.borrow().is_empty(), "查无此卡不产生任何写入");
     }
 
     #[test]
@@ -3108,13 +3108,13 @@ mod board_reorder_tests {
             &doc.discussions["beta"],
             &doc.discussions["gamma"],
         );
-        assert!(a < g && g < b, "gamma 落在 alpha 與 beta 之間");
-        assert!(doc.changes.is_empty(), "變更圖不被討論拖排觸碰");
+        assert!(a < g && g < b, "gamma 落在 alpha 与 beta 之间");
+        assert!(doc.changes.is_empty(), "变更图不被讨论拖排触碰");
     }
 
     #[test]
     fn corrupt_board_content_is_rebuilt_by_the_next_reorder() {
-        // 規格 Scenario「壞文件退回回退序」後半：下一次成功拖排重建合法文件。
+        // 规格 Scenario「坏文档退回回退序」后半：下一次成功拖排重建合法文档。
         let io = FakeIo::new(
             vec![snapshot(
                 vec![change("a", 0, 4), change("b", 0, 4)],
@@ -3126,7 +3126,7 @@ mod board_reorder_tests {
         );
         io.run("change", "b", None, Some("a")).expect("reorder lands");
         let text = &io.puts.borrow()[0].0;
-        let doc: BoardOrderDoc = serde_json::from_str(text).expect("重建後為合法 JSON 形狀");
+        let doc: BoardOrderDoc = serde_json::from_str(text).expect("重建后为合法 JSON 形状");
         assert!(doc.changes["b"] < doc.changes["a"]);
     }
 }
@@ -3136,7 +3136,7 @@ mod migration_bundle_tests {
     use super::{
         adopt_remote_workspace_with, build_import_bundle, finalize_local_migration_with, migratable_spec_dir,
     };
-    use speclink_protocol::query::ImportDocumentId;
+    use specseal_protocol::query::ImportDocumentId;
     use std::collections::BTreeMap;
     use std::path::Path;
     use tempfile::TempDir;
@@ -3154,7 +3154,7 @@ mod migration_bundle_tests {
             "openspec/config.yaml",
             "schema: spec-driven\nlocale: tw\n",
         );
-        write(root.path(), "openspec/LANGUAGE.md", "TeamStore: 團隊儲存\n");
+        write(root.path(), "openspec/LANGUAGE.md", "TeamStore: 团队保存\n");
         write(
             root.path(),
             "openspec/changes/active-change/.openspec.yaml",
@@ -3289,7 +3289,7 @@ mod migration_bundle_tests {
                 "---\ntopic: Old plan\nslug: old-plan\nstatus: concluded\ncreated: 2026-07-20\n---\n\nArchived discussion.\n".into(),
             ),
             (
-                // 舊檔名的已封存資料檔一律以 .meta.yaml 為鍵上傳（desktop-spec-dir-migration D5）。
+                // 旧文件名的已封存数据档一律以 .meta.yaml 为键上传（desktop-spec-dir-migration D5）。
                 ImportDocumentId::ArchivedChange {
                     change: "2026-07-20-old-change".into(),
                     doc: ".meta.yaml".into(),
@@ -3323,7 +3323,7 @@ mod migration_bundle_tests {
             ),
             (
                 ImportDocumentId::Language,
-                "TeamStore: 團隊儲存\n".into(),
+                "TeamStore: 团队保存\n".into(),
             ),
         ]);
         assert_eq!(documents, expected);
@@ -3349,7 +3349,7 @@ mod migration_bundle_tests {
     #[test]
     fn successful_conversion_renames_the_local_tree_before_writing_the_marker() {
         let root = complete_workspace();
-        let marker = root.path().join(".speclink.yaml");
+        let marker = root.path().join(".specseal.yaml");
         let backup = finalize_local_migration_with(
             root.path(),
             "openspec",
@@ -3369,7 +3369,7 @@ mod migration_bundle_tests {
         assert!(!root.path().join("openspec").exists());
         assert!(backup.join("changes/active-change/proposal.md").is_file());
         let marker = std::fs::read_to_string(marker).expect("remote marker");
-        assert!(marker.contains("https://spec.example.test/api/speclink/v1/projects/demo"));
+        assert!(marker.contains("https://spec.example.test/api/specseal/v1/projects/demo"));
         assert!(marker.contains("repo: backend"));
     }
 
@@ -3395,14 +3395,14 @@ mod migration_bundle_tests {
 
     #[test]
     fn the_backup_is_named_after_the_actual_folder_and_keeps_the_sequence_rule() {
-        // spec Scenario「備份目錄依實際資料夾命名」。
+        // spec Scenario「备份目录依实际文件夹命名」。
         let root = tempfile::tempdir().unwrap();
-        write(root.path(), "speclink/changes/demo/proposal.md", "## Why\n");
-        std::fs::create_dir(root.path().join("speclink.migrated-2026-11-02")).unwrap();
+        write(root.path(), "specseal/changes/demo/proposal.md", "## Why\n");
+        std::fs::create_dir(root.path().join("specseal.migrated-2026-11-02")).unwrap();
 
         let backup = finalize_local_migration_with(
             root.path(),
-            "speclink",
+            "specseal",
             "https://spec.example.test",
             "demo",
             "backend",
@@ -3410,19 +3410,19 @@ mod migration_bundle_tests {
             |from, to| std::fs::rename(from, to),
         )
         .expect("conversion succeeds");
-        assert_eq!(backup, root.path().join("speclink.migrated-2026-11-02-2"));
-        assert!(!root.path().join("speclink").exists());
+        assert_eq!(backup, root.path().join("specseal.migrated-2026-11-02-2"));
+        assert!(!root.path().join("specseal").exists());
         assert!(backup.join("changes/demo/proposal.md").is_file());
     }
 
     #[test]
     fn only_an_explicit_custom_spec_folder_is_refused() {
-        // spec「新舊預設資料夾都可遷移到遠端」：預設與舊佈局放行，自訂資料夾在任何遠端寫入前被拒。
-        let workspace = |name: &str| speclink_core::workspace::Workspace {
+        // spec「新旧缺省文件夹都可迁移到远程」：缺省与旧布局放行，自订文件夹在任何远程写入前被拒。
+        let workspace = |name: &str| specseal_core::workspace::Workspace {
             root: std::path::PathBuf::from("/p"),
             spec_dir_name: name.to_string(),
         };
-        assert_eq!(migratable_spec_dir(&workspace("speclink"), "migration").unwrap(), "speclink");
+        assert_eq!(migratable_spec_dir(&workspace("specseal"), "migration").unwrap(), "specseal");
         assert_eq!(migratable_spec_dir(&workspace("openspec"), "migration").unwrap(), "openspec");
         let error = migratable_spec_dir(&workspace("docs/specs"), "local-to-remote migration").unwrap_err();
         assert!(error.contains("default spec folder") && error.contains("docs/specs/"), "{error}");
@@ -3430,24 +3430,24 @@ mod migration_bundle_tests {
 
     #[test]
     fn both_default_folders_side_by_side_are_refused() {
-        // 只備份 speclink/ 會留下 openspec/：轉成 checkout 後一開就是本機與遠端並存。
+        // 只备份 specseal/ 会留下 openspec/：转成 checkout 后一开就是本机与远程并存。
         let root = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(root.path().join("speclink/changes")).unwrap();
+        std::fs::create_dir_all(root.path().join("specseal/changes")).unwrap();
         std::fs::create_dir_all(root.path().join("openspec/changes")).unwrap();
-        let workspace = speclink_core::workspace::Workspace {
+        let workspace = specseal_core::workspace::Workspace {
             root: root.path().to_path_buf(),
-            spec_dir_name: "speclink".to_string(),
+            spec_dir_name: "specseal".to_string(),
         };
         let error = migratable_spec_dir(&workspace, "local-to-remote migration").unwrap_err();
         assert!(error.contains("move or remove openspec/ first"), "{error}");
 
-        // 反方向：明寫 spec_dir: openspec，旁邊又有作為規格資料夾的 speclink/。
-        let legacy = speclink_core::workspace::Workspace {
+        // 反方向：明写 spec_dir: openspec，旁边又有作为规格文件夹的 specseal/。
+        let legacy = specseal_core::workspace::Workspace {
             root: root.path().to_path_buf(),
             spec_dir_name: "openspec".to_string(),
         };
         let error = migratable_spec_dir(&legacy, "local-to-remote migration").unwrap_err();
-        assert!(error.contains("move or remove speclink/ first"), "{error}");
+        assert!(error.contains("move or remove specseal/ first"), "{error}");
     }
 
     #[test]
@@ -3488,8 +3488,8 @@ mod migration_bundle_tests {
     #[test]
     fn adopting_server_truth_only_renames_local_truth_and_preserves_the_marker() {
         let root = complete_workspace();
-        let marker = "remote:\n  url: https://spec.example.test/api/speclink/v1/projects/demo\n  repo: backend\n";
-        write(root.path(), ".speclink.yaml", marker);
+        let marker = "remote:\n  url: https://spec.example.test/api/specseal/v1/projects/demo\n  repo: backend\n";
+        write(root.path(), ".specseal.yaml", marker);
 
         let backup = adopt_remote_workspace_with(root.path(), "openspec", "2026-07-21", |from, to| {
             std::fs::rename(from, to)
@@ -3500,7 +3500,7 @@ mod migration_bundle_tests {
         assert!(!root.path().join("openspec").exists());
         assert!(backup.join("changes/active-change/proposal.md").is_file());
         assert_eq!(
-            std::fs::read_to_string(root.path().join(".speclink.yaml")).unwrap(),
+            std::fs::read_to_string(root.path().join(".specseal.yaml")).unwrap(),
             marker,
             "remote marker is not rewritten"
         );
@@ -3529,15 +3529,15 @@ mod migration_bundle_tests {
         assert!(error.contains("Rename") && error.contains("do not retry import"));
         assert!(root.path().join("openspec").is_dir());
         assert!(!root.path().join("openspec.migrated-2026-07-21").exists());
-        assert!(!root.path().join(".speclink.yaml").exists());
+        assert!(!root.path().join(".specseal.yaml").exists());
     }
 }
 
 #[cfg(test)]
 mod discussion_document_tests {
     use super::discussion_document_of;
-    use speclink_protocol::query::ShowDiscussionResponse;
-    use speclink_remote::RemoteError;
+    use specseal_protocol::query::ShowDiscussionResponse;
+    use specseal_remote::RemoteError;
 
     const INFO: &str = r#"{"slug":"panel","topic":"Panel","status":"promoted","rounds":0,"created":"2026-11-01","promotedTo":["add-y"],"path":"discussions/panel.md","archived":false}"#;
 
@@ -3547,14 +3547,14 @@ mod discussion_document_tests {
 
     #[test]
     fn discussion_document_carries_the_cuts_of_the_detail_response() {
-        let wire = r#"[{"cut":"cut 3","title":"路線圖","note":"","line":"**cut 3 `add-z`**: 路線圖","changes":["add-z"],"changesInBold":true,"unpromoted":["add-z"]}]"#;
+        let wire = r#"[{"cut":"cut 3","title":"路线图","note":"","line":"**cut 3 `add-z`**: 路线图","changes":["add-z"],"changesInBold":true,"unpromoted":["add-z"]}]"#;
         let doc = discussion_document_of(Ok(shown(&format!(r#","cuts":{wire}"#)))).unwrap().expect("found");
         let json = serde_json::to_value(&doc).unwrap();
         assert_eq!(json["content"], "# Discussion\n");
-        assert_eq!(json["cuts"], serde_json::from_str::<serde_json::Value>(wire).unwrap(), "cuts 逐欄同值");
+        assert_eq!(json["cuts"], serde_json::from_str::<serde_json::Value>(wire).unwrap(), "cuts 逐栏同值");
         let mut keys: Vec<_> = json.as_object().unwrap().keys().cloned().collect();
         keys.sort();
-        assert_eq!(keys, ["content", "cuts"], "與本地的討論記錄回應同形");
+        assert_eq!(keys, ["content", "cuts"], "与本地的讨论记录回应同形");
     }
 
     #[test]

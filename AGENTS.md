@@ -1,6 +1,6 @@
 # 工作指引
 
-> 本仓库是 **Specseal**，fork 自 [Speclink](https://github.com/MomoChenisMe/speclink)（MIT，版权与授权保留在 LICENSE）。改名分阶段进行：品牌与文档已切到 Specseal，二进位、crate、npm、工作区文档夹仍叫 `speclink`，完整计划见 `REBRAND-NOTES.md`。
+> 本仓库是 **Specseal**，fork 自 [Specseal](https://github.com/MomoChenisMe/speclink)（MIT，版权与授权保留在 LICENSE）。改名分阶段进行：品牌与文档已切到 Specseal，二进位、crate、npm、工作区文档夹仍叫 `specseal`，完整计划见 `REBRAND-NOTES.md`。
 
 ## 项目惯例
 

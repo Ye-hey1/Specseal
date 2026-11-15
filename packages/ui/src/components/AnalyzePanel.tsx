@@ -6,14 +6,14 @@ import { SEMANTIC_TONE } from "../tone";
 import { SeverityTag } from "./SeverityTag";
 import { Button } from "./ui/button";
 
-/** 分析維度（固定四維，順序對應 speclink analyze 的 --json 輸出）。 */
+/** 分析维度（固定四维，顺序对应 specseal analyze 的 --json 输出）。 */
 const DIMENSIONS = ["Coverage", "Consistency", "Ambiguity", "Gaps"] as const;
 
 /**
- * 分析面板（design D1 兩層結構）：頂部結構驗證列（validate 併入分析單一入口）、
- * 繁中維度摘要卡（零＝無問題成功語意、非零＝N 個問題警示語意、含 Critical 時
- * 破壞語意）、逐條發現卡（嚴重度徽章＋location＋summary＋recommendation）。
- * 純呈現、不新增 IPC；onClose 供宿主收合（design D2）。
+ * 分析面板（design D1 两层结构）：顶部结构验证列（validate 并入分析单一入口）、
+ * 繁中维度摘要卡（零＝无问题成功语意、非零＝N 个问题警示语意、含 Critical 时
+ * 破坏语意）、逐条发现卡（严重度徽章＋location＋summary＋recommendation）。
+ * 纯呈现、不添加 IPC；onClose 供宿主收合（design D2）。
  */
 export function AnalyzePanel({
   report,
@@ -25,7 +25,7 @@ export function AnalyzePanel({
   onClose?: () => void;
 }) {
   const { t, tn } = useI18n();
-  // IPC 邊界防禦：findings／dimensions 缺席（畸形 payload）時退回空陣列，不讓抽屜崩潰。
+  // IPC 边界防御：findings／dimensions 缺席（畸形 payload）时退回空数组，不让抽屉崩溃。
   const findings = report?.findings ?? [];
   const dimensions = report?.dimensions ?? [];
   const count = (d: string) =>
@@ -37,7 +37,7 @@ export function AnalyzePanel({
     <div data-analyze-panel className="rounded-md border border-border/60 bg-muted/20 p-2">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1 flex flex-col gap-2">
-          {/* 結構驗證列：通過單列帶過、失敗呈錯誤數並逐條列出（與 speclink validate 一致）。 */}
+          {/* 结构验证列：通过单列带过、失败呈错误数并逐条列出（与 specseal validate 一致）。 */}
           {validate &&
             (validate.valid ? (
               <div
@@ -58,11 +58,11 @@ export function AnalyzePanel({
                 ))}
               </div>
             ))}
-          {/* 維度摘要卡：一排四張，一眼可見問題集中在哪個維度。 */}
+          {/* 维度摘要卡：一排四张，一眼可见问题集中在哪个维度。 */}
           <div className="grid grid-cols-4 gap-1.5">
             {DIMENSIONS.map((d) => {
               const n = count(d);
-              // 「沒問題」是靜態結果，走中性；有問題才上語意色（含 Critical 的紅）。
+              // 「没问题」是静态结果，走中性；有问题才上语意色（含 Critical 的红）。
               const tone =
                 n === 0
                   ? "text-muted-foreground"
@@ -99,7 +99,7 @@ export function AnalyzePanel({
           </Button>
         )}
       </div>
-      {/* 發現卡：逐條含出處與建議；多時面板內捲動、不撐爆抽屜 header 區。 */}
+      {/* 发现卡：逐条含出处与建议；多时面板内卷动、不撑爆抽屉 header 区。 */}
       {findings.length > 0 && (
         <ul className="mt-2 flex max-h-[32vh] flex-col gap-1.5 overflow-y-auto pr-1">
           {findings.map((f) => (

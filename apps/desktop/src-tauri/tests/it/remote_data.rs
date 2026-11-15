@@ -1,29 +1,29 @@
-//! remote workspace 的 handshake 與資料面三類矩陣（規格「handshake 成功後才
-//! 建立 remote session」「capability 驅動停用且不偽造缺口」；design「決策 1：
-//! RemoteDataSource 的三類覆蓋矩陣」「決策 2：capability 描述隨 session 建立
-//! 產生」「決策 6：極簡開啟入口與 handshake fail-closed」）。
+//! remote workspace 的 handshake 与数据面三类矩阵（规格「handshake 成功后才
+//! 创建 remote session」「capability 驱动停用且不伪造缺口」；design「决策 1：
+//! RemoteDataSource 的三类覆盖矩阵」「决策 2：capability 描述随 session 创建
+//! 产生」「决策 6：极简打开入口与 handshake fail-closed」）。
 //!
-//! in-process speclink-server：open_workspace 以 project[/repo] 識別
-//! handshake——成功回 project/repo 顯示名與 capability 描述、403/404/多義
-//! 原樣回錯不建 runtime；直達類逐方法回 server 真值；組合類 set_tasks 中途
-//! 失敗中止並回報筆數；不支援類回拒絕錯誤。
+//! in-process specseal-server：open_workspace 以 project[/repo] 识别
+//! handshake——成功回 project/repo 显示名与 capability 描述、403/404/多义
+//! 原样回错不建 runtime；直达类逐方法回 server 真值；组合类 set_tasks 中途
+//! 失败中止并回报笔数；不支持类回拒绝错误。
 
 use crate::common;
 
 use chrono::{Duration, Utc};
 use crate::common::Harness;
-use speclink_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
-use speclink_desktop_lib::remote::{self, RemoteWorkspace, TokenManager};
-use speclink_remote::RemoteError;
-use speclink_desktop_core::query::PLAN_FIELDS;
-use speclink_protocol::query::ChangeSummary;
-use speclink_server::identity::{IdentityStore, NewInvitation};
-use speclink_store::{CommandContext, DocumentId, TeamStore};
+use specseal_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
+use specseal_desktop_lib::remote::{self, RemoteWorkspace, TokenManager};
+use specseal_remote::RemoteError;
+use specseal_desktop_core::query::PLAN_FIELDS;
+use specseal_protocol::query::ChangeSummary;
+use specseal_server::identity::{IdentityStore, NewInvitation};
+use specseal_store::{CommandContext, DocumentId, TeamStore};
 use std::sync::Arc;
 
 const FOUR_TASKS: &str = "- [ ] 1.1 First\n- [ ] 1.2 Second\n- [ ] 1.3 Third\n- [ ] 1.4 Fourth\n";
 
-/// 一條 PAT 憑證入 in-memory store，回傳 (credentials, manager)。
+/// 一条 PAT 凭证入 in-memory store，回传 (credentials, manager)。
 fn runtime(h: &Harness) -> (MemoryCredentialStore, Arc<TokenManager>) {
     let store = MemoryCredentialStore::new();
     store
@@ -33,7 +33,7 @@ fn runtime(h: &Harness) -> (MemoryCredentialStore, Arc<TokenManager>) {
     (store, manager)
 }
 
-/// handshake 成功開出 workspace。
+/// handshake 成功开出 workspace。
 fn open(
     h: &Harness,
     credentials: &MemoryCredentialStore,
@@ -44,7 +44,7 @@ fn open(
     workspace
 }
 
-/// 種一個討論文件（concluded fixture 格式）進 demo/backend scope。
+/// 种一个讨论文档（concluded fixture 格式）进 demo/backend scope。
 fn seed_discussion(store: &dyn TeamStore, slug: &str, topic: &str) {
     let doc = format!(
         "---\ntopic: {topic}\nslug: {slug}\nstatus: concluded\ncreated: 2026-01-02\n---\n\n\
@@ -72,11 +72,11 @@ fn seed_discussion(store: &dyn TeamStore, slug: &str, topic: &str) {
     store.commit(uow, Vec::new()).expect("seed discussion");
 }
 
-// --- 看板欄位由生命週期標記驅動（spec desktop-app）---
+// --- 看板字段由生命周期标记驱动（spec desktop-app）---
 
 #[test]
 fn change_stage_matrix_follows_the_lifecycle_markers() {
-    // spec「欄位判定矩陣」Example：0=提案中、1=進行中、2=已就緒。
+    // spec「字段判定矩阵」Example：0=提案中、1=进行中、2=已就绪。
     fn summary(started_at: Option<&str>, completed: usize, total: usize) -> ChangeSummary {
         ChangeSummary {
             name: "demo".into(),
@@ -122,7 +122,7 @@ fn change_stage_matrix_follows_the_lifecycle_markers() {
 
 #[test]
 fn started_at_rides_the_remote_change_list_payload() {
-    // in-progress 蓋章後 startedAt 隨清單 payload 進桌面（系統匣與看板同源）。
+    // in-progress 盖章后 startedAt 随清单 payload 进桌面（系统匣与看板同源）。
     let h = common::harness();
     common::seed_change(h.store.as_ref(), FOUR_TASKS);
     {
@@ -160,14 +160,14 @@ fn started_at_rides_the_remote_change_list_payload() {
     assert_eq!(
         remote::change_stage(&started.summary),
         1,
-        "帶 startedAt 且完成數 0 判為進行中"
+        "带 startedAt 且完成数 0 判为进行中"
     );
     let unstarted = changes.iter().find(|c| c.summary.name == "demo").expect("demo listed");
-    assert_eq!(unstarted.summary.started_at, None, "未開工 change 不帶 startedAt");
-    assert_eq!(remote::change_stage(&unstarted.summary), 0, "未開工零進度停在提案中");
+    assert_eq!(unstarted.summary.started_at, None, "未开工 change 不带 startedAt");
+    assert_eq!(remote::change_stage(&unstarted.summary), 0, "未开工零进度停在提案中");
 }
 
-// --- 開啟入口：handshake fail-closed ---
+// --- 打开入口：handshake fail-closed ---
 
 #[test]
 fn open_handshakes_and_returns_identity_and_capability_description() {
@@ -175,20 +175,20 @@ fn open_handshakes_and_returns_identity_and_capability_description() {
     common::seed_change(h.store.as_ref(), FOUR_TASKS);
     let (credentials, manager) = runtime(&h);
 
-    // 單 repo 的 project：省略 repo 由 server 自動綁定。
+    // 单 repo 的 project：省略 repo 由 server 自动绑定。
     let (_, info) =
         remote::open_workspace(&h.origin, "demo", &manager, &credentials).expect("open");
     assert_eq!(info.project_key, "demo");
-    assert_eq!(info.project_name, "Demo", "handshake 回的 project 顯示名");
-    assert_eq!(info.repo_key, "backend", "單 repo 自動綁定");
+    assert_eq!(info.project_name, "Demo", "handshake 回的 project 显示名");
+    assert_eq!(info.repo_key, "backend", "单 repo 自动绑定");
     assert_eq!(info.repo_name, "backend");
 
-    // 顯式 project/repo 形式同樣成立。
+    // 显式 project/repo 形式同样成立。
     let (_, info2) =
         remote::open_workspace(&h.origin, "demo/backend", &manager, &credentials).expect("open");
     assert_eq!(info2.repo_key, "backend");
 
-    // capability 描述：直達／組合類為真、不支援類為假（決策 1 矩陣）。
+    // capability 描述：直达／组合类为真、不支持类为假（决策 1 矩阵）。
     let caps = &info.capabilities;
     for (name, on) in [
         ("listChanges", caps.list_changes),
@@ -207,25 +207,25 @@ fn open_handshakes_and_returns_identity_and_capability_description() {
         ("archivedCapabilities", caps.archived_capabilities),
         ("searchWorkspace", caps.search_workspace),
         ("getSpecDocument", caps.get_spec_document),
-        // remote-verb-parity：動詞端點直達，editor handshake 四欄全真。
+        // remote-verb-parity：动词端点直达，editor handshake 四栏全真。
         ("validate", caps.validate),
         ("analyze", caps.analyze),
         ("deleteChange", caps.delete_change),
         ("moveTask", caps.move_task),
-        // remote-board-order：看板拖排直達 board resource，editor 為真。
+        // remote-board-order：看板拖排直达 board resource，editor 为真。
         ("reorderCard", caps.reorder_card),
-        // remote-read-parity：change 詮釋資料與 capability 清單以 status
-        // payload 既有欄位映射——資料已在 wire 上，capability 為真。
+        // remote-read-parity：change 诠释数据与 capability 清单以 status
+        // payload 既有字段映射——数据已在 wire 上，capability 为真。
         ("changeMeta", caps.change_meta),
         ("changeCapabilities", caps.change_capabilities),
-        // remote-claim-ownership：editor handshake 的認領面為真。
+        // remote-claim-ownership：editor handshake 的认领面为真。
         ("claim", caps.claim),
     ] {
-        assert!(on, "{name} 是直達／組合／payload 映射類，capability 應為真");
+        assert!(on, "{name} 是直达／组合／payload 映射类，capability 应为真");
     }
     assert!(
         caps.live_updates,
-        "handshake 宣告了 SSE 與 polling——事件能力為真"
+        "handshake 声明了 SSE 与 polling——事件能力为真"
     );
 }
 
@@ -234,7 +234,7 @@ fn open_fails_closed_on_403_404_and_ambiguity() {
     let h = common::harness();
     common::seed_change(h.store.as_ref(), FOUR_TASKS);
 
-    // 403：有效 token、非成員——server 拒絕原樣呈現。
+    // 403：有效 token、非成员——server 拒绝原样呈现。
     let stranger_invite = h
         .identity
         .create_invitation(NewInvitation {
@@ -259,8 +259,8 @@ fn open_fails_closed_on_403_404_and_ambiguity() {
         .expect("set");
     let manager = Arc::new(TokenManager::new(&h.origin));
     let err = remote::open_workspace(&h.origin, "demo", &manager, &credentials)
-        .expect_err("非成員 fail-closed");
-    assert_eq!(err.status, Some(403), "403 原樣回錯：{}", err.message);
+        .expect_err("非成员 fail-closed");
+    assert_eq!(err.status, Some(403), "403 原样回错：{}", err.message);
 
     // 404：不存在的 project。
     let (credentials, manager) = runtime(&h);
@@ -269,17 +269,17 @@ fn open_fails_closed_on_403_404_and_ambiguity() {
     assert_eq!(err.status, Some(404));
     assert!(
         err.message.contains("nope"),
-        "server 錯誤原樣呈現：{}",
+        "server 错误原样呈现：{}",
         err.message
     );
 
-    // 多義：multi 有兩個 repo、未指定——server 的 refused 原樣呈現。
+    // 多义：multi 有两个 repo、未指定——server 的 refused 原样呈现。
     let err = remote::open_workspace(&h.origin, "multi", &manager, &credentials)
         .expect_err("多 repo 未指定 fail-closed");
     assert_eq!(err.status, Some(409));
     assert!(
         err.message.contains("web") && err.message.contains("api"),
-        "多義拒絕帶候選清單：{}",
+        "多义拒绝带候选清单：{}",
         err.message
     );
 }
@@ -304,7 +304,7 @@ fn remote_open_failure_serializes_machine_readable_fields_without_credentials() 
         let value = serde_json::to_value(failure).expect("serialize remote_open failure");
         let object = value.as_object().expect("failure is an object");
 
-        assert_eq!(object.len(), 3, "failure payload 只允許三個公開欄位");
+        assert_eq!(object.len(), 3, "failure payload 只允许三个公开字段");
         assert_eq!(object.get("message").and_then(|v| v.as_str()), Some(message));
         assert_eq!(object.get("reason").and_then(|v| v.as_str()), reason);
         assert_eq!(object.get("status").and_then(|v| v.as_u64()), status.map(u64::from));
@@ -316,12 +316,12 @@ fn remote_open_failure_serializes_machine_readable_fields_without_credentials() 
             "authorization",
             "keychain",
         ] {
-            assert!(!object.contains_key(forbidden), "不得序列化 {forbidden}");
+            assert!(!object.contains_key(forbidden), "不得串行化 {forbidden}");
         }
     }
 }
 
-// --- 直達類：逐方法回 server 真值 ---
+// --- 直达类：逐方法回 server 真值 ---
 
 #[test]
 fn changes_specs_and_artifacts_read_server_truth() {
@@ -352,12 +352,12 @@ fn changes_specs_and_artifacts_read_server_truth() {
     let changes = ws.list_changes(&credentials, None).expect("list changes");
     assert_eq!(changes.changes.len(), 1);
     assert_eq!(changes.changes[0].summary.name, "demo");
-    assert_eq!(changes.changes[0].summary.total_tasks, 4, "任務數是 server 真值");
+    assert_eq!(changes.changes[0].summary.total_tasks, 4, "任务数是 server 真值");
 
     let specs = ws.list_specs(&credentials).expect("list specs");
     assert!(
         specs.specs.iter().any(|s| s.id == "auth"),
-        "正式規格清單：{:?}",
+        "正式规格清单：{:?}",
         specs.specs
     );
 
@@ -366,7 +366,7 @@ fn changes_specs_and_artifacts_read_server_truth() {
     assert_eq!(status.schema_name, "spec-driven");
     assert!(
         status.artifacts.iter().any(|a| a.id == "tasks"),
-        "artifact 狀態來自 server"
+        "artifact 状态来自 server"
     );
 
     let doc = ws
@@ -374,14 +374,14 @@ fn changes_specs_and_artifacts_read_server_truth() {
         .expect("document");
     assert!(
         doc.content.contains("- [ ] 1.1 First"),
-        "artifact 內文是 server 真值"
+        "artifact 内文是 server 真值"
     );
 
-    // SpeclinkDataSource 的定址是檔名（proposal.md、tasks.md、specs/{cap}/spec.md）
-    // ——server 端點吃 artifact id；runtime 單點正規化，UI 檔名不得漏成 400。
+    // SpecsealDataSource 的寻址是文件名（proposal.md、tasks.md、specs/{cap}/spec.md）
+    // ——server 端点吃 artifact id；runtime 单点范式，UI 文件名不得漏成 400。
     let doc = ws
         .document(&credentials, "demo", "tasks.md")
-        .expect("檔名定址同樣成立");
+        .expect("文件名寻址同样成立");
     assert!(doc.content.contains("- [ ] 1.1 First"));
     let err = ws
         .document(&credentials, "demo", "proposal.md")
@@ -389,7 +389,7 @@ fn changes_specs_and_artifacts_read_server_truth() {
     assert_eq!(
         err.status,
         Some(404),
-        "檔名正規化後缺席是 not_found、不是 invalid_argument"
+        "文件名范式后缺席是 not_found、不是 invalid_argument"
     );
 }
 
@@ -476,7 +476,7 @@ fn archived_spec_document_and_search_reads_reach_server_truth() {
     assert_eq!(item.spec_count, 1);
     assert_eq!(item.created_by.as_deref(), Some("Creator"));
     assert_eq!(item.from_discussions, ["source-talk"]);
-    // 沒有章也沒有化石工單：兩個關卡的結局都是 none。
+    // 没有章也没有化石工单：两个关卡的结局都是 none。
     assert_eq!((entry.review_status, entry.verify_status), (Some("none"), Some("none")));
     assert_eq!(
         ws.archived_document(&credentials, dated_name, "proposal.md")
@@ -503,7 +503,7 @@ fn task_flips_claim_and_archive_write_through() {
     let h = common::harness();
     common::seed_change(h.store.as_ref(), FOUR_TASKS);
     {
-        // 一個 delta spec 讓 archive 有 capability 可折入正典。
+        // 一个 delta spec 让 archive 有 capability 可折入正典。
         let mut uow = h
             .store
             .begin_unit_of_work(
@@ -519,9 +519,9 @@ fn task_flips_claim_and_archive_write_through() {
                 change: "demo".into(),
                 artifact: "specs/auth/spec.md".into(),
             },
-            // 新開 capability 的 delta 自帶合格 Purpose，否則封存被 Purpose 守門擋下
-            // （spec archive-merge「新 capability 的 Purpose 自 delta 帶入」）。
-            "## Purpose\n\n本 capability 負責使用者登入與登出的可觀察行為，涵蓋工作階段的建立、續期與撤銷三段流程。\n\n\
+            // 新开 capability 的 delta 自带合格 Purpose，否则封存被 Purpose 守门挡下
+            // （spec archive-merge「新 capability 的 Purpose 自 delta 带入」）。
+            "## Purpose\n\n本 capability 负责用户登录与注销的可观察行为，涵盖工作阶段的创建、续期与撤销三段流程。\n\n\
              ## ADDED Requirements\n\n### Requirement: Login\n\nUsers SHALL log in.\n\n\
              #### Scenario: ok\n\n- **WHEN** login\n- **THEN** ok\n",
         );
@@ -537,7 +537,7 @@ fn task_flips_claim_and_archive_write_through() {
         .expect("document");
     assert!(
         doc.content.contains("- [x] 1.1 First"),
-        "勾選寫穿 server：{}",
+        "勾选写穿 server：{}",
         doc.content
     );
 
@@ -548,18 +548,18 @@ fn task_flips_claim_and_archive_write_through() {
         .expect("document");
     assert!(
         doc.content.contains("- [ ] 1.1 First"),
-        "取消勾選寫穿 server"
+        "取消勾选写穿 server"
     );
 
     let claim = ws.claim(&credentials, "demo").expect("claim");
     assert_eq!(
         claim.claimed_by.as_deref(),
         Some(common::ACTOR_IDENTITY),
-        "claim 回實際 actor"
+        "claim 回实际 actor"
     );
 
-    // 封存前補完任務——單筆封存的任務完成度守門（archive-readiness-gating）
-    // 一體適用 server 通道，未完成 change 會被拒絕。
+    // 封存前补完任务——单笔封存的任务完成度守门（archive-readiness-gating）
+    // 一体适用 server 信道，未完成 change 会被拒绝。
     for task in ["1", "2", "3", "4"] {
         ws.set_task_done(&credentials, "demo", task, true)
             .expect("complete before archive");
@@ -569,10 +569,10 @@ fn task_flips_claim_and_archive_write_through() {
     assert_eq!(archived.specs.len(), 1, "delta spec 折入正典");
     assert_eq!(archived.specs[0].capability, "auth");
     let changes = ws.list_changes(&credentials, None).expect("list changes");
-    assert!(changes.changes.is_empty(), "archive 後不在 active 清單");
+    assert!(changes.changes.is_empty(), "archive 后不在 active 清单");
 }
 
-// --- spec desktop-app「remote 專案的審查與驗證標示」（station-status-and-landing D7）---
+// --- spec desktop-app「remote 项目的审查与验证标示」（station-status-and-landing D7）---
 
 const ONE_TASK_DONE: &str = "- [x] 1.1 Only\n";
 const REVIEW_TICKET: &str = "# Review — demo\n\n## Round 1\n\n**Scope**: src/a.rs\n";
@@ -582,14 +582,14 @@ fn artifact(change: &str, artifact: &str) -> DocumentId {
     DocumentId::ChangeArtifact { change: change.into(), artifact: artifact.into() }
 }
 
-/// 一份已審查的 meta：任務錨 `tasks_total`、scope 是 `src/a.rs`（內容 `fn a() {}`）。
+/// 一份已审查的 meta：任务锚 `tasks_total`、scope 是 `src/a.rs`（内容 `fn a() {}`）。
 fn reviewed_meta(tasks_total: usize) -> String {
     reviewed_meta_at(tasks_total, None)
 }
 
-/// 同上，章另外記下蓋章時的 commit。
+/// 同上，章另外记下盖章时的 commit。
 fn reviewed_meta_at(tasks_total: usize, commit: Option<&str>) -> String {
-    let hash = speclink_core::station::content_fingerprint("fn a() {}\n");
+    let hash = specseal_core::station::content_fingerprint("fn a() {}\n");
     let commit = commit.map(|c| format!("reviewed_commit: \"{c}\"\n")).unwrap_or_default();
     format!(
         "schema: spec-driven\ncreated: 2026-11-01\nreviewed_at: 2026-11-02T10:00:00+08:00\n\
@@ -604,7 +604,7 @@ fn git_in(dir: &std::path::Path, args: &[&str]) -> String {
     String::from_utf8_lossy(&out.stdout).trim().to_string()
 }
 
-/// 清單 payload 裡名為 `name` 的那一項（序列化後，即前端看到的形狀）。
+/// 清单 payload 里名为 `name` 的那一项（串行化后，即前端看到的形状）。
 fn listed(list: &remote::RemoteChangeList, name: &str) -> serde_json::Value {
     let payload = serde_json::to_value(list).expect("serialize list");
     payload["changes"]
@@ -618,7 +618,7 @@ fn listed(list: &remote::RemoteChangeList, name: &str) -> serde_json::Value {
 
 #[test]
 fn the_remote_list_carries_the_station_statuses_the_board_reads() {
-    // Scenarios「remote 看板顯示審查中」「沒有 checkout 時只看任務數」：鍵與本機清單項相同。
+    // Scenarios「remote 看板显示审查中」「没有 checkout 时只看任务数」：键与本机清单项相同。
     let h = common::harness();
     seed_docs(
         h.store.as_ref(),
@@ -658,9 +658,9 @@ fn the_remote_list_carries_the_station_statuses_the_board_reads() {
 
 #[test]
 fn a_checkout_turns_a_stamp_stale_when_a_scope_file_differs() {
-    // Scenario「有 checkout 時偵測其後有變動」：任務數相符的已蓋章變更，再拿單筆回應
-    // 的 scope 比 checkout 裡檔案的現值。
-    // checkout 是一個 git repo，章記下的 commit 就是它的 HEAD——checkout 握有蓋章的那一版。
+    // Scenario「有 checkout 时侦测其后有变动」：任务数相符的已盖章变更，再拿单笔回应
+    // 的 scope 比 checkout 里文件的现值。
+    // checkout 是一个 git repo，章记下的 commit 就是它的 HEAD——checkout 握有盖章的那一版。
     let checkout = tempfile::tempdir().expect("checkout dir");
     for args in [&["init", "-q", "-b", "main"][..], &["config", "user.name", "T"], &["config", "user.email", "t@example.com"], &["config", "commit.gpgsign", "false"]] {
         git_in(checkout.path(), args);
@@ -678,7 +678,7 @@ fn a_checkout_turns_a_stamp_stale_when_a_scope_file_differs() {
         &[
             (change_meta("demo"), &reviewed_meta_at(1, Some(&head))),
             (artifact("demo", "tasks.md"), ONE_TASK_DONE),
-            // 章蓋在這個 checkout 沒有的 commit 上：不比檔案。
+            // 章盖在这个 checkout 没有的 commit 上：不比文件。
             (change_meta("elsewhere"), &reviewed_meta_at(1, Some("0123456789abcdef0123456789abcdef01234567"))),
             (artifact("elsewhere", "tasks.md"), ONE_TASK_DONE),
         ],
@@ -698,15 +698,15 @@ fn a_checkout_turns_a_stamp_stale_when_a_scope_file_differs() {
     assert_eq!(elsewhere["reviewStatus"], "reviewed", "stamped on a commit this checkout does not hold");
     std::fs::remove_file(&file).unwrap();
     assert_eq!(status(&ws), "reviewedStale", "a scope file that is gone reads as changed");
-    // 沒有 checkout：只比任務數。
+    // 没有 checkout：只比任务数。
     let unbound = ws.list_changes(&credentials, None).expect("list changes");
     assert_eq!(listed(&unbound, "demo")["reviewStatus"], "reviewed");
 }
 
 #[test]
 fn archiving_a_remote_change_in_review_carries_the_ticket_when_told_to() {
-    // Scenario「封存審查中的 remote 變更」：不帶旗標被拒；帶上保留審查工單的旗標後封存，
-    // 已封存清單顯示曾審查未通過。
+    // Scenario「封存审查中的 remote 变更」：不带旗标被拒；带上保留审查工单的旗标后封存，
+    // 已封存清单显示曾审查未通过。
     let h = common::harness();
     seed_docs(
         h.store.as_ref(),
@@ -733,7 +733,7 @@ fn archiving_a_remote_change_in_review_carries_the_ticket_when_told_to() {
 
 #[test]
 fn discarding_a_remote_ticket_lets_the_archive_go_on() {
-    // 三選項對話框的「放棄審查」在 remote 也作用：工單刪掉後一般封存放行。
+    // 三选项对话框的「放弃审查」在 remote 也作用：工单删掉后一般封存放行。
     let h = common::harness();
     seed_docs(
         h.store.as_ref(),
@@ -752,9 +752,9 @@ fn discarding_a_remote_ticket_lets_the_archive_go_on() {
 
 #[test]
 fn board_reorder_writes_the_board_resource_only_and_meta_is_untouched() {
-    // 規格「board resource 為 scope 單文件且 server 不解析」Scenario「拖排不動
-    // 卡片文件」＋「看板卡片順序以 board_rank 欄位為真相」修訂後的 remote 不寫
-    // meta 斷言：拖排後只有 board resource 產生新 revision。
+    // 规格「board resource 为 scope 单文档且 server 不解析」Scenario「拖排不动
+    // 卡片文档」＋「看板卡片顺序以 board_rank 字段为真相」修订后的 remote 不写
+    // meta 断言：拖排后只有 board resource 产生新 revision。
     let h = common::harness();
     common::seed_named_change(h.store.as_ref(), "alpha", FOUR_TASKS);
     common::seed_named_change(h.store.as_ref(), "bravo", FOUR_TASKS);
@@ -781,20 +781,20 @@ fn board_reorder_writes_the_board_resource_only_and_meta_is_untouched() {
         .expect("board resource created by the first reorder");
     for (name, was) in ["alpha", "bravo", "carol"].iter().zip(before) {
         let now = read_meta(name);
-        assert_eq!(now.content, was.content, "{name} 的 meta 內容不變");
-        assert_eq!(now.revision, was.revision, "{name} 的 meta revision 不變");
+        assert_eq!(now.content, was.content, "{name} 的 meta 内容不变");
+        assert_eq!(now.revision, was.revision, "{name} 的 meta revision 不变");
     }
 
-    // 清單 overlay 反映新序：carol 移到欄頂（alpha 之前），跨讀取持久。
+    // 清单 overlay 反映新序：carol 移到栏顶（alpha 之前），跨读取持久。
     let changes = ws.list_changes(&credentials, None).expect("list changes");
     let names: Vec<&str> = changes.changes.iter().map(|c| c.summary.name.as_str()).collect();
     let pos = |n: &str| names.iter().position(|x| *x == n).expect("card present");
-    assert!(pos("carol") < pos("alpha"), "拖排後 carol 在 alpha 前：{names:?}");
+    assert!(pos("carol") < pos("alpha"), "拖排后 carol 在 alpha 前：{names:?}");
 }
 
-// --- 規格「remote 變更清單的排程欄位」「remote 排序 overlay 與本地語意同構」---
+// --- 规格「remote 变更清单的调度字段」「remote 排序 overlay 与本地语意同构」---
 
-/// 一次 commit 新建多份文件進 demo/backend scope。
+/// 一次 commit 新建多份文档进 demo/backend scope。
 fn seed_docs(store: &dyn TeamStore, docs: &[(DocumentId, &str)]) {
     let mut uow = store
         .begin_unit_of_work(
@@ -819,8 +819,8 @@ fn change_meta(name: &str) -> DocumentId {
 
 #[test]
 fn change_list_follows_the_plan_order_and_carries_the_schedule_fields() {
-    // Scenario「remote 清單帶排程欄位」＋「變更卡依 plan 配置順序」：board 的
-    // rank 讓 add-b 在前，但 add-b 依賴 add-a——清單照 plan 排成 add-a、add-b。
+    // Scenario「remote 清单带调度字段」＋「变更卡依 plan 配置顺序」：board 的
+    // rank 让 add-b 在前，但 add-b 依赖 add-a——清单照 plan 排成 add-a、add-b。
     let h = common::harness();
     seed_docs(
         h.store.as_ref(),
@@ -856,7 +856,7 @@ fn change_list_follows_the_plan_order_and_carries_the_schedule_fields() {
     assert_eq!(payload["changes"][1]["overlaps"], serde_json::json!([]));
     assert_eq!(payload["changes"][1]["totalTasks"], 0, "ChangeSummary fields stay flat");
 
-    // 討論卡仍照 board resource overlay。
+    // 讨论卡仍照 board resource overlay。
     let discussions = ws.list_discussions(&credentials).expect("list discussions");
     let slugs: Vec<&str> = discussions.active.iter().map(|d| d.slug.as_str()).collect();
     assert_eq!(slugs, ["beta", "alpha"]);
@@ -864,15 +864,15 @@ fn change_list_follows_the_plan_order_and_carries_the_schedule_fields() {
 
 #[test]
 fn merge_plan_carries_six_plan_fields() {
-    // Scenario「remote 清單帶排程欄位」：add-b 依賴 add-a，add-b 與 add-c MODIFIED
-    // 同一個 requirement；board 的 rank 讓 add-c 配置在 add-b 前——server 的 plan
-    // 帶來的排程欄位全部疊到 add-b 上，archiveAfter 為 ["add-c"]。
+    // Scenario「remote 清单带调度字段」：add-b 依赖 add-a，add-b 与 add-c MODIFIED
+    // 同一个 requirement；board 的 rank 让 add-c 配置在 add-b 前——server 的 plan
+    // 带来的调度字段全部叠到 add-b 上，archiveAfter 为 ["add-c"]。
     let h = common::harness();
     let modified = |change: &str| DocumentId::ChangeArtifact {
         change: change.into(),
         artifact: "specs/desktop-app/spec.md".into(),
     };
-    let delta = "## MODIFIED Requirements\n\n### Requirement: 看板與任務\n\nbody\n";
+    let delta = "## MODIFIED Requirements\n\n### Requirement: 看板与任务\n\nbody\n";
     seed_docs(
         h.store.as_ref(),
         &[
@@ -908,7 +908,7 @@ fn merge_plan_carries_six_plan_fields() {
         serde_json::json!([{
             "change": "add-c",
             "capability": "desktop-app",
-            "requirement": "看板與任務",
+            "requirement": "看板与任务",
             "ownOperation": "MODIFIED",
             "otherOperation": "MODIFIED",
             "conflict": false,
@@ -922,8 +922,8 @@ fn merge_plan_carries_six_plan_fields() {
 
 #[test]
 fn a_plan_cycle_falls_back_to_the_board_overlay_with_the_cycle_message() {
-    // Scenario「remote 成環退回」：plan 回 409 → board overlay 序、排程欄位缺席、
-    // planError 為訊息。
+    // Scenario「remote 成环退回」：plan 回 409 → board overlay 序、调度字段缺席、
+    // planError 为消息。
     let h = common::harness();
     seed_docs(
         h.store.as_ref(),
@@ -959,8 +959,8 @@ fn a_plan_cycle_falls_back_to_the_board_overlay_with_the_cycle_message() {
 
 #[test]
 fn a_remote_drag_across_a_declared_dependency_sends_no_put() {
-    // change-plan Scenario「remote 拖排違反依賴不發 PUT」：add-b 依賴 add-a，把
-    // add-b 拖到 add-a 之前——單行錯誤、board resource 的內容與 revision 皆不變。
+    // change-plan Scenario「remote 拖排违反依赖不发 PUT」：add-b 依赖 add-a，把
+    // add-b 拖到 add-a 之前——单行错误、board resource 的内容与 revision 皆不变。
     let h = common::harness();
     seed_docs(
         h.store.as_ref(),
@@ -991,7 +991,7 @@ fn a_remote_drag_across_a_declared_dependency_sends_no_put() {
     assert_eq!(error.message, "cannot move 'add-b' there: it depends on add-a");
     assert_eq!(board(), before, "no PUT reached the board resource");
 
-    // 不跨依賴的拖排照常落地。
+    // 不跨依赖的拖排照常落地。
     ws.reorder_card(&credentials, "change", "add-a", None, Some("add-b"))
         .expect("a legal move lands");
     assert_ne!(board(), before, "the legal move rewrote the board resource");
@@ -1009,9 +1009,9 @@ fn discussion_flow_reads_and_writes_through() {
     let lists = ws.list_discussions(&credentials).expect("list discussions");
     assert!(
         lists.active.iter().any(|d| d.slug == "rate-limiting"),
-        "active 清單是 server 真值"
+        "active 清单是 server 真值"
     );
-    assert!(lists.archived.is_empty(), "尚無 archived 討論");
+    assert!(lists.archived.is_empty(), "尚无 archived 讨论");
 
     let shown = ws
         .discussion_document(&credentials, "rate-limiting")
@@ -1020,12 +1020,12 @@ fn discussion_flow_reads_and_writes_through() {
     assert!(shown.content.contains("topic: Rate limiting"));
     assert!(
         shown.content.contains("**Decision**: do it"),
-        "討論內文是 server 真值"
+        "讨论内文是 server 真值"
     );
-    assert!(shown.cuts.is_empty(), "結論沒有刀");
+    assert!(shown.cuts.is_empty(), "结论没有刀");
     assert!(
         ws.discussion_document(&credentials, "no-such-topic").expect("404 is not an error").is_none(),
-        "不存在的討論回 None"
+        "不存在的讨论回 None"
     );
 
     let promoted = ws
@@ -1035,7 +1035,7 @@ fn discussion_flow_reads_and_writes_through() {
     let changes = ws.list_changes(&credentials, None).expect("list changes");
     assert!(
         changes.changes.iter().any(|c| c.summary.name == promoted.change),
-        "promote 產生的 change 出現在清單"
+        "promote 产生的 change 出现在清单"
     );
 
     let archived = ws
@@ -1043,21 +1043,21 @@ fn discussion_flow_reads_and_writes_through() {
         .expect("archive discussion");
     assert!(
         archived.archived_to.contains("old-topic"),
-        "封存路徑回真值：{}",
+        "封存路径回真值：{}",
         archived.archived_to
     );
     let lists = ws.list_discussions(&credentials).expect("list discussions");
     assert!(
         !lists.active.iter().any(|d| d.slug == "old-topic"),
-        "封存後離開 active"
+        "封存后离开 active"
     );
     assert!(
         lists.archived.iter().any(|d| d.slug == "old-topic"),
-        "出現在 archived"
+        "出现在 archived"
     );
 }
 
-// --- 組合類：set_tasks 中途失敗中止並回報筆數 ---
+// --- 组合类：set_tasks 中途失败中止并回报笔数 ---
 
 #[test]
 fn composed_set_tasks_aborts_midway_and_reports_the_completed_count() {
@@ -1066,15 +1066,15 @@ fn composed_set_tasks_aborts_midway_and_reports_the_completed_count() {
     let (credentials, manager) = runtime(&h);
     let ws = open(&h, &credentials, &manager);
 
-    // 「99」不存在：前兩筆成功、第三筆失敗即中止，第四筆不得執行。
+    // 「99」不存在：前两笔成功、第三笔失败即中止，第四笔不得运行。
     let ids: Vec<String> = ["1", "2", "99", "4"]
         .iter()
         .map(|s| s.to_string())
         .collect();
     let failure = ws
         .set_tasks(&credentials, "demo", &ids, true)
-        .expect_err("中途失敗即中止");
-    assert_eq!(failure.completed, 2, "回報已完成筆數");
+        .expect_err("中途失败即中止");
+    assert_eq!(failure.completed, 2, "回报已完成笔数");
 
     let doc = ws
         .document(&credentials, "demo", "tasks")
@@ -1082,50 +1082,50 @@ fn composed_set_tasks_aborts_midway_and_reports_the_completed_count() {
     assert_eq!(
         doc.content.matches("- [x]").count(),
         2,
-        "恰好前兩筆落地：{}",
+        "恰好前两笔落地：{}",
         doc.content
     );
-    assert!(doc.content.contains("- [ ] 1.4 Fourth"), "中止後不再前進");
+    assert!(doc.content.contains("- [ ] 1.4 Fourth"), "中止后不再前进");
 
-    // set_all_tasks 走 server 的任務清單組合——把剩餘任務補完。
+    // set_all_tasks 走 server 的任务清单组合——把剩余任务补完。
     let completed = ws
         .set_all_tasks(&credentials, "demo", true)
         .expect("set all");
-    assert_eq!(completed, 2, "剩餘兩筆由組合實作補完");
+    assert_eq!(completed, 2, "剩余两笔由组合实作补完");
     let doc = ws
         .document(&credentials, "demo", "tasks")
         .expect("document");
     assert_eq!(
         doc.content.matches("- [x]").count(),
         4,
-        "全數完成：{}",
+        "全数完成：{}",
         doc.content
     );
 }
 
-// --- 不支援類：回拒絕錯誤 ---
+// --- 不支持类：回拒绝错误 ---
 
 #[test]
 fn unsupported_operations_are_refused_with_a_zh_tw_message() {
-    let err = remote::unsupported("全文搜尋");
+    let err = remote::unsupported("全文搜索");
     assert_eq!(
         err.reason.as_deref(),
         Some("unsupported"),
-        "機讀 reason 固定"
+        "机读 reason 固定"
     );
     assert!(
-        err.message.contains("全文搜尋"),
-        "訊息點名操作：{}",
+        err.message.contains("全文搜索"),
+        "消息点名操作：{}",
         err.message
     );
     assert!(
         err.message.contains("尚未提供"),
-        "繁中說明缺口來自 server：{}",
+        "繁中说明缺口来自 server：{}",
         err.message
     );
 }
 
-// --- 認領：capability 位依 role（remote-workspace-data「認領操作與認領人呈現」）---
+// --- 认领：capability 位依 role（remote-workspace-data「认领操作与认领人呈现」）---
 
 #[test]
 fn claim_capability_follows_the_membership_role() {
@@ -1135,7 +1135,7 @@ fn claim_capability_follows_the_membership_role() {
     let (credentials, manager) = runtime(&h);
     let (_, editor) =
         remote::open_workspace(&h.origin, "demo", &manager, &credentials).expect("editor opens");
-    assert!(editor.capabilities.claim, "editor 可認領");
+    assert!(editor.capabilities.claim, "editor 可认领");
 
     let invite = h
         .identity
@@ -1153,10 +1153,10 @@ fn claim_capability_follows_the_membership_role() {
         .expect("accept");
     h.identity
         .admin_set_membership(
-            &speclink_server::audit::AuditActor::system_cli(),
+            &specseal_server::audit::AuditActor::system_cli(),
             &reader_id,
             "demo",
-            speclink_server::identity::MembershipRole::Reader,
+            specseal_server::identity::MembershipRole::Reader,
             true,
         )
         .expect("demote to reader");
@@ -1169,15 +1169,15 @@ fn claim_capability_follows_the_membership_role() {
     let (_, reader) =
         remote::open_workspace(&h.origin, "demo", &reader_manager, &reader_credentials)
             .expect("reader opens");
-    assert!(!reader.capabilities.claim, "reader 的認領面停用");
+    assert!(!reader.capabilities.claim, "reader 的认领面停用");
 }
 
 #[test]
 fn station_ticket_maps_404_to_none_and_200_to_rounds() {
-    // spec desktop-app「詳情抽屜的工單分頁」Scenario「遠端工單 404 顯示空態」：
-    // 無工單時 GET /changes/{name}/{station} 是 404 → None（不是錯誤）；工單種下
-    // 後回結構化 rounds，serde 序列化即 D1 形狀（camelCase、patchHash）。兩站
-    // 互不混入：review 工單在，verify 仍是 None。
+    // spec desktop-app「详情抽屉的工单分页」Scenario「远程工单 404 显示空态」：
+    // 无工单时 GET /changes/{name}/{station} 是 404 → None（不是错误）；工单种下
+    // 后回结构化 rounds，serde 串行化即 D1 形状（camelCase、patchHash）。两站
+    // 互不混入：review 工单在，verify 仍是 None。
     let h = common::harness();
     common::seed_change(h.store.as_ref(), FOUR_TASKS);
     let (credentials, manager) = runtime(&h);
@@ -1205,7 +1205,7 @@ fn station_ticket_maps_404_to_none_and_200_to_rounds() {
         )
         .expect("begin uow");
     let ticket_text = format!(
-        "# Review — demo\n\n## Round 1\n\n**Phase**: discovery\n**Patch**: sha256:{}\n**Rules**: replace\n**Rule**: WARNING 新增的公開 API 要有對應的測試\n**Scope**: src/lib.rs\n\n- [WARNING] src/lib.rs — possible smell\n",
+        "# Review — demo\n\n## Round 1\n\n**Phase**: discovery\n**Patch**: sha256:{}\n**Rules**: replace\n**Rule**: WARNING 添加的公开 API 要有对应的测试\n**Scope**: src/lib.rs\n\n- [WARNING] src/lib.rs — possible smell\n",
         "a".repeat(64)
     );
     uow.create(
@@ -1232,15 +1232,15 @@ fn station_ticket_maps_404_to_none_and_200_to_rounds() {
         json[0].get("patchHash").is_some() && json[0].get("patch_hash").is_none(),
         "D1 shape is camelCase: {json}"
     );
-    // 遠端活工單交給與本機同一個組裝函式（D5）：payload 與本機解析同一份原文逐項相同，
-    // 含 rules 與 reviewBaselineSmells。
+    // 远程活工单交给与本机同一个组装函数（D5）：payload 与本机解析同一份原文逐项相同，
+    // 含 rules 与 reviewBaselineSmells。
     assert_eq!(
         remote::station_ticket_payload(ticket.clone()),
-        speclink_desktop_core::query::ticket_json_from_text("review", &ticket_text),
+        specseal_desktop_core::query::ticket_json_from_text("review", &ticket_text),
         "remote live payload matches the local parse"
     );
-    // server 比這支 desktop 新、帶來不認得的 baseline：比照封存原文解析失敗回 None
-    // （空態），不畫成 replace 的套用規則列。
+    // server 比这支 desktop 新、带来不认得的 baseline：比照封存原文解析失败回 None
+    // （空态），不画成 replace 的套用规则列。
     let mut newer = ticket.clone();
     newer.rounds[0].rules.as_mut().expect("rules carried").baseline = "strict".into();
     assert_eq!(remote::station_ticket_payload(newer), None, "unknown baseline reads as no ticket");
@@ -1254,11 +1254,11 @@ fn station_ticket_maps_404_to_none_and_200_to_rounds() {
 
 #[test]
 fn archived_station_ticket_text_parses_into_the_d1_shape() {
-    // spec desktop-app Scenario「遠端封存工單原文解析」：封存端點只給原文——
-    // GET /archived/{dated}/artifacts/verify.md 取回後交引擎解析（desktop core 的
-    // `ticket_json_from_text`），形狀與本機相同：rounds[].index／phase／patchHash／
-    // scope／findings[].severity／path／text。未帶走的站（review.md 缺席）是 404，
-    // 對應指令回 null。
+    // spec desktop-app Scenario「远程封存工单原文解析」：封存端点只给原文——
+    // GET /archived/{dated}/artifacts/verify.md 取回后交引擎解析（desktop core 的
+    // `ticket_json_from_text`），形状与本机相同：rounds[].index／phase／patchHash／
+    // scope／findings[].severity／path／text。未带走的站（review.md 缺席）是 404，
+    // 对应指令回 null。
     let h = common::harness();
     common::seed_change(h.store.as_ref(), FOUR_TASKS);
     let dated_name = "2026-07-19-carried-verify";
@@ -1284,7 +1284,7 @@ fn archived_station_ticket_text_parses_into_the_d1_shape() {
         .archived_document(&credentials, dated_name, "verify.md")
         .expect("carried verify.md is served as raw text");
     let ticket =
-        speclink_desktop_core::query::ticket_json_from_text("verify", &document.content)
+        specseal_desktop_core::query::ticket_json_from_text("verify", &document.content)
             .expect("raw text parses through the engine");
     assert_eq!(
         ticket,
@@ -1301,7 +1301,7 @@ fn archived_station_ticket_text_parses_into_the_d1_shape() {
                     "text": "Correctness: scenario uncovered",
                 }],
             }],
-            "reviewBaselineSmells": speclink_core::skills::REVIEW_BASELINE_SMELLS,
+            "reviewBaselineSmells": specseal_core::skills::REVIEW_BASELINE_SMELLS,
         })
     );
     let missing = ws
@@ -1311,35 +1311,35 @@ fn archived_station_ticket_text_parses_into_the_d1_shape() {
     assert_eq!(missing.status, Some(404), "{}", missing.message);
 }
 
-// --- remote 專案的技能檔：基準是 Server 提供的技能（remote-skill-delivery D6） ---
+// --- remote 项目的技能档：基准是 Server 提供的技能（remote-skill-delivery D6） ---
 
 #[test]
 fn a_remote_checkout_is_probed_and_updated_from_what_the_server_gives() {
-    use speclink_core::init::{managed_skills, ASSET_VERSION};
-    use speclink_core::skills::{RenderTarget, SpecLocation, Tool};
+    use specseal_core::init::{managed_skills, ASSET_VERSION};
+    use specseal_core::skills::{RenderTarget, SpecLocation, Tool};
 
     let h = common::harness();
     let (credentials, manager) = runtime(&h);
     let ws = open(&h, &credentials, &manager);
     let dir = tempfile::tempdir().expect("tempdir");
-    let url = format!("{}/api/speclink/v1/projects/demo", h.origin);
-    speclink_core::init::init_remote(dir.path(), &[Tool::Claude], true, &url, Some("backend")).expect("checkout");
-    let propose = dir.path().join(".claude").join("skills").join("speclink-propose").join("SKILL.md");
+    let url = format!("{}/api/specseal/v1/projects/demo", h.origin);
+    specseal_core::init::init_remote(dir.path(), &[Tool::Claude], true, &url, Some("backend")).expect("checkout");
+    let propose = dir.path().join(".claude").join("skills").join("specseal-propose").join("SKILL.md");
     let probe = || ws.probe_assets(&credentials, dir.path()).expect("probe").expect("the server declares skills");
 
-    // 這台 server 與 app 同版、流程設定沒有開啟 worktree：剛產生的技能檔就是它提供的。
+    // 这台 server 与 app 同版、流程设置没有打开 worktree：刚产生的技能档就是它提供的。
     let current = probe();
     assert_eq!(current["status"], "current", "{current}");
     assert_eq!(current["serverVersion"], ASSET_VERSION);
     assert_eq!(current["appOlderThanServer"], false);
 
-    // 改壞一支：過期，並列出那個檔案。
+    // 改坏一支：过期，并列出那个文件。
     std::fs::write(&propose, "edited by hand\n").expect("edit");
     let stale = probe();
     assert_eq!(stale["status"], "stale", "{stale}");
-    assert_eq!(stale["differingFiles"], serde_json::json!([".claude/skills/speclink-propose/SKILL.md"]));
+    assert_eq!(stale["differingFiles"], serde_json::json!([".claude/skills/specseal-propose/SKILL.md"]));
 
-    // 更新：寫回 Server 的全文。
+    // 更新：写回 Server 的全文。
     let outcome = ws
         .skills_to_install(&credentials, dir.path())
         .expect("the server's texts")
@@ -1349,10 +1349,10 @@ fn a_remote_checkout_is_probed_and_updated_from_what_the_server_gives() {
     let served = managed_skills(
         RenderTarget::Builtin(Tool::Claude),
         false,
-        speclink_core::workspace::DEFAULT_SPEC_DIR,
+        specseal_core::workspace::DEFAULT_SPEC_DIR,
         SpecLocation::Elsewhere,
     );
-    let (_, expected) = served.iter().find(|(dir, _)| dir == "speclink-propose").expect("propose is served");
+    let (_, expected) = served.iter().find(|(dir, _)| dir == "specseal-propose").expect("propose is served");
     assert_eq!(&std::fs::read_to_string(&propose).expect("read"), expected);
     assert_eq!(probe()["status"], "current");
 }
@@ -1363,13 +1363,13 @@ fn a_remote_checkout_without_a_tool_has_nothing_to_probe() {
     let (credentials, manager) = runtime(&h);
     let ws = open(&h, &credentials, &manager);
     let dir = tempfile::tempdir().expect("tempdir");
-    let url = format!("{}/api/speclink/v1/projects/demo", h.origin);
-    std::fs::write(dir.path().join(".speclink.yaml"), format!("remote:\n  url: {url}\n")).expect("config");
+    let url = format!("{}/api/specseal/v1/projects/demo", h.origin);
+    std::fs::write(dir.path().join(".specseal.yaml"), format!("remote:\n  url: {url}\n")).expect("config");
     assert_eq!(ws.probe_assets(&credentials, dir.path()).expect("probe"), None);
 }
 
-/// 一台固定回應的假 server：`/binding` 回 `binding`，`/skills` 回 `skills`；記下每個請求的
-/// 「METHOD 路徑」與內容。回傳 (origin, 請求記錄)。
+/// 一台固定回应的假 server：`/binding` 回 `binding`，`/skills` 回 `skills`；记下每个请求的
+/// 「METHOD 路径」与内容。回传 (origin, 请求记录)。
 fn skills_fake(
     binding: String,
     skills: &'static str,
@@ -1397,12 +1397,12 @@ fn fake_binding(capabilities: &str) -> String {
     )
 }
 
-/// 連到 `origin` 的 claude checkout 與它的 workspace 把手。
+/// 连到 `origin` 的 claude checkout 与它的 workspace 把手。
 fn fake_checkout(origin: &str) -> (tempfile::TempDir, MemoryCredentialStore, RemoteWorkspace) {
     let dir = tempfile::tempdir().expect("tempdir");
-    let url = format!("{origin}/api/speclink/v1/projects/demo");
-    let claude = [speclink_core::skills::Tool::Claude];
-    speclink_core::init::init_remote(dir.path(), &claude, true, &url, Some("backend")).expect("checkout");
+    let url = format!("{origin}/api/specseal/v1/projects/demo");
+    let claude = [specseal_core::skills::Tool::Claude];
+    specseal_core::init::init_remote(dir.path(), &claude, true, &url, Some("backend")).expect("checkout");
     let credentials = MemoryCredentialStore::new();
     credentials.set(origin, CredentialKind::Pat, "spk_pat_test").expect("set pat");
     let workspace = RemoteWorkspace::at(origin, "demo", "backend", &Arc::new(TokenManager::new(origin)));
@@ -1416,7 +1416,7 @@ fn a_server_that_declares_no_skills_gives_nothing_to_probe_and_is_not_asked_for_
 
     assert_eq!(ws.probe_assets(&credentials, dir.path()).expect("probe"), None);
     let calls: Vec<String> = asked.lock().unwrap().iter().map(|(call, _)| call.clone()).collect();
-    assert_eq!(calls, ["GET /api/speclink/v1/projects/demo/binding"], "the handshake, and no skills request");
+    assert_eq!(calls, ["GET /api/specseal/v1/projects/demo/binding"], "the handshake, and no skills request");
     assert!(ws.skills_to_install(&credentials, dir.path()).is_err(), "nothing to install either");
     server.unblock();
 }
@@ -1432,7 +1432,7 @@ fn a_probe_asks_for_digests_only() {
     assert_eq!(probe["status"], "stale", "the checkout holds the local templates: {probe}");
     let sent = asked.lock().unwrap().clone();
     let (call, body) = sent.last().expect("a skills request");
-    assert_eq!(call, "POST /api/speclink/v1/projects/demo/skills");
+    assert_eq!(call, "POST /api/specseal/v1/projects/demo/skills");
     assert_eq!(body, r#"{"targets":[{"tool":"claude"}]}"#, "no `contents`: the texts are not downloaded");
     server.unblock();
 }

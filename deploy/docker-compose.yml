@@ -1,18 +1,18 @@
-# Speclink server — SQLite 单容器「一行开箱」（说明见 docs/server-deployment.zh-TW.md）：
+# Specseal server — SQLite 单容器「一行开箱」（说明见 docs/server-deployment.zh-CN.md）：
 #
 #   docker compose up -d
 #   docker compose logs server        # 取一次性 setup token（含 /setup?token=… 的那行）
 #   浏览器开该链接完成初始设置
 #
-# 可调环境变量（皆有缺省，正式部署至少要设 SPECLINK_PUBLIC_URL）：
-#   SPECLINK_PUBLIC_URL  对外网址（缺省 http://localhost:8080）
-#   SPECLINK_PORT        对外端口（缺省 8080）
+# 可调环境变量（皆有缺省，正式部署至少要设 SPECSEAL_PUBLIC_URL）：
+#   SPECSEAL_PUBLIC_URL  对外网址（缺省 http://localhost:8080）
+#   SPECSEAL_PORT        对外端口（缺省 8080）
 #
 # ⚠ 单一 instance 限制：同一个 volume 只能有一个 server instance。
 #   不得 docker compose up --scale、不得多个 replica 指向同一个 volume——
 #   SQLite driver 不会挡第二个 instance，两个 server 会同时写同一个数据库。
 
-name: speclink
+name: specseal
 
 configs:
   server-config:
@@ -25,9 +25,9 @@ configs:
       identity:
         driver: sqlite
         path: /data/identity.db
-      # 缺省与 SPECLINK_PORT 连动：只改端口而忘了设 public_url 时，setup 链接与
+      # 缺省与 SPECSEAL_PORT 连动：只改端口而忘了设 public_url 时，setup 链接与
       # 同源检查仍指向正确的端口。
-      public_url: ${SPECLINK_PUBLIC_URL:-http://localhost:${SPECLINK_PORT:-8080}}
+      public_url: ${SPECSEAL_PUBLIC_URL:-http://localhost:${SPECSEAL_PORT:-8080}}
 
 services:
   server:
@@ -37,16 +37,16 @@ services:
     # 要用官方映像请先 docker compose pull。
     build:
       context: ..
-      dockerfile: crates/host/speclink-server/Dockerfile
+      dockerfile: crates/host/specseal-server/Dockerfile
     restart: unless-stopped
     ports:
-      - "${SPECLINK_PORT:-8080}:8080"
+      - "${SPECSEAL_PORT:-8080}:8080"
     configs:
       - source: server-config
-        target: /etc/speclink/config.yaml
+        target: /etc/specseal/config.yaml
     volumes:
       # named volume 持久化 store 与 identity 两个 SQLite 数据库档。
-      - speclink-data:/data
+      - specseal-data:/data
 
 volumes:
-  speclink-data:
+  specseal-data:

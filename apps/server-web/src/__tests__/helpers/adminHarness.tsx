@@ -1,15 +1,15 @@
 import { vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 import { App } from "../../App";
 import { ClientProvider } from "../../app/context";
 import { LocaleProvider } from "../../i18n/LocaleContext";
 import { APP_MESSAGES } from "../../i18n/messages";
 import { AppRoutes } from "../../routes/AppRoutes";
 
-// 管理面各頁測試的共用裝置：admin session、typed client 的 fake 與 matchMedia 設定。
-// 每個管理目的地一個測試檔（users／registry／credentials／audit／system／overview），
+// 管理面各页测试的共用设备：admin session、typed client 的 fake 与 matchMedia 设置。
+// 每个管理目的地一个测试档（users／registry／credentials／audit／system／overview），
 // 共用同一份 fake 以免六份 client 各自漂移。
 
 export const ADMIN_SESSION = {
@@ -56,7 +56,7 @@ export const USERS = {
   ],
 };
 
-/** n 位一般成員（User 1…User n，user1@example.com…），測換頁用。 */
+/** n 位一般成员（User 1…User n，user1@example.com…），测换页用。 */
 export function makeUsers(n: number) {
   return Array.from({ length: n }, (_, i) => ({
     id: `u${i + 1}`,
@@ -185,13 +185,13 @@ export function makeAdminClient(overrides: Record<string, unknown> = {}) {
   };
 }
 
-/** 預設是「用過主控台的管理員」：首次導覽已看過，不會蓋在受測畫面上。
- *  導覽本身的行為由 tour.test.tsx 明確清掉這個鍵來測。 */
+/** 缺省是「用过主控台的管理员」：首次导览已看过，不会盖在受测画面上。
+ *  导览本身的行为由 tour.test.tsx 明确清掉这个键来测。 */
 function markTourSeen() {
   try {
-    localStorage.setItem("speclink.tourSeen", "1");
+    localStorage.setItem("specseal.tourSeen", "1");
   } catch {
-    // localStorage 不可用時導覽本來就不會持久化，測試照常。
+    // localStorage 不可用时导览本来就不会持久化，测试照常。
   }
 }
 
@@ -200,7 +200,7 @@ export function renderAt(route: string, client: ReturnType<typeof makeAdminClien
   return render(<App client={client as never} initialEntries={[route]} />);
 }
 
-/** 目前網址與一顆「瀏覽器上一頁」：詳情頁的網址與瀏覽紀錄要從路由外讀。 */
+/** 目前网址与一颗「浏览器上一页」：详情页的网址与浏览纪录要从路由外读。 */
 function LocationProbe() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -208,18 +208,18 @@ function LocationProbe() {
     <>
       <output data-testid="location">{location.pathname + location.search}</output>
       <button type="button" onClick={() => navigate(-1)}>
-        瀏覽器上一頁（測試）
+        浏览器上一页（测试）
       </button>
     </>
   );
 }
 
-/** 同 renderAt（完整路由與殼），另在路由旁放 LocationProbe；entries 的最後一筆是目前網址。 */
+/** 同 renderAt（完整路由与壳），另在路由旁放 LocationProbe；entries 的最后一笔是目前网址。 */
 export function renderWithLocation(entries: string[], client: ReturnType<typeof makeAdminClient>) {
   markTourSeen();
   return render(
     <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
-      <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+      <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
         <LocaleProvider value={{ pref: null, setPref: () => {} }}>
           <ClientProvider client={client as never}>
             <AppRoutes />
@@ -232,9 +232,9 @@ export function renderWithLocation(entries: string[], client: ReturnType<typeof 
 }
 
 export const currentLocation = () => screen.getByTestId("location").textContent;
-export const browserBack = () => screen.getByRole("button", { name: "瀏覽器上一頁（測試）" });
+export const browserBack = () => screen.getByRole("button", { name: "浏览器上一页（测试）" });
 
-/** jsdom 無 matchMedia：寬螢幕（固定側欄）為預設，窄螢幕讓 max-width query 命中。 */
+/** jsdom 无 matchMedia：宽屏幕（固定侧栏）为缺省，窄屏幕让 max-width query 命中。 */
 export function setViewport(narrow: boolean) {
   window.matchMedia = ((query: string) => ({
     matches: narrow && /max-width/.test(query),

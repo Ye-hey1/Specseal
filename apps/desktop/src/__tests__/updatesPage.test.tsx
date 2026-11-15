@@ -1,8 +1,8 @@
-// 更新頁（desktop-settings-mode design D6；spec「桌面自動更新」「更新日誌彈窗」「更新日誌依介面語言呈現」）。
+// 更新页（desktop-settings-mode design D6；spec「桌面自动更新」「更新日志弹窗」「更新日志依接口语言呈现」）。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
-import { I18nProvider, type UiLocale } from "@speclink/ui";
+import { I18nProvider, type UiLocale } from "@specseal/ui";
 
 import { UpdatesPage } from "../views/settings/UpdatesPage";
 import type { AppSettingsUpdaterProps } from "../views/AppSettingsView";
@@ -11,7 +11,7 @@ import { APP_MESSAGES } from "../i18n/messages";
 import { RELEASE_NOTES } from "../release-notes/release-notes";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -22,7 +22,7 @@ const inLocale = (locale: UiLocale, ui: ReactElement) => (
   </I18nProvider>
 );
 const KIND_LABELS = {
-  "zh-TW": { features: "新功能", fixes: "修正", improvements: "改善" },
+  "zh-CN": { features: "新功能", fixes: "修正", improvements: "改善" },
   en: { features: "New features", fixes: "Fixes", improvements: "Improvements" },
 } as const;
 
@@ -42,28 +42,28 @@ function updaterProps(state: UpdaterState, over: Partial<AppSettingsUpdaterProps
 }
 
 const row = (label: string) => screen.getByRole("group", { name: label });
-const installCard = () => screen.queryByRole("region", { name: "下載與安裝" });
+const installCard = () => screen.queryByRole("region", { name: "下载与安装" });
 
 describe("UpdatesPage", () => {
-  it("頁標題「更新」右側「檢查更新」回呼 onCheck、檢查中停用；版本卡有目前版本列（等寬）", () => {
+  it("页标题「更新」右侧「检查更新」回呼 onCheck、检查中停用；版本卡有目前版本列（等宽）", () => {
     const onCheck = vi.fn();
     const { rerender } = render(<UpdatesPage updater={updaterProps({ phase: "idle" }, { onCheck })} />);
     expect(screen.getByRole("heading", { level: 2, name: "更新" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "檢查更新" }));
+    fireEvent.click(screen.getByRole("button", { name: "检查更新" }));
     expect(onCheck).toHaveBeenCalledTimes(1);
     expect(within(row("目前版本")).getByText("0.1.0").className).toContain("font-mono");
     rerender(<UpdatesPage updater={updaterProps({ phase: "checking", manual: true })} />);
-    expect((screen.getByRole("button", { name: "檢查更新" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "检查更新" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it.each<[string, UpdaterState, string, string]>([
-    ["閒置", { phase: "idle" }, "—", "尚未檢查"],
-    ["檢查中", { phase: "checking", manual: true }, "", "檢查中"],
+    ["闲置", { phase: "idle" }, "—", "尚未检查"],
+    ["检查中", { phase: "checking", manual: true }, "", "检查中"],
     ["已是最新", { phase: "upToDate" }, "0.1.0", "已是最新"],
-    ["檢查失敗", { phase: "checkFailed" }, "", "無法檢查"],
+    ["检查失败", { phase: "checkFailed" }, "", "无法检查"],
     ["待同意", { phase: "available", version: "0.2.0" }, "0.2.0", "有新版本"],
-    ["下載中", { phase: "downloading", version: "0.2.0" }, "0.2.0", "有新版本"],
-    ["待重啟", { phase: "restartPending", version: "0.2.0" }, "0.2.0", "有新版本"],
+    ["下载中", { phase: "downloading", version: "0.2.0" }, "0.2.0", "有新版本"],
+    ["待重启", { phase: "restartPending", version: "0.2.0" }, "0.2.0", "有新版本"],
   ])("最新版本列：%s", (_name, state, version, pill) => {
     render(<UpdatesPage updater={updaterProps(state)} />);
     const latest = row("最新版本");
@@ -71,23 +71,23 @@ describe("UpdatesPage", () => {
     if (version) expect(within(latest).getByText(version).className).toContain("font-mono");
   });
 
-  it("待同意時出現「下載與安裝」卡：標題 Speclink 目標版本與「下載」鈕；閒置時缺席", () => {
+  it("待同意时出现「下载与安装」卡：标题 Specseal 目标版本与「下载」钮；闲置时缺席", () => {
     const updater = updaterProps({ phase: "available", version: "0.2.0" });
     const { rerender } = render(<UpdatesPage updater={updater} />);
     const card = installCard()!;
-    expect(within(card).getByRole("group", { name: "Speclink 0.2.0" })).toBeTruthy();
-    expect(card.textContent).toContain("安裝後會重新啟動");
-    fireEvent.click(within(card).getByRole("button", { name: "下載" }));
+    expect(within(card).getByRole("group", { name: "Specseal 0.2.0" })).toBeTruthy();
+    expect(card.textContent).toContain("安装后会重新启动");
+    fireEvent.click(within(card).getByRole("button", { name: "下载" }));
     expect(updater.onAccept).toHaveBeenCalledTimes(1);
     rerender(<UpdatesPage updater={updaterProps({ phase: "idle" })} />);
     expect(installCard()).toBeNull();
   });
 
-  it("下載中、待重啟與失敗：卡內承載對應控制", () => {
+  it("下载中、待重启与失败：卡内承载对应控制", () => {
     for (const [state, label] of [
       [{ phase: "downloading", version: "0.2.0" }, "取消"],
-      [{ phase: "restartPending", version: "0.2.0" }, "安裝並重新啟動"],
-      [{ phase: "error", message: "invalid signature" }, "重試"],
+      [{ phase: "restartPending", version: "0.2.0" }, "安装并重新启动"],
+      [{ phase: "error", message: "invalid signature" }, "重试"],
     ] as const) {
       const { unmount } = render(<UpdatesPage updater={updaterProps(state)} />);
       expect(within(installCard()!).getByRole("button", { name: label })).toBeTruthy();
@@ -95,29 +95,29 @@ describe("UpdatesPage", () => {
     }
   });
 
-  it("更新日誌卡：最新版本為第一列並展開分組列點；較舊版本每列「檢視」與底列「全部更新日誌」開瀏覽模式", () => {
+  it("更新日志卡：最新版本为第一列并展开分组列点；较旧版本每列「查看」与底列「全部更新日志」开浏览模式", () => {
     const onShowReleaseNotes = vi.fn();
     render(<UpdatesPage updater={updaterProps({ phase: "idle" }, { onShowReleaseNotes })} />);
-    const card = screen.getByRole("region", { name: "更新日誌" });
+    const card = screen.getByRole("region", { name: "更新日志" });
     const [latest, ...older] = RELEASE_NOTES;
     const first = within(card).getAllByRole("group")[0];
     expect(first.textContent).toContain(latest.version);
     expect(first.textContent).toContain(latest.date);
     for (const section of latest.sections) {
-      expect(within(first).getByText(KIND_LABELS["zh-TW"][section.kind])).toBeTruthy();
-      expect(first.textContent).toContain(section.items[0]["zh-TW"]);
+      expect(within(first).getByText(KIND_LABELS["zh-CN"][section.kind])).toBeTruthy();
+      expect(first.textContent).toContain(section.items[0]["zh-CN"]);
     }
-    // 舊版本列的摘要是該版首條的繁中文字。
-    expect(within(card).getAllByRole("group")[1].textContent).toContain(older[0].sections[0].items[0]["zh-TW"]);
-    const views = within(card).getAllByRole("button", { name: "檢視" });
+    // 旧版本列的摘要是该版首条的繁中文本。
+    expect(within(card).getAllByRole("group")[1].textContent).toContain(older[0].sections[0].items[0]["zh-CN"]);
+    const views = within(card).getAllByRole("button", { name: "查看" });
     expect(views).toHaveLength(older.length);
-    // 舊版本列的「檢視」帶該列版號（開啟後捲到該版）；「全部更新日誌」不帶版號（自頂端呈現）。
+    // 旧版本列的「查看」带该列版号（打开后卷到该版）；「全部更新日志」不带版号（自顶端呈现）。
     fireEvent.click(views[0]);
-    fireEvent.click(within(card).getByRole("button", { name: "全部更新日誌" }));
+    fireEvent.click(within(card).getByRole("button", { name: "全部更新日志" }));
     expect(onShowReleaseNotes.mock.calls).toEqual([[older[0].version], []]);
   });
 
-  it("英文介面的更新日誌卡：最新版本展開英文分組標題與英文條目，舊版本列摘要為英文首條", () => {
+  it("英文接口的更新日志卡：最新版本展开英文分组标题与英文条目，旧版本列摘要为英文首条", () => {
     rtlRender(inLocale("en", <UpdatesPage updater={updaterProps({ phase: "idle" })} />));
     const card = screen.getByRole("region", { name: "Changelog" });
     const [latest, ...older] = RELEASE_NOTES;
@@ -126,38 +126,38 @@ describe("UpdatesPage", () => {
       expect(within(first).getByText(KIND_LABELS.en[section.kind])).toBeTruthy();
       for (const item of section.items) {
         expect(first.textContent).toContain(item.en);
-        expect(first.textContent).not.toContain(item["zh-TW"]);
+        expect(first.textContent).not.toContain(item["zh-CN"]);
       }
     }
     expect(second.textContent).toContain(older[0].sections[0].items[0].en);
-    expect(second.textContent).not.toContain(older[0].sections[0].items[0]["zh-TW"]);
+    expect(second.textContent).not.toContain(older[0].sections[0].items[0]["zh-CN"]);
   });
 
-  it("切換介面語言後，更新日誌卡改以新語言呈現", () => {
+  it("切换接口语言后，更新日志卡改以新语言呈现", () => {
     const page = <UpdatesPage updater={updaterProps({ phase: "idle" })} />;
-    const { rerender } = rtlRender(inLocale("zh-TW", page));
+    const { rerender } = rtlRender(inLocale("zh-CN", page));
     const top = RELEASE_NOTES[0].sections[0];
-    expect(screen.getByRole("region", { name: "更新日誌" }).textContent).toContain(top.items[0]["zh-TW"]);
+    expect(screen.getByRole("region", { name: "更新日志" }).textContent).toContain(top.items[0]["zh-CN"]);
     rerender(inLocale("en", page));
     const card = screen.getByRole("region", { name: "Changelog" });
     expect(card.textContent).toContain(top.items[0].en);
     expect(within(card).getAllByText(KIND_LABELS.en[top.kind]).length).toBeGreaterThan(0);
-    expect(card.textContent).not.toContain(top.items[0]["zh-TW"]);
+    expect(card.textContent).not.toContain(top.items[0]["zh-CN"]);
   });
 
-  it("自動檢查卡：開關反映偏好、切換回呼 onAutoCheckChange", () => {
+  it("自动检查卡：开关反映偏好、切换回呼 onAutoCheckChange", () => {
     const onAutoCheckChange = vi.fn();
     const { rerender } = render(<UpdatesPage updater={updaterProps({ phase: "idle" }, { onAutoCheckChange })} />);
-    const sw = screen.getByRole("switch", { name: "啟動時在背景檢查新版本" });
+    const sw = screen.getByRole("switch", { name: "启动时在背景检查新版本" });
     expect(sw.getAttribute("aria-checked")).toBe("true");
-    expect(row("啟動時在背景檢查新版本").textContent).toContain("只檢查，不會自動下載");
+    expect(row("启动时在背景检查新版本").textContent).toContain("只检查，不会自动下载");
     fireEvent.click(sw);
     expect(onAutoCheckChange).toHaveBeenCalledWith(false);
     rerender(<UpdatesPage updater={updaterProps({ phase: "idle" }, { autoCheck: false, onAutoCheckChange })} />);
-    expect(screen.getByRole("switch", { name: "啟動時在背景檢查新版本" }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByRole("switch", { name: "启动时在背景检查新版本" }).getAttribute("aria-checked")).toBe("false");
   });
 
-  it("focus 為 true 時捲到「下載與安裝」卡一次並回呼；無該卡時捲到版本卡", () => {
+  it("focus 为 true 时卷到「下载与安装」卡一次并回呼；无该卡时卷到版本卡", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const onFocusHandled = vi.fn();

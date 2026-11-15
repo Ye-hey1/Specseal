@@ -1,35 +1,35 @@
-// 面板可捲區的邊緣淡出（spec「面板樣式（macOS）」；design「專案 tab 條：「＋」固定右端、邊緣淡出、
-// 捲到作用中」「中段上下緣淡出：與 tab 條共用邊緣淡出」）：tab 條（橫向）與可捲中段（縱向）共用
-// 同一套判斷——軸向無關，start＝左／上、end＝右／下。純函式：jsdom 沒有版面，元件測試以注入
-// 尺寸驗證接線，計算本身由純函式測試覆蓋。
+// 面板可卷区的边缘淡出（spec「面板样式（macOS）」；design「项目 tab 条：「＋」固定右端、边缘淡出、
+// 卷到作用中」「中段上下缘淡出：与 tab 条共用边缘淡出」）：tab 条（横向）与可卷中段（纵向）共用
+// 同一套判断——轴向无关，start＝左／上、end＝右／下。纯函数：jsdom 没有版面，组件测试以注入
+// 尺寸验证接线，计算本身由纯函数测试覆盖。
 
-/** 邊緣淡出的寬度（px）：遮罩漸層寬度，也是 tab 條捲到作用中 tab 時留給淡出區的餘裕。 */
+/** 边缘淡出的宽度（px）：遮罩渐层宽度，也是 tab 条卷到作用中 tab 时留给淡出区的余裕。 */
 export const EDGE_FADE_PX = 24;
 
-/** 捲動位置可能是小數：差不到 1px 視為已到盡頭。 */
+/** 卷动位置可能是小数：差不到 1px 视为已到尽头。 */
 const TOLERANCE_PX = 1;
 
-/** 淡出的側；以字串表示，元件存成狀態時值相同就不重繪。 */
+/** 淡出的侧；以字符串表示，组件存成状态时值相同就不重绘。 */
 export type EdgeFadeSide = "none" | "start" | "end" | "both";
 
-/** 可捲區單軸的捲動量測；欄位具名，避免三個同型數字傳錯位置。 */
+/** 可卷区单轴的卷动量测；字段具名，避免三个同型数字传错位置。 */
 export interface ScrollMetrics {
-  /** 目前捲動位置（scrollLeft／scrollTop）。 */
+  /** 目前卷动位置（scrollLeft／scrollTop）。 */
   position: number;
-  /** 內容總長（scrollWidth／scrollHeight）。 */
+  /** 内容总长（scrollWidth／scrollHeight）。 */
   scrollSize: number;
-  /** 可視長度（clientWidth／clientHeight）。 */
+  /** 可视长度（clientWidth／clientHeight）。 */
   viewportSize: number;
 }
 
-/** 淡出判斷：該側還有被捲出可視範圍的內容才淡出。 */
+/** 淡出判断：该侧还有被卷出可视范围的内容才淡出。 */
 export function edgeFade({ position, scrollSize, viewportSize }: ScrollMetrics): EdgeFadeSide {
   const start = position > TOLERANCE_PX;
   const end = position + viewportSize < scrollSize - TOLERANCE_PX;
   return start && end ? "both" : start ? "start" : end ? "end" : "none";
 }
 
-/** 依淡出側組出遮罩漸層（掛在可捲區本身，不隨內容捲動）；不淡出時不掛遮罩。 */
+/** 依淡出侧组出遮罩渐层（挂在可卷区本身，不随内容卷动）；不淡出时不挂遮罩。 */
 export function edgeFadeMask(axis: "x" | "y", side: EdgeFadeSide): string | undefined {
   if (side === "none") return undefined;
   const start = side === "end" ? "black" : `transparent, black ${EDGE_FADE_PX}px`;

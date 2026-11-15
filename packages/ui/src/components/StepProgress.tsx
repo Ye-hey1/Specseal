@@ -1,8 +1,8 @@
-// 多步驟進度列（server-web-shell-alignment design D7）：desktop 工作區精靈與 server 初始設定共用一份。
+// 多步骤进度列（server-web-shell-alignment design D7）：desktop 工作区精灵与 server 初始设置共用一份。
 import { useI18n } from "../i18n";
 import { cn } from "../lib/utils";
 
-/** 「[前綴 · ]步驟 n / total」小字（11px 大寫字距灰字）加步驟條，已到的段為主色。 */
+/** 「[前缀 · ]步骤 n / total」小字（11px 大写字距灰字）加步骤条，已到的段为主色。 */
 export function StepProgress({ current, total, prefix }: { current: number; total: number; prefix?: string }) {
   const { t } = useI18n();
   const text = t("steps.progress").replace("{current}", String(current)).replace("{total}", String(total));

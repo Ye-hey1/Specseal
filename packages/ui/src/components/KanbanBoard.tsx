@@ -46,11 +46,11 @@ import {
 import { Button } from "./ui/button";
 import { SELECT_ALL, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
-/** 移動 8px 才視為拖曳——否則 dnd-kit 會吃掉單純點擊，導致卡片無法開啟詳情。 */
+/** 移动 8px 才视为拖曳——否则 dnd-kit 会吃掉单纯点击，导致卡片无法打开详情。 */
 export const DRAG_ACTIVATION_DISTANCE = 8;
 
-/** 各階段的視覺主題——每階一色相，全部取 stage.ts 的 stage-* token 對照；
- *  欄頂色相條與卡片進度條同用 bar（純 bg-stage-*）。 */
+/** 各阶段的视觉主题——每阶一色相，全部取 stage.ts 的 stage-* token 对照；
+ *  栏顶色相条与卡片进度条同用 bar（纯 bg-stage-*）。 */
 const STAGE_STYLE: Record<Stage, ColumnTone> = {
   proposed: {
     icon: Lightbulb,
@@ -75,67 +75,67 @@ const STAGE_STYLE: Record<Stage, ColumnTone> = {
 interface KanbanBoardBaseProps {
   changes: ChangeItem[];
   onOpenChange?: (name: string) => void;
-  /** 封存請求：ready 卡的封存鈕與拖曳落點皆經此觸發（app 端接確認流程）。 */
+  /** 封存请求：ready 卡的封存钮与拖曳落点皆经此触发（app 端接确认流程）。 */
   onArchive?: (name: string) => void;
-  /** 退回提案中請求：派生進行中卡的退回鈕經此觸發（app 端接確認流程）。 */
+  /** 退回提案中请求：派生进行中卡的退回钮经此触发（app 端接确认流程）。 */
   onRevert?: (name: string) => void;
-  /** 討論清單；提供時看板擴為四欄，active 進第 0 欄（封存討論不上板）。 */
+  /** 讨论清单；提供时看板扩为四栏，active 进第 0 栏（封存讨论不上板）。 */
   discussions?: DiscussionLists;
-  /** 已封存 change 清單（衍生樹細列的已封存態派生）。 */
+  /** 已封存 change 清单（衍生树细列的已封存态派生）。 */
   archivedChanges?: ArchivedItem[];
   onOpenDiscussion?: (slug: string) => void;
-  /** concluded 討論卡的歸檔動詞（app 端接確認流程）。轉為變更已自 GUI 撤除。 */
+  /** concluded 讨论卡的归档动词（app 端接确认流程）。转为变更已自 GUI 撤除。 */
   onArchiveDiscussion?: (slug: string) => void;
-  /** 看板搜尋字串（選配，與 onQuery 成對提供時渲染搜尋輸入並過濾卡片）。 */
+  /** 看板搜索字符串（选配，与 onQuery 成对提供时渲染搜索输入并过滤卡片）。 */
   query?: string;
   onQuery?: (q: string) => void;
-  /** 全文搜尋不可用的說明（remote capability 缺口）：提供時搜尋輸入 disabled
-   * 並以其文字為 tooltip（title）；缺席＝照常（本地不受影響）。 */
+  /** 全文搜索不可用的说明（remote capability 缺口）：提供时搜索输入 disabled
+   * 并以其文本为 tooltip（title）；缺席＝照常（本地不受影响）。 */
   searchUnavailableReason?: string;
-  /** 卡片檢視被藏起來（看板頁正顯示路線圖）時由宿主提供：搜尋快捷鍵與「搜尋看板」改呼叫它，
-   * 由宿主切回卡片再聚焦，不去聚焦藏起來的輸入。 */
+  /** 卡片查看被藏起来（看板页正显示路线图）时由宿主提供：搜索快捷键与「搜索看板」改调用它，
+   * 由宿主切回卡片再聚焦，不去聚焦藏起来的输入。 */
   onRevealSearch?: () => void;
-  /** workspace 全文查詢命中（design D6）：命中卡片併入可見集合並呈 snippet 行。 */
+  /** workspace 全文查找命中（design D6）：命中卡片并入可见集合并呈 snippet 行。 */
   fulltextHits?: SearchHit[];
   /**
-   * 欄內拖排寫回（design D5/D6）：同欄放開時以 arrayMove 後的前後鄰居回報
-   * （null＝欄頂／欄底）；未提供時卡片不掛 sortable（封存拖放照舊）。
+   * 栏内拖排写回（design D5/D6）：同栏放开时以 arrayMove 后的前后邻居回报
+   * （null＝栏顶／栏底）；未提供时卡片不挂 sortable（封存拖放照旧）。
    */
   onReorder?: (kind: CardKind, id: string, prevId: string | null, nextId: string | null) => void;
-  /** 拖排不可用時的使用者可見說明；文字由宿主依 capability 與語系提供。 */
+  /** 拖排不可用时的用户可见说明；文本由宿主依 capability 与语系提供。 */
   reorderUnavailableReason?: string;
-  /** 清單 payload 的頂層 planError（spec「依賴成環時看板提示」）：非 null 時欄位
-   * 上方一行「依賴成環：」＋原文；卡片因欄位缺席自然無波次章，拖排照常。 */
+  /** 清单 payload 的顶层 planError（spec「依赖成环时看板提示」）：非 null 时字段
+   * 上方一行「依赖成环：」＋原文；卡片因字段缺席自然无波次章，拖排照常。 */
   planError?: string | null;
-  /** 拖曳手勢期間（按住～放開）回報 true——宿主據此讓外部刷新讓路（任務列同款）。 */
+  /** 拖曳手势期间（按住～放开）回报 true——宿主据此让外部刷新让路（任务列同款）。 */
   onDragActiveChange?: (active: boolean) => void;
-  /** 首訪 workspace 的整批載入未完成：各欄以佔位卡呈現，欄名照常、不出空態文案。
-   * 已有舊快取時為 false——舊資料照常顯示、刷新完成靜默換新（design D2）。 */
+  /** 首访 workspace 的整批加载未完成：各栏以占位卡呈现，栏名照常、不出空态文案。
+   * 已有旧缓存时为 false——旧数据照常显示、刷新完成静默换新（design D2）。 */
   loading?: boolean;
-  /** 首訪整批載入以失敗收場：各欄卡片區顯示載入失敗提示，取代空態文案。
-   * 讀不到 ≠ 確認是空的；loading 為真時不生效（重試在途，先畫骨架）。 */
+  /** 首访整批加载以失败收场：各栏卡片区显示加载失败提示，取代空态文案。
+   * 读不到 ≠ 确认是空的；loading 为真时不生效（重试在途，先画骨架）。 */
   loadFailed?: boolean;
-  /** 頁標題（design D6）：提供時以頁標題區包住搜尋列（搜尋與篩選在標題同一列右端）；
-   * 缺席＝搜尋列照舊單獨一列。 */
+  /** 页标题（design D6）：提供时以页标题区包住搜索列（搜索与筛选在标题同一列右端）；
+   * 缺席＝搜索列照旧单独一列。 */
   title?: string;
   description?: string;
-  /** 頁首的「看板｜路線圖」切換（宿主給 BoardViewSwitch）：放在頁首最右端、搜尋列之後——
-   * 路線圖的頁首只有這個切換，兩種檢視的切換才停在同一個位置。 */
+  /** 页眉的「看板｜路线图」切换（宿主给 BoardViewSwitch）：放在页眉最右端、搜索列之后——
+   * 路线图的页眉只有这个切换，两种查看的切换才停在同一个位置。 */
   viewSwitch?: ReactNode;
-  /** 看板目前呈現順序（含搜尋與篩選；design D2）——詳情頁 ‹ n／m › 與 ⌥↑／⌥↓ 的序列。
-   * 變更依欄序（提案中 → 進行中 → 已就緒）再依欄內順序；討論為上區全卡依序、其後接
-   * 欄底「已轉出」細列（不論收合）。順序改變時才回報。 */
+  /** 看板目前呈现顺序（含搜索与筛选；design D2）——详情页 ‹ n／m › 与 ⌥↑／⌥↓ 的串行。
+   * 变更依栏序（提案中 → 进行中 → 已就绪）再依栏内顺序；讨论为上区全卡依序、其后接
+   * 栏底「已转出」细列（不论收合）。顺序改变时才回报。 */
   onVisibleOrderChange?: (order: { changes: string[]; discussions: string[] }) => void;
 }
 
-/** 另含討論欄底「已轉出」收合列的展開狀態（design D2）：同名透傳 DiscussionColumn——
- * 兩者同進同出時受控（桌面 app 跨啟動保留），皆缺席時欄內部狀態、不持久化。 */
+/** 另含讨论栏底「已转出」收合列的展开状态（design D2）：同名透传 DiscussionColumn——
+ * 两者同进同出时受控（桌面 app 跨启动保留），皆缺席时栏内部状态、不持久化。 */
 export type KanbanBoardProps = KanbanBoardBaseProps & PromotedExpansionProps;
 
 /**
- * 拖曳變更卡時才浮現的封存落點（design D8）：絕對定位浮層疊於看板右緣上方、
- * 不參與欄列佈局——浮現與消失時欄寬零變動。外觀只取 theme token（主色虛線框
- * ＋主色淡底，isOver 時底色加深；desktop-board-reskin D3）。
+ * 拖曳变更卡时才浮现的封存落点（design D8）：绝对定位浮层叠于看板右缘上方、
+ * 不参与栏列布局——浮现与消失时栏宽零变动。外观只取 theme token（主色虚线框
+ * ＋主色淡底，isOver 时底色加深；desktop-board-reskin D3）。
  */
 function ArchiveDropZone() {
   const { t } = useI18n();
@@ -166,11 +166,11 @@ function SortableCard({
   barClass: string;
   highlight?: string;
   hit?: SearchHit;
-  /** 拖動中此卡為不合法落點（會跨越宣告依賴）：降透明度並標 data-drop-invalid。 */
+  /** 拖动中此卡为不合法落点（会跨越声明依赖）：降透明度并标 data-drop-invalid。 */
   invalidTarget?: boolean;
 } & Pick<KanbanBoardProps, "onOpenChange" | "onArchive" | "onRevert">) {
   const { t } = useI18n();
-  // 拖曳時原卡片留在原位變淡；移動的視覺由 DragOverlay 呈現（不受欄位 overflow 裁切）。
+  // 拖曳时原卡片留在原位变淡；移动的视觉由 DragOverlay 呈现（不受字段 overflow 裁切）。
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: cardDndId("change", change.name),
   });
@@ -200,7 +200,7 @@ function SortableCard({
   );
 }
 
-/** 依賴成環的提示：看板的卡片檢視與路線圖共用同一個（含引擎的成環訊息）。 */
+/** 依赖成环的提示：看板的卡片查看与路线图共用同一个（含引擎的成环消息）。 */
 export function PlanCycleNote({ planError }: { planError: string }) {
   const { t } = useI18n();
   return (
@@ -212,8 +212,8 @@ export function PlanCycleNote({ planError }: { planError: string }) {
 }
 
 /**
- * 生命週期看板：討論（第 0 欄，傳入 discussions 時）＋提案中／進行中／已就緒
- * 三欄（彩色主題）；欄內拖排（onReorder 提供時）、拖曳時浮現封存落點。
+ * 生命周期看板：讨论（第 0 栏，传入 discussions 时）＋提案中／进行中／已就绪
+ * 三栏（彩色主题）；栏内拖排（onReorder 提供时）、拖曳时浮现封存落点。
  */
 export function KanbanBoard({
   changes,
@@ -243,21 +243,21 @@ export function KanbanBoard({
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const { t } = useI18n();
-  // 載入中優先於失敗提示：重試在途時先畫骨架，不留上一輪的失敗殘影。
+  // 加载中优先于失败提示：重试在途时先画骨架，不留上一轮的失败残影。
   const failed = !loading && !!loadFailed;
-  // 搜尋過濾（spec「看板搜尋過濾卡片」）：變更卡以名稱與摘要、討論卡以主題與
-  // slug 比對；比對規則共用 matchesQuery（與已封存頁一致）。空（或僅空白）即全量。
-  // 篩選 chips（design D5）：元件 local、不持久化；與搜尋字串 AND 交集。
+  // 搜索过滤（spec「看板搜索过滤卡片」）：变更卡以名称与摘要、讨论卡以主题与
+  // slug 比对；比对规则共用 matchesQuery（与已封存页一致）。空（或仅空白）即全量。
+  // 筛选 chips（design D5）：组件 local、不持久化；与搜索字符串 AND 交集。
   const showSearch = query !== undefined && onQuery !== undefined;
   const [filters, setFilters] = useState<BoardFilters>(EMPTY_FILTERS);
-  // 篩選 chips 的展開狀態（design D5）：預設收合、不持久化；啟用中維度數供開關鈕徽章。
+  // 筛选 chips 的展开状态（design D5）：缺省收合、不持久化；激活中维度数供开关钮徽章。
   const [filtersOpen, setFiltersOpen] = useState(false);
   const activeFilterCount = [filters.createdBy, filters.createdWithin, filters.fromDiscussion].filter(
     (v) => v !== null,
   ).length;
   const today = new Date().toISOString().slice(0, 10);
-  // 三層比對任一命中即顯示（spec）：欄位子字串、名稱層 fuzzy（僅名稱／slug，
-  // design D7）、全文命中集合（design D6）——再與篩選 chips 取 AND。
+  // 三层比对任一命中即显示（spec）：字段子字符串、名称层 fuzzy（仅名称／slug，
+  // design D7）、全文命中集合（design D6）——再与筛选 chips 取 AND。
   const q = query ?? "";
   const hitByCard = new Map((fulltextHits ?? []).map((h) => [`${h.kind}:${h.id}`, h]));
   const visibleChanges = changes.filter(
@@ -274,7 +274,7 @@ export function KanbanBoard({
         hitByCard.has(`discussion:${d.slug}`)) &&
       matchesFilters(filters, d, today),
   );
-  // chip 選項自現有清單派生：建立者去重、來源討論取 promoted_to 非空者。
+  // chip 选项自现有清单派生：创建者去重、来源讨论取 promoted_to 非空者。
   const creators = Array.from(
     new Set(
       [...changes.map((c) => c.createdBy), ...(discussions?.active ?? []).map((d) => d.createdBy)].filter(
@@ -285,7 +285,7 @@ export function KanbanBoard({
   const sourceDiscussions = (discussions?.active ?? []).filter((d) => d.promotedTo.length > 0);
   const byStage: Record<Stage, ChangeItem[]> = { proposed: [], "in-progress": [], ready: [] };
   for (const c of visibleChanges) byStage[changeStage(c)].push(c);
-  // 就緒名單自全清單派生（不經搜尋過濾）：落點浮現與 dragEnd 的 archived 分支
+  // 就绪名单自全清单派生（不经搜索过滤）：落点浮现与 dragEnd 的 archived 分支
   // 共用同一判定（archive-readiness-gating D3）。
   const readyIds: ReadonlySet<string> = new Set(
     changes.filter((c) => changeStage(c) === "ready").map((c) => c.name),
@@ -303,7 +303,7 @@ export function KanbanBoard({
     useSensor(PointerSensor, { activationConstraint: { distance: DRAG_ACTIVATION_DISTANCE } }),
   );
 
-  // 呈現順序回報（design D2）：以序列內容為依賴，順序真的變了才通知宿主。
+  // 呈现顺序回报（design D2）：以串行内容为依赖，顺序真的变了才通知宿主。
   const changeOrder = STAGES.flatMap((stage) => byStage[stage].map((c) => c.name));
   const discussionOrder = visibleDiscussions
     ? [
@@ -317,8 +317,8 @@ export function KanbanBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderKey]);
 
-  // 落點解析輸入：每欄「可見」卡的識別碼（視覺序）——搜尋過濾中拖排沿同一語意
-  //（spec：新鍵介於可見前後鄰居之間）。討論欄只有全卡參與（promoted 收合列不拖）。
+  // 落点解析输入：每栏「可见」卡的识别码（视觉序）——搜索过滤中拖排沿同一语意
+  //（spec：新键介于可见前后邻居之间）。讨论栏只有全卡参与（promoted 收合列不拖）。
   const columns: ColumnCards[] = [
     ...(visibleDiscussions
       ? [
@@ -331,12 +331,12 @@ export function KanbanBoard({
     ...STAGES.map((stage) => ({ kind: "change" as const, ids: byStage[stage].map((c) => c.name) })),
   ];
 
-  // 不合法落點（spec「拖排時不合法落點灰化」；design D3 前端層）：只用宣告依賴
-  // ——payload 缺 dependsOn（remote、plan 成環）時集合為空，判定歸 boardDnd 純函式。
-  // 同欄全序自全清單派生（不經搜尋過濾，與 readyIds 同款）：被過濾隱藏的前置仍決定
-  // 其上方位置不合法，集合只多含隱藏卡、不影響可見卡的標記。
+  // 不合法落点（spec「拖排时不合法落点灰化」；design D3 前端层）：只用声明依赖
+  // ——payload 缺 dependsOn（remote、plan 成环）时集合为空，判定归 boardDnd 纯函数。
+  // 同栏全序自全清单派生（不经搜索过滤，与 readyIds 同款）：被过滤隐藏的前置仍决定
+  // 其上方位置不合法，集合只多含隐藏卡、不影响可见卡的标记。
   const invalidTargets: ReadonlySet<string> = (() => {
-    // 成環時沒有可信的順序可守（spec：planError 非 null 時無不合法落點）。
+    // 成环时没有可信的顺序可守（spec：planError 非 null 时无不合法落点）。
     if (!activeChange || planError) return new Set<string>();
     const stage = changeStage(activeChange);
     const column: ColumnCards = {
@@ -354,21 +354,21 @@ export function KanbanBoard({
 
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
-    // 放開即結束手勢；同一事件內 onReorder 使宿主寫回＋refresh，讓路無縫接手。
+    // 放开即结束手势；同一事件内 onReorder 使宿主写回＋refresh，让路无缝接手。
     onDragActiveChange?.(false);
     if (!e.over) return;
     const over = String(e.over.id);
     const active = String(e.active.id);
     if (over === "archived") {
-      // 落點不可見時理論上不會 over，就緒判定守住快速手勢與測試路徑（D3）。
+      // 落点不可见时理论上不会 over，就绪判定守住快速手势与测试路径（D3）。
       const card = parseCardDndId(active);
       if (card?.kind === "change" && readyIds.has(card.id)) onArchive?.(card.id);
       return;
     }
-    // 同欄放開才寫回；跨欄、欄容器、原位一律 null → 彈回、零寫入。
+    // 同栏放开才写回；跨栏、栏容器、原位一律 null → 弹回、零写入。
     const drop = resolveCardDrop(columns, active, over);
     if (!drop) return;
-    // 放開於不合法落點：卡片回到原位、零寫回（引擎另守一次）。
+    // 放开于不合法落点：卡片回到原位、零写回（引擎另守一次）。
     if (drop.kind === "change" && invalidTargets.has(parseCardDndId(over)?.id ?? "")) return;
     onReorder?.(drop.kind, drop.id, drop.prevId, drop.nextId);
   };
@@ -385,7 +385,7 @@ export function KanbanBoard({
       onCloseFilters={() => setFiltersOpen(false)}
       activeFilterCount={activeFilterCount}
     >
-      {/* 篩選面板內容（design D5）：三維度選單直欄堆疊，選回「全部」即單獨清除。 */}
+      {/* 筛选面板内容（design D5）：三维度菜单直栏堆栈，选回「全部」即单独清除。 */}
       <div className="flex flex-col gap-1">
         <span className="text-xs font-medium text-muted-foreground">{t("filter.createdBy")}</span>
         <Select
@@ -499,11 +499,11 @@ export function KanbanBoard({
       ) : (
         headerActions
       )}
-      {/* relative wrapper 供封存落點浮層錨定於「可視」右緣（design D8）——浮層
-          在捲動容器之外、不進 flex 流，欄寬零變動且不隨水平捲動漂移。 */}
+      {/* relative wrapper 供封存落点浮层锚定于「可视」右缘（design D8）——浮层
+          在卷动容器之外、不进 flex 流，栏宽零变动且不随水平卷动漂移。 */}
       <div className="relative flex-1 min-h-0">
-      {/* 等寬 grid 填滿主區（design D1）：欄最小 220px，再窄才水平捲動；討論欄缺席時三欄。
-          relative：欄內 absolute 元素至少被 grid 裁切，不落到外層 wrapper 撐高主區。 */}
+      {/* 等宽 grid 填满主区（design D1）：栏最小 220px，再窄才水平卷动；讨论栏缺席时三栏。
+          relative：栏内 absolute 元素至少被 grid 裁切，不落到外层 wrapper 撑高主区。 */}
       <div
         className={`relative grid h-full min-h-0 gap-3 overflow-x-auto ${
           discussions
@@ -533,7 +533,7 @@ export function KanbanBoard({
             title={t(`stage.${stage}`)}
             tone={STAGE_STYLE[stage]}
             count={loading || failed ? null : byStage[stage].length}
-            // 空欄（過濾後零卡且非載入中／失敗）：置中灰字；搜尋無命中時同樣顯示。
+            // 空栏（过滤后零卡且非加载中／失败）：置中灰字；搜索无命中时同样显示。
             empty={
               !loading && !failed && byStage[stage].length === 0
                 ? t(`board.emptyColumn.${stage}`)
@@ -580,12 +580,12 @@ export function KanbanBoard({
           </BoardColumn>
         ))}
       </div>
-      {/* 僅拖曳已就緒變更卡時浮現（archiveZoneVisible）：非就緒卡＝純排序、
-          討論卡不可封存，皆不得造成佈局變動。 */}
+      {/* 仅拖曳已就绪变更卡时浮现（archiveZoneVisible）：非就绪卡＝纯排序、
+          讨论卡不可封存，皆不得造成布局变动。 */}
       {dragging && archiveZoneVisible(activeId, readyIds) && <ArchiveDropZone />}
       </div>
       </div>
-      {/* 拖曳浮動複本：渲染在最上層，不受欄位 overflow 裁切 */}
+      {/* 拖曳浮动复本：渲染在最上层，不受字段 overflow 裁切 */}
       <DragOverlay dropAnimation={null}>
         {activeChange ? (
           <div className="rounded-xl shadow-lg rotate-2 cursor-grabbing">

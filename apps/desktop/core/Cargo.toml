@@ -1,13 +1,13 @@
 [package]
-name = "speclink-desktop-core"
+name = "specseal-desktop-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-speclink-core = { path = "../../../crates/engine/speclink-core" }
-speclink-fs = { path = "../../../crates/engine/speclink-fs" }
-speclink-host = { path = "../../../crates/host/speclink-host" }
+specseal-core = { path = "../../../crates/engine/specseal-core" }
+specseal-fs = { path = "../../../crates/engine/specseal-fs" }
+specseal-host = { path = "../../../crates/host/specseal-host" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -16,5 +16,5 @@ rusqlite = { version = "0.40.1", features = ["bundled"] }
 regex = { workspace = true }
 
 [dev-dependencies]
-# 測試借 core 的 testkit（技能檔版號讀寫 helper）；feature 只在 dev 構建生效。
-speclink-core = { path = "../../../crates/engine/speclink-core", features = ["testkit"] }
+# 测试借 core 的 testkit（技能档版号读写 helper）；feature 只在 dev 构建生效。
+specseal-core = { path = "../../../crates/engine/specseal-core", features = ["testkit"] }

@@ -1,7 +1,7 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import { toRevertError } from "@speclink/ui";
+import { toRevertError } from "@specseal/ui";
 import type {
-  SpeclinkDataSource,
+  SpecsealDataSource,
   CardKind,
   ChangeListPayload,
   SpecItem,
@@ -15,21 +15,21 @@ import type {
   StatusReport,
   TicketStation,
   Verb,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { InvokeFn } from "../session";
 
-// core-backed adapter：以 Tauri invoke 呼叫 speclink-desktop 的 #[command]，
-// 實作 @speclink/ui 的 SpeclinkDataSource 介面。command 名與參數對應 src-tauri/src/lib.rs。
-// root 綁入閉包（workspace-session 決策 3/4）：每支 command 顯式帶 root，直通
-// desktop-core 的帶路徑函式——Rust 側無 current-root 全域。invoke 可注入以利測試。
+// core-backed adapter：以 Tauri invoke 调用 specseal-desktop 的 #[command]，
+// 实作 @specseal/ui 的 SpecsealDataSource 接口。command 名与参数对应 src-tauri/src/lib.rs。
+// root 绑入闭包（workspace-session 决策 3/4）：每支 command 显式带 root，直通
+// desktop-core 的带路径函数——Rust 侧无 current-root 全域。invoke 可注入以利测试。
 export function createTauriDataSource(
   root: string,
   invoke: InvokeFn = tauriInvoke as InvokeFn,
-): SpeclinkDataSource {
+): SpecsealDataSource {
   return {
     async listChanges(): Promise<ChangeListPayload> {
-      // list_changes payload 原樣：清單項＋頂層 planError。
+      // list_changes payload 原样：清单项＋顶层 planError。
       return await invoke<ChangeListPayload>("list_changes", { root });
     },
     async listSpecs(): Promise<SpecItem[]> {
@@ -63,14 +63,14 @@ export function createTauriDataSource(
       return await invoke<string[]>("change_capabilities", { root, change });
     },
     async changeMeta(change: string) {
-      return await invoke<import("@speclink/ui").ChangeMetaInfo | null>("change_meta", {
+      return await invoke<import("@specseal/ui").ChangeMetaInfo | null>("change_meta", {
         root,
         change,
       });
     },
     async revertChangeToProposed(change: string): Promise<void> {
-      // 守門拒絕由 desktop core 以 JSON 字串回證據——經共用 toRevertError
-      // 轉為 RevertBlockedError,App 的守門對話框單一消費入口。
+      // 守门拒绝由 desktop core 以 JSON 字符串回证据——经共用 toRevertError
+      // 转为 RevertBlockedError,App 的守门对话框单一消费入口。
       try {
         await invoke("revert_change_to_proposed", { root, change });
       } catch (e) {
@@ -90,7 +90,7 @@ export function createTauriDataSource(
       await invoke("move_task", { root, change, from, to, before: before ?? null });
     },
     async runVerb(verb: Verb, change: string): Promise<unknown> {
-      // 動詞 command 與動詞同名（validate/analyze/archive）。
+      // 动词 command 与动词同名（validate/analyze/archive）。
       return await invoke(verb, { root, change });
     },
     async discardReview(change: string): Promise<void> {
@@ -150,7 +150,7 @@ export function createTauriDataSource(
       await invoke("set_change_depends", { root, change, on, remove });
     },
     async dependsCandidates(change: string): Promise<string[]> {
-      // 候選名冊與 setDepends 同一定根（add-change-plan-remote D9）：worktree 映射時為副本。
+      // 候选名册与 setDepends 同一定根（add-change-plan-remote D9）：worktree 映射时为副本。
       return await invoke<string[]>("depends_candidates", { root, change });
     },
   };

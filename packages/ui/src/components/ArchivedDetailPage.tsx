@@ -40,67 +40,67 @@ import { TicketTabBody, useStationTickets } from "./TicketView";
 import { useDocNav } from "./useDocNav";
 import { VERIFY_ICON, VERIFY_LABEL_KEY, VERIFY_PILL_TONE } from "./verifyStyle";
 
-/** 頁目標（discriminated target 兩型同檔）：封存變更或封存討論。 */
+/** 页目标（discriminated target 两型同档）：封存变更或封存讨论。 */
 export type ArchivedTarget =
   | { kind: "change"; datedName: string }
   | { kind: "discussion"; slug: string };
 
 export interface ArchivedDetailPageProps {
   target: ArchivedTarget | null;
-  /** 刷新世代——遞增即就地重載（不清空、latest-wins；未傳＝0）。 */
+  /** 刷新世代——递增即就地重载（不清空、latest-wins；未传＝0）。 */
   refreshGen?: number;
-  /** 讀取封存變更的 artifact 原文（dated name 定址）；缺件回 null。 */
+  /** 读取封存变更的 artifact 原文（dated name 寻址）；缺件回 null。 */
   loadDocument: (datedName: string, artifact: string) => Promise<string | null>;
-  /** 列出封存變更的 delta capability 名。 */
+  /** 列出封存变更的 delta capability 名。 */
   loadCapabilities: (datedName: string) => Promise<string[]>;
-  /** 封存目錄帶走的化石工單（spec「已封存詳情頁的工單分頁」）：對應分頁出現時載入；
-   * 回 null 或 reject 皆為分頁空態。未提供時內容為空態。 */
+  /** 封存目录带走的化石工单（spec「已封存详情页的工单分页」）：对应分页出现时加载；
+   * 回 null 或 reject 皆为分页空态。未提供时内容为空态。 */
   loadStationTicket?: (datedName: string, station: TicketStation) => Promise<StationTicket | null>;
-  /** 讀取封存討論記錄全文與引擎解析的刀（slug 定址）；缺席回 null。 */
+  /** 读取封存讨论记录全文与引擎解析的刀（slug 寻址）；缺席回 null。 */
   loadDiscussionDocument: (slug: string) => Promise<DiscussionDocument | null>;
-  /** 封存變更的來源討論（slug＋topic，宿主解析；缺席／空＝出身列無「來自」）。 */
+  /** 封存变更的来源讨论（slug＋topic，宿主解析；缺席／空＝出身列无「来自」）。 */
   sourceDiscussions?: { slug: string; topic: string }[];
-  /** 點來源討論籤：宿主開啟該討論的已封存詳情頁。 */
+  /** 点来源讨论签：宿主打开该讨论的已封存详情页。 */
   onOpenDiscussion?: (slug: string) => void;
-  /** 封存討論背景文件的討論籤（內文名稱籤與先前討論）：宿主依討論所在開頁——作用中開討論詳情頁、其餘開已封存
-   * 詳情頁（`discussionSlugs` 含作用中的討論）。缺席時這些籤不可開。 */
+  /** 封存讨论背景文档的讨论签（内文名称签与先前讨论）：宿主依讨论所在开页——作用中开讨论详情页、其余开已封存
+   * 详情页（`discussionSlugs` 含作用中的讨论）。缺席时这些签不可开。 */
   onOpenContextDiscussion?: (slug: string) => void;
-  /** 封存討論的衍生變更籤項（宿主派生三態：已封存→副標封存日期、活躍→副標看板階段詞、
-   * 已刪除→disabled「無封存記錄」）；缺席／空＝狀態卡的衍生列缺席。 */
+  /** 封存讨论的衍生变更签项（宿主派生三态：已封存→副标封存日期、活跃→副标看板阶段词、
+   * 已删除→disabled「无封存记录」）；缺席／空＝状态卡的衍生列缺席。 */
   promotedChanges?: SourceLinkItem[];
-  /** 點可點的衍生變更籤：宿主依子變更所在開啟已封存詳情頁或變更詳情頁。 */
+  /** 点可点的衍生变更签：宿主依子变更所在打开已封存详情页或变更详情页。 */
   onOpenPromotedChange?: (name: string) => void;
-  /** 封存時的審查結局（spec「已封存側的審查標示」）。 */
+  /** 封存时的审查结局（spec「已封存侧的审查标示」）。 */
   reviewStatus?: ArchivedItem["reviewStatus"];
-  /** 封存時的驗證結局（spec「已封存側的驗證標示」）；與審查結局並存。 */
+  /** 封存时的验证结局（spec「已封存侧的验证标示」）；与审查结局并存。 */
   verifyStatus?: ArchivedItem["verifyStatus"];
-  /** 封存討論的 kind（標示隨 kind 恆定）。 */
+  /** 封存讨论的 kind（标示随 kind 恒定）。 */
   discussionKind?: string | null;
-  /** 封存討論的 topic（標題下方一行）。 */
+  /** 封存讨论的 topic（标题下方一行）。 */
   discussionTopic?: string;
-  /** 出身列的建立者（"Name <email>"）；缺席＝該欄缺席。 */
+  /** 出身列的创建者（"Name <email>"）；缺席＝该栏缺席。 */
   createdBy?: string | null;
-  /** 出身列的建立日期 YYYY-MM-DD；缺席＝該欄缺席。 */
+  /** 出身列的创建日期 YYYY-MM-DD；缺席＝该栏缺席。 */
   created?: string;
-  /** 出身列與狀態卡的封存日期 YYYY-MM-DD；缺席＝該欄缺席。 */
+  /** 出身列与状态卡的封存日期 YYYY-MM-DD；缺席＝该栏缺席。 */
   archivedDate?: string;
-  /** 內容卡標頭右端的文件動作（「開啟 ▾」）。 */
+  /** 内容卡标头右端的文档动作（「打开 ▾」）。 */
   renderDocumentActions?: (target: DocumentTarget | null) => ReactNode;
-  /** 開該能力的規格詳情頁（規格文件能力頭的「看正式規格」）；未提供時不渲染該鈕。 */
+  /** 开该能力的规格详情页（规格文档能力头的「看正式规格」）；未提供时不渲染该钮。 */
   onOpenSpec?: (capability: string) => void;
-  /** 提案影響段路徑籤的本機路徑動作（文案依平台）；未提供時只有複製鈕。 */
+  /** 提案影响段路径签的本机路径动作（文案依平台）；未提供时只有拷贝钮。 */
   pathReveal?: PathReveal;
-  /** 作用中與已封存變更清單：兩份都有時封存討論的衍生列帶任務進度、兩站章與日期，否則退回 `promotedChanges`。 */
+  /** 作用中与已封存变更清单：两份都有时封存讨论的衍生列带任务进度、两站章与日期，否则退回 `promotedChanges`。 */
   changes?: ChangeItem[];
   archivedChanges?: ArchivedItem[];
-  /** 正式規格名與全部討論 slug：封存討論背景的名稱籤。 */
+  /** 正式规格名与全部讨论 slug：封存讨论背景的名称签。 */
   specNames?: string[];
   discussionSlugs?: string[];
 }
 
 type Doc = string | null | undefined;
 
-/** 出身列各段：建立者、建立日期、「封存 日期」——任一缺席該段缺席。 */
+/** 出身列各段：创建者、创建日期、「封存 日期」——任一缺席该段缺席。 */
 function provenance(
   t: (key: string) => string,
   { createdBy, created, archivedDate }: Pick<ArchivedDetailPageProps, "createdBy" | "created" | "archivedDate">,
@@ -112,7 +112,7 @@ function provenance(
   ];
 }
 
-/** 身分區的「已封存」籤：封存變更與封存討論共用。 */
+/** 身分区的「已封存」签：封存变更与封存讨论共用。 */
 function ArchivedPill() {
   const { t } = useI18n();
   return (
@@ -122,7 +122,7 @@ function ArchivedPill() {
   );
 }
 
-/** 分頁 → 封存目錄內的檔案（規格另依 capability 組路徑）。 */
+/** 分页 → 封存目录内的文件（规格另依 capability 组路径）。 */
 const TAB_FILES: Record<string, string> = {
   proposal: "proposal.md",
   design: "design.md",
@@ -131,16 +131,16 @@ const TAB_FILES: Record<string, string> = {
   verify: "verify.md",
 };
 
-/** 封存變更變體（design D3）。 */
+/** 封存变更变体（design D3）。 */
 function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & { datedName: string }) {
   const { t, tn } = useI18n();
   const [proposal, setProposal] = useState<Doc>();
   const [design, setDesign] = useState<Doc>();
   const [tasksMd, setTasksMd] = useState<Doc>();
-  // undefined＝capability 清單與其規格文件尚未載完（與「無規格差異」的空物件分流）。
+  // undefined＝capability 清单与其规格文档尚未载完（与「无规格差异」的空对象分流）。
   const [specDocs, setSpecDocs] = useState<Record<string, string | null> | undefined>();
   const [tab, setTab] = useState("proposal");
-  // 能力籤→規格段、D 籤→決策卡、「前往」→任務列的跳轉請求（與變更詳情頁同一套；換變更時以 key 重掛）。
+  // 能力签→规格段、D 签→决策卡、「前往」→任务列的跳转请求（与变更详情页同一套；换变更时以 key 重挂）。
   const nav = useDocNav(setTab);
   const bodyRef = useRef<HTMLDivElement>(null);
   const gen = props.refreshGen ?? 0;
@@ -165,13 +165,13 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
       .catch(settle(setSpecDocs, {}, isLatest));
   });
 
-  // 工單分頁條件（spec「已封存詳情頁的工單分頁」）：帶走化石工單而無章的結局才出現、才載入。
+  // 工单分页条件（spec「已封存详情页的工单分页」）：带走化石工单而无章的结局才出现、才加载。
   const carriedReview = props.reviewStatus === "reviewedNotPassed";
   const carriedVerify = props.verifyStatus === "verifiedNotPassed";
   const tickets = useStationTickets(datedName, { review: carriedReview, verify: carriedVerify }, gen, props.loadStationTicket);
 
-  // 結局籤（spec「已封存側的審查標示」「已封存側的驗證標示」）：只在「狀態」區的「品質關卡」
-  // 列渲染——身分區只放「已封存」籤。
+  // 结局签（spec「已封存侧的审查标示」「已封存侧的验证标示」）：只在「状态」区的「品质关卡」
+  // 列渲染——身分区只放「已封存」签。
   const review = props.reviewStatus === "reviewed" || props.reviewStatus === "reviewedNotPassed" ? props.reviewStatus : null;
   const verify = props.verifyStatus === "verified" || props.verifyStatus === "verifiedNotPassed" ? props.verifyStatus : null;
   const outcomes = (
@@ -206,7 +206,7 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
 
   const docPath = documentArtifact(docTarget);
   const tocKey = changeDocTocKey(tab, { content: docTarget?.content, specs: specDocs, tickets });
-  // 閱讀卡標題區（design D9）：唯讀、無排程；化石工單不給「可以蓋章」提示框。
+  // 阅读卡标题区（design D9）：唯读、无调度；化石工单不给「可以盖章」提示框。
   const summary = changeDocSummary(
     tab,
     {
@@ -225,7 +225,7 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
 
   const tree = (
     <>
-      {/* 標題為變更名、複製含日期前綴的封存目錄名；無動作——封存是唯讀定格。 */}
+      {/* 标题为变更名、拷贝含日期前缀的封存目录名；无动作——封存是唯读定格。 */}
       <DetailIdentity
         title={datedName.replace(/^\d{4}-\d{2}-\d{2}-/, "")}
         copyLabel={t("archived.copyName")}
@@ -269,7 +269,7 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
             </Badge>
           )}
         </TabsTrigger>
-        {/* 條件式工單節點：規格之後、審查在前，與身分區結局籤同序。 */}
+        {/* 条件式工单节点：规格之后、审查在前，与身分区结局签同序。 */}
         {carriedReview && (
           <TabsTrigger value="review">
             {REVIEW_ICON.reviewedNotPassed} {t("drawer.tab.review")}
@@ -315,7 +315,7 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
             <DocTiles tiles={summary.tiles} />
             {tab !== "proposal" && calloutSlot}
             <DocBody ref={bodyRef}>
-              {/* 各文件三態：載入中畫骨架，空態文案只在載入完成後出。 */}
+              {/* 各文档三态：加载中画骨架，空态文案只在加载完成后出。 */}
               <TabsContent value="proposal">
                 {proposal === undefined ? (
                   <DocSkeleton />
@@ -338,7 +338,7 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
                 )}
               </TabsContent>
               <TabsContent value="tasks">
-                {/* 唯讀：勾選回呼不接——核取方塊 disabled、無把手、無批次工具列、整列不回應；展開與 D 籤照常。 */}
+                {/* 唯读：勾选回呼不接——核取方块 disabled、无把手、无批量工具列、整列不回应；展开与 D 签照常。 */}
                 {tasksMd === undefined ? (
                   <DocSkeleton />
                 ) : (
@@ -387,11 +387,11 @@ function ArchivedChangeView({ datedName, ...props }: ArchivedDetailPageProps & {
   );
 }
 
-/** 封存討論變體（design D3）。 */
+/** 封存讨论变体（design D3）。 */
 function ArchivedDiscussionView({ slug, ...props }: ArchivedDetailPageProps & { slug: string }) {
   const { t, tn } = useI18n();
   const [doc, setDoc] = useState<DiscussionDocument | null | undefined>();
-  // 使用者選的文件；null＝依預設規則（記錄載入前後、結論有無都跟著走）。
+  // 用户选的文档；null＝依缺省规则（记录加载前后、结论有无都跟着走）。
   const [picked, setPicked] = useState<string | null>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   useGenerationLoad(props.refreshGen ?? 0, (isLatest) => {
@@ -405,7 +405,7 @@ function ArchivedDiscussionView({ slug, ...props }: ArchivedDetailPageProps & { 
 
   const promoted = props.promotedChanges ?? [];
   const { changes, archivedChanges, onOpenPromotedChange } = props;
-  // 衍生列：兩份清單都有時與討論詳情頁同一套推導（開啟都委派宿主，宿主依所在開頁），否則退回宿主派生的三態。
+  // 衍生列：两份清单都有时与讨论详情页同一套推导（打开都委派宿主，宿主依所在开页），否则退回宿主派生的三态。
   const rows =
     changes && archivedChanges
       ? promotedRows(
@@ -417,7 +417,7 @@ function ArchivedDiscussionView({ slug, ...props }: ArchivedDetailPageProps & { 
           onOpenPromotedChange,
         )
       : promotedRowsFromLinks(promoted, onOpenPromotedChange);
-  // 已封存：沒有記錄路徑段、不出「只差最後一刀」。
+  // 已封存：没有记录路径段、不出「只差最后一刀」。
   const data = discussionDocData({
     doc,
     status: "archived",
@@ -434,7 +434,7 @@ function ArchivedDiscussionView({ slug, ...props }: ArchivedDetailPageProps & { 
   });
   const { sections } = data;
   const roundCount = data.rounds?.length ?? null;
-  // 衍生列與衍生籤共用：不可點（已刪除）者無開啟動作。
+  // 衍生列与衍生签共用：不可点（已删除）者无打开动作。
   const openPromoted = (item: SourceLinkItem) =>
     item.disabled ? undefined : () => props.onOpenPromotedChange?.(item.slug);
   const tab = discussionDoc(picked, sections);
@@ -517,7 +517,7 @@ function ArchivedDiscussionView({ slug, ...props }: ArchivedDetailPageProps & { 
           bodyRef={bodyRef}
         >
           <Card className="flex flex-col gap-5 p-6">
-            {/* 封存討論的檔名帶封存日期而清單資料不帶：「開啟 ▾」只能複製內容。 */}
+            {/* 封存讨论的文件名带封存日期而清单数据不带：「打开 ▾」只能拷贝内容。 */}
             <DocHeader
               title={t(DOC_TITLE_KEYS[tab])}
               actions={props.renderDocumentActions?.({ doc: null, content: doc?.content ?? null })}
@@ -552,9 +552,9 @@ function ArchivedDiscussionView({ slug, ...props }: ArchivedDetailPageProps & { 
 }
 
 /**
- * 已封存詳情頁（spec「已封存項目以詳情頁檢視」；design D5）：與變更／討論詳情頁同一三欄骨架、
- * 唯讀——身分區帶「已封存」籤，不渲染標題列動作。
- * 目標一換即以 key 重掛對應變體——清空後全量載入；世代遞增就地重載。
+ * 已封存详情页（spec「已封存项目以详情页查看」；design D5）：与变更／讨论详情页同一三栏骨架、
+ * 唯读——身分区带「已封存」签，不渲染标题列动作。
+ * 目标一换即以 key 重挂对应变体——清空后全量加载；世代递增就地重载。
  */
 export function ArchivedDetailPage(props: ArchivedDetailPageProps) {
   const { target } = props;

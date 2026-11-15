@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const invoke = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...a: unknown[]) => invoke(...a) }));
 
-import { RevertBlockedError } from "@speclink/ui";
+import { RevertBlockedError } from "@specseal/ui";
 
 import { createTauriDataSource } from "../adapter/tauriDataSource";
 
@@ -11,8 +11,8 @@ describe("createTauriDataSource", () => {
   beforeEach(() => invoke.mockReset());
 
   it("listChanges keeps the envelope: items (restaleFrom carried) plus the top-level planError", async () => {
-    // restaleFrom（待重新反映徽章資料源）隨清單項透傳至前端，供看板卡片渲染；spec
-    // client-protocol「變更清單的排程欄位」：頂層 planError（成環訊息或 null）隨清單
+    // restaleFrom（待重新反映徽章数据源）随清单项透传至前端，供看板卡片渲染；spec
+    // client-protocol「变更清单的调度字段」：顶层 planError（成环消息或 null）随清单
     // 一起回到前端，同一次 IO。
     invoke.mockResolvedValueOnce({
       changes: [{ name: "a", status: "s", totalTasks: 1, completedTasks: 0, restaleFrom: ["alpha"] }],
@@ -27,7 +27,7 @@ describe("createTauriDataSource", () => {
     expect(payload.planError).toBe("dependency cycle: a -> b -> a");
   });
 
-  it("getDiscussionDocument 回 { content, cuts }：cuts 照傳、缺席補空陣列、不存在為 null", async () => {
+  it("getDiscussionDocument 回 { content, cuts }：cuts 照传、缺席补空数组、不存在为 null", async () => {
     const cut = {
       cut: "cut 1",
       title: "骨架",
@@ -48,8 +48,8 @@ describe("createTauriDataSource", () => {
   });
 
   it("listSpecs unwraps the { specs } envelope and carries the presentation helper fields", async () => {
-    // spec「桌面 app 呈現 change 與 spec 的清單與內容」呈現層輔助欄位（design D2、
-    // spec-archive-drawer design D4）：modifiedAt 之外，規格卡收合資訊欄位原樣透傳。
+    // spec「桌面 app 呈现 change 与 spec 的清单与内容」呈现层辅助字段（design D2、
+    // spec-archive-drawer design D4）：modifiedAt 之外，规格卡收合信息字段原样透传。
     invoke.mockResolvedValueOnce({
       specs: [
         {
@@ -75,8 +75,8 @@ describe("createTauriDataSource", () => {
   });
 
   it("listArchived unwraps the { archived } envelope and carries the card info fields", async () => {
-    // 封存卡收合資訊（spec-archive-drawer design D4/D5）：specCount／createdBy／
-    // fromDiscussions 原樣透傳。
+    // 封存卡收合信息（spec-archive-drawer design D4/D5）：specCount／createdBy／
+    // fromDiscussions 原样透传。
     invoke.mockResolvedValueOnce({
       archived: [
         {
@@ -113,7 +113,7 @@ describe("createTauriDataSource", () => {
     expect(invoke).toHaveBeenCalledWith("revert_change_to_proposed", { root: "/r", change: "chg" });
   });
 
-  it("revertChangeToProposed 把守門 JSON 錯誤轉為 RevertBlockedError(結構化證據)", async () => {
+  it("revertChangeToProposed 把守门 JSON 错误转为 RevertBlockedError(结构化证据)", async () => {
     invoke.mockRejectedValueOnce(
       '{"kind":"revertBlocked","checkedTasks":2,"touchedFiles":["src/a.rs"]}',
     );
@@ -124,12 +124,12 @@ describe("createTauriDataSource", () => {
     expect((err as RevertBlockedError).touchedFiles).toEqual(["src/a.rs"]);
   });
 
-  it("revertChangeToProposed 非守門錯誤原樣拋出單行訊息", async () => {
-    invoke.mockRejectedValueOnce("not a speclink project: /r");
+  it("revertChangeToProposed 非守门错误原样抛出单行消息", async () => {
+    invoke.mockRejectedValueOnce("not a specseal project: /r");
     const ds = createTauriDataSource("/r");
     const err = await ds.revertChangeToProposed("chg").catch((e: unknown) => e);
     expect(err).not.toBeInstanceOf(RevertBlockedError);
-    expect(String(err instanceof Error ? err.message : err)).toContain("not a speclink project");
+    expect(String(err instanceof Error ? err.message : err)).toContain("not a specseal project");
   });
 
   it("runVerb invokes the verb command by name with the change arg", async () => {
@@ -139,9 +139,9 @@ describe("createTauriDataSource", () => {
     expect(invoke).toHaveBeenCalledWith("validate", { root: "/r", change: "chg" });
   });
 
-  it("三選項的兩條處置各走自己的 command", async () => {
-    // spec「封存入口的未結工單三選項」：放棄審查＝discard_review（不封存），
-    // 照樣帶走＝archive_carry（等同 CLI --carry-review／--carry-verify）。
+  it("三选项的两条处置各走自己的 command", async () => {
+    // spec「封存入口的未结工单三选项」：放弃审查＝discard_review（不封存），
+    // 照样带走＝archive_carry（等同 CLI --carry-review／--carry-verify）。
     invoke.mockResolvedValue(undefined);
     const ds = createTauriDataSource("/r");
     await ds.discardReview?.("chg");
@@ -158,7 +158,7 @@ describe("createTauriDataSource", () => {
   });
 
   it("setAllTasks invokes set_all_tasks with change and done", async () => {
-    // spec「任務分頁提供批次操作工具列」：全部已完成／重置任務走批次指令單次寫回。
+    // spec「任务分页提供批量操作工具列」：全部已完成／重置任务走批量指令单次写回。
     invoke.mockResolvedValue(undefined);
     const ds = createTauriDataSource("/r");
     await ds.setAllTasks("chg", true);
@@ -168,7 +168,7 @@ describe("createTauriDataSource", () => {
   });
 
   it("reorderCard invokes reorder_card with kind, id and neighbor ids (null = column ends)", async () => {
-    // design D5：以鄰居識別碼表達落點；null＝欄頂／欄底。
+    // design D5：以邻居识别码表达落点；null＝栏顶／栏底。
     invoke.mockResolvedValue(undefined);
     const ds = createTauriDataSource("/r");
     await ds.reorderCard("change", "my-change", "prev-c", null);
@@ -189,9 +189,9 @@ describe("createTauriDataSource", () => {
     });
   });
 
-  it("工單分頁的兩個讀取各走自己的 command（drawer-quality-ticket-tab D2／D5）", async () => {
-    // 活工單以 change＋station 定址、封存工單以 datedName＋station 定址；payload
-    // 原樣透傳（null＝無工單、遠端 404 或格式壞掉，前端一律空態）。
+  it("工单分页的两个读取各走自己的 command（drawer-quality-ticket-tab D2／D5）", async () => {
+    // 活工单以 change＋station 寻址、封存工单以 datedName＋station 寻址；payload
+    // 原样透传（null＝无工单、远程 404 或格式坏掉，前端一律空态）。
     const ticket = {
       rounds: [{ index: 1, phase: "discovery", patchHash: null, scope: ["src/a.rs"], findings: [] }],
     };
@@ -209,25 +209,25 @@ describe("createTauriDataSource", () => {
   });
 
   it("dependsCandidates invokes depends_candidates with root and change（add-change-plan-remote D9）", async () => {
-    // 排程分頁的候選名冊：有 worktree 映射時為副本名冊，由桌面 core 定根。
+    // 调度分页的候选名册：有 worktree 映射时为副本名册，由桌面 core 定根。
     invoke.mockResolvedValueOnce(["add-auth"]);
     const ds = createTauriDataSource("/r");
     expect(await ds.dependsCandidates!("add-dark-mode")).toEqual(["add-auth"]);
     expect(invoke).toHaveBeenCalledWith("depends_candidates", { root: "/r", change: "add-dark-mode" });
   });
 
-  it("手冊索引與內文各走自己的 command（desktop-manual-page design D1）", async () => {
+  it("手册索引与内文各走自己的 command（desktop-manual-page design D1）", async () => {
     // spec desktop-manual-page：索引 `{ present, reason, pages, uncoveredNew, malformed }`
-    // 原樣透傳；內文以 slug 定址。command 名與參數對應 src-tauri 的
-    // list_manual_pages(root) 與 get_manual_page(root, slug)。
+    // 原样透传；内文以 slug 寻址。command 名与参数对应 src-tauri 的
+    // list_manual_pages(root) 与 get_manual_page(root, slug)。
     invoke.mockResolvedValueOnce({
       present: true,
       reason: null,
       pages: [
         {
           slug: "index",
-          title: "手冊",
-          section: "開始使用",
+          title: "手册",
+          section: "开始使用",
           order: 10,
           keywords: [],
           sources: [],
@@ -246,14 +246,14 @@ describe("createTauriDataSource", () => {
     expect(index.uncoveredNew).toEqual(["github-oauth"]);
     expect(index.malformed).toEqual(["broken"]);
 
-    invoke.mockResolvedValueOnce("# 手冊\n\n內文。");
-    expect(await ds.getManualPage("index")).toBe("# 手冊\n\n內文。");
+    invoke.mockResolvedValueOnce("# 手册\n\n内文。");
+    expect(await ds.getManualPage("index")).toBe("# 手册\n\n内文。");
     expect(invoke).toHaveBeenCalledWith("get_manual_page", { root: "/r", slug: "index" });
     invoke.mockResolvedValueOnce(null);
     expect(await ds.getManualPage("missing")).toBeNull();
   });
 
-  it("本地後端不提供 claim（RemoteOnly 動詞不在本地偽造入口）", () => {
+  it("本地后端不提供 claim（RemoteOnly 动词不在本地伪造入口）", () => {
     const ds = createTauriDataSource("/r");
     expect(ds.claim).toBeUndefined();
   });

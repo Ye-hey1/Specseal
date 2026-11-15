@@ -11,7 +11,7 @@ import {
   useI18n,
   usePaging,
   PageHeader,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { useAsync, useLastData } from "../../lib/useAsync";
 import { useListScroll } from "../../lib/useListScroll";
@@ -23,11 +23,11 @@ import { SectionRoutes } from "./detail";
 import { AdminError, AdminLoading } from "./states";
 import { ProjectDetailPage, projectPath } from "./ProjectDetailPage";
 
-// 專案區段（server-web-console「管理列表以詳情頁與對話框承載檢視與建立」「管理列表提供搜尋、篩選、
-// 分頁與具引導的空狀態」；server-web-list-pages design D2、D3、D5；server-web-detail-pages design D1）：
-// `/admin/registry` 是列表、`/admin/registry/<代號>` 是專案詳情頁。資料與列表狀態（搜尋、頁碼）放在
-// 區段，回列表時原樣保留。列表頁標題區右側是搜尋與建立專案，其下一張列表卡（前端換頁），整列可點
-// 進詳情頁；建立專案以置中對話框承載，列表頁不含輸入控制項。
+// 项目区段（server-web-console「管理列表以详情页与对话框承载查看与创建」「管理列表提供搜索、筛选、
+// 分页与具引导的空状态」；server-web-list-pages design D2、D3、D5；server-web-detail-pages design D1）：
+// `/admin/registry` 是列表、`/admin/registry/<代号>` 是项目详情页。数据与列表状态（搜索、页码）放在
+// 区段，回列表时原样保留。列表页标题区右侧是搜索与创建项目，其下一张列表卡（前端换页），整列可点
+// 进详情页；创建项目以置中对话框承载，列表页不含输入控制项。
 
 export function RegistrySection() {
   const { t, tn } = useI18n();
@@ -35,7 +35,7 @@ export function RegistrySection() {
   const navigate = useNavigate();
   const narrow = useNarrow();
   const { data: fresh, error, reload } = useAsync(() => client.getAdminRegistry(), []);
-  // 留著上一份成功回應：詳情頁變更後重載時不卸載重掛（同使用者區段，design D1）。
+  // 留着上一份成功回应：详情页变更后重载时不卸载重挂（同用户区段，design D1）。
   const data = useLastData(fresh, error);
   const [createOpen, setCreateOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -84,7 +84,7 @@ export function RegistrySection() {
       {error != null && <AdminError onRetry={reload} />}
       {data && (
         <ListCard scrollRef={scrollRef} footer={<ListPager compact={narrow} {...paging.pager} />}>
-          {/* 空狀態不放建立鈕：建立鈕常駐頁首，一頁只有一個主要動作。 */}
+          {/* 空状态不放创建钮：创建钮常驻页眉，一页只有一个主要动作。 */}
           {data.projects.length === 0 ? (
             <EmptyState icon={Inbox} title={t("registry.emptyTitle")} description={t("registry.emptyBody")} />
           ) : visible.length === 0 ? (
@@ -104,7 +104,7 @@ export function RegistrySection() {
         </ListCard>
       )}
 
-      {/* 只在開著時掛載：每次開啟都是空白表單。 */}
+      {/* 只在开着时挂载：每次打开都是空白表单。 */}
       {createOpen && <CreateProjectDialog onClose={() => setCreateOpen(false)} onCreated={reload} />}
     </div>
   );

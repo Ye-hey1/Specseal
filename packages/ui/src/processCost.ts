@@ -1,15 +1,15 @@
 import type { ArchivedItem } from "./adapter";
 
-/** 一個數字的中位數與樣本數（帶有該欄位的封存變更筆數）。 */
+/** 一个数字的中位数与样本数（带有该字段的封存变更笔数）。 */
 export interface CostStat {
   median: number;
   samples: number;
 }
 
 /**
- * 已封存頁流程成本摘要的彙總結果（spec desktop-app「已封存頁的流程成本摘要」）。
- * 樣本數為 0 的數字缺席；沒有任何封存變更帶流程成本欄位時為空物件——遠端清單
- * 只帶任務數，摘要因此整個不出現。
+ * 已封存页流程成本摘要的汇总结果（spec desktop-app「已封存页的流程成本摘要」）。
+ * 样本数为 0 的数字缺席；没有任何封存变更带流程成本字段时为空对象——远程清单
+ * 只带任务数，摘要因此整个不出现。
  */
 export interface ProcessCostSummaryData {
   docLines?: CostStat & { p90: number };
@@ -22,34 +22,34 @@ export interface ProcessCostSummaryData {
 
 const ascending = (values: number[]) => [...values].sort((a, b) => a - b);
 
-/** 由小到大排序後的中間值；偶數筆取中間兩值的平均。 */
+/** 由小到大排序后的中间值；偶数笔取中间两值的平均。 */
 export function median(values: number[]): number {
   const sorted = ascending(values);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-/** 由小到大第 ⌈0.9 × n⌉ 個值（整數運算，避開 0.9 × n 的浮點誤差）。 */
+/** 由小到大第 ⌈0.9 × n⌉ 个值（整数运算，避开 0.9 × n 的浮点误差）。 */
 export function p90(values: number[]): number {
   return ascending(values)[Math.ceil((9 * values.length) / 10) - 1];
 }
 
-/** 四捨五入到一位小數——帶單位的計數文案（tn）直接吃這個數字。 */
+/** 四舍五入到一位小数——带单位的计数文案（tn）直接吃这个数字。 */
 export function roundCost(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** 最多一位小數，整數不帶小數點。 */
+/** 最多一位小数，整数不带小数点。 */
 export function formatCost(n: number): string {
   return String(roundCost(n));
 }
 
-/** 流程成本欄位的單一清單：決定摘要出不出現，也決定摘要有哪些數字。 */
+/** 流程成本字段的单一清单：决定摘要出不出现，也决定摘要有哪些数字。 */
 const COST_FIELDS = ["docLines", "leadDays", "leadHours", "reviewRounds", "verifyRounds"] as const;
 
 const stat = (values: number[]): CostStat => ({ median: median(values), samples: values.length });
 
-/** 以全部已封存變更算出摘要的每個數字（呼叫端不得先套搜尋過濾）。缺席的數字不留 key。 */
+/** 以全部已封存变更算出摘要的每个数字（调用端不得先套搜索过滤）。缺席的数字不留 key。 */
 export function summarizeProcessCost(items: ArchivedItem[]): ProcessCostSummaryData {
   const values = (field: (typeof COST_FIELDS)[number] | "tasksTotal") =>
     items.map((item) => item[field]).filter((v): v is number => v != null);
@@ -60,7 +60,7 @@ export function summarizeProcessCost(items: ArchivedItem[]): ProcessCostSummaryD
     if (field === "docLines") summary.docLines = { ...stat(v), p90: p90(v) };
     else summary[field] = stat(v);
   }
-  // 沒有任何流程成本欄位時整個摘要不出現，任務數有樣本也一樣（遠端清單只帶任務數）。
+  // 没有任何流程成本字段时整个摘要不出现，任务数有样本也一样（远程清单只带任务数）。
   if (Object.keys(summary).length === 0) return {};
   const tasks = values("tasksTotal");
   if (tasks.length > 0) summary.tasks = stat(tasks);

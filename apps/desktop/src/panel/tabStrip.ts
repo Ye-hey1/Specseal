@@ -1,13 +1,13 @@
-// 面板專案 tab 條的捲動計算（spec「面板樣式（macOS）」；design「專案 tab 條：「＋」固定
-// 右端、邊緣淡出、捲到作用中」）：純函式——jsdom 沒有版面，元件測試以注入尺寸驗證接線，
-// 計算本身由純函式測試覆蓋。參數一律具名，避免幾個同型數字傳錯位置。邊緣淡出的判斷與
+// 面板项目 tab 条的卷动计算（spec「面板样式（macOS）」；design「项目 tab 条：「＋」固定
+// 右端、边缘淡出、卷到作用中」）：纯函数——jsdom 没有版面，组件测试以注入尺寸验证接线，
+// 计算本身由纯函数测试覆盖。参数一律具名，避免几个同型数字传错位置。边缘淡出的判断与
 // 中段共用，在 edgeFade.ts。
 import { EDGE_FADE_PX } from "./edgeFade";
 
 /**
- * 露出目標：讓作用中 tab 完整可見、且不落在淡出區內的 scrollLeft；本來就可見則回傳原值。
- * tabLeft 是 tab 在可捲內容中的左緣（可捲區為其 offsetParent 時即 offsetLeft）。超過最大
- * 捲動量的值交給瀏覽器夾回——捲到盡頭時該側本來就不淡出。
+ * 露出目标：让作用中 tab 完整可见、且不落在淡出区内的 scrollLeft；本来就可见则回传原值。
+ * tabLeft 是 tab 在可卷内容中的左缘（可卷区为其 offsetParent 时即 offsetLeft）。超过最大
+ * 卷动量的值交给浏览器夹回——卷到尽头时该侧本来就不淡出。
  */
 export function tabRevealScrollLeft({
   tabLeft,

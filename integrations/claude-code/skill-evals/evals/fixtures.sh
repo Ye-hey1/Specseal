@@ -1,18 +1,18 @@
-# 評測題共用的 scaffold 片段：每題的 scaffold.sh 以 source 載入，在評測工作區（目前目錄）執行。
-# 只依賴 PATH 上的 speclink 與 git。
+# 评测题共用的 scaffold 片段：每题的 scaffold.sh 以 source 加载，在评测工作区（目前目录）运行。
+# 只依赖 PATH 上的 specseal 与 git。
 #
-# EVAL_TOOLS 預設 claude：技能由評測 plugin 的 skills/ 提供，所以刪掉 init 寫出的專案技能。
-# 手動抽查 Codex／Copilot 時設成 codex 或 copilot，技能留在工作區給該工具讀：
-#   mkdir ws && cd ws && EVAL_TOOLS=codex bash <題目>/scaffold.sh
+# EVAL_TOOLS 缺省 claude：技能由评测 plugin 的 skills/ 提供，所以删掉 init 写出的项目技能。
+# 手动抽查 Codex／Copilot 时设成 codex 或 copilot，技能留在工作区给该工具读：
+#   mkdir ws && cd ws && EVAL_TOOLS=codex bash <题目>/scaffold.sh
 set -euo pipefail
 
 eval_init() {
   local tools="${EVAL_TOOLS:-claude}"
-  speclink init . --tools "$tools" >/dev/null
+  specseal init . --tools "$tools" >/dev/null
   if [ "$tools" = claude ]; then rm -rf .claude/skills; fi
 }
 
-# 評測的 HOME 是臨時目錄，沒有全域 git 身分，所以設在工作區內。
+# 评测的 HOME 是临时目录，没有全域 git 身分，所以设在工作区内。
 eval_git_init() {
   git init -q -b main .
   git config user.name "Eval User"
@@ -24,7 +24,7 @@ eval_commit() {
   git commit -qm "$1"
 }
 
-# 第一個 commit 只有 README.md 的 git repo，之後才 init（init 寫出的檔案留在工作目錄、未 commit）。
+# 第一个 commit 只有 README.md 的 git repo，之后才 init（init 写出的文件留在工作目录、未 commit）。
 eval_greeting_repo() {
   eval_git_init
   echo '# greeting' >README.md
@@ -32,18 +32,18 @@ eval_greeting_repo() {
   eval_init
 }
 
-# commit add-greeting 的 artifacts，並記錄 apply 基準（review／verify 的凍結範圍以它為起點）。
-# 基準要在別處記錄的題目（由受測的技能記錄，或由 scaffold 在 worktree 內另行記錄）只用 eval_commit。
+# commit add-greeting 的 artifacts，并记录 apply 基准（review／verify 的冻结范围以它为起点）。
+# 基准要在别处记录的题目（由受测的技能记录，或由 scaffold 在 worktree 内另行记录）只用 eval_commit。
 eval_greeting_artifacts_with_baseline() {
   eval_commit 'add-greeting: artifacts'
-  speclink review prepare add-greeting >/dev/null 2>&1
+  specseal review prepare add-greeting >/dev/null 2>&1
 }
 
-# change add-greeting：在 repo 根目錄建立內容為 hello 的 greeting.txt。
-# 參數 manual：多一個 [M] 任務（打開檔案確認內容）。
+# change add-greeting：在 repo 根目录创建内容为 hello 的 greeting.txt。
+# 参数 manual：多一个 [M] 任务（打开文件确认内容）。
 eval_greeting_change() {
-  local dir=speclink/changes/add-greeting
-  speclink new change add-greeting >/dev/null
+  local dir=specseal/changes/add-greeting
+  specseal new change add-greeting >/dev/null
   mkdir -p "$dir/specs/greeting"
   cat >"$dir/proposal.md" <<'EOF'
 ## Why
@@ -105,21 +105,21 @@ EOF
   } >"$dir/tasks.md"
 }
 
-# add-greeting 的程式任務已完成：建立 greeting.txt 並以 task done 記錄。
+# add-greeting 的程序任务已完成：创建 greeting.txt 并以 task done 记录。
 eval_greeting_done() {
-  speclink in-progress add add-greeting >/dev/null
+  specseal in-progress add add-greeting >/dev/null
   echo hello >greeting.txt
-  speclink task done --change add-greeting 1 >/dev/null
+  specseal task done --change add-greeting 1 >/dev/null
 }
 
-# 已封存的 add-greeting：speclink/specs/greeting/spec.md 成為正式規格。
+# 已封存的 add-greeting：specseal/specs/greeting/spec.md 成为正式规格。
 eval_greeting_archived() {
   eval_greeting_change
   eval_greeting_done
-  speclink archive add-greeting --yes >/dev/null
+  specseal archive add-greeting --yes >/dev/null
 }
 
-# 在 git 中完成 add-greeting：change 先 commit、記錄 apply 基準，再做完程式任務並 commit。
+# 在 git 中完成 add-greeting：change 先 commit、记录 apply 基准，再做完程序任务并 commit。
 eval_greeting_committed() {
   eval_greeting_change
   eval_greeting_artifacts_with_baseline
@@ -127,11 +127,11 @@ eval_greeting_committed() {
   eval_commit 'add-greeting: greeting.txt'
 }
 
-# 品質關卡用的 add-greeting：src/greet.js 已實作並 commit，但有一個真的錯誤——條件式把空字串
-# 指派給 name，任何呼叫都回傳 "hello, "，違反規格的兩個 scenario，也是程式上的錯。
+# 品质关卡用的 add-greeting：src/greet.js 已实作并 commit，但有一个真的错误——条件式把空字符串
+# 指派给 name，任何调用都回传 "hello, "，违反规格的两个 scenario，也是程序上的错。
 eval_buggy_greet_committed() {
-  local dir=speclink/changes/add-greeting
-  speclink new change add-greeting >/dev/null
+  local dir=specseal/changes/add-greeting
+  specseal new change add-greeting >/dev/null
   mkdir -p "$dir/specs/greeting"
   cat >"$dir/proposal.md" <<'EOF'
 ## Why
@@ -194,7 +194,7 @@ EOF
 - [ ] 1.1 Add `greet(name)` in `src/greet.js` that returns `hello, <name>`, or `hello` when `name` is empty. Verify: `node -e "const {greet}=require('./src/greet'); console.log(greet('Ada'), greet(''))"` prints `hello, Ada hello`.
 EOF
   eval_greeting_artifacts_with_baseline
-  speclink in-progress add add-greeting >/dev/null
+  specseal in-progress add add-greeting >/dev/null
   mkdir -p src
   cat >src/greet.js <<'EOF'
 function greet(name) {
@@ -204,6 +204,6 @@ function greet(name) {
 
 module.exports = { greet };
 EOF
-  speclink task done --change add-greeting 1 >/dev/null
+  specseal task done --change add-greeting 1 >/dev/null
   eval_commit 'add-greeting: greet helper'
 }

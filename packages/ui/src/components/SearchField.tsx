@@ -6,11 +6,11 @@ export interface SearchFieldProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  /** 輸入框的無障礙名稱（server-web 列表頁沒有可見標籤）。 */
+  /** 输入框的无障碍名称（server-web 列表页没有可见标签）。 */
   label?: string;
 }
 
-/** 全圓搜尋框（design D3；與看板同款）：左側搜尋圖示＋280px 圓角輸入框。 */
+/** 全圆搜索框（design D3；与看板同款）：左侧搜索图标＋280px 圆角输入框。 */
 export function SearchField({ value, onChange, placeholder, label }: SearchFieldProps) {
   return (
     <div className="relative">

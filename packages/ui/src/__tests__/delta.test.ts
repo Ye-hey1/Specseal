@@ -32,20 +32,20 @@ describe("specDeltaCounts", () => {
   });
 });
 
-// spec 需求「規格分頁 delta 區段以色標呈現」的切分面（design D4 delta 標題切分）。
+// spec 需求「规格分页 delta 区段以色标呈现」的切分面（design D4 delta 标题切分）。
 describe("splitDeltaSections", () => {
-  it("切出各 delta 區段（種類＋內文），delta 標題行不入內文", () => {
+  it("切出各 delta 区段（种类＋内文），delta 标题行不入内文", () => {
     const sections = splitDeltaSections(MD);
     expect(sections.map((s) => s.op)).toEqual(["added", "modified", null]);
     expect(sections[0].content).toContain("### Requirement: one");
     expect(sections[0].content).toContain("### Requirement: two");
     expect(sections[0].content).not.toContain("ADDED Requirements");
     expect(sections[1].content).toContain("### Requirement: three");
-    // 非 delta 的 ## 標題結束 delta 區段（與 specDeltaCounts 同界線），自身照排。
+    // 非 delta 的 ## 标题结束 delta 区段（与 specDeltaCounts 同界线），自身照排。
     expect(sections[2].content).toContain("## Notes");
   });
 
-  it("四種 delta 區段依序切出", () => {
+  it("四种 delta 区段依序切出", () => {
     const all = ["ADDED", "MODIFIED", "REMOVED", "RENAMED"]
       .map((op) => `## ${op} Requirements\n\n### Requirement: r-${op}\n`)
       .join("\n");
@@ -57,15 +57,15 @@ describe("splitDeltaSections", () => {
     ]);
   });
 
-  it("首個 delta 標題前的前導內文為無種類區段", () => {
-    const sections = splitDeltaSections(`前導說明。\n\n${MD}`);
+  it("首个 delta 标题前的前导内文为无种类区段", () => {
+    const sections = splitDeltaSections(`前导说明。\n\n${MD}`);
     expect(sections[0].op).toBeNull();
-    expect(sections[0].content).toContain("前導說明");
+    expect(sections[0].content).toContain("前导说明");
     expect(sections[1].op).toBe("added");
   });
 
-  it("不含任何 delta 區段標題時回整篇單段", () => {
-    const sections = splitDeltaSections("# 正式規格\n\n### Requirement: plain\n");
+  it("不含任何 delta 区段标题时回整篇单段", () => {
+    const sections = splitDeltaSections("# 正式规格\n\n### Requirement: plain\n");
     expect(sections.length).toBe(1);
     expect(sections[0].op).toBeNull();
     expect(sections[0].content).toContain("### Requirement: plain");

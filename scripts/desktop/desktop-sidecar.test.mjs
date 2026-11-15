@@ -1,6 +1,6 @@
-// sidecar 佈署腳本的純函式層（dev-harness spec「dev 啟動自動佈署當前 checkout 的
-// sidecar」，決策二～四）。覆蓋 --profile 白名單、建置產物來源路徑推導、以及
-// 「內容相同即跳過複製」的防抖判定；實際 cargo 建置與 dev 啟動為手動驗證。
+// sidecar 布署脚本的纯函数层（dev-harness spec「dev 启动自动布署当前 checkout 的
+// sidecar」，决策二～四）。覆盖 --profile 白名单、建置产物来源路径推导、以及
+// 「内容相同即跳过拷贝」的防抖判定；实际 cargo 建置与 dev 启动为手动验证。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -11,25 +11,25 @@ import { builtBinaryPath, checkSpawn, parseSidecarArgs, shouldCopy, sidecarPlan 
 
 const ROOT = '/repo';
 
-/// 每個測試自己的暫存目錄，離開時整份刪掉。
+/// 每个测试自己的暂存目录，离开时整份删掉。
 function tempDir(t) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'sidecar-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
-// --- 參數解析（決策二：dev 佈 debug，無參數維持 release） ---
+// --- 参数解析（决策二：dev 布 debug，无参数维持 release） ---
 
-test('無旗標時 profile 預設 release、target 為 null（既有呼叫者的行為不變）', () => {
+test('无旗标时 profile 缺省 release、target 为 null（既有调用者的行为不变）', () => {
   assert.deepEqual(parseSidecarArgs([]), { profile: 'release', target: null });
 });
 
-test('--profile debug 與 --profile release 皆為合法值', () => {
+test('--profile debug 与 --profile release 皆为合法值', () => {
   assert.deepEqual(parseSidecarArgs(['--profile', 'debug']), { profile: 'debug', target: null });
   assert.deepEqual(parseSidecarArgs(['--profile', 'release']), { profile: 'release', target: null });
 });
 
-test('--profile 與 --target 正交，可同時給（CI 交叉編譯的形狀）', () => {
+test('--profile 与 --target 正交，可同时给（CI 交叉编译的形状）', () => {
   assert.deepEqual(parseSidecarArgs(['--target', 'x86_64-pc-windows-msvc']), {
     profile: 'release',
     target: 'x86_64-pc-windows-msvc',
@@ -40,7 +40,7 @@ test('--profile 與 --target 正交，可同時給（CI 交叉編譯的形狀）
   });
 });
 
-test('白名單外的 profile 值即拒絕，錯誤點名該值與兩個合法值', () => {
+test('白名单外的 profile 值即拒绝，错误点名该值与两个合法值', () => {
   assert.throws(
     () => parseSidecarArgs(['--profile', 'bogus']),
     (error) => {
@@ -52,18 +52,18 @@ test('白名單外的 profile 值即拒絕，錯誤點名該值與兩個合法�
   );
 });
 
-test('--profile 後沒接值時明確失敗，不靜默回退成 release', () => {
+test('--profile 后没接值时明确失败，不静默回退成 release', () => {
   assert.throws(() => parseSidecarArgs(['--profile']), /--profile/);
   assert.throws(() => parseSidecarArgs(['--profile', '--target', 'aarch64-apple-darwin']), /--profile/);
 });
 
-test('--target 後沒接值時明確失敗（既有行為）', () => {
+test('--target 后没接值时明确失败（既有行为）', () => {
   assert.throws(() => parseSidecarArgs(['--target']), /--target/);
 });
 
-// --- 子程序失敗形狀（predev 讓這支腳本每次 dev 啟動都跑，訊息是唯一的線索） ---
+// --- 子进程失败形状（predev 让这支脚本每次 dev 启动都跑，消息是唯一的线索） ---
 
-test('spawn 本身失敗時點名真正的原因，不報成「非零結束（null）」', () => {
+test('spawn 本身失败时点名真正的原因，不报成「非零结束（null）」', () => {
   assert.throws(
     () => checkSpawn({ error: new Error('spawn cargo ENOENT'), status: null }, 'cargo', ['build']),
     (error) => {
@@ -75,119 +75,119 @@ test('spawn 本身失敗時點名真正的原因，不報成「非零結束（nu
   );
 });
 
-test('被訊號收束時點名該訊號（status 為 null 但沒有 error）', () => {
+test('被信号收束时点名该信号（status 为 null 但没有 error）', () => {
   assert.throws(
     () => checkSpawn({ status: null, signal: 'SIGKILL' }, 'cargo', ['build']),
     /signal SIGKILL/,
   );
 });
 
-test('非零狀態碼原樣點名', () => {
+test('非零状态码原样点名', () => {
   assert.throws(() => checkSpawn({ status: 101 }, 'cargo', ['build']), /101/);
 });
 
-test('status 0 即通過', () => {
+test('status 0 即通过', () => {
   assert.doesNotThrow(() => checkSpawn({ status: 0 }, 'cargo', ['build']));
 });
 
-// --- 來源路徑推導（profile × --target × Windows .exe） ---
+// --- 来源路径推导（profile × --target × Windows .exe） ---
 
-test('無 --target：路徑為 target/<profile>/speclink', () => {
+test('无 --target：路径为 target/<profile>/specseal', () => {
   assert.equal(
     builtBinaryPath(ROOT, { profile: 'debug', target: null, triple: 'aarch64-apple-darwin' }),
-    path.join(ROOT, 'target/debug/speclink'),
+    path.join(ROOT, 'target/debug/specseal'),
   );
   assert.equal(
     builtBinaryPath(ROOT, { profile: 'release', target: null, triple: 'aarch64-apple-darwin' }),
-    path.join(ROOT, 'target/release/speclink'),
+    path.join(ROOT, 'target/release/specseal'),
   );
 });
 
-test('有 --target：路徑多一層 triple，為 target/<triple>/<profile>/speclink', () => {
+test('有 --target：路径多一层 triple，为 target/<triple>/<profile>/specseal', () => {
   assert.equal(
     builtBinaryPath(ROOT, {
       profile: 'release',
       target: 'x86_64-unknown-linux-gnu',
       triple: 'x86_64-unknown-linux-gnu',
     }),
-    path.join(ROOT, 'target/x86_64-unknown-linux-gnu/release/speclink'),
+    path.join(ROOT, 'target/x86_64-unknown-linux-gnu/release/specseal'),
   );
 });
 
-test('Windows triple 帶 .exe 後綴（交叉編譯與 host 編譯皆然）', () => {
+test('Windows triple 带 .exe 后缀（交叉编译与 host 编译皆然）', () => {
   assert.equal(
     builtBinaryPath(ROOT, {
       profile: 'release',
       target: 'x86_64-pc-windows-msvc',
       triple: 'x86_64-pc-windows-msvc',
     }),
-    path.join(ROOT, 'target/x86_64-pc-windows-msvc/release/speclink.exe'),
+    path.join(ROOT, 'target/x86_64-pc-windows-msvc/release/specseal.exe'),
   );
   assert.equal(
     builtBinaryPath(ROOT, { profile: 'debug', target: null, triple: 'x86_64-pc-windows-msvc' }),
-    path.join(ROOT, 'target/debug/speclink.exe'),
+    path.join(ROOT, 'target/debug/specseal.exe'),
   );
 });
 
-// --- 建置計畫（release-assets-trim 設計 D2：macOS universal sidecar） ---
+// --- 建置计划（release-assets-trim 设计 D2：macOS universal sidecar） ---
 //
-// 計畫層決定「跑哪幾次 cargo、產出哪幾個檔（各自的來源與目的檔）」，實際 cargo／lipo
-// 由 main 執行；來源兩個以上的輸出以 lipo 合成。universal 建置要三份檔：tauri-build 在
-// `tauri build --target universal-apple-darwin` 對兩個 triple 各跑一次的 cargo build 期間，
-// 各以 cargo 的 TARGET 找 speclink-<triple>（缺即 ResourcePathNotFound 失敗）；bundler
-// 最後階段才拿命名 speclink-universal-apple-darwin 的 universal 檔進 app bundle。
+// 计划层决定「跑哪几次 cargo、产出哪几个档（各自的来源与目的档）」，实际 cargo／lipo
+// 由 main 运行；来源两个以上的输出以 lipo 合成。universal 建置要三份档：tauri-build 在
+// `tauri build --target universal-apple-darwin` 对两个 triple 各跑一次的 cargo build 期间，
+// 各以 cargo 的 TARGET 找 specseal-<triple>（缺即 ResourcePathNotFound 失败）；bundler
+// 最后阶段才拿命名 specseal-universal-apple-darwin 的 universal 档进 app bundle。
 
 const BINARIES = path.join(ROOT, 'apps/desktop/src-tauri/binaries');
 
-test('universal-apple-darwin：對兩個 Apple target 各建一次；輸出兩份 per-triple 複本＋一份 lipo 合成的 universal', () => {
+test('universal-apple-darwin：对两个 Apple target 各建一次；输出两份 per-triple 复本＋一份 lipo 合成的 universal', () => {
   const plan = sidecarPlan(ROOT, { profile: 'release', target: 'universal-apple-darwin', triple: 'universal-apple-darwin' });
   assert.deepEqual(plan.cargoTargets, ['aarch64-apple-darwin', 'x86_64-apple-darwin']);
-  const arm = path.join(ROOT, 'target/aarch64-apple-darwin/release/speclink');
-  const intel = path.join(ROOT, 'target/x86_64-apple-darwin/release/speclink');
+  const arm = path.join(ROOT, 'target/aarch64-apple-darwin/release/specseal');
+  const intel = path.join(ROOT, 'target/x86_64-apple-darwin/release/specseal');
   assert.deepEqual(plan.outputs, [
-    { sources: [arm], dest: path.join(BINARIES, 'speclink-aarch64-apple-darwin') },
-    { sources: [intel], dest: path.join(BINARIES, 'speclink-x86_64-apple-darwin') },
-    { sources: [arm, intel], dest: path.join(BINARIES, 'speclink-universal-apple-darwin') },
+    { sources: [arm], dest: path.join(BINARIES, 'specseal-aarch64-apple-darwin') },
+    { sources: [intel], dest: path.join(BINARIES, 'specseal-x86_64-apple-darwin') },
+    { sources: [arm, intel], dest: path.join(BINARIES, 'specseal-universal-apple-darwin') },
   ]);
 });
 
-test('universal 也吃 --profile debug：來源改指 debug 目錄', () => {
+test('universal 也吃 --profile debug：来源改指 debug 目录', () => {
   const plan = sidecarPlan(ROOT, { profile: 'debug', target: 'universal-apple-darwin', triple: 'universal-apple-darwin' });
   assert.deepEqual(plan.outputs.at(-1).sources, [
-    path.join(ROOT, 'target/aarch64-apple-darwin/debug/speclink'),
-    path.join(ROOT, 'target/x86_64-apple-darwin/debug/speclink'),
+    path.join(ROOT, 'target/aarch64-apple-darwin/debug/specseal'),
+    path.join(ROOT, 'target/x86_64-apple-darwin/debug/specseal'),
   ]);
 });
 
-test('一般交叉編譯 target：單次 cargo build、單一輸出不 lipo、目的檔為 speclink-<triple>（Windows 帶 .exe）', () => {
+test('一般交叉编译 target：单次 cargo build、单一输出不 lipo、目的档为 specseal-<triple>（Windows 带 .exe）', () => {
   const plan = sidecarPlan(ROOT, { profile: 'release', target: 'x86_64-pc-windows-msvc', triple: 'x86_64-pc-windows-msvc' });
   assert.deepEqual(plan.cargoTargets, ['x86_64-pc-windows-msvc']);
   assert.deepEqual(plan.outputs, [
     {
-      sources: [path.join(ROOT, 'target/x86_64-pc-windows-msvc/release/speclink.exe')],
-      dest: path.join(BINARIES, 'speclink-x86_64-pc-windows-msvc.exe'),
+      sources: [path.join(ROOT, 'target/x86_64-pc-windows-msvc/release/specseal.exe')],
+      dest: path.join(BINARIES, 'specseal-x86_64-pc-windows-msvc.exe'),
     },
   ]);
 });
 
-test('無 --target（host 編譯）：cargoTargets 為 [null]、來源為 target/<profile>/speclink、目的檔以 host triple 命名', () => {
+test('无 --target（host 编译）：cargoTargets 为 [null]、来源为 target/<profile>/specseal、目的档以 host triple 命名', () => {
   const plan = sidecarPlan(ROOT, { profile: 'debug', target: null, triple: 'aarch64-apple-darwin' });
   assert.deepEqual(plan.cargoTargets, [null]);
   assert.deepEqual(plan.outputs, [
-    { sources: [path.join(ROOT, 'target/debug/speclink')], dest: path.join(BINARIES, 'speclink-aarch64-apple-darwin') },
+    { sources: [path.join(ROOT, 'target/debug/specseal')], dest: path.join(BINARIES, 'specseal-aarch64-apple-darwin') },
   ]);
 });
 
-// --- 跳過複製判定（決策三：binaries/ 在 cargo 重編觸發清單內，無謂改寫要避免） ---
+// --- 跳过拷贝判定（决策三：binaries/ 在 cargo 重编触发清单内，无谓改写要避免） ---
 
-test('目的檔不存在即複製', (t) => {
+test('目的档不存在即拷贝', (t) => {
   const dir = tempDir(t);
   const source = path.join(dir, 'source');
   writeFileSync(source, 'built');
   assert.equal(shouldCopy(source, path.join(dir, 'dest')), true);
 });
 
-test('目的檔內容與來源相同即跳過（不觸碰檔案，避免觸發重編）', (t) => {
+test('目的档内容与来源相同即跳过（不触碰文件，避免触发重编）', (t) => {
   const dir = tempDir(t);
   const source = path.join(dir, 'source');
   const dest = path.join(dir, 'dest');
@@ -196,7 +196,7 @@ test('目的檔內容與來源相同即跳過（不觸碰檔案，避免觸發�
   assert.equal(shouldCopy(source, dest), false);
 });
 
-test('目的檔內容與來源相異即複製（過期 sidecar 照常覆蓋）', (t) => {
+test('目的档内容与来源相异即拷贝（过期 sidecar 照常覆盖）', (t) => {
   const dir = tempDir(t);
   const source = path.join(dir, 'source');
   const dest = path.join(dir, 'dest');
@@ -205,7 +205,7 @@ test('目的檔內容與來源相異即複製（過期 sidecar 照常覆蓋）',
   assert.equal(shouldCopy(source, dest), true);
 });
 
-test('來源檔缺失時明確報錯點名該路徑，不當成「內容相同」靜默跳過', (t) => {
+test('来源档缺失时明确报错点名该路径，不当成「内容相同」静默跳过', (t) => {
   const dir = tempDir(t);
   const source = path.join(dir, 'missing');
   assert.throws(() => shouldCopy(source, path.join(dir, 'dest')), (error) => {

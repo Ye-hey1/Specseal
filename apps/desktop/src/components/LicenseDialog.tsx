@@ -1,5 +1,5 @@
-// 授權對話框（desktop-about-page design D2／D3；spec「關於頁」）：同一個對話框兩種內容——
-// 隨 app 打包的 LICENSE 全文，或建置時產生的第三方授權清單（npm 與 cargo 兩節）。
+// 授权对话框（desktop-about-page design D2／D3；spec「关于页」）：同一个对话框两种内容——
+// 随 app 打包的 LICENSE 全文，或建置时产生的第三方授权清单（npm 与 cargo 两节）。
 import {
   AlertDialog,
   AlertDialogContent,
@@ -7,24 +7,24 @@ import {
   AlertDialogTitle,
   Button,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import licenseText from "../../../../LICENSE?raw";
 
 export interface LicenseEntry {
   name: string;
   version: string;
-  /** SPDX 授權識別字；套件未標示時為 null。 */
+  /** SPDX 授权识别字；套件未标示时为 null。 */
   license: string | null;
 }
 
-/** scripts/desktop/third-party-licenses.mjs 的輸出形狀（兩節已依名稱排序）。 */
+/** scripts/desktop/third-party-licenses.mjs 的输出形状（两节已依名称排序）。 */
 export interface ThirdPartyLicenses {
   npm: LicenseEntry[];
   cargo: LicenseEntry[];
 }
 
-// 清單檔由 predev／prebuild 產生、不入版本控制；以 glob 匯入，缺檔時建置不失敗、值為 null。
+// 清单档由 predev／prebuild 产生、不入版本控制；以 glob 导入，缺档时建置不失败、值为 null。
 const generated = import.meta.glob<ThirdPartyLicenses>("../generated/third-party-licenses.json", {
   eager: true,
   import: "default",
@@ -34,7 +34,7 @@ export const BUNDLED_THIRD_PARTY_LICENSES: ThirdPartyLicenses | null = Object.va
 export type LicenseDialogContent = "license" | "thirdParty";
 
 export interface LicenseDialogProps {
-  /** null＝關閉。 */
+  /** null＝关闭。 */
   content: LicenseDialogContent | null;
   thirdPartyLicenses: ThirdPartyLicenses | null;
   onClose: () => void;

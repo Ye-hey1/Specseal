@@ -1,7 +1,7 @@
 schema: spec-driven
 
 # Workflow policy (optional)
-# Personal/CI overrides: SPECLINK_LOCALE, SPECLINK_SPEC_LOCALE, SPECLINK_TDD, SPECLINK_AUDIT, SPECLINK_WORKTREE
+# Personal/CI overrides: SPECSEAL_LOCALE, SPECSEAL_SPEC_LOCALE, SPECSEAL_TDD, SPECSEAL_AUDIT, SPECSEAL_WORKTREE
 #
 # Language for AI-generated artifacts (default: English)
 # locale: tw

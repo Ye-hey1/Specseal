@@ -13,8 +13,8 @@ import { ListPager, usePaging } from "./ListPager";
 import { ListRow } from "./ListRow";
 import { SearchField } from "./SearchField";
 
-/** 規格頁的預設順序：最新在前（modifiedAt 降冪、缺席殿後、同值以名稱字母升冪決勝）。
- * 宿主在規格頁不是宿主時（手冊頁開規格詳情頁）以它排 ‹ › 的序列。 */
+/** 规格页的缺省顺序：最新在前（modifiedAt 降幂、缺席殿后、同值以名称字母升幂决胜）。
+ * 宿主在规格页不是宿主时（手册页开规格详情页）以它排 ‹ › 的串行。 */
 export function sortSpecs(specs: SpecItem[]): SpecItem[] {
   return [...specs].sort((a, b) => {
     if (a.modifiedAt && b.modifiedAt && a.modifiedAt !== b.modifiedAt) return a.modifiedAt < b.modifiedAt ? 1 : -1;
@@ -23,9 +23,9 @@ export function sortSpecs(specs: SpecItem[]): SpecItem[] {
   });
 }
 
-/** 規格列（spec「規格與封存卡片收合資訊」；design D3）：等寬名稱＋複製鈕、描述列為
- * Purpose 摘要一行截斷（佔位時改顯琥珀「Purpose 待補」警示）、meta 為需求數、溯源
- * 變更數（>0 才顯示）與相對修改時間。點整列開唯讀規格檢視，無行內展開。 */
+/** 规格列（spec「规格与封存卡片收合信息」；design D3）：等宽名称＋拷贝钮、描述列为
+ * Purpose 摘要一行截断（占位时改显琥珀「Purpose 待补」警示）、meta 为需求数、溯源
+ * 变更数（>0 才显示）与相对修改时间。点整列开唯读规格查看，无行内展开。 */
 function SpecRow({ item, onOpen }: { item: SpecItem; onOpen: (capability: string) => void }) {
   const { t, tn } = useI18n();
   const rel = relativeDays(item.modifiedAt, { t, tn });
@@ -77,28 +77,28 @@ function SpecRow({ item, onOpen }: { item: SpecItem; onOpen: (capability: string
 
 export interface SpecListProps {
   specs: SpecItem[];
-  /** 點列開唯讀規格檢視（capability 定址）。 */
+  /** 点列开唯读规格查看（capability 寻址）。 */
   onOpen: (capability: string) => void;
-  /** 外部指定聚焦的 capability（手冊出處跳規格）：翻到該列所在頁並捲至該列；
-   * 搜尋字串遮住它時清空搜尋。 */
+  /** 外部指定聚焦的 capability（手册出处跳规格）：翻到该列所在页并卷至该列；
+   * 搜索字符串遮住它时清空搜索。 */
   focus?: string | null;
-  /** 頁標題區的標題；缺席時不渲染頁標題區，只有搜尋框。 */
+  /** 页标题区的标题；缺席时不渲染页标题区，只有搜索框。 */
   title?: string;
-  /** 頁標題區的灰字說明。 */
+  /** 页标题区的灰字说明。 */
   description?: string;
-  /** 受控每頁筆數（design D7）：與 onPageSizeChange 一起給時以它為準；缺席時元件自持（預設 20）。 */
+  /** 受控每页笔数（design D7）：与 onPageSizeChange 一起给时以它为准；缺席时组件自持（缺省 20）。 */
   pageSize?: number;
   onPageSizeChange?: (size: number) => void;
-  /** 回報過濾後全部頁的 capability 順序（規格詳情頁 ‹ › 的序列）；順序真的變了才回報。 */
+  /** 回报过滤后全部页的 capability 顺序（规格详情页 ‹ › 的串行）；顺序真的变了才回报。 */
   onVisibleOrderChange?: (ids: string[]) => void;
 }
 
-/** 規格頁（spec「規格頁提供清單、搜尋與展開檢視」；design D3）：頁標題區（標題、說明、
- * 右端全圓搜尋框——大小寫不敏感子字串、純前端即打即濾）之下為一張列表卡，一列一份
- * 正式規格；點列開檢視，無行內展開、無任何規格寫入動詞。清單最新在前（modifiedAt
- * 降冪、缺席殿後、名稱升冪決勝）並依每頁筆數換頁（預設 20；桌面 app 以受控 props
- * 跨啟動記住）——排序與換頁純屬呈現層。版面填滿主區高度：頁標題區固定頂部、列於卡內
- * 捲動、工具列固定卡底。 */
+/** 规格页（spec「规格页提供清单、搜索与展开查看」；design D3）：页标题区（标题、说明、
+ * 右端全圆搜索框——大小写不敏感子字符串、纯前端即打即滤）之下为一张列表卡，一列一份
+ * 正式规格；点列开查看，无行内展开、无任何规格写入动词。清单最新在前（modifiedAt
+ * 降幂、缺席殿后、名称升幂决胜）并依每页笔数换页（缺省 20；桌面 app 以受控 props
+ * 跨启动记住）——排序与换页纯属呈现层。版面填满主区高度：页标题区固定顶部、列于卡内
+ * 卷动、工具列固定卡底。 */
 export function SpecList({
   specs,
   onOpen,
@@ -110,14 +110,14 @@ export function SpecList({
   onVisibleOrderChange,
 }: SpecListProps) {
   const { t } = useI18n();
-  // 搜尋字串留元件內——規格頁無跨視圖保留需求（比對規則共用 matchesQuery）。
+  // 搜索字符串留组件内——规格页无跨视图保留需求（比对规则共用 matchesQuery）。
   const [query, setQuery] = useState("");
-  // 內部捲動容器 ref——換頁後歸位（清單自己捲、頁面不捲）。
+  // 内部卷动容器 ref——换页后归位（清单自己卷、页面不卷）。
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const sorted = useMemo(() => sortSpecs(specs), [specs]);
   const filtered = sorted.filter((s) => matchesQuery(query, s.id));
-  // 呈現順序回報：以序列內容為依賴，順序真的變了才通知宿主（換頁不影響）。
+  // 呈现顺序回报：以串行内容为依赖，顺序真的变了才通知宿主（换页不影响）。
   const order = filtered.map((s) => s.id);
   const orderKey = JSON.stringify(order);
   useEffect(() => {
@@ -139,7 +139,7 @@ export function SpecList({
     if (at < 0) return;
     if (!visible) setQuery("");
     setPage(Math.floor(at / pager.pageSize) + 1);
-    // 換頁後列才在 DOM：下一幀再捲至該列。
+    // 换页后列才在 DOM：下一帧再卷至该列。
     const frame = requestAnimationFrame(() => {
       scrollRef.current?.querySelector(`[data-spec="${focus}"]`)?.scrollIntoView({ block: "nearest" });
     });

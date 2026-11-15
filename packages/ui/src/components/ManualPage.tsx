@@ -20,46 +20,46 @@ import { Callout } from "./ui/callout";
 import { Card } from "./ui/card";
 import { StatusPill } from "./ui/status-pill";
 
-/** 手冊閱讀欄（design D5）：768px 置中；閱讀卡與底列內容同寬對齊。 */
+/** 手册阅读栏（design D5）：768px 置中；阅读卡与底列内容同宽对齐。 */
 const MANUAL_COLUMN_CLS = "mx-auto w-full max-w-[768px]";
 
-/** 手冊內文的章節字級（desktop-spec-manual-pages design D6）：h2 16px、h3 14px，皆粗體。Streamdown 的
- * 標題尺寸在 utilities 層，後代選擇器的特異性就夠。 */
+/** 手册内文的章节字级（desktop-spec-manual-pages design D6）：h2 16px、h3 14px，皆粗体。Streamdown 的
+ * 标题尺寸在 utilities 层，后代选择器的特异性就够。 */
 const MANUAL_HEADINGS_CLS =
   "[&_.markdown_h2]:text-base [&_.markdown_h2]:font-semibold [&_.markdown_h3]:text-sm [&_.markdown_h3]:font-semibold";
 
 export interface ManualPageProps {
-  /** 手冊索引（已依閱讀序排好）；null＝載入中（骨架）。 */
+  /** 手册索引（已依阅读序排好）；null＝加载中（骨架）。 */
   index: ManualIndex | null;
-  /** 讀取一頁去 frontmatter 的內文；不存在回 null、讀取失敗 reject。 */
+  /** 读取一页去 frontmatter 的内文；不存在回 null、读取失败 reject。 */
   loadPage: (slug: string) => Promise<string | null>;
-  /** 點頁尾出處的 capability：在手冊頁上開該規格的抽屜、不切頁（App 接線：store.openSpec）。 */
+  /** 点页脚出处的 capability：在手册页上开该规格的抽屉、不切页（App 接线：store.openSpec）。 */
   onOpenSpec: (capability: string) => void;
-  /** 正典 capability 清單——出處只對存在者可點，不存在者為純文字。 */
+  /** 正典 capability 清单——出处只对存在者可点，不存在者为纯文本。 */
   capabilities: string[];
-  /** 刷新世代——變動時重載目前頁內文（外部寫入後的 workspace-changed）。 */
+  /** 刷新世代——变动时重载目前页内文（外部写入后的 workspace-changed）。 */
   refreshGen?: number;
-  /** 閱讀卡標題列右端的文件動作（「開啟 ▾」，對應 `openspec/manual/<slug>.md`）；未傳時缺席。 */
+  /** 阅读卡标题列右端的文档动作（「打开 ▾」，对应 `openspec/manual/<slug>.md`）；未传时缺席。 */
   renderDocumentActions?: (target: DocumentTarget | null) => ReactNode;
-  /** 頁檔的實際相對路徑（宿主向 core 查詢，跟著專案的 spec 目錄名走）：出處行首段；缺席或查無時該段缺席。 */
+  /** 页档的实际相对路径（宿主向 core 查找，跟着项目的 spec 目录名走）：出处行首段；缺席或查无时该段缺席。 */
   locateDocument?: (doc: DocumentRef) => Promise<{ relative: string } | null>;
-  /** 讀一份正式規格全文：過期提示框取各出處規格的最近 @trace；缺席或失敗時該行退回不帶日期的句子。 */
+  /** 读一份正式规格全文：过期提示框取各出处规格的最近 @trace；缺席或失败时该行退回不带日期的句子。 */
   loadSpec?: (capability: string) => Promise<string | null>;
 }
 
-/** 已載入的頁內文；body 為 null＝載入失敗或頁不存在。 */
+/** 已加载的页内文；body 为 null＝加载失败或页不存在。 */
 interface LoadedDoc {
   slug: string;
   body: string | null;
 }
 
-/** 上一頁／下一頁兩向的差異：DOM 錨點、aria-label、小字標籤鍵與對齊。 */
+/** 上一页／下一页两向的差异：DOM 锚点、aria-label、小字标签键与对齐。 */
 const PAGE_NAV = {
   prev: { anchor: "data-manual-prev", ariaKey: "pager.prev", labelKey: "manual.prevLabel", align: "items-start" },
   next: { anchor: "data-manual-next", ariaKey: "pager.next", labelKey: "manual.nextLabel", align: "items-end" },
 } as const;
 
-/** 底列的上一頁／下一頁框線鈕（design D5）：小字標籤＋目標頁標題；無目標時呼叫端不渲染。 */
+/** 底列的上一页／下一页框线钮（design D5）：小字标签＋目标页标题；无目标时调用端不渲染。 */
 function PageNavButton({
   direction,
   target,
@@ -90,7 +90,7 @@ function PageNavButton({
   );
 }
 
-/** 出處籤：正典存在者為可點的框線籤（開該規格詳情頁），不存在者為純文字。出處行與底列共用。 */
+/** 出处签：正典存在者为可点的框线签（开该规格详情页），不存在者为纯文本。出处行与底列共用。 */
 function SourceChips({
   names,
   canonical,
@@ -118,18 +118,18 @@ function SourceChips({
   );
 }
 
-/** 過期提示框的讀取結果：該頁各出處規格的最近 @trace（讀不到或無 @trace 為 null）。 */
+/** 过期提示框的读取结果：该页各出处规格的最近 @trace（读不到或无 @trace 为 null）。 */
 interface StaleSources {
   slug: string;
   latest: Record<string, TracePoint | null>;
 }
 
-/** 手冊頁（desktop-manual-page design「側欄樹、搜尋與上下頁在前端由索引推導」；
- * desktop-list-pages-reskin design D5 三欄：240px 目錄樹、768px 置中閱讀欄、200px 本頁
- * 目錄）：中欄以共用 Markdown 於白底閱讀卡內渲染選定頁——卡由上而下為標題區（頁標題、分區籤、
- * 「可能過期」籤、「開啟 ▾」、出處行）、數字磚、過期提示框與內文（desktop-spec-manual-pages
- * design D6）；白底上緣細線的底列（出處籤＋上一頁／下一頁）固定不隨內文捲動。本元件只管選頁、
- * 內文與過期提示框的載入（latest-wins）與切分；唯讀、無任何寫入操作。 */
+/** 手册页（desktop-manual-page design「侧栏树、搜索与上下页在前端由索引推导」；
+ * desktop-list-pages-reskin design D5 三栏：240px 目录树、768px 置中阅读栏、200px 本页
+ * 目录）：中栏以共用 Markdown 于白底阅读卡内渲染选定页——卡由上而下为标题区（页标题、分区签、
+ * 「可能过期」签、「打开 ▾」、出处行）、数字砖、过期提示框与内文（desktop-spec-manual-pages
+ * design D6）；白底上缘细线的底列（出处签＋上一页／下一页）固定不随内文卷动。本组件只管选页、
+ * 内文与过期提示框的加载（latest-wins）与切分；唯读、无任何写入操作。 */
 export function ManualPage({
   index,
   loadPage,
@@ -146,7 +146,7 @@ export function ManualPage({
   const [doc, setDoc] = useState<LoadedDoc | null>(null);
   const [staleSources, setStaleSources] = useState<StaleSources | null>(null);
   const [location, setLocation] = useState<{ slug: string; relative: string } | null>(null);
-  // 內文與過期提示框載入的 latest-wins 序號；載入函式以 ref 持有，宿主每次渲染換 lambda 不重載。
+  // 内文与过期提示框加载的 latest-wins 序号；加载函数以 ref 持有，宿主每次渲染换 lambda 不重载。
   const seq = useRef(0);
   const staleSeq = useRef(0);
   const loadPageRef = useRef(loadPage);
@@ -157,18 +157,18 @@ export function ManualPage({
   locateRef.current = locateDocument;
 
   const pages = index?.present ? index.pages : [];
-  // 目前頁由索引現況推導：選定頁消失（外部刪除、索引重載）即回首頁。
+  // 目前页由索引现况推导：选定页消失（外部删除、索引重载）即回首页。
   const current = pages.find((p) => p.slug === selected) ?? pages[0] ?? null;
   const currentSlug = current?.slug ?? null;
-  // 出處名以索引 sources 為單一真相；manual-pages 契約：一項可帶 `#<Requirement 名>` 錨定，
-  // 出處只看井號前的 capability 名——切掉錨定、去頭尾空白（讀取端也這麼做）後再去重
-  //（防撞 React key，也防同 capability 多錨定重複）。
+  // 出处名以索引 sources 为单一真相；manual-pages 契约：一项可带 `#<Requirement 名>` 锚定，
+  // 出处只看井号前的 capability 名——切掉锚定、去头尾空白（读取端也这么做）后再去重
+  //（防撞 React key，也防同 capability 多锚定重复）。
   const sourceNames = Array.from(new Set((current?.sources ?? []).map((s) => s.split("#", 1)[0].trim())));
 
   useEffect(() => {
     if (!currentSlug) {
-      // 索引清空（切換 workspace）：丟棄舊內文與選頁，並作廢在途的載入——新 workspace
-      // 的首頁 slug 多半同名（契約規定叫 index），舊內文不得當成新頁顯示或事後寫回。
+      // 索引清空（切换 workspace）：丢弃旧内文与选页，并作废在途的加载——新 workspace
+      // 的首页 slug 多半同名（契约规定叫 index），旧内文不得当成新页显示或事后写回。
       seq.current++;
       setDoc(null);
       setSelected(null);
@@ -185,8 +185,8 @@ export function ManualPage({
     );
   }, [currentSlug, refreshGen]);
 
-  // 出處行首段的頁檔路徑：換頁向 core 查一次（頁檔位置不隨內文重載而變）；換頁或卸載作廢在途回應。
-  // 索引清空（切換 workspace）時丟掉舊路徑：新專案的同名頁在自己的位置查到前不得沿用。
+  // 出处行首段的页档路径：换页向 core 查一次（页档位置不随内文重载而变）；换页或卸载作废在途回应。
+  // 索引清空（切换 workspace）时丢掉旧路径：新项目的同名页在自己的位置查到前不得沿用。
   useEffect(() => {
     const locate = locateRef.current;
     if (!currentSlug || !locate) {
@@ -205,17 +205,17 @@ export function ManualPage({
     };
   }, [currentSlug]);
 
-  // 過期提示框（design D6）：只在索引判為過期時讀各出處規格全文，取其最近 @trace；換頁作廢、
-  // latest-wins。過期與否只看索引的 stale，不在這裡重判。sourceNames 每次渲染都是新陣列，
-  // effect 依賴改用換行相接的字串（capability 名為 kebab-case、不含換行），內容不變就不重讀。
+  // 过期提示框（design D6）：只在索引判为过期时读各出处规格全文，取其最近 @trace；换页作废、
+  // latest-wins。过期与否只看索引的 stale，不在这里重判。sourceNames 每次渲染都是新数组，
+  // effect 依赖改用换行相接的字符串（capability 名为 kebab-case、不含换行），内容不变就不重读。
   const staleSlug = current?.stale ? current.slug : null;
   const staleCaps = current?.stale ? sourceNames.join("\n") : "";
   useEffect(() => {
     const mine = ++staleSeq.current;
     const load = loadSpecRef.current;
     if (!staleSlug || !load) {
-      // 離開過期頁或索引清空（切換 workspace）：丟掉上一份出處日期——新專案的同名過期頁
-      // 在自己的規格讀完前不得沿用。
+      // 离开过期页或索引清空（切换 workspace）：丢掉上一份出处日期——新项目的同名过期页
+      // 在自己的规格读完前不得沿用。
       setStaleSources(null);
       return;
     }
@@ -230,12 +230,12 @@ export function ManualPage({
   }, [staleSlug, staleCaps, refreshGen]);
 
   const loaded = doc && current && doc.slug === current.slug ? doc : null;
-  // 內文拆三段：尾端出處行剝掉（出處列改讀索引 sources）、開頭 H1 → 閱讀卡標題、其餘 → 內文。
+  // 内文拆三段：尾端出处行剥掉（出处列改读索引 sources）、开头 H1 → 阅读卡标题、其余 → 内文。
   const parsed = loaded?.body != null ? splitLeadingHeading(stripSourcesLine(loaded.body)) : null;
   const markdownBody = parsed?.body ?? null;
 
   const bodyRef = useRef<HTMLDivElement | null>(null);
-  // 換頁回頂；外部改內文的重載（refreshGen）不動捲動位置。
+  // 换页回顶；外部改内文的重载（refreshGen）不动卷动位置。
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = 0;
   }, [currentSlug]);
@@ -276,7 +276,7 @@ export function ManualPage({
   const next = position < pages.length - 1 ? pages[position + 1] : null;
   const canonical = new Set(capabilities);
   const heading = parsed?.heading ?? current.title;
-  // 數字磚（design D6）：內文未載入或載入失敗時整列缺席。
+  // 数字砖（design D6）：内文未加载或加载失败时整列缺席。
   const headingCounts = markdownBody !== null ? countHeadings(markdownBody) : null;
   const tiles: DocTile[] = headingCounts
     ? [
@@ -286,7 +286,7 @@ export function ManualPage({
         { value: sourceNames.length, label: t("manual.tileSources") },
       ]
     : [];
-  // 過期提示框：內文在、索引判為過期，且各出處規格讀完（沒有 loadSpec 時直接退回不帶日期的句子）。
+  // 过期提示框：内文在、索引判为过期，且各出处规格读完（没有 loadSpec 时直接退回不带日期的句子）。
   const staleLatest = staleSources?.slug === current.slug ? staleSources.latest : null;
   const staleCallout = current.stale && markdownBody !== null && (!loadSpec || staleLatest) && (
     <div data-doc-callout>
@@ -316,8 +316,8 @@ export function ManualPage({
     </div>
   );
 
-  // 內文的跨頁連結（契約：相對檔名 `layout.md`）在手冊內切頁——放給 WebView 直接導航
-  // 會整頁離開 app；連到不存在的頁只擋下導航、停在原頁。其他 href 不攔。
+  // 内文的跨页链接（契约：相对文件名 `layout.md`）在手册内切页——放给 WebView 直接导航
+  // 会整页离开 app；连到不存在的页只挡下导航、停在原页。其他 href 不拦。
   const onBodyClick = (e: MouseEvent<HTMLDivElement>) => {
     const anchor = (e.target as HTMLElement).closest("a");
     const slug = anchor ? manualLinkSlug(anchor.getAttribute("href") ?? "") : null;

@@ -11,7 +11,7 @@ import {
   useI18n,
   Wordmark,
   type Crumb,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { SkipLink } from "../components/SkipLink";
 import { ADMIN_DESTINATIONS, AdminNav, MemberNav } from "../components/AdminNav";
 import { AccountMenu } from "../components/AccountMenu";
@@ -21,35 +21,35 @@ import { useFocusMain } from "../lib/useFocusMain";
 import { useNarrow } from "../lib/useMediaQuery";
 import { DetailTitleProvider } from "./DetailTitle";
 
-// 主控台殼（design D1）：管理員與一般成員同一種形狀——側欄（頂端字標、中段導覽、底部
-// 帳號選單）加主欄（頂列麵包屑、下方主內容），沒有橫貫頂部的 header。導覽依 session 的
-// admin 旗標裁切（伺服器回傳的角色真相，前端不自行推導）：管理員六個目的地，一般成員只有
-// 帳號一項。管理員在 /account 時側欄整條保留但無項目高亮。
+// 主控台壳（design D1）：管理员与一般成员同一种形状——侧栏（顶端字标、中段导览、底部
+// 帐号菜单）加主栏（顶列面包屑、下方主内容），没有横贯顶部的 header。导览依 session 的
+// admin 旗标裁切（服务器回传的角色真相，前端不自行推导）：管理员六个目的地，一般成员只有
+// 帐号一项。管理员在 /account 时侧栏整条保留但无项目高亮。
 //
-// ≥1024px 顯示固定側欄；更窄時改由頂列的「開啟導覽」鈕開出從左滑出、內容相同的 Sheet，
-// 關閉後 focus 回到觸發鈕（Radix 預設處理）。頂列高度、側欄寬度與主內容內距採用 Desktop
-// 應用程式殼的數值（h-12／w-[200px]／p-5）。
+// ≥1024px 显示固定侧栏；更窄时改由顶列的「打开导览」钮开出从左滑出、内容相同的 Sheet，
+// 关闭后 focus 回到触发钮（Radix 缺省处理）。顶列高度、侧栏宽度与主内容内距采用 Desktop
+// 应用程序壳的数值（h-12／w-[200px]／p-5）。
 export function ConsoleLayout({ children }: { children: ReactNode }) {
   const { t } = useI18n();
   const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
   const { session } = useSession();
-  // ‹ › 在同一區段的詳情頁之間切換時焦點留在導覽鈕上，鍵盤才能連按；其他換頁把焦點移到頁標題。
+  // ‹ › 在同一区段的详情页之间切换时焦点留在导览钮上，键盘才能连按；其他换页把焦点移到页标题。
   const detailMatch = matchPath("/admin/:section/:item", location.pathname);
   useFocusMain(mainRef, detailMatch ? `/admin/${detailMatch.params.section}/*` : location.pathname);
   const narrow = useNarrow();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // 詳情頁交出的麵包屑第三段與 ‹ n / m › 的插槽（server-web-detail-pages design D2）。
+  // 详情页交出的面包屑第三段与 ‹ n / m › 的插槽（server-web-detail-pages design D2）。
   const [detailLabel, setDetailLabel] = useState<string | null>(null);
   const [detailSlot, setDetailSlot] = useState<HTMLElement | null>(null);
   const admin = session.user?.admin === true;
-  // 路徑比對與路由、側欄高亮同一套（matchPath：不分大小寫、容許結尾斜線）。
+  // 路径比对与路由、侧栏高亮同一套（matchPath：不分大小写、容许结尾斜线）。
   const inAdmin = matchPath({ path: "/admin", end: false }, location.pathname) !== null;
   const crumbs = useCrumbs(location.pathname, inAdmin, detailLabel);
 
   return (
-    // 滿高欄式版面：殼本身固定滿版不捲動，只有主內容區捲——與 Desktop 殼同結構。
-    // 若讓整頁捲，側欄與頂列會跟著滾出畫面，導覽就不再是恆常可見的。
+    // 满高栏式版面：壳本身固定满版不卷动，只有主内容区卷——与 Desktop 壳同结构。
+    // 若让整页卷，侧栏与顶列会跟着滚出画面，导览就不再是恒常可见的。
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       <SkipLink />
       {!narrow && (
@@ -76,7 +76,7 @@ export function ConsoleLayout({ children }: { children: ReactNode }) {
           <div ref={setDetailSlot} className="ml-auto flex shrink-0 items-center" />
         </div>
         <main id="main-content" ref={mainRef} className="min-w-0 flex-1 overflow-y-auto p-5">
-          {/* 導覽只在管理面啟動：帳號頁沒有側欄目的地可指，一般成員更看不到管理面。 */}
+          {/* 导览只在管理面启动：帐号页没有侧栏目的地可指，一般成员更看不到管理面。 */}
           <TourProvider enabled={admin && inAdmin}>
             <DetailTitleProvider setLabel={setDetailLabel} slot={detailSlot}>
               {children}
@@ -88,7 +88,7 @@ export function ConsoleLayout({ children }: { children: ReactNode }) {
   );
 }
 
-/** 側欄與窄螢幕 Sheet 共用的內容：字標、該角色的導覽、帳號選單。 */
+/** 侧栏与窄屏幕 Sheet 共用的内容：字标、该角色的导览、帐号菜单。 */
 function SidebarBody({ admin, onNavigate }: { admin: boolean; onNavigate?: () => void }) {
   const { t } = useI18n();
   return (
@@ -106,10 +106,10 @@ function SidebarBody({ admin, onNavigate }: { admin: boolean; onNavigate?: () =>
   );
 }
 
-/** 麵包屑（design D4）：管理面為「後台 / <目的地>」且「後台」可點回總覽，帳號頁為「帳號」；
- *  未列在目的地表內的 /admin/* 路徑只顯示「後台」。詳情頁交出名稱時為「後台 / <目的地> / <名稱>」，
- *  目的地可點回列表（server-web-detail-pages design D2）。目的地依各自的 `end` 比對，詳情頁的
- *  網址也找得到所屬目的地。 */
+/** 面包屑（design D4）：管理面为「后台 / <目的地>」且「后台」可点回总览，帐号页为「帐号」；
+ *  未列在目的地表内的 /admin/* 路径只显示「后台」。详情页交出名称时为「后台 / <目的地> / <名称>」，
+ *  目的地可点回列表（server-web-detail-pages design D2）。目的地依各自的 `end` 比对，详情页的
+ *  网址也找得到所属目的地。 */
 function useCrumbs(pathname: string, inAdmin: boolean, detailLabel: string | null): Crumb[] {
   const { t } = useI18n();
   const navigate = useNavigate();

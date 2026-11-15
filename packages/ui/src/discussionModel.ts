@@ -1,28 +1,28 @@
-// 討論記錄的結構解析（desktop-discussion-doc-views design D1）：區段、輪、結論欄位、背景收尾行與文中名稱；分刀由
-// 引擎解析（discussion-cuts-from-engine），這裡只把引擎的刀對回結論的細節列。
-// 全部是純函式、不碰 React；形狀不符時回 null、空陣列或整條當一般列（逐項降級），不拋錯——呼叫端照 Markdown 排。
-// 記錄格式由引擎（speclink-core discuss）與 discuss 技能擁有：區段與輪標題的切分規則與引擎逐字同源。
+// 讨论记录的结构解析（desktop-discussion-doc-views design D1）：区段、轮、结论字段、背景收尾行与文中名称；分刀由
+// 引擎解析（discussion-cuts-from-engine），这里只把引擎的刀对回结论的细节列。
+// 全部是纯函数、不碰 React；形状不符时回 null、空数组或整条当一般列（逐项降级），不抛错——调用端照 Markdown 排。
+// 记录格式由引擎（specseal-core discuss）与 discuss 技能拥有：区段与轮标题的切分规则与引擎逐字同源。
 import type { DiscussionCut } from "./adapter";
 import { itemMarkdown, parseListItems, type ListBlock, type ListItem } from "./docModel";
 
-/** 討論記錄的三個標準區段。 */
+/** 讨论记录的三个标准区段。 */
 export interface DiscussionSections {
   context: string;
   rounds: string;
   conclusion: string;
 }
 
-/** 結構標題白名單——與引擎（speclink-core discuss）同一條規則：
- * 只有這三個整行標題是區段邊界，輪內文的其他「## 」行不得截斷區段。 */
+/** 结构标题白名单——与引擎（specseal-core discuss）同一条规则：
+ * 只有这三个整行标题是区段边界，轮内文的其他「## 」行不得截断区段。 */
 const STRUCTURAL_HEADERS: readonly string[] = ["## Context", "## Rounds", "## Conclusion"];
 
-/** Fenced code block 圍欄行（``` 或 ~~~ 開頭；容忍前導空白）——圍欄內的行不是結構。 */
+/** Fenced code block 围栏行（``` 或 ~~~ 开头；容忍前导空白）——围栏内的行不是结构。 */
 function isFenceLine(line: string): boolean {
   const t = line.trimStart();
   return t.startsWith("```") || t.startsWith("~~~");
 }
 
-/** 逐行標記是否位於 fenced code block（圍欄行自身視為圍欄內）。 */
+/** 逐行标记是否位于 fenced code block（围栏行自身视为围栏内）。 */
 function fenceFlags(lines: string[]): boolean[] {
   let fence = false;
   return lines.map((l) => {
@@ -34,14 +34,14 @@ function fenceFlags(lines: string[]): boolean[] {
   });
 }
 
-/** 區段邊界：結構標題白名單＋pre-scaffold「## Round 」前綴容忍（與引擎同一條規則）。 */
+/** 区段边界：结构标题白名单＋pre-scaffold「## Round 」前缀容忍（与引擎同一条规则）。 */
 function isSectionBoundary(line: string): boolean {
   return STRUCTURAL_HEADERS.includes(line) || line.startsWith("## Round ");
 }
 
 /**
- * 把討論記錄全文按 `## Context`／`## Rounds`／`## Conclusion` 切分。
- * 任一區段缺失（手寫、pre-scaffold 格式）回 `null`——呼叫端整篇以單一檢視退回。
+ * 把讨论记录全文按 `## Context`／`## Rounds`／`## Conclusion` 切分。
+ * 任一区段缺失（手写、pre-scaffold 格式）回 `null`——调用端整篇以单一查看退回。
  */
 export function splitDiscussionSections(text: string): DiscussionSections | null {
   const lines = text.split(/\r?\n/);
@@ -65,29 +65,29 @@ export function splitDiscussionSections(text: string): DiscussionSections | null
   return { context, rounds, conclusion };
 }
 
-/** 輪欄位白名單——scaffold 固定四詞，其餘粗體前綴按內文照排。 */
+/** 轮字段白名单——scaffold 固定四词，其余粗体前缀按内文照排。 */
 export type RoundLabel = "Focus" | "Position" | "Ruled out" | "Open";
 export const ROUND_LABELS: readonly RoundLabel[] = ["Focus", "Position", "Ruled out", "Open"];
 
-/** 討論的一輪：卡頭（輪次/mode/日期）＋欄位（缺席欄位無該鍵）。 */
+/** 讨论的一轮：卡头（轮次/mode/日期）＋字段（缺席字段无该键）。 */
 export interface DiscussionRound {
   round: number;
   mode: string;
   date: string;
-  /** 首個欄位標籤前的內文（scaffold 記錄通常為空）。 */
+  /** 首个字段标签前的内文（scaffold 记录通常为空）。 */
   lead: string;
   fields: Partial<Record<RoundLabel, string>>;
 }
 
-/** 欄位切分結果：首個標籤前的內文（lead）＋標籤→內文對應。 */
+/** 字段切分结果：首个标签前的内文（lead）＋标签→内文对应。 */
 export interface LabeledFields<L extends string> {
   lead: string;
   fields: Partial<Record<L, string>>;
 }
 
 /**
- * 以標籤白名單切欄位（輪與結論共用）：行首「**<Label>**:」起新欄位，
- * 其餘行（含非白名單的粗體前綴行）歸屬當前欄位；首個標籤前的內容歸 lead。
+ * 以标签白名单切字段（轮与结论共用）：行首「**<Label>**:」起新字段，
+ * 其余行（含非白名单的粗体前缀行）归属当前字段；首个标签前的内容归 lead。
  */
 export function splitLabeledFields<L extends string>(lines: string[], labels: readonly L[]): LabeledFields<L> {
   const re = new RegExp(`^\\*\\*(${labels.join("|")})\\*\\*:\\s?(.*)$`);
@@ -118,9 +118,9 @@ export function splitLabeledFields<L extends string>(lines: string[], labels: re
 }
 
 /**
- * 把 Rounds 區段全文切成輪陣列（行掃描解析 scaffold）。
- * 每個 `### ` 標題必須符合「### Round N — <mode> (<date>)」；任一不符、或首輪前
- * 出現非註解內容即回 `null`——呼叫端整篇以單一 markdown 檢視退回。零輪回空陣列。
+ * 把 Rounds 区段全文切成轮数组（行扫描解析 scaffold）。
+ * 每个 `### ` 标题必须符合「### Round N — <mode> (<date>)」；任一不符、或首轮前
+ * 出现非注解内容即回 `null`——调用端整篇以单一 markdown 查看退回。零轮回空数组。
  */
 export function splitRounds(text: string): DiscussionRound[] | null {
   const heading = /^### Round (\d+) — (.+?) \((.+)\)\s*$/;
@@ -130,7 +130,7 @@ export function splitRounds(text: string): DiscussionRound[] | null {
   const lines = text.split(/\r?\n/);
   const inFence = fenceFlags(lines);
   for (const [i, line] of lines.entries()) {
-    // 圍欄內的行不是輪標題——歸當前輪內文（首輪前出現則按既有規則整篇退回）。
+    // 围栏内的行不是轮标题——归当前轮内文（首轮前出现则按既有规则整篇退回）。
     if (!inFence[i] && line.startsWith("### ")) {
       const m = heading.exec(line);
       if (!m) return null;
@@ -139,7 +139,7 @@ export function splitRounds(text: string): DiscussionRound[] | null {
       continue;
     }
     if (!current) {
-      // 首輪前僅容許空行與 scaffold 註解；其餘內容代表非標準記錄，整篇退回。
+      // 首轮前仅容许空行与 scaffold 注解；其余内容代表非标准记录，整篇退回。
       if (line.trim() === "" || /^<!--.*-->\s*$/.test(line.trim())) continue;
       return null;
     }
@@ -148,7 +148,7 @@ export function splitRounds(text: string): DiscussionRound[] | null {
   return rounds.map((r) => ({ round: r.round, mode: r.mode, date: r.date, ...splitLabeledFields(r.body, ROUND_LABELS) }));
 }
 
-/** 結論欄位白名單——conclude scaffold 固定六詞。 */
+/** 结论字段白名单——conclude scaffold 固定六词。 */
 export type ConclusionLabel = "Decision" | "Rationale" | "Rejected alternatives" | "Deferred" | "Capture to" | "Next";
 export const CONCLUSION_LABELS: readonly ConclusionLabel[] = [
   "Decision",
@@ -159,11 +159,11 @@ export const CONCLUSION_LABELS: readonly ConclusionLabel[] = [
   "Next",
 ];
 
-/** 「none」起頭（`None.`、`none — …`；`none-legacy` 不算）。 */
+/** 「none」起头（`None.`、`none — …`；`none-legacy` 不算）。 */
 const NONE_RE = /^none(?![\w-])/i;
 
-/** 背景的 `Prior discussions:` 行列出的先前討論數；缺行、`none` 開頭（`None.`、`none — …`）或切不出名稱為 null。
- * 與背景的先前討論籤同一套名單切法（`parseContextMeta`）。 */
+/** 背景的 `Prior discussions:` 行列出的先前讨论数；缺行、`none` 开头（`None.`、`none — …`）或切不出名称为 null。
+ * 与背景的先前讨论签同一套名单切法（`parseContextMeta`）。 */
 export function countPriorDiscussions(context: string): number | null {
   const prior = parseContextMeta(context).prior;
   return prior && prior.length > 0 ? prior.length : null;
@@ -171,14 +171,14 @@ export function countPriorDiscussions(context: string): number | null {
 
 const unique = (items: string[]) => [...new Set(items)];
 
-/** 結論六欄位；一個白名單欄位都沒有時回 null（呼叫端整篇 Markdown 退回）。 */
+/** 结论六字段；一个白名单字段都没有时回 null（调用端整篇 Markdown 退回）。 */
 export function parseConclusion(text: string): LabeledFields<ConclusionLabel> | null {
   const parsed = splitLabeledFields(text.split(/\r?\n/), CONCLUSION_LABELS);
   return Object.keys(parsed.fields).length > 0 ? parsed : null;
 }
 
-/** Position 與 Decision：第一段散文為定論句（首段即列點時為空）、其後頂層列點依序為細節；
- * 列點之後的散文段也算一條細節，不丟內容。 */
+/** Position 与 Decision：第一段散文为定论句（首段即列点时为空）、其后顶层列点依序为细节；
+ * 列点之后的散文段也算一条细节，不丢内容。 */
 export function splitVerdict(md: string): { verdict: string; details: ListItem[] } {
   const blocks = parseListItems(md);
   const lead = blocks[0]?.kind === "prose" ? blocks[0].text : "";
@@ -188,20 +188,20 @@ export function splitVerdict(md: string): { verdict: string; details: ListItem[]
   return { verdict: lead, details };
 }
 
-/** 分刀卡：識別籤、範圍句、變更名籤、尚未轉出的變更名與卡內細線列——判定全部取自引擎的刀（`DiscussionCut`）。 */
+/** 分刀卡：识别签、范围句、变更名签、尚未转出的变更名与卡内细线列——判定全部取自引擎的刀（`DiscussionCut`）。 */
 export interface CutCard {
   id: string;
   title: string;
   names: string[];
-  /** 變更名寫在粗體內（討論技能的寫法 **cut N `change-name`**）；false 時名稱取自粗體之後，可能混有識別字或檔名。 */
+  /** 变更名写在粗体内（讨论技能的写法 **cut N `change-name`**）；false 时名称取自粗体之后，可能混有识别字或文件名。 */
   namesInBold: boolean;
-  /** `names` 中不在 `promoted_to` 的名稱（引擎判定）。 */
+  /** `names` 中不在 `promoted_to` 的名称（引擎判定）。 */
   unpromoted: string[];
   items: string[];
 }
 
-/** 引擎的刀依序對回決定細節：每把刀認領第一個尚未被認領、首行等於 `line` 的細節列，認領到的列自 rest 移除；
- * 卡內細線列為說明（非空時）接該列的巢狀內容。找不到對應列的刀仍成卡，只有說明（該列留在 rest，不丟內容）。 */
+/** 引擎的刀依序对回决定细节：每把刀认领第一个尚未被认领、首行等于 `line` 的细节列，认领到的列自 rest 移除；
+ * 卡内细线列为说明（非空时）接该列的嵌套内容。找不到对应列的刀仍成卡，只有说明（该列留在 rest，不丢内容）。 */
 export function cutCards(details: ListItem[], cuts: DiscussionCut[]): { cuts: CutCard[]; rest: ListItem[] } {
   const claimed = new Set<number>();
   const cards = cuts.map((cut): CutCard => {
@@ -219,23 +219,23 @@ export function cutCards(details: ListItem[], cuts: DiscussionCut[]): { cuts: Cu
   return { cuts: cards, rest: details.filter((_, i) => !claimed.has(i)) };
 }
 
-/** 刀的轉出判定（刀卡與未轉出提示框共用，兩處不會分岔）：只讀引擎欄位——變更名不在粗體內（沒有名稱，或舊式
- * 刀列把名稱寫在粗體之後）時無從判定。 */
+/** 刀的转出判定（刀卡与未转出提示框共用，两处不会分岔）：只读引擎字段——变更名不在粗体内（没有名称，或旧式
+ * 刀列把名称写在粗体之后）时无从判定。 */
 export function cutPromotion(cut: CutCard): "promoted" | "partial" | "none" | "unknown" {
   if (!cut.namesInBold) return "unknown";
   if (cut.unpromoted.length === 0) return "promoted";
   return cut.unpromoted.length === cut.names.length ? "none" : "partial";
 }
 
-/** 否決與擱置的一列：第一個「——」或前後帶空白的「 — 」（discuss 技能檔寫「option — why it lost」）切方案與
- * 落敗理由；切不到時整條為方案。提案的替代方案走 docModel 的 splitAlternative，不經這裡。 */
+/** 否决与搁置的一列：第一个「——」或前后带空白的「 — 」（discuss 技能档写「option — why it lost」）切方案与
+ * 落败理由；切不到时整条为方案。提案的替代方案走 docModel 的 splitAlternative，不经这里。 */
 export function splitOption(text: string): { option: string; reason: string | null } {
   const m = /——|\s—\s/.exec(text);
   if (!m) return { option: text.trim(), reason: null };
   return { option: text.slice(0, m.index).trim(), reason: text.slice(m.index + m[0].length).trim() || null };
 }
 
-/** 以頂層（反引號與括號之外）的分隔符切段。 */
+/** 以顶层（反引号与括号之外）的分隔符切段。 */
 function splitTopLevel(text: string, separators: string): string[] {
   const out: string[] = [];
   let cur = "";
@@ -254,36 +254,36 @@ function splitTopLevel(text: string, separators: string): string[] {
   return out.map((s) => s.trim()).filter(Boolean);
 }
 
-/** 每條列點與其間的散文段各一列（不丟內容）。 */
+/** 每条列点与其间的散文段各一列（不丢内容）。 */
 function blockRows(blocks: ListBlock[]): string[] {
   return blocks.flatMap((b) => (b.kind === "list" ? b.items.map(itemMarkdown) : [b.text]));
 }
 
-/** Ruled out、Open、Rejected alternatives、Deferred 的逐條：有列點時每條列點（與其間的散文段）一列，
- * 否則以頂層的「；」／「;」切段。 */
+/** Ruled out、Open、Rejected alternatives、Deferred 的逐条：有列点时每条列点（与其间的散文段）一列，
+ * 否则以顶层的「；」／「;」切段。 */
 export function splitRows(md: string): string[] {
   const blocks = parseListItems(md);
   if (blocks.some((b) => b.kind === "list")) return blockRows(blocks);
   return splitTopLevel(md, "；;");
 }
 
-/** 記錄去向的籤：以頂層（括號之外）的頓號與逗號切項、去掉反引號；任一項含句號或換行（整段散文）時回 null。 */
+/** 记录去向的签：以顶层（括号之外）的顿号与逗号切项、去掉反引号；任一项含句号或换行（整段散文）时回 null。 */
 export function captureTargets(md: string): string[] | null {
   const items = splitTopLevel(md, "、,，").map((s) => s.replace(/`/g, "").trim());
   return items.length === 0 || items.some((s) => /[。\n]/.test(s)) ? null : items;
 }
 
-/** 收斂標記：「無」或 none 起頭、其後緊接標點、空白或結尾（「無法…」「none-legacy」不算）。 */
-const OPEN_NONE_RE = /^(?:無|none)(?![\p{L}\p{N}_-])/iu;
+/** 收敛标记：「无」或 none 起头、其后紧接标点、空白或结尾（「无法…」「none-legacy」不算）。 */
+const OPEN_NONE_RE = /^(?:无|none)(?![\p{L}\p{N}_-])/iu;
 
-/** 待決：收斂標記時整條原文一列（「無：寫入結論」），否則逐條。 */
+/** 待决：收敛标记时整条原文一列（「无：写入结论」），否则逐条。 */
 export function openItems(md: string): { none: boolean; items: string[] } {
   const text = md.trim();
   if (OPEN_NONE_RE.test(text)) return { none: true, items: [text] };
   return { none: false, items: splitRows(text) };
 }
 
-/** 輪的 mode（首次出現序、字串透傳）與日期統計。 */
+/** 轮的 mode（首次出现序、字符串透传）与日期统计。 */
 export function roundStats(rounds: DiscussionRound[]): {
   modes: { mode: string; count: number }[];
   days: number;
@@ -304,13 +304,13 @@ export function roundStats(rounds: DiscussionRound[]): {
   };
 }
 
-/** 背景收尾四行：名單行缺席為 null、`none` 為空陣列；來源文件缺席為 null、`none` 為空字串。 */
+/** 背景收尾四行：名单行缺席为 null、`none` 为空数组；来源文档缺席为 null、`none` 为空字符串。 */
 export interface ContextMeta {
   specs: string[] | null;
   changes: string[] | null;
   prior: string[] | null;
   sourceDoc: string | null;
-  /** 剝掉四行之後的內文。 */
+  /** 剥掉四行之后的内文。 */
   body: string;
 }
 
@@ -321,13 +321,13 @@ const META_LINES = {
 } as const;
 const SOURCE_DOC = "Source doc:";
 
-/** 英數起頭的名稱：以連字號串起英數段或純漢字段（`config-context-與-rules-gui-編輯`）；英數段後緊接的中文
- * 不算進名稱（`desktop-detail-doc-tree定義了…`）。名單與指令參數共用。 */
+/** 英数起头的名称：以连字号串起英数段或纯汉字段（`config-context-与-rules-gui-编辑`）；英数段后紧接的中文
+ * 不算进名称（`desktop-detail-doc-tree定义了…`）。名单与指令参数共用。 */
 const NAME_SRC = String.raw`[A-Za-z0-9][\w.]*(?:-(?:[\w.]+|\p{Script=Han}+))*`;
 const NAME_HEAD_RE = new RegExp(`^${NAME_SRC}`, "u");
 
-/** 名單：括號備註換成空白（名稱止於括號），以逗號、頓號、分號切項，每項取冒號前的第一個 token
- * （`add-copilot-tool: desktop-config`）；英數起頭時只取名稱段，句尾的句點拿掉。 */
+/** 名单：括号备注换成空白（名称止于括号），以逗号、顿号、分号切项，每项取冒号前的第一个 token
+ * （`add-copilot-tool: desktop-config`）；英数起头时只取名称段，句尾的句点拿掉。 */
 function nameList(value: string): string[] {
   const list = value.replace(/[（(][^）)]*[）)]/g, " ").trim();
   if (NONE_RE.test(list)) return [];
@@ -342,7 +342,7 @@ function nameList(value: string): string[] {
   );
 }
 
-/** 剝掉圍欄外、行首（容許前導空白）的 `Related specs:`／`Related changes:`／`Prior discussions:`／`Source doc:` 四行。 */
+/** 剥掉围栏外、行首（容许前导空白）的 `Related specs:`／`Related changes:`／`Prior discussions:`／`Source doc:` 四行。 */
 export function parseContextMeta(context: string): ContextMeta {
   const lines = context.split(/\r?\n/);
   const inFence = fenceFlags(lines);
@@ -364,27 +364,27 @@ export function parseContextMeta(context: string): ContextMeta {
   return meta;
 }
 
-/** 宿主清單裡的名稱：比對背景內文與收尾行用。 */
+/** 宿主清单里的名称：比对背景内文与收尾行用。 */
 export interface ContextNames {
   specs: string[];
   active: string[];
   archived: string[];
-  /** 其他討論的 slug（本身由 `self` 排除）。 */
+  /** 其他讨论的 slug（本身由 `self` 排除）。 */
   discussions: string[];
   self?: string;
 }
 
-/** 背景的關聯：收尾行與內文命中的聯集（在途與已封存變更只收宿主清單裡有的名稱）。 */
+/** 背景的关联：收尾行与内文命中的联集（在途与已封存变更只收宿主清单里有的名称）。 */
 export interface ContextRelations {
   specs: string[];
   changes: string[];
   archived: string[];
   prior: string[];
-  /** 內文命中（名稱籤用），依種類。 */
+  /** 内文命中（名称签用），依种类。 */
   hits: { specs: string[]; changes: string[]; archived: string[]; discussions: string[] };
 }
 
-/** 背景關聯的單一推導：ContextDoc 的關聯列與名稱籤、頁的數字磚共用。 */
+/** 背景关联的单一推导：ContextDoc 的关联列与名称签、页的数字砖共用。 */
 export function contextRelations(meta: ContextMeta, names: ContextNames): ContextRelations {
   const discussions = names.discussions.filter((slug) => slug !== names.self);
   const hits = {
@@ -403,7 +403,7 @@ export function contextRelations(meta: ContextMeta, names: ContextNames): Contex
   };
 }
 
-/** 背景文件的單一推導（ContextDoc 與頁的數字磚共用）：收尾行、關聯與比對所用的名稱清單。 */
+/** 背景文档的单一推导（ContextDoc 与页的数字砖共用）：收尾行、关联与比对所用的名称清单。 */
 export interface ContextModel {
   meta: ContextMeta;
   rel: ContextRelations;
@@ -415,7 +415,7 @@ export function contextModel(context: string, names: ContextNames): ContextModel
   return { meta, rel: contextRelations(meta, names), names };
 }
 
-/** 引言段：圍欄外第一個空行之前的散文；第一段是列點、標題、圍欄、引言或表格時引言為空、全文進 rest。 */
+/** 引言段：围栏外第一个空行之前的散文；第一段是列点、标题、围栏、引言或表格时引言为空、全文进 rest。 */
 export function splitLead(body: string): { lead: string; rest: string } {
   const lines = body.split(/\r?\n/);
   let start = 0;
@@ -428,10 +428,10 @@ export function splitLead(body: string): { lead: string; rest: string } {
   return { lead: lines.slice(start, end).join("\n").trim(), rest: lines.slice(end).join("\n").trim() };
 }
 
-/** 名稱邊界：前後皆非英數、連字號與底線（中文名稱也用這條）。 */
+/** 名称边界：前后皆非英数、连字号与底线（中文名称也用这条）。 */
 const isBoundary = (ch: string | undefined) => ch === undefined || !/[A-Za-z0-9_-]/.test(ch);
 
-/** 一段純文字中名稱的命中位置：長名優先、已被長名佔走的範圍不再命中，依出現序。Markdown 的名稱籤外掛共用。 */
+/** 一段纯文本中名称的命中位置：长名优先、已被长名占走的范围不再命中，依出现序。Markdown 的名称签插件共用。 */
 export function nameSpans(text: string, names: string[]): { name: string; start: number; end: number }[] {
   const taken = new Array<boolean>(text.length).fill(false);
   const spans: { name: string; start: number; end: number }[] = [];
@@ -446,20 +446,20 @@ export function nameSpans(text: string, names: string[]): { name: string; start:
   return spans.sort((a, b) => a.start - b.start);
 }
 
-/** 圍欄與行內反引號之外的名稱命中，依首次出現序去重。 */
+/** 围栏与行内反引号之外的名称命中，依首次出现序去重。 */
 export function matchNames(text: string, names: string[]): string[] {
   const lines = text.split("\n");
   const inFence = fenceFlags(lines);
-  // 程式碼換成等長空白：位置不動、邊界照算。
+  // 代码换成等长空白：位置不动、边界照算。
   const plain = lines
     .map((l, i) => (inFence[i] ? " ".repeat(l.length) : l.replace(/`[^`]*`/g, (m) => " ".repeat(m.length))))
     .join("\n");
   return unique(nameSpans(plain, names).map((s) => s.name));
 }
 
-const COMMAND_RE = new RegExp(String.raw`/speclink-[a-z-]+(?:\s+(?:--[a-z-]+|${NAME_SRC}))*`, "gu");
+const COMMAND_RE = new RegExp(String.raw`/specseal-[a-z-]+(?:\s+(?:--[a-z-]+|${NAME_SRC}))*`, "gu");
 
-/** 下一步裡的 `/speclink-*` 指令（含旗標與參數；反引號內外皆算；句尾句點不算），去重保序。 */
+/** 下一步里的 `/specseal-*` 指令（含旗标与参数；反引号内外皆算；句尾句点不算），去重保序。 */
 export function commandChips(md: string): string[] {
   return unique((md.match(COMMAND_RE) ?? []).map((command) => command.replace(/\.+$/, "")));
 }

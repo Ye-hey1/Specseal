@@ -1,4 +1,4 @@
-// 麵包屑（server-web-shell-alignment design D4）：desktop 主區頂列與 server 後台頂列共用一份。
+// 面包屑（server-web-shell-alignment design D4）：desktop 主区顶列与 server 后台顶列共用一份。
 import { Fragment } from "react";
 
 import { useI18n } from "../i18n";
@@ -7,11 +7,11 @@ import { cn } from "../lib/utils";
 export interface Crumb {
   label: string;
   onClick?: () => void;
-  /** 等寬字型（詳情頁的項目名：變更名或討論 slug）。 */
+  /** 等宽字体（详情页的项目名：变更名或讨论 slug）。 */
   mono?: boolean;
 }
 
-/** 一列 12px 灰字，項間半透明「/」；最後一項為前景色，有 onClick 的項是按鈕。 */
+/** 一列 12px 灰字，项间半透明「/」；最后一项为前景色，有 onClick 的项是按钮。 */
 export function Breadcrumbs({ crumbs }: { crumbs: Crumb[] }) {
   const { t } = useI18n();
   return (

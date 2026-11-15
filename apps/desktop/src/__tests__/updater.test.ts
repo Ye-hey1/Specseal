@@ -1,6 +1,6 @@
-// 更新狀態機（desktop-app spec「桌面自動更新」，design D6）：純 reducer、不依賴
-// Tauri。自動檢查失敗靜默回閒置、手動檢查失敗才呈現無法檢查；簽章驗證失敗轉
-// 錯誤態（不進待重啟＝既有安裝不受影響）；同意前不下載。
+// 更新状态机（desktop-app spec「桌面自动更新」，design D6）：纯 reducer、不依赖
+// Tauri。自动检查失败静默回闲置、手动检查失败才呈现无法检查；签章验证失败转
+// 错误态（不进待重启＝既有安装不受影响）；同意前不下载。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import {
@@ -15,22 +15,22 @@ import {
 import type { PendingUpdate, UpdaterAdapter } from "../adapter/updater";
 import { createAppStore } from "../store";
 
-// 背景檢查發現新版本的 toast（desktop-app「背景檢查的 toast 只發一次」）：mock sonner 才斷言得到。
+// 背景检查发现新版本的 toast（desktop-app「背景检查的 toast 只发一次」）：mock sonner 才断言得到。
 const { toastFn } = vi.hoisted(() => ({ toastFn: vi.fn() }));
 vi.mock("sonner", () => ({ toast: Object.assign(toastFn, { error: vi.fn() }) }));
 beforeEach(() => toastFn.mockClear());
 
-// 前景重檢測試的共用時間軸（規格 Example「節流邊界」以 09:00 為上次檢查）。
+// 前景重检测试的共用时间轴（规格 Example「节流边界」以 09:00 为上次检查）。
 const T0 = Date.UTC(2026, 0, 1, 9, 0, 0);
 const MINUTES = 60 * 1000;
 
-/// 依序餵事件，回傳最終狀態。
+/// 依序喂事件，回传最终状态。
 function replay(events: Parameters<typeof reduceUpdater>[1][]): UpdaterState {
   return events.reduce(reduceUpdater, initialUpdaterState);
 }
 
-describe("更新狀態機（core/updater）", () => {
-  it("閒置→檢查中→發現新版（含目標版本）→同意→下載→待重啟", () => {
+describe("更新状态机（core/updater）", () => {
+  it("闲置→检查中→发现新版（含目标版本）→同意→下载→待重启", () => {
     let state: UpdaterState = initialUpdaterState;
     expect(state).toEqual({ phase: "idle" });
 
@@ -47,7 +47,7 @@ describe("更新狀態機（core/updater）", () => {
     expect(state).toEqual({ phase: "restartPending", version: "0.2.0" });
   });
 
-  it("自動檢查失敗（離線）靜默回閒置", () => {
+  it("自动检查失败（脱机）静默回闲置", () => {
     const state = replay([
       { type: "checkStarted", manual: false },
       { type: "checkFailed" },
@@ -55,7 +55,7 @@ describe("更新狀態機（core/updater）", () => {
     expect(state).toEqual({ phase: "idle" });
   });
 
-  it("手動檢查失敗才呈現無法檢查更新", () => {
+  it("手动检查失败才呈现无法检查更新", () => {
     const state = replay([
       { type: "checkStarted", manual: true },
       { type: "checkFailed" },
@@ -63,7 +63,7 @@ describe("更新狀態機（core/updater）", () => {
     expect(state).toEqual({ phase: "checkFailed" });
   });
 
-  it("手動檢查且已是最新時回報已最新", () => {
+  it("手动检查且已是最新时回报已最新", () => {
     const state = replay([
       { type: "checkStarted", manual: true },
       { type: "noUpdate" },
@@ -71,7 +71,7 @@ describe("更新狀態機（core/updater）", () => {
     expect(state).toEqual({ phase: "upToDate" });
   });
 
-  it("自動檢查已最新則靜默回閒置（不打擾）", () => {
+  it("自动检查已最新则静默回闲置（不打扰）", () => {
     const state = replay([
       { type: "checkStarted", manual: false },
       { type: "noUpdate" },
@@ -79,7 +79,7 @@ describe("更新狀態機（core/updater）", () => {
     expect(state).toEqual({ phase: "idle" });
   });
 
-  it("發現新版但使用者稍後：回閒置、不下載", () => {
+  it("发现新版但用户稍后：回闲置、不下载", () => {
     const state = replay([
       { type: "checkStarted", manual: false },
       { type: "updateFound", version: "0.2.0" },
@@ -88,7 +88,7 @@ describe("更新狀態機（core/updater）", () => {
     expect(state).toEqual({ phase: "idle" });
   });
 
-  it("下載中簽章驗證失敗：轉錯誤態、不進待重啟（既有安裝不受影響）", () => {
+  it("下载中签章验证失败：转错误态、不进待重启（既有安装不受影响）", () => {
     const state = replay([
       { type: "checkStarted", manual: false },
       { type: "updateFound", version: "0.2.0" },
@@ -101,7 +101,7 @@ describe("更新狀態機（core/updater）", () => {
     });
   });
 
-  it("下載中取消（dismissed）回閒置；其後到達的 downloaded 不進待重啟（spec「取消下載回到閒置」）", () => {
+  it("下载中取消（dismissed）回闲置；其后到达的 downloaded 不进待重启（spec「取消下载回到闲置」）", () => {
     const cancelled = replay([
       { type: "checkStarted", manual: false },
       { type: "updateFound", version: "0.2.0" },
@@ -113,12 +113,12 @@ describe("更新狀態機（core/updater）", () => {
     expect(reduceUpdater(cancelled, { type: "installFailed", message: "x" })).toEqual({ phase: "idle" });
   });
 
-  it("非法事件不改變狀態（閒置時收到 downloaded 仍為閒置）", () => {
+  it("非法事件不改变状态（闲置时收到 downloaded 仍为闲置）", () => {
     const state = reduceUpdater(initialUpdaterState, { type: "downloaded" });
     expect(state).toEqual({ phase: "idle" });
   });
 
-  it("錯誤態可關閉回閒置", () => {
+  it("错误态可关闭回闲置", () => {
     const state = reduceUpdater(
       { phase: "error", message: "invalid signature" },
       { type: "dismissed" },
@@ -127,30 +127,30 @@ describe("更新狀態機（core/updater）", () => {
   });
 });
 
-// --- 前景重檢節流（desktop-app「回到前景未滿一小時不重檢」Example「節流邊界」） ---
+// --- 前景重检节流（desktop-app「回到前景未满一小时不重检」Example「节流边界」） ---
 
-describe("前景重檢節流判定（core/updater focusRecheckDue）", () => {
-  it("節流間隔為 1 小時", () => {
+describe("前景重检节流判定（core/updater focusRecheckDue）", () => {
+  it("节流间隔为 1 小时", () => {
     expect(FOCUS_RECHECK_INTERVAL_MS).toBe(60 * 60 * 1000);
   });
 
-  it("從未檢查（無時間戳）視為逾時", () => {
+  it("从未检查（无时间戳）视为逾时", () => {
     expect(focusRecheckDue(null, T0)).toBe(true);
   });
 
   it.each([
-    ["09:20 未滿 1 小時 → 不重檢", 20 * MINUTES, false],
-    ["09:59:59.999 差 1 毫秒 → 不重檢", FOCUS_RECHECK_INTERVAL_MS - 1, false],
-    ["10:00:00 剛好滿 1 小時 → 重檢", FOCUS_RECHECK_INTERVAL_MS, true],
-    ["12:00 超過 1 小時 → 重檢", 180 * MINUTES, true],
+    ["09:20 未满 1 小时 → 不重检", 20 * MINUTES, false],
+    ["09:59:59.999 差 1 毫秒 → 不重检", FOCUS_RECHECK_INTERVAL_MS - 1, false],
+    ["10:00:00 刚好满 1 小时 → 重检", FOCUS_RECHECK_INTERVAL_MS, true],
+    ["12:00 超过 1 小时 → 重检", 180 * MINUTES, true],
   ])("上次 09:00、切回 %s", (_label, elapsed, due) => {
     expect(focusRecheckDue(T0, T0 + elapsed)).toBe(due);
   });
 });
 
-// 哪些狀態容許前景重檢（desktop-app「回到前景未滿一小時不重檢」Example 的
-// 待同意／錯誤／下載中／待重啟四列）：只有沒有東西等使用者處置的狀態才重檢。
-describe("前景重檢的狀態守門（core/updater focusRecheckAllowed）", () => {
+// 哪些状态容许前景重检（desktop-app「回到前景未满一小时不重检」Example 的
+// 待同意／错误／下载中／待重启四列）：只有没有东西等用户处置的状态才重检。
+describe("前景重检的状态守门（core/updater focusRecheckAllowed）", () => {
   it.each<[UpdaterState, boolean]>([
     [{ phase: "idle" }, true],
     [{ phase: "upToDate" }, true],
@@ -165,8 +165,8 @@ describe("前景重檢的狀態守門（core/updater focusRecheckAllowed）", ()
   });
 });
 
-// 圖示列更新鈕與設定卡「下載與安裝」列共用的呈現判斷：有事要使用者看的四態才出現。
-describe("更新狀態是否需要呈現（core/updater updateNeedsAttention）", () => {
+// 图标列更新钮与设置卡「下载与安装」列共用的呈现判断：有事要用户看的四态才出现。
+describe("更新状态是否需要呈现（core/updater updateNeedsAttention）", () => {
   it.each<[UpdaterState, boolean]>([
     [{ phase: "available", version: "0.5.1" }, true],
     [{ phase: "downloading", version: "0.5.1" }, true],
@@ -181,7 +181,7 @@ describe("更新狀態是否需要呈現（core/updater updateNeedsAttention）"
   });
 });
 
-// --- store 接線（design D6：plugin 事件經 adapter 注入，store 只驅動 reducer） ---
+// --- store 接线（design D6：plugin 事件经 adapter 注入，store 只驱动 reducer） ---
 
 function storeWith(adapter?: UpdaterAdapter) {
   return createAppStore({
@@ -190,8 +190,8 @@ function storeWith(adapter?: UpdaterAdapter) {
   });
 }
 
-describe("更新 store 接線", () => {
-  it("checkForUpdates 找到新版：狀態轉 available 並帶版本", async () => {
+describe("更新 store 接线", () => {
+  it("checkForUpdates 找到新版：状态转 available 并带版本", async () => {
     const pending: PendingUpdate = {
       version: "0.2.0",
       download: vi.fn().mockResolvedValue(undefined),
@@ -203,7 +203,7 @@ describe("更新 store 接線", () => {
     expect(store.getState().updater).toEqual({ phase: "available", version: "0.2.0" });
   });
 
-  it("同意後下載並安裝：download 與 install 各被呼叫一次、轉待重啟", async () => {
+  it("同意后下载并安装：download 与 install 各被调用一次、转待重启", async () => {
     const pending: PendingUpdate = {
       version: "0.2.0",
       download: vi.fn().mockResolvedValue(undefined),
@@ -218,7 +218,7 @@ describe("更新 store 接線", () => {
     expect(store.getState().updater).toEqual({ phase: "restartPending", version: "0.2.0" });
   });
 
-  it("安裝被拒：轉錯誤態並帶訊息、不進待重啟", async () => {
+  it("安装被拒：转错误态并带消息、不进待重启", async () => {
     const pending: PendingUpdate = {
       version: "0.2.0",
       download: vi.fn().mockResolvedValue(undefined),
@@ -231,7 +231,7 @@ describe("更新 store 接線", () => {
     expect(store.getState().updater).toEqual({ phase: "error", message: "install failed" });
   });
 
-  it("下載被拒（簽章驗證失敗）：轉錯誤態並帶訊息、不呼叫 install", async () => {
+  it("下载被拒（签章验证失败）：转错误态并带消息、不调用 install", async () => {
     const pending: PendingUpdate = {
       version: "0.2.0",
       download: vi.fn().mockRejectedValue(new Error("invalid signature")),
@@ -245,7 +245,7 @@ describe("更新 store 接線", () => {
     expect(pending.install).not.toHaveBeenCalled();
   });
 
-  it("check reject：自動檢查靜默回閒置、手動檢查浮出無法檢查", async () => {
+  it("check reject：自动检查静默回闲置、手动检查浮出无法检查", async () => {
     const adapter: UpdaterAdapter = {
       check: vi.fn().mockRejectedValue(new Error("offline")),
       relaunch: vi.fn(),
@@ -259,7 +259,7 @@ describe("更新 store 接線", () => {
     expect(manual.getState().updater).toEqual({ phase: "checkFailed" });
   });
 
-  it("openSettingsUpdate：切到設定頁並舉旗 focusUpdater；clearFocusUpdater 清旗標、不離開設定頁", () => {
+  it("openSettingsUpdate：切到设置页并举旗 focusUpdater；clearFocusUpdater 清旗标、不离开设置页", () => {
     const store = storeWith();
     expect(store.getState().focusUpdater).toBe(false);
     store.getState().openSettingsUpdate();
@@ -270,21 +270,21 @@ describe("更新 store 接線", () => {
     expect(store.getState().boardView).toBe("settings");
   });
 
-  it("未注入 adapter 時 checkForUpdates 為 no-op", async () => {
+  it("未注入 adapter 时 checkForUpdates 为 no-op", async () => {
     const store = storeWith();
     await store.getState().checkForUpdates(true);
     expect(store.getState().updater).toEqual({ phase: "idle" });
   });
 });
 
-// --- 前景重檢（desktop-app「回到前景逾一小時即重檢」「回到前景未滿一小時不重檢」；design D2） ---
+// --- 前景重检（desktop-app「回到前景逾一小时即重检」「回到前景未满一小时不重检」；design D2） ---
 
-describe("前景重檢 store 接線（recheckOnFocus）", () => {
+describe("前景重检 store 接线（recheckOnFocus）", () => {
   function adapterUpToDate(): UpdaterAdapter {
     return { check: vi.fn().mockResolvedValue(null), relaunch: vi.fn() };
   }
 
-  it("從未檢查時切回前景即檢查一次", async () => {
+  it("从未检查时切回前景即检查一次", async () => {
     const adapter = adapterUpToDate();
     const store = storeWith(adapter);
 
@@ -292,7 +292,7 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     expect(adapter.check).toHaveBeenCalledTimes(1);
   });
 
-  it("啟動檢查後 30 分鐘切回前景不重檢；滿 1 小時再切回恰檢查一次", async () => {
+  it("启动检查后 30 分钟切回前景不重检；满 1 小时再切回恰检查一次", async () => {
     const adapter = adapterUpToDate();
     const store = storeWith(adapter);
     vi.useFakeTimers();
@@ -306,13 +306,13 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
 
       await store.getState().recheckOnFocus(T0 + 60 * MINUTES);
       expect(adapter.check).toHaveBeenCalledTimes(2);
-      expect(store.getState().updater).toEqual({ phase: "idle" }); // 已最新：不顯示任何提示
+      expect(store.getState().updater).toEqual({ phase: "idle" }); // 已最新：不显示任何提示
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("Example「開著三小時後切回」：09:00 啟動時最新、期間發布 0.5.1、12:00 切回 → 提示 0.5.1 等待同意", async () => {
+  it("Example「开着三小时后切回」：09:00 启动时最新、期间发布 0.5.1、12:00 切回 → 提示 0.5.1 等待同意", async () => {
     const released: PendingUpdate = {
       version: "0.5.1",
       download: vi.fn().mockResolvedValue(undefined),
@@ -323,15 +323,15 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     const store = storeWith(adapter);
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(T0); // 09:00 啟動檢查：當時最新
+      vi.setSystemTime(T0); // 09:00 启动检查：当时最新
       await store.getState().checkForUpdates(false);
       expect(store.getState().updater).toEqual({ phase: "idle" });
 
       await store.getState().recheckOnFocus(T0 + 180 * MINUTES); // 12:00 切回
       expect(check).toHaveBeenCalledTimes(2);
       expect(store.getState().updater).toEqual({ phase: "available", version: "0.5.1" });
-      expect(released.download).not.toHaveBeenCalled(); // 等待同意，不自動下載
-      // THEN：toast 顯示 0.5.1（圖示列更新鈕的提示由 updateRailButton.test 以同一狀態斷言）。
+      expect(released.download).not.toHaveBeenCalled(); // 等待同意，不自动下载
+      // THEN：toast 显示 0.5.1（图标列更新钮的提示由 updateRailButton.test 以同一状态断言）。
       expect(toastFn).toHaveBeenCalledTimes(1);
       expect((toastFn.mock.calls[0] as [string])[0]).toContain("0.5.1");
     } finally {
@@ -339,14 +339,14 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("Example 節流邊界「09:00 啟動、09:40 手動檢查 → 10:20 切回不重檢」：手動檢查也重置時間戳", async () => {
+  it("Example 节流边界「09:00 启动、09:40 手动检查 → 10:20 切回不重检」：手动检查也重置时间戳", async () => {
     const adapter = adapterUpToDate();
     const store = storeWith(adapter);
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(T0); // 09:00 啟動檢查
+      vi.setSystemTime(T0); // 09:00 启动检查
       await store.getState().checkForUpdates(false);
-      vi.setSystemTime(T0 + 40 * MINUTES); // 09:40 手動檢查
+      vi.setSystemTime(T0 + 40 * MINUTES); // 09:40 手动检查
       await store.getState().checkForUpdates(true);
       expect(adapter.check).toHaveBeenCalledTimes(2);
 
@@ -357,19 +357,19 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("Example 節流邊界「09:00 檢查、09:30 起下載中 → 10:30 切回不重檢」", async () => {
+  it("Example 节流边界「09:00 检查、09:30 起下载中 → 10:30 切回不重检」", async () => {
     const pending: PendingUpdate = {
       version: "0.5.1",
-      download: vi.fn(() => new Promise<void>(() => {})), // 永不結束＝停在下載中
+      download: vi.fn(() => new Promise<void>(() => {})), // 永不结束＝停在下载中
       install: vi.fn(),
     };
     const adapter: UpdaterAdapter = { check: vi.fn().mockResolvedValue(pending), relaunch: vi.fn() };
     const store = storeWith(adapter);
     vi.useFakeTimers();
     try {
-      vi.setSystemTime(T0); // 09:00 檢查到新版
+      vi.setSystemTime(T0); // 09:00 检查到新版
       await store.getState().checkForUpdates(false);
-      vi.setSystemTime(T0 + 30 * MINUTES); // 09:30 同意、開始下載
+      vi.setSystemTime(T0 + 30 * MINUTES); // 09:30 同意、开始下载
       void store.getState().acceptUpdate();
       expect(store.getState().updater).toEqual({ phase: "downloading", version: "0.5.1" });
 
@@ -381,7 +381,7 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("Example 節流邊界「09:00 檢查到新版、提示待同意 → 10:30 切回不重檢」：提示留到使用者處置", async () => {
+  it("Example 节流边界「09:00 检查到新版、提示待同意 → 10:30 切回不重检」：提示留到用户处置", async () => {
     const pending: PendingUpdate = {
       version: "0.5.1",
       download: vi.fn().mockResolvedValue(undefined),
@@ -403,7 +403,7 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("Example 節流邊界「09:00 安裝失敗顯示錯誤 → 10:30 切回不重檢」：錯誤訊息留到使用者重試", async () => {
+  it("Example 节流边界「09:00 安装失败显示错误 → 10:30 切回不重检」：错误消息留到用户重试", async () => {
     const pending: PendingUpdate = {
       version: "0.5.1",
       download: vi.fn().mockRejectedValue(new Error("invalid signature")),
@@ -426,7 +426,7 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("Example 節流邊界「09:00 下載完成待重啟 → 10:30 切回不重檢」", async () => {
+  it("Example 节流边界「09:00 下载完成待重启 → 10:30 切回不重检」", async () => {
     const pending: PendingUpdate = {
       version: "0.5.1",
       download: vi.fn().mockResolvedValue(undefined),
@@ -449,7 +449,7 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("recheckOnFocus 未給 now 時以現在時刻判定", async () => {
+  it("recheckOnFocus 未给 now 时以现在时刻判定", async () => {
     const adapter = adapterUpToDate();
     const store = storeWith(adapter);
     vi.useFakeTimers();
@@ -464,7 +464,7 @@ describe("前景重檢 store 接線（recheckOnFocus）", () => {
     }
   });
 
-  it("未注入 adapter 時 recheckOnFocus 為 no-op", async () => {
+  it("未注入 adapter 时 recheckOnFocus 为 no-op", async () => {
     const store = storeWith();
     await store.getState().recheckOnFocus(T0);
     expect(store.getState().updater).toEqual({ phase: "idle" });

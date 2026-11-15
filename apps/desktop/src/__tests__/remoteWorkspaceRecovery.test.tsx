@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 
 import { RemoteWorkspaceRecovery } from "../components/RemoteWorkspaceRecovery";
 import { APP_MESSAGES } from "../i18n/messages";
@@ -28,7 +28,7 @@ const connection: ConnectionView = {
 };
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -67,25 +67,25 @@ describe("RemoteWorkspaceRecovery", () => {
       />,
     );
 
-    expect(screen.getByRole("alert").textContent).toContain("無法連線到伺服器");
+    expect(screen.getByRole("alert").textContent).toContain("无法连接到服务器");
     expect(screen.getByText("Demo/backend")).toBeTruthy();
     expect(screen.getByText(/Team Server/).textContent).toContain("spec.example.test");
-    expect(screen.getByRole("button", { name: "重新連線" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "伺服器設定" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "自專案列移除" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "重新连接" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "服务器设置" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "自项目列移除" })).toBeTruthy();
 
-    const disclosure = screen.getByRole("button", { name: "技術細節" });
+    const disclosure = screen.getByRole("button", { name: "技术细节" });
     expect(disclosure.getAttribute("aria-expanded")).toBe("false");
-    // 無外框的可點元素：滑過有前景色 5% 淡底（spec desktop-app「可點元素的游標與 hover 回饋」）。
+    // 无外框的可点元素：滑过有前景色 5% 淡底（spec desktop-app「可点元素的光标与 hover 回馈」）。
     expect(disclosure.className).toContain("hover:bg-foreground/5");
     expect(screen.queryByText(/internal transport diagnostics/)).toBeNull();
     fireEvent.click(disclosure);
     expect(disclosure.getAttribute("aria-expanded")).toBe("true");
     expect(screen.getByText(/internal transport diagnostics/)).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "重新連線" }));
-    fireEvent.click(screen.getByRole("button", { name: "伺服器設定" }));
-    fireEvent.click(screen.getByRole("button", { name: "自專案列移除" }));
+    fireEvent.click(screen.getByRole("button", { name: "重新连接" }));
+    fireEvent.click(screen.getByRole("button", { name: "服务器设置" }));
+    fireEvent.click(screen.getByRole("button", { name: "自项目列移除" }));
     expect(onRetry).toHaveBeenCalledTimes(1);
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
     expect(onRemove).toHaveBeenCalledTimes(1);
@@ -104,8 +104,8 @@ describe("RemoteWorkspaceRecovery", () => {
         onRemove={vi.fn()}
       />,
     );
-    expect(screen.getByRole("alert").textContent).toContain("需要重新登入");
-    fireEvent.click(screen.getByRole("button", { name: "重新登入" }));
+    expect(screen.getByRole("alert").textContent).toContain("需要重新登录");
+    fireEvent.click(screen.getByRole("button", { name: "重新登录" }));
     expect(onReauthenticate).toHaveBeenCalledTimes(1);
   });
 
@@ -121,14 +121,14 @@ describe("RemoteWorkspaceRecovery", () => {
         onRemove={vi.fn()}
       />,
     );
-    expect(screen.getByRole("status").textContent).toContain("正在連線");
-    expect(screen.queryByRole("button", { name: "重新連線" })).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("正在连接");
+    expect(screen.queryByRole("button", { name: "重新连接" })).toBeNull();
     expect(screen.queryByText("previous-workspace-change")).toBeNull();
   });
 
-  it("兩種狀態的根節點都撐滿到 max-w：main 是 flex 直欄，橫向 mx-auto 會關掉自動拉伸", () => {
-    // main 改 flex 直欄後，帶 mx-auto 的 flex item 寬度改隨內容縮包；比照
-    // SpecList／ArchivedList／設定頁根節點補 w-full，寬度才不隨文案長短跳動。
+  it("两种状态的根节点都撑满到 max-w：main 是 flex 直栏，横向 mx-auto 会关掉自动拉伸", () => {
+    // main 改 flex 直栏后，带 mx-auto 的 flex item 宽度改随内容缩包；比照
+    // SpecList／ArchivedList／设置页根节点补 w-full，宽度才不随文案长短跳动。
     const props = {
       tab,
       connection,
@@ -146,9 +146,9 @@ describe("RemoteWorkspaceRecovery", () => {
     expect(screen.getByTestId("remote-workspace-recovery").className).toContain("w-full");
   });
 
-  it("狀態語意色：還原中為藍、存取遭拒為紅、需重新登入維持琥珀", () => {
-    // spec「進行中以藍呈現」「錯誤態以紅呈現」：舊版一律塗琥珀，「等一下就好」
-    // 與「這個工作區你進不去」看起來同一級。
+  it("状态语意色：还原中为蓝、访问遭拒为红、需重新登录维持琥珀", () => {
+    // spec「进行中以蓝呈现」「错误态以红呈现」：旧版一律涂琥珀，「等一下就好」
+    // 与「这个工作区你进不去」看起来同一级。
     const { unmount } = render(
       <RemoteWorkspaceRecovery
         tab={tab}

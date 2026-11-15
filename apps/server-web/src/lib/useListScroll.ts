@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-/** 列表卡的捲動區：`scrollRef` 交給 ListCard，換頁、改每頁筆數或切分頁後呼叫 `scrollToTop` 捲回頂部。 */
+/** 列表卡的卷动区：`scrollRef` 交给 ListCard，换页、改每页笔数或切分页后调用 `scrollToTop` 卷回顶部。 */
 export function useListScroll() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollToTop = () => {

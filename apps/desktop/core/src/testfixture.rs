@@ -1,41 +1,41 @@
-//! 測試共用的暫存專案 fixture：真實 speclink/ 目錄佈局（舊佈局 openspec/ 見
-//! [`FixtureRoot::legacy`]），測試結束自動清除。
-//! 取代早期直接指向本 repo 的自參照 fixture——repo 內容會隨 change 歸檔而變，
-//! 自參照測試會無聲腐化（desktop-shell-and-browser 歸檔後即斷）。
+//! 测试共用的暂存项目 fixture：真实 specseal/ 目录布局（旧布局 openspec/ 见
+//! [`FixtureRoot::legacy`]），测试结束自动清除。
+//! 取代早期直接指向本 repo 的自参照 fixture——repo 内容会随 change 归档而变，
+//! 自参照测试会无声腐化（desktop-shell-and-browser 归档后即断）。
 
 use std::path::{Path, PathBuf};
 
 pub(crate) struct FixtureRoot(PathBuf);
 
-/// [`FixtureRoot::attach_worktree`] 建立的 worktree 副本：路徑帶著往 change
-/// 目錄的導航，測試不再以裸 `PathBuf` 流轉、逐處手拼 `speclink/changes/<名>`。
+/// [`FixtureRoot::attach_worktree`] 创建的 worktree 副本：路径带着往 change
+/// 目录的导航，测试不再以裸 `PathBuf` 流转、逐处手拼 `specseal/changes/<名>`。
 pub(crate) struct WorktreeCopy(PathBuf);
 
 impl WorktreeCopy {
-    /// worktree 根（git 回報的正規化路徑）。
+    /// worktree 根（git 回报的范式路径）。
     pub fn path(&self) -> &Path {
         &self.0
     }
 
-    /// 一個 change 在這份副本內的目錄——寫入「只存在於 worktree」的內容用。
+    /// 一个 change 在这份副本内的目录——写入「只存在于 worktree」的内容用。
     pub fn change_dir(&self, change: &str) -> PathBuf {
-        self.0.join("speclink").join("changes").join(change)
+        self.0.join("specseal").join("changes").join(change)
     }
 }
 
 impl FixtureRoot {
     pub fn new(tag: &str) -> FixtureRoot {
-        FixtureRoot::with_spec_dir(tag, "speclink")
+        FixtureRoot::with_spec_dir(tag, "specseal")
     }
 
-    /// 舊佈局（openspec/）的專案：只給驗證舊佈局、匯入與遷移的測試用。
+    /// 旧布局（openspec/）的项目：只给验证旧布局、导入与迁移的测试用。
     pub fn legacy(tag: &str) -> FixtureRoot {
         FixtureRoot::with_spec_dir(tag, "openspec")
     }
 
     fn with_spec_dir(tag: &str, spec_dir: &str) -> FixtureRoot {
         let dir = std::env::temp_dir().join(format!(
-            "speclink-dtcore-{tag}-{}",
+            "specseal-dtcore-{tag}-{}",
             std::process::id()
         ));
         let _ = std::fs::remove_dir_all(&dir);
@@ -53,11 +53,11 @@ impl FixtureRoot {
         std::fs::write(&path, content).unwrap();
     }
 
-    /// 主 checkout ＋ 一個 speclink/<change> worktree，change 兩份副本皆在——
-    /// 探索成立映射的三個條件。
+    /// 主 checkout ＋ 一个 specseal/<change> worktree，change 两份副本皆在——
+    /// 探索成立映射的三个条件。
     ///
-    /// 呼叫前寫入的檔案都會進 seed commit，因此也存在於 worktree 副本；之後兩邊
-    /// 各自改檔即可製造「主 checkout 與 worktree 相異」的情境。
+    /// 调用前写入的文件都会进 seed commit，因此也存在于 worktree 副本；之后两边
+    /// 各自改档即可制造「主 checkout 与 worktree 相异」的情境。
     pub fn attach_worktree(&self, change: &str) -> WorktreeCopy {
         let git = |args: &[&str]| {
             let out = std::process::Command::new("git")
@@ -71,17 +71,17 @@ impl FixtureRoot {
                 .expect("run git");
             assert!(out.status.success(), "git {args:?}: {}", String::from_utf8_lossy(&out.stderr));
         };
-        self.write(".speclink.yaml", "tools:\n  - claude\n");
-        self.write("speclink/config.yaml", "schema: spec-driven\nworktree: true\n");
+        self.write(".specseal.yaml", "tools:\n  - claude\n");
+        self.write("specseal/config.yaml", "schema: spec-driven\nworktree: true\n");
         git(&["init", "-q", "-b", "main"]);
         git(&["add", "-A"]);
         git(&["commit", "-qm", "seed"]);
         let wt = self.0.join("wt");
-        git(&["worktree", "add", "-q", "-b", &format!("speclink/{change}"), wt.to_str().unwrap()]);
-        // 期望值與產品同源：產品逐字取 `git worktree list --porcelain` 的路徑，這裡
-        // 也拿 git 回報的拼法。自行 canonicalize 逼近不了——macOS 它解 /var symlink
-        // 剛好一致，Windows 卻會加上 \\?\ 前綴，而 git 回報的是正斜線＋8.3 短名
-        // （RUNNER~1）展開後的長名，兩種拼法指同一目錄仍對不上。
+        git(&["worktree", "add", "-q", "-b", &format!("specseal/{change}"), wt.to_str().unwrap()]);
+        // 期望值与产品同源：产品逐字取 `git worktree list --porcelain` 的路径，这里
+        // 也拿 git 回报的拼法。自行 canonicalize 逼近不了——macOS 它解 /var symlink
+        // 刚好一致，Windows 却会加上 \\?\ 前缀，而 git 回报的是正斜线＋8.3 短名
+        // （RUNNER~1）展开后的长名，两种拼法指同一目录仍对不上。
         let out = std::process::Command::new("git")
             .args(["worktree", "list", "--porcelain"])
             .current_dir(self.root())
@@ -96,22 +96,22 @@ impl FixtureRoot {
         WorktreeCopy(PathBuf::from(reported))
     }
 
-    /// 建一個含 proposal 與 tasks 的 change；meta 原文由呼叫端給（測 started_* 疊加）。
+    /// 建一个含 proposal 与 tasks 的 change；meta 原文由调用端给（测 started_* 叠加）。
     pub fn add_change(&self, name: &str, meta: &str) {
-        self.write(&format!("speclink/changes/{name}/.meta.yaml"), meta);
+        self.write(&format!("specseal/changes/{name}/.meta.yaml"), meta);
         self.write(
-            &format!("speclink/changes/{name}/proposal.md"),
+            &format!("specseal/changes/{name}/proposal.md"),
             "## Why\n\nDemo change.\n\n## What Changes\n\n- something\n",
         );
         self.write(
-            &format!("speclink/changes/{name}/tasks.md"),
+            &format!("specseal/changes/{name}/tasks.md"),
             "## 1. Group\n\n- [ ] 1.1 First task\n- [x] 1.2 Second task\n",
         );
     }
 }
 
-/// 看板顯示序的 change 名（走 `list_changes_at` 的清單 payload）——query 與 manage
-/// 兩邊的順序斷言共用。
+/// 看板显示序的 change 名（走 `list_changes_at` 的清单 payload）——query 与 manage
+/// 两边的顺序断言共用。
 pub(crate) fn board_names(root: &Path) -> Vec<String> {
     crate::query::list_changes_at(root)["changes"]
         .as_array()
@@ -121,9 +121,9 @@ pub(crate) fn board_names(root: &Path) -> Vec<String> {
         .collect()
 }
 
-/// 非 speclink 專案的空暫存目錄（向上探索找不到規格資料夾的情境）。
+/// 非 specseal 项目的空暂存目录（向上探索找不到规格文件夹的情境）。
 pub(crate) fn fresh_non_project_dir(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("speclink-dtcore-nonproject-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("specseal-dtcore-nonproject-{tag}-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&dir);
     dir
 }

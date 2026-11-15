@@ -1,7 +1,7 @@
-// 已安裝的 speclink 技能：完整名稱與輸入框提示用的那行說明。
+// 已安装的 specseal 技能：完整名称与输入框提示用的那行说明。
 export type Skill = { name: string; description: string }
 
-export type Lang = 'en' | 'zh-TW'
+export type Lang = 'en' | 'zh-CN'
 
 export type Stage = 'proposed' | 'in-progress' | 'ready'
 
@@ -13,7 +13,7 @@ export type PanelChange = {
   done: number
   total: number
   branch: string | null
-  // worktree 的資料夾；change 在 worktree 裡時，show／status 要在這裡跑才讀得到它那份。
+  // worktree 的文档夹；change 在 worktree 里时，show／status 要在这里跑才读得到它那份。
   cwd: string | null
 }
 
@@ -30,7 +30,7 @@ export type Board = {
 
 export type PanelTab = 'board' | 'talk' | 'quality'
 
-// 面板的分頁、收起的區塊、展開的列（`change:<name>`、`talk:<slug>`、`ticket:<name>`）。
+// 面板的分页、收起的区块、展开的列（`change:<name>`、`talk:<slug>`、`ticket:<name>`）。
 export type PanelView = { tab: PanelTab; closed: string[]; open: string[] }
 
 export type TaskItem = { done: boolean; manual: boolean; label: string }
@@ -41,7 +41,7 @@ export type Finding = { severity: string; path: string; text: string }
 
 export type Ticket = { round: number; findings: Finding[] }
 
-// 展開一列時才讀的內容。
+// 展开一列时才读的内容。
 export type Detail =
   | { kind: 'loading' }
   | { kind: 'error'; message: string }
@@ -50,16 +50,16 @@ export type Detail =
 
 export type QualityRow = { change: string; review: Ticket | null; verify: Ticket | null }
 
-// 品質分頁：切過去才讀；null 是還沒讀完。
+// 品质分页：切过去才读；null 是还没读完。
 export type Quality = { rows: QualityRow[]; error: string | null }
 
-// 這個 session 正在跑的 speclink 步驟（技能名稱去掉 speclink-，例如 apply）與 change；還不知道是 null。
-// archived：這個 change 已經在這個 session 封存。
+// 这个 session 正在跑的 specseal 步骤（技能名称去掉 specseal-，例如 apply）与 change；还不知道是 null。
+// archived：这个 change 已经在这个 session 封存。
 export type Focus = { verb: string | null; change: string | null; archived?: true }
 
 declare module 'claude-code' {
   interface PluginState {
-    'speclink-skills': {
+    'specseal-skills': {
       skills: Skill[]
       tab: string
       board: Board | null

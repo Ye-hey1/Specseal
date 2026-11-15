@@ -2,7 +2,7 @@ import * as React from "react";
 
 import { cn } from "../../lib/utils";
 
-/** 載入中佔位灰塊（shadcn 標準基元）。動畫逐處加 motion-reduce: 是本 repo 慣例。 */
+/** 加载中占位灰块（shadcn 标准基元）。动画逐处加 motion-reduce: 是本 repo 惯例。 */
 export function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div

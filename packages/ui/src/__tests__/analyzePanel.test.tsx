@@ -1,6 +1,6 @@
-// spec 需求「桌面 app 提供動詞操作面」的分析面板（design D1 兩層結構）：
-// 結構驗證列＋繁中維度摘要卡（零＝無問題、非零＝N 個問題）＋發現卡
-// （嚴重度、location、summary、recommendation 對應 --json 輸出）。
+// spec 需求「桌面 app 提供动词操作面」的分析面板（design D1 两层结构）：
+// 结构验证列＋繁中维度摘要卡（零＝无问题、非零＝N 个问题）＋发现卡
+// （严重度、location、summary、recommendation 对应 --json 输出）。
 import { describe, it, expect, vi } from "vitest";
 import { render as rtlRender, screen, within, fireEvent } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -10,7 +10,7 @@ import { AnalyzePanel } from "../components/AnalyzePanel";
 import type { AnalyzeReport } from "../adapter";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW">{children}</I18nProvider>
+  <I18nProvider locale="zh-CN">{children}</I18nProvider>
 );
 function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: zhWrapper });
@@ -57,42 +57,42 @@ const report: AnalyzeReport = {
 const ok = { valid: true, errors: [] };
 const dim = (name: string) => document.querySelector(`[data-dimension="${name}"]`) as HTMLElement;
 
-describe("AnalyzePanel（結構驗證列＋維度摘要卡＋發現卡）", () => {
-  it("維度摘要卡以繁中名呈現；零發現呈「無問題」、非零呈「N 個問題」", () => {
+describe("AnalyzePanel（结构验证列＋维度摘要卡＋发现卡）", () => {
+  it("维度摘要卡以繁中名呈现；零发现呈「无问题」、非零呈「N 个问题」", () => {
     render(<AnalyzePanel report={report} validate={ok} />);
-    expect(within(dim("Coverage")).getByText("覆蓋度")).toBeTruthy();
+    expect(within(dim("Coverage")).getByText("覆盖度")).toBeTruthy();
     expect(within(dim("Consistency")).getByText("一致性")).toBeTruthy();
     expect(within(dim("Ambiguity")).getByText("模糊度")).toBeTruthy();
     expect(within(dim("Gaps")).getByText("缺漏")).toBeTruthy();
-    expect(within(dim("Ambiguity")).getByText("18 個問題")).toBeTruthy();
-    expect(within(dim("Coverage")).getByText("1 個問題")).toBeTruthy();
-    expect(within(dim("Consistency")).getByText("無問題")).toBeTruthy();
-    expect(within(dim("Gaps")).getByText("無問題")).toBeTruthy();
+    expect(within(dim("Ambiguity")).getByText("18 个问题")).toBeTruthy();
+    expect(within(dim("Coverage")).getByText("1 个问题")).toBeTruthy();
+    expect(within(dim("Consistency")).getByText("无问题")).toBeTruthy();
+    expect(within(dim("Gaps")).getByText("无问题")).toBeTruthy();
   });
 
-  it("Warning 嚴重度徽章為琥珀警示，與同維度摘要同語意同色（不借主色表狀態）", () => {
-    // spec「介面狀態語意色分層」：警示＝琥珀。徽章與 Ambiguity 維度摘要講同一件事，
-    // 兩處必須同色——舊實作徽章走主色、摘要走琥珀，同頁自相矛盾。
+  it("Warning 严重度徽章为琥珀警示，与同维度摘要同语意同色（不借主色表状态）", () => {
+    // spec「接口状态语意色分层」：警示＝琥珀。徽章与 Ambiguity 维度摘要讲同一件事，
+    // 两处必须同色——旧实作徽章走主色、摘要走琥珀，同页自相矛盾。
     render(<AnalyzePanel report={report} validate={ok} />);
     const warn = document.querySelector('[data-finding="AMB-2"]') as HTMLElement;
     const badge = within(warn).getByText("Warning");
     expect(badge.className).toContain("status-warning");
     expect(badge.className).not.toContain("primary");
-    expect(within(dim("Ambiguity")).getByText("18 個問題").className).toContain("status-warning");
+    expect(within(dim("Ambiguity")).getByText("18 个问题").className).toContain("status-warning");
   });
 
-  it("驗證通過列與零問題維度為中性，不以主色表達狀態", () => {
-    // 主色保留給連結／互動／進度；「沒問題」是靜態結果，走中性。
+  it("验证通过列与零问题维度为中性，不以主色表达状态", () => {
+    // 主色保留给链接／交互／进度；「没问题」是静态结果，走中性。
     render(<AnalyzePanel report={report} validate={ok} />);
     const row = document.querySelector("[data-validate-row]") as HTMLElement;
     expect(row.className).toContain("text-muted-foreground");
     expect(row.className).not.toContain("text-primary");
-    const zero = within(dim("Consistency")).getByText("無問題");
+    const zero = within(dim("Consistency")).getByText("无问题");
     expect(zero.className).toContain("text-muted-foreground");
     expect(zero.className).not.toContain("text-primary");
   });
 
-  it("發現卡呈現嚴重度徽章、來源檔、摘要與建議行", () => {
+  it("发现卡呈现严重度徽章、来源档、摘要与建议行", () => {
     render(<AnalyzePanel report={report} validate={ok} />);
     const cards = document.querySelectorAll("[data-finding]");
     expect(cards.length).toBe(3);
@@ -103,36 +103,36 @@ describe("AnalyzePanel（結構驗證列＋維度摘要卡＋發現卡）", () =
     expect(within(first).getByText(/add a task/)).toBeTruthy();
   });
 
-  it("結構驗證通過呈單列通過標示", () => {
+  it("结构验证通过呈单列通过标示", () => {
     render(<AnalyzePanel report={report} validate={ok} />);
-    expect(screen.getByText("結構驗證通過")).toBeTruthy();
+    expect(screen.getByText("结构验证通过")).toBeTruthy();
   });
 
-  it("結構驗證失敗呈錯誤數並逐條列出錯誤", () => {
+  it("结构验证失败呈错误数并逐条列出错误", () => {
     render(
       <AnalyzePanel
         report={report}
-        validate={{ valid: false, errors: ["proposal.md 缺 Why", "tasks.md 無任務"] }}
+        validate={{ valid: false, errors: ["proposal.md 缺 Why", "tasks.md 无任务"] }}
       />,
     );
-    expect(screen.getByText(/結構驗證 2 個錯誤/)).toBeTruthy();
+    expect(screen.getByText(/结构验证 2 个错误/)).toBeTruthy();
     expect(screen.getByText(/proposal\.md 缺 Why/)).toBeTruthy();
-    expect(screen.getByText(/tasks\.md 無任務/)).toBeTruthy();
+    expect(screen.getByText(/tasks\.md 无任务/)).toBeTruthy();
   });
 
-  it("關閉鈕觸發 onClose", () => {
+  it("关闭钮触发 onClose", () => {
     const onClose = vi.fn();
     render(<AnalyzePanel report={report} validate={ok} onClose={onClose} />);
-    fireEvent.click(screen.getByRole("button", { name: "關閉分析結果" }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭分析结果" }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("IPC 邊界防禦：findings 與 dimensions 缺席時不崩潰、四卡仍呈現", () => {
+  it("IPC 边界防御：findings 与 dimensions 缺席时不崩溃、四卡仍呈现", () => {
     const malformed = { change_id: "x" } as unknown as AnalyzeReport;
     render(<AnalyzePanel report={malformed} validate={ok} />);
     for (const d of ["Coverage", "Consistency", "Ambiguity", "Gaps"]) {
       expect(dim(d)).toBeTruthy();
     }
-    expect(within(dim("Coverage")).getByText("無問題")).toBeTruthy();
+    expect(within(dim("Coverage")).getByText("无问题")).toBeTruthy();
   });
 });

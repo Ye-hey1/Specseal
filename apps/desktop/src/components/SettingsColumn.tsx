@@ -1,8 +1,8 @@
-// 設定分類欄（desktop-settings-mode design D2；desktop-about-page design D4）：設定模式下取代
-// 專案欄——頂部全圓搜尋框，其下「應用程式」群組五個分類與「關於」群組；搜尋以分類名與各頁
-// 列標籤過濾，只過濾分類、不跳到列，沒有命中的群組連標題一起隱藏。
+// 设置分类栏（desktop-settings-mode design D2；desktop-about-page design D4）：设置模式下取代
+// 项目栏——顶部全圆搜索框，其下「应用程序」群组五个分类与「关于」群组；搜索以分类名与各页
+// 列标签过滤，只过滤分类、不跳到列，没有命中的群组连标题一起隐藏。
 import { useState } from "react";
-import { NavItem, SearchField, SettingsGroupHeader, useI18n } from "@speclink/ui";
+import { NavItem, SearchField, SettingsGroupHeader, useI18n } from "@specseal/ui";
 
 import { matchAppSettings, type AppSettingsCategory, type SettingsSection } from "../settingsCatalog";
 

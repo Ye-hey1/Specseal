@@ -1,6 +1,6 @@
-// shadcn 風格的 Select（Radix 實作）。原生 <select> 的展開清單由作業系統繪製，
-// focus ring、選中態與圓角都跟不上 theme，且預設高度與同套 Input 不同；換成 Radix
-// 後整組控件同源。高度刻意與 Input 相同（h-8），工具列並排時才不會參差。
+// shadcn 风格的 Select（Radix 实作）。原生 <select> 的展开清单由操作系统绘制，
+// focus ring、选中态与圆角都跟不上 theme，且缺省高度与同套 Input 不同；换成 Radix
+// 后整组控件同源。高度刻意与 Input 相同（h-8），工具列并排时才不会参差。
 import * as React from "react";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import { Check, ChevronDown, ChevronUp } from "lucide-react";
@@ -19,7 +19,7 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      // 與 Input 原語同一組數值：並排時任何一項不同都看得出來。
+      // 与 Input 原语同一组数值：并排时任何一项不同都看得出来。
       "flex h-8 w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 py-1 text-sm transition-colors",
       "focus-visible:outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/30",
       "disabled:cursor-default disabled:opacity-50",
@@ -68,7 +68,7 @@ const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = "popper", ...props }, ref) => {
-  // 在抽屜／對話框內時 portal 進該容器，否則維持 body（見 portal-container.tsx）。
+  // 在抽屉／对话框内时 portal 进该容器，否则维持 body（见 portal-container.tsx）。
   const container = usePortalContainer();
   return (
   <SelectPrimitive.Portal container={container ?? undefined}>
@@ -76,8 +76,8 @@ const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        // 浮層底色用 bg-card：這份 theme 沒有 --popover，上游 shadcn 的 bg-popover
-        // 會產出解析不到值的宣告，選單直接變透明。Sheet 與 AlertDialog 也是 bg-card。
+        // 浮层底色用 bg-card：这份 theme 没有 --popover，上游 shadcn 的 bg-popover
+        // 会产出解析不到值的声明，菜单直接变透明。Sheet 与 AlertDialog 也是 bg-card。
         "relative z-50 max-h-96 min-w-56 overflow-hidden rounded-xl border border-border bg-card p-1.5 text-card-foreground shadow-lg shadow-black/5",
         position === "popper" && "data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1",
         className,
@@ -130,7 +130,7 @@ const SelectItem = React.forwardRef<
     ref={ref}
     className={cn(
       "relative flex w-full cursor-(--cursor-interaction) select-none items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] outline-none",
-      // 選取只呈勾號、不填主色；鍵盤與 hover 的停留項為灰底（Radix 以 focus 表示停留）。
+      // 选取只呈勾号、不填主色；键盘与 hover 的停留项为灰底（Radix 以 focus 表示停留）。
       "focus:bg-muted",
       "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
       className,
@@ -147,8 +147,8 @@ const SelectItem = React.forwardRef<
 ));
 SelectItem.displayName = SelectPrimitive.Item.displayName;
 
-/** 「全部」選項的值：篩選的「不篩選」在呼叫端是空字串或 null，但 Radix Select 的 item 不接受空字串，
- *  以這個哨兵值在元件與呼叫端之間來回換。 */
+/** 「全部」选项的值：筛选的「不筛选」在调用端是空字符串或 null，但 Radix Select 的 item 不接受空字符串，
+ *  以这个哨兵值在组件与调用端之间来回换。 */
 const SELECT_ALL = "__all__";
 
 export {

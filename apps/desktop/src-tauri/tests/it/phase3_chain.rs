@@ -1,12 +1,12 @@
-//! Phase 3 收官驗收：desktop remote 資料面、真實 CLI 與兩個隔離 server 的
-//! 單一連續劇本（phase3-acceptance spec）。
+//! Phase 3 收官验收：desktop remote 数据面、真实 CLI 与两个隔离 server 的
+//! 单一连续剧本（phase3-acceptance spec）。
 
 use crate::common;
 
-use speclink_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
-use speclink_desktop_lib::event_manager::EventManager;
-use speclink_desktop_lib::remote::{self, ConnectionState, TokenManager};
-use speclink_remote::events;
+use specseal_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
+use specseal_desktop_lib::event_manager::EventManager;
+use specseal_desktop_lib::remote::{self, ConnectionState, TokenManager};
+use specseal_remote::events;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Barrier, Condvar, Mutex};
@@ -15,10 +15,10 @@ use std::time::Duration;
 const TASKS: &str = "## 1. Work\n\n- [ ] 1.1 First\n";
 const RD_TASKS: &str = "## 1. RD Work\n\n- [ ] 1.1 Reflect through PM\n";
 const RD_PROPOSAL: &str =
-    "## Why\n\nRD checkout 驗證 CLI 與 desktop 資料面互通。\n\n## What Changes\n\n- 完成 RD 任務。\n";
+    "## Why\n\nRD checkout 验证 CLI 与 desktop 数据面互通。\n\n## What Changes\n\n- 完成 RD 任务。\n";
 
-/// 讓競態中的 refresh 讀取先取得同一份舊值。singleflight 正常時只有 leader
-/// 會進入此 gate，短暫 timeout 後即可自行前進；破壞互斥時兩個 caller 會同時抵達。
+/// 让竞态中的 refresh 读取先取得同一份旧值。singleflight 正常时只有 leader
+/// 会进入此 gate，短暂 timeout 后即可自行前进；破坏互斥时两个 caller 会同时抵达。
 struct ReconnectCredentialStore {
     inner: MemoryCredentialStore,
     armed: AtomicBool,
@@ -104,13 +104,13 @@ fn phase3_helpers_start_two_isolated_servers_and_drive_the_real_cli() {
     );
     assert!(
         String::from_utf8_lossy(&output.stdout).contains("chain-seed"),
-        "CLI 讀到第一個 server 的 change"
+        "CLI 读到第一个 server 的 change"
     );
     assert_ne!(
         h.first.store_path, h.second.store_path,
-        "兩個 server 使用獨立 SQLite"
+        "两个 server 使用独立 SQLite"
     );
-    assert!(h.second.is_ready(), "第二個 server 同時常駐");
+    assert!(h.second.is_ready(), "第二个 server 同时常驻");
 
     let credentials = MemoryCredentialStore::new();
     h.first.device_login_editor(&credentials);
@@ -120,8 +120,8 @@ fn phase3_helpers_start_two_isolated_servers_and_drive_the_real_cli() {
         .expect("device login stored refresh credential");
     h.first.revoke_editor_device_family();
     assert!(
-        speclink_remote::device::refresh(&h.first.origin, &refresh).is_err(),
-        "撤銷 device family 後 refresh credential 立即失效"
+        specseal_remote::device::refresh(&h.first.origin, &refresh).is_err(),
+        "撤销 device family 后 refresh credential 立即失效"
     );
 }
 
@@ -130,7 +130,7 @@ fn scenario_failures_include_the_name_both_server_tails_and_connection_states() 
     let h = common::phase3_harness();
     let states = [("first", "online"), ("second", "online")];
     let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        common::scenario_assert!(&h, "多 tab", &states, false, "刻意失敗以驗證診斷形狀");
+        common::scenario_assert!(&h, "多 tab", &states, false, "刻意失败以验证诊断形状");
     }))
     .expect_err("scenario assertion deliberately fails");
     let message = failure
@@ -153,7 +153,7 @@ fn scenario_failures_include_the_name_both_server_tails_and_connection_states() 
     ] {
         assert!(
             message.contains(section),
-            "失敗現場包含 {section}: {message}"
+            "失败现场包含 {section}: {message}"
         );
     }
 }
@@ -249,33 +249,33 @@ fn same_origin_workspaces_share_one_rotation_after_reconnect() {
             .changes
             .iter()
             .any(|change| change.summary.name == "pm-reconnect")),
-        "PM workspace 應在重連 rotation 後恢復：{pm_changes:?}"
+        "PM workspace 应在重连 rotation 后恢复：{pm_changes:?}"
     );
     assert!(
         rd_changes.as_ref().is_ok_and(|list| list
             .changes
             .iter()
             .any(|change| change.summary.name == "rd-reconnect")),
-        "RD workspace 應共用 rotation 並恢復：{rd_changes:?}"
+        "RD workspace 应共用 rotation 并恢复：{rd_changes:?}"
     );
     assert_ne!(
         refresh_after, refresh_before,
-        "重連必須確實完成一次 refresh credential rotation"
+        "重连必须确实完成一次 refresh credential rotation"
     );
     assert_eq!(
         refresh_readers, 1,
-        "同來源多 workspace 只能由 singleflight leader thread 執行 rotation"
+        "同来源多 workspace 只能由 singleflight leader thread 运行 rotation"
     );
     assert!(
         manager.needs_reauth().is_none(),
-        "競態不得誤入 needs-reauth"
+        "竞态不得误入 needs-reauth"
     );
     assert_eq!(manager.connection_state(), ConnectionState::Online);
     assert!(
         state_rx
             .try_iter()
             .all(|event| event.state != ConnectionState::NeedsReauth),
-        "競態不得廣播 needs-reauth"
+        "竞态不得广播 needs-reauth"
     );
 }
 
@@ -286,10 +286,10 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let initial_states = [("first", "not-opened"), ("second", "not-opened")];
     common::scenario_assert!(
         &h,
-        "第一幕：雙 server 起機與 setup",
+        "第一幕：双 server 起机与 setup",
         &initial_states,
         h.first.is_ready() && h.second.is_ready(),
-        "兩個隔離 server 必須同時常駐"
+        "两个隔离 server 必须同时常驻"
     );
 
     let credentials = Arc::new(MemoryCredentialStore::new());
@@ -313,57 +313,57 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let states = [("first", first_state.as_str()), ("second", "not-opened")];
     common::scenario_assert!(
         &h,
-        "第二幕：PM 無 checkout 登入與 handshake",
+        "第二幕：PM 无 checkout 登录与 handshake",
         &states,
         opened.is_ok(),
-        &format!("handshake 失敗：{:?}", opened.as_ref().err())
+        &format!("handshake 失败：{:?}", opened.as_ref().err())
     );
     let (pm_workspace, pm_info) = opened.expect("checked PM handshake");
     common::scenario_assert!(
         &h,
-        "第二幕：PM 無 checkout session 身分",
+        "第二幕：PM 无 checkout session 身分",
         &states,
         pm_info.project_key == "alpha" && pm_info.repo_key == "pm",
-        "handshake 必須綁定 alpha/pm"
+        "handshake 必须绑定 alpha/pm"
     );
 
     let changes = pm_workspace.list_changes(credentials.as_ref(), None);
     common::scenario_assert!(
         &h,
-        "第二幕：PM 清單讀取",
+        "第二幕：PM 清单读取",
         &states,
         changes
             .as_ref()
             .is_ok_and(|list| { list.changes.len() == 1 && list.changes[0].summary.name == "pm-plan" }),
-        "清單必須只包含前幕播種的 pm-plan"
+        "清单必须只包含前幕播种的 pm-plan"
     );
     let document = pm_workspace.document(credentials.as_ref(), "pm-plan", "tasks.md");
     common::scenario_assert!(
         &h,
-        "第二幕：PM 文件讀取",
+        "第二幕：PM 文档读取",
         &states,
         document
             .as_ref()
             .is_ok_and(|artifact| artifact.content.contains("- [ ] 1.1 First")),
-        "tasks.md 必須來自 server 真值"
+        "tasks.md 必须来自 server 真值"
     );
     let written = pm_workspace.set_task_done(credentials.as_ref(), "pm-plan", "1", true);
     common::scenario_assert!(
         &h,
-        "第二幕：PM 任務勾選寫入",
+        "第二幕：PM 任务勾选写入",
         &states,
         written.is_ok(),
-        &format!("task done 失敗：{written:?}")
+        &format!("task done 失败：{written:?}")
     );
     let after_write = pm_workspace.document(credentials.as_ref(), "pm-plan", "tasks.md");
     common::scenario_assert!(
         &h,
-        "第二幕：PM 任務寫穿 server",
+        "第二幕：PM 任务写穿 server",
         &states,
         after_write
             .as_ref()
             .is_ok_and(|artifact| artifact.content.contains("- [x] 1.1 First")),
-        "勾選結果必須可由同一 session 重讀"
+        "勾选结果必须可由同一 session 重读"
     );
 
     let reader_credentials = MemoryCredentialStore::new();
@@ -384,7 +384,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         reader_open
             .as_ref()
             .is_ok_and(|(_, info)| !info.capabilities.policy_write),
-        "reader 的 policyWrite capability 必須為 false"
+        "reader 的 policyWrite capability 必须为 false"
     );
 
     let rd_open = remote::open_workspace(
@@ -395,10 +395,10 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     );
     common::scenario_assert!(
         &h,
-        "第三幕：PM 開啟 RD spec-only 資料面",
+        "第三幕：PM 打开 RD spec-only 数据面",
         &states,
         rd_open.is_ok(),
-        &format!("RD scope handshake 失敗：{:?}", rd_open.as_ref().err())
+        &format!("RD scope handshake 失败：{:?}", rd_open.as_ref().err())
     );
     let (rd_workspace, _) = rd_open.expect("checked RD handshake");
 
@@ -455,11 +455,11 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         };
         common::scenario_assert!(
             &h,
-            "第三幕：RD CLI 建立 change 與 artifacts",
+            "第三幕：RD CLI 创建 change 与 artifacts",
             &states,
             output.status.success(),
             &format!(
-                "speclink {:?} 失敗：{}",
+                "specseal {:?} 失败：{}",
                 args,
                 String::from_utf8_lossy(&output.stderr)
             )
@@ -473,27 +473,27 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         &states,
         task_done.status.success(),
         &format!(
-            "task done 失敗：{}",
+            "task done 失败：{}",
             String::from_utf8_lossy(&task_done.stderr)
         )
     );
     let invalidated = invalidated_rx.recv_timeout(Duration::from_secs(5));
     common::scenario_assert!(
         &h,
-        "第三幕：RD 寫入即時反映至 PM 資料面",
+        "第三幕：RD 写入即时反映至 PM 数据面",
         &states,
         invalidated.as_deref() == Ok(RD_KEY),
-        &format!("五秒內必須收到 locator invalidate：{invalidated:?}")
+        &format!("五秒内必须收到 locator invalidate：{invalidated:?}")
     );
     let reflected = rd_workspace.document(credentials.as_ref(), "rd-plan", "tasks.md");
     common::scenario_assert!(
         &h,
-        "第三幕：PM 經 invalidate 重查 server 真值",
+        "第三幕：PM 经 invalidate 重查 server 真值",
         &states,
         reflected
             .as_ref()
             .is_ok_and(|artifact| artifact.content.contains("- [x] 1.1 Reflect through PM")),
-        "PM 資料面重查必須看見 RD 完成狀態"
+        "PM 数据面重查必须看见 RD 完成状态"
     );
 
     h.second.seed_change("main", "second-plan", TASKS);
@@ -503,12 +503,12 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         .expect("first refresh exists before second login");
     common::scenario_assert!(
         &h,
-        "第四幕：多 server credential 依 origin 隔離",
+        "第四幕：多 server credential 依 origin 隔离",
         &states,
         credentials
             .get(&h.second.origin, CredentialKind::Refresh)
             .is_ok_and(|credential| credential.is_none()),
-        "第二個 origin 登入前不得讀到第一個 origin 的 refresh credential"
+        "第二个 origin 登录前不得读到第一个 origin 的 refresh credential"
     );
     h.second.device_login_editor(credentials.as_ref());
     let first_refresh_after_second_login = credentials
@@ -521,11 +521,11 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         .expect("second refresh stored by origin");
     common::scenario_assert!(
         &h,
-        "第四幕：多 server credential 不互相覆寫",
+        "第四幕：多 server credential 不互相覆写",
         &states,
         first_refresh_after_second_login == first_refresh_before_second_login
             && second_refresh != first_refresh_after_second_login,
-        "第二個 origin 登入後，兩邊 refresh credential 必須各自保留"
+        "第二个 origin 登录后，两边 refresh credential 必须各自保留"
     );
 
     let (second_state_tx, second_state_rx) = std::sync::mpsc::channel();
@@ -551,15 +551,15 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     ];
     common::scenario_assert!(
         &h,
-        "第四幕：第二連線開啟獨立 session",
+        "第四幕：第二连接打开独立 session",
         &multi_server_states,
         second_open.is_ok(),
-        &format!("第二連線 handshake 失敗：{:?}", second_open.as_ref().err())
+        &format!("第二连接 handshake 失败：{:?}", second_open.as_ref().err())
     );
     let (second_workspace, second_info) = second_open.expect("checked second handshake");
     common::scenario_assert!(
         &h,
-        "第四幕：第二連線只看見自己的 scope",
+        "第四幕：第二连接只看见自己的 scope",
         &multi_server_states,
         second_info.project_key == "beta"
             && second_info.repo_key == "main"
@@ -568,7 +568,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
                 .is_ok_and(|list| {
                     list.changes.len() == 1 && list.changes[0].summary.name == "second-plan"
                 }),
-        "第二連線必須綁定 beta/main 且不能讀到第一個 server 的 changes"
+        "第二连接必须绑定 beta/main 且不能读到第一个 server 的 changes"
     );
 
     const SECOND_KEY: &str = "remote:conn_second/beta/main";
@@ -610,7 +610,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
             && first_server_event.as_deref() == Ok(RD_KEY)
             && first_server_extra.is_err(),
         &format!(
-            "第一 server 寫入只應分發 {RD_KEY}：write={first_server_write:?}, event={first_server_event:?}, extra={first_server_extra:?}"
+            "第一 server 写入只应分发 {RD_KEY}：write={first_server_write:?}, event={first_server_event:?}, extra={first_server_extra:?}"
         )
     );
 
@@ -626,7 +626,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
             && second_server_event.as_deref() == Ok(SECOND_KEY)
             && second_server_extra.is_err(),
         &format!(
-            "第二 server 寫入只應分發 {SECOND_KEY}：write={second_server_write:?}, event={second_server_event:?}, extra={second_server_extra:?}"
+            "第二 server 写入只应分发 {SECOND_KEY}：write={second_server_write:?}, event={second_server_event:?}, extra={second_server_extra:?}"
         )
     );
 
@@ -670,14 +670,14 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         rd_connects.load(Ordering::SeqCst) + pm_connects.load(Ordering::SeqCst);
     common::scenario_assert!(
         &h,
-        "第五幕：多 tab 依 locator scope 共用與隔離事件流",
+        "第五幕：多 tab 依 locator scope 共用与隔离事件流",
         &multi_server_states,
         first_server_streams == 2
             && rd_connects.load(Ordering::SeqCst) == 1
             && pm_connects.load(Ordering::SeqCst) == 1
             && duplicate_rd_connects.load(Ordering::SeqCst) == 0,
         &format!(
-            "PM／RD 各一條、同 RD locator 第二個 session 不另開流：total={first_server_streams}, rd={}, pm={}, duplicate={}",
+            "PM／RD 各一条、同 RD locator 第二个 session 不另开流：total={first_server_streams}, rd={}, pm={}, duplicate={}",
             rd_connects.load(Ordering::SeqCst),
             pm_connects.load(Ordering::SeqCst),
             duplicate_rd_connects.load(Ordering::SeqCst)
@@ -690,7 +690,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let pm_extra = invalidated_rx.recv_timeout(Duration::from_millis(300));
     common::scenario_assert!(
         &h,
-        "第五幕：PM scope 寫入只分發 PM locator",
+        "第五幕：PM scope 写入只分发 PM locator",
         &multi_server_states,
         pm_write.is_ok() && pm_event.as_deref() == Ok(PM_KEY) && pm_extra.is_err(),
         &format!("PM write={pm_write:?}, event={pm_event:?}, extra={pm_extra:?}")
@@ -701,7 +701,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let rd_extra = invalidated_rx.recv_timeout(Duration::from_millis(300));
     common::scenario_assert!(
         &h,
-        "第五幕：RD scope 寫入只分發 RD locator",
+        "第五幕：RD scope 写入只分发 RD locator",
         &multi_server_states,
         rd_write.is_ok() && rd_event.as_deref() == Ok(RD_KEY) && rd_extra.is_err(),
         &format!("RD write={rd_write:?}, event={rd_event:?}, extra={rd_extra:?}")
@@ -719,25 +719,25 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     ];
     common::scenario_assert!(
         &h,
-        "第六幕：第一 server 失聯廣播 offline",
+        "第六幕：第一 server 失联广播 offline",
         &outage_states,
         offline_event
             .as_ref()
             .is_ok_and(|event| event.state == ConnectionState::Offline)
             && first_manager.connection_state() == ConnectionState::Offline
             && !h.first.is_ready(),
-        &format!("五秒內必須轉為 offline：{offline_event:?}")
+        &format!("五秒内必须转为 offline：{offline_event:?}")
     );
 
     let offline_write = pm_workspace.set_task_done(credentials.as_ref(), "pm-plan", "1", true);
     common::scenario_assert!(
         &h,
-        "第六幕：離線寫入即拒且不排隊",
+        "第六幕：脱机写入即拒且不排队",
         &outage_states,
         offline_write
             .as_ref()
             .is_err_and(|error| error.reason.as_deref() == Some("offline")),
-        &format!("offline write 必須以 offline reason 拒絕：{offline_write:?}")
+        &format!("offline write 必须以 offline reason 拒绝：{offline_write:?}")
     );
 
     let second_live_write =
@@ -749,7 +749,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let second_during_outage = second_workspace.list_changes(credentials.as_ref(), None);
     common::scenario_assert!(
         &h,
-        "第六幕：第一 server 失聯不波及第二 server",
+        "第六幕：第一 server 失联不波及第二 server",
         &outage_states,
         second_live_write.is_ok()
             && second_cli_write.status.success()
@@ -761,7 +761,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
             })
             && second_state_rx.try_recv().is_err(),
         &format!(
-            "第二 server 應維持 online 並接受 CLI 寫入：write={second_live_write:?}, cli={}, list={second_during_outage:?}",
+            "第二 server 应维持 online 并接受 CLI 写入：write={second_live_write:?}, cli={}, list={second_during_outage:?}",
             second_cli_write.status
         )
     );
@@ -769,8 +769,8 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     h.first.seed_change("pm", "first-during-outage", TASKS);
     while invalidated_rx.try_recv().is_ok() {}
     h.first.start();
-    // 期限須蓋過 client 的 SSE stall 偵測（45s）：半開連線的 worker 要等
-    // stall 逾時才會重訂。正常路徑事件毫秒級到達，迴圈立即結束。
+    // 期限须盖过 client 的 SSE stall 侦测（45s）：半开连接的 worker 要等
+    // stall 逾时才会重订。正常路径事件毫秒级到达，循环立即结束。
     let online_event = first_state_rx.recv_timeout(Duration::from_secs(75));
     let recovery_deadline = std::time::Instant::now() + Duration::from_secs(75);
     let mut recovery_keys = Vec::new();
@@ -786,7 +786,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let rejected_write_absent = pm_workspace.document(credentials.as_ref(), "pm-plan", "tasks.md");
     common::scenario_assert!(
         &h,
-        "第六幕：第一 server 重啟後以 Polling＋ETag 自動收斂",
+        "第六幕：第一 server 重启后以 Polling＋ETag 自动收敛",
         &multi_server_states,
         online_event
             .as_ref()
@@ -801,7 +801,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
                 .as_ref()
                 .is_ok_and(|artifact| artifact.content.contains("- [ ] 1.1 First")),
         &format!(
-            "重啟應 online、發 PM invalidate、讀到期間變更且離線寫入未入列：state={online_event:?}, keys={recovery_keys:?}, changes={recovered_changes:?}, task={rejected_write_absent:?}"
+            "重启应 online、发 PM invalidate、读到期间变更且脱机写入未入列：state={online_event:?}, keys={recovery_keys:?}, changes={recovered_changes:?}, task={rejected_write_absent:?}"
         )
     );
 
@@ -811,7 +811,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let reauth_event = first_state_rx.recv_timeout(Duration::from_secs(5));
     common::scenario_assert!(
         &h,
-        "第六幕：撤銷 device family 轉為 needs-reauth",
+        "第六幕：撤销 device family 转为 needs-reauth",
         &multi_server_states,
         revoked_read
             .as_ref()
@@ -820,7 +820,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
                 .as_ref()
                 .is_ok_and(|event| event.state == ConnectionState::NeedsReauth)
             && first_manager.connection_state() == ConnectionState::NeedsReauth,
-        &format!("撤銷後必須廣播 needs-reauth：read={revoked_read:?}, state={reauth_event:?}")
+        &format!("撤销后必须广播 needs-reauth：read={revoked_read:?}, state={reauth_event:?}")
     );
 
     let relogin_access = h.first.device_login_editor(credentials.as_ref());
@@ -829,7 +829,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     let recovered_in_place = pm_workspace.list_changes(credentials.as_ref(), None);
     common::scenario_assert!(
         &h,
-        "第六幕：重新登入後原 session 原地恢復",
+        "第六幕：重新登录后原 session 原地恢复",
         &multi_server_states,
         relogin_event
             .as_ref()
@@ -841,7 +841,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
                     .any(|change| change.summary.name == "first-during-outage")
             }),
         &format!(
-            "同一 workspace／manager 應恢復：state={relogin_event:?}, list={recovered_in_place:?}"
+            "同一 workspace／manager 应恢复：state={relogin_event:?}, list={recovered_in_place:?}"
         )
     );
 
@@ -849,10 +849,10 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
         .join("..")
         .join("..")
         .join("..");
-    let local_context = speclink_desktop_core::init_core_context(&repo_root);
+    let local_context = specseal_desktop_core::init_core_context(&repo_root);
     common::scenario_assert!(
         &h,
-        "Gate 1：local＋remote spec-only＋remote checkout 三形態 session 並存",
+        "Gate 1：local＋remote spec-only＋remote checkout 三形态 session 并存",
         &multi_server_states,
         local_context.is_some()
             && recovered_in_place.is_ok()
@@ -860,28 +860,28 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
             && rd_workspace
                 .list_changes(credentials.as_ref(), None)
                 .is_ok_and(|list| list.changes.iter().any(|change| change.summary.name == "rd-plan")),
-        "本地資料層、PM spec-only 與 RD checkout 必須在同一劇本同時存活"
+        "本地数据层、PM spec-only 与 RD checkout 必须在同一剧本同时存活"
     );
 
     let rd_key_with_checkout = "remote:conn_first/alpha/rd";
     common::scenario_assert!(
         &h,
-        "Gate 2：分頁身分使用 locator key 而非 root path",
+        "Gate 2：分页身分使用 locator key 而非 root path",
         &multi_server_states,
         PM_KEY != rd_key_with_checkout
             && RD_KEY == rd_key_with_checkout
             && !rd_key_with_checkout.contains(checkout.root().to_string_lossy().as_ref()),
-        "PM／RD scope 應有不同 locator key，checkoutRoot 不得參與 RD 身分"
+        "PM／RD scope 应有不同 locator key，checkoutRoot 不得参与 RD 身分"
     );
 
     common::scenario_assert!(
         &h,
-        "Gate 3：capability 驅動 reader policy 停用",
+        "Gate 3：capability 驱动 reader policy 停用",
         &multi_server_states,
         reader_open
             .as_ref()
             .is_ok_and(|(_, info)| !info.capabilities.policy_write),
-        "reader handshake 的 policyWrite 必須持續為 false"
+        "reader handshake 的 policyWrite 必须持续为 false"
     );
 
     let persisted_tabs = serde_json::json!({
@@ -938,7 +938,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
     ];
     common::scenario_assert!(
         &h,
-        "Gate 4：registry 與 tabs 持久化 payload 無 credential",
+        "Gate 4：registry 与 tabs 持久化 payload 无 credential",
         &multi_server_states,
         known_credentials.iter().all(|credential| {
             !credential.is_empty()
@@ -946,12 +946,12 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
                     .iter()
                     .all(|payload| !payload.contains(*credential))
         }),
-        "connection registry 與分頁序列化不得含 PAT、refresh 或 access token"
+        "connection registry 与分页串行化不得含 PAT、refresh 或 access token"
     );
 
     common::scenario_assert!(
         &h,
-        "Gate 5：Polling＋ETag 使重啟後自動收斂",
+        "Gate 5：Polling＋ETag 使重启后自动收敛",
         &multi_server_states,
         pm_connects.load(Ordering::SeqCst) >= 2
             && rd_connects.load(Ordering::SeqCst) >= 2
@@ -962,7 +962,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
                     .any(|change| change.summary.name == "first-during-outage")
             }),
         &format!(
-            "兩 scope 都應重連且 PM 應經 invalidate 重讀新真值：pm={}, rd={}, keys={recovery_keys:?}",
+            "两 scope 都应重连且 PM 应经 invalidate 重读新真值：pm={}, rd={}, keys={recovery_keys:?}",
             pm_connects.load(Ordering::SeqCst),
             rd_connects.load(Ordering::SeqCst)
         )
@@ -970,7 +970,7 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
 
     common::scenario_assert!(
         &h,
-        "Gate 6：stale 只讀、離線寫入不排隊",
+        "Gate 6：stale 只读、脱机写入不排队",
         &multi_server_states,
         offline_write
             .as_ref()
@@ -978,6 +978,6 @@ fn phase3_five_scenarios_run_as_one_continuous_chain() {
             && rejected_write_absent
                 .as_ref()
                 .is_ok_and(|artifact| artifact.content.contains("- [ ] 1.1 First")),
-        "離線寫入必須即拒，恢復後 server tasks.md 仍維持未勾選"
+        "脱机写入必须即拒，恢复后 server tasks.md 仍维持未勾选"
     );
 }

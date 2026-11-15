@@ -1,6 +1,6 @@
-// 詳情頁頂列右端的 ‹ n／m ›（desktop-readonly-detail-pages design D2；server-web-detail-pages
-// design D3 搬進共用元件庫）：在宿主清單的呈現順序內切換上一個／下一個，到頭停用不循環；
-// 目前項目不在序列中（例如剛被外部刪除）時整組缺席。
+// 详情页顶列右端的 ‹ n／m ›（desktop-readonly-detail-pages design D2；server-web-detail-pages
+// design D3 搬进共用组件库）：在宿主清单的呈现顺序内切换上一个／下一个，到头停用不循环；
+// 目前项目不在串行中（例如刚被外部删除）时整组缺席。
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useI18n } from "../i18n";
@@ -11,7 +11,7 @@ export function DetailNav({
   total,
   onStep,
 }: {
-  /** 目前項目在序列中的 0 起索引；-1＝不在序列中。 */
+  /** 目前项目在串行中的 0 起索引；-1＝不在串行中。 */
   index: number;
   total: number;
   onStep: (delta: -1 | 1) => void;

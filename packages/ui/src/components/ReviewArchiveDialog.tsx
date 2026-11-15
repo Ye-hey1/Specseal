@@ -13,22 +13,22 @@ import { Button } from "./ui/button";
 
 export interface ReviewArchiveDialogProps {
   open: boolean;
-  /** 要封存的 change 名稱（對話框文案帶出）。 */
+  /** 要封存的 change 名称（对话框文案带出）。 */
   change: string | null;
-  /** 哪一個品質站的工單未結；預設審查站。兩站工單並存時由宿主依序各彈一次
-   * （spec「封存入口三選項擴及驗證工單」：分別處置後才封存）。 */
+  /** 哪一个品质站的工单未结；缺省审查站。两站工单并存时由宿主依序各弹一次
+   * （spec「封存入口三选项扩及验证工单」：分别处置后才封存）。 */
   station?: "review" | "verify";
   onOpenChange: (open: boolean) => void;
-  /** 前往完成蓋章：不封存，導引使用者收尾審查（宿主通常開啟詳情抽屜）。 */
+  /** 前往完成盖章：不封存，导引用户收尾审查（宿主通常打开详情抽屉）。 */
   onGoStamp: () => void;
-  /** 放棄審查後封存（等同 `review discard` 再 archive）。 */
+  /** 放弃审查后封存（等同 `review discard` 再 archive）。 */
   onDiscardReview: () => void;
-  /** 照樣帶走（等同 `archive --carry-review`）：永久顯示「曾審查未通過」。 */
+  /** 照样带走（等同 `archive --carry-review`）：永久显示「曾审查未通过」。 */
   onCarryReview: () => void;
 }
 
-/** 封存入口的未結工單三選項對話框（spec「封存入口的未結工單三選項」；design
- * D6）：目標 change 審查中（工單未結）時取代一般封存確認；未選擇前不執行任何
+/** 封存入口的未结工单三选项对话框（spec「封存入口的未结工单三选项」；design
+ * D6）：目标 change 审查中（工单未结）时取代一般封存确认；未选择前不运行任何
  * 封存。 */
 export function ReviewArchiveDialog({
   open,
@@ -40,7 +40,7 @@ export function ReviewArchiveDialog({
   onCarryReview,
 }: ReviewArchiveDialogProps) {
   const { t } = useI18n();
-  // 站別只換詞條前綴——版面、選項數與危險動作分工兩站一致。
+  // 站别只换词条前缀——版面、选项数与危险动作分工两站一致。
   const k = (name: string) => `${station}.${name}`;
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -56,7 +56,7 @@ export function ReviewArchiveDialog({
           <Button variant="outline" onClick={onDiscardReview}>
             {t(k("discardReview"))}
           </Button>
-          {/* 危險動作走 destructive；rose 專屬「曾審查未通過」的永久標示（三紅分工）。 */}
+          {/* 危险动作走 destructive；rose 专属「曾审查未通过」的永久标示（三红分工）。 */}
           <Button variant="outline" className={SEMANTIC_TONE.danger} onClick={onCarryReview}>
             {t(k("carryReview"))}
           </Button>

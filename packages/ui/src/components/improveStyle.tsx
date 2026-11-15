@@ -1,21 +1,21 @@
 import { Sparkles } from "lucide-react";
 
-/* 改進討論標示樣式表（spec desktop-app「看板討論卡片的改進標示」「討論抽屜的
-   改進標示」共用）：卡片小章、promoted 收合列、已封存側與兩個抽屜的對照只此
-   一份——鏡射 reviewStyle.tsx 的集中模式。色調取 improve token（indigo）：審查／
-   驗證章的紫是品質站蓋章專屬，此章標的是討論型別而非狀態，兩者不共色。 */
+/* 改进讨论标示样式表（spec desktop-app「看板讨论卡片的改进标示」「讨论抽屉的
+   改进标示」共用）：卡片小章、promoted 收合列、已封存侧与两个抽屉的对照只此
+   一份——镜射 reviewStyle.tsx 的集中模式。色调取 improve token（indigo）：审查／
+   验证章的紫是品质站盖章专属，此章标的是讨论类型而非状态，两者不共色。 */
 export const IMPROVE_TONE = "text-improve";
 
-/** 抽屜章籤的染色底——透明度對齊 tone.ts 的 /10 慣例。 */
+/** 抽屉章签的染色底——透明度对齐 tone.ts 的 /10 惯例。 */
 export const IMPROVE_CHIP_TONE = "bg-improve/10";
 
-/** 改進標示圖示（各呈現面自帶尺寸 className）。 */
+/** 改进标示图标（各呈现面自带尺寸 className）。 */
 export const ImproveIcon = Sparkles;
 
-/** 改進討論的 i18n 詞條 key——卡片小章、已封存側與抽屜標示共用同一份文案。 */
+/** 改进讨论的 i18n 词条 key——卡片小章、已封存侧与抽屉标示共用同一份文案。 */
 export const IMPROVE_LABEL_KEY = "discussion.kindImprove";
 
-/** kind 是否為改進討論（單一合法值，缺席即一般討論）。 */
+/** kind 是否为改进讨论（单一合法值，缺席即一般讨论）。 */
 export function isImproveKind(kind?: string | null): boolean {
   return kind === "improve";
 }

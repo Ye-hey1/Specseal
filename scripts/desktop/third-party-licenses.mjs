@@ -1,13 +1,13 @@
-// 第三方授權清單（desktop-about-page design D3）：關於頁「第三方授權」對話框的資料來源，
-// 建置時重生、不入版本控制（apps/desktop/package.json 的 predev 與 prebuild 串接本腳本）。
+// 第三方授权清单（desktop-about-page design D3）：关于页「第三方授权」对话框的数据源，
+// 建置时重生、不入版本控制（apps/desktop/package.json 的 predev 与 prebuild 串接本脚本）。
 //
 // 用法：node scripts/desktop/third-party-licenses.mjs
-//   npm 節：package-lock.json 中 apps/desktop 與 packages/ui 的生產相依（遞迴，不含 dev），
-//     授權取 lock 條目的 license 欄（npm 寫入 lock 時照抄套件的 package.json）
-//   cargo 節：cargo metadata 相依圖中 speclink-desktop 與 speclink-cli 的正式相依（遞迴，不含 dev 與
-//     build 相依），workspace 成員只穿過、不列入；cargo 無法執行或 Cargo.lock 過期時警告並輸出空節
-// 產出：apps/desktop/src/generated/third-party-licenses.json（{ npm, cargo }，各依名稱排序；
-//   授權缺席為 null，由 UI 以介面語言顯示「未標示」）
+//   npm 节：package-lock.json 中 apps/desktop 与 packages/ui 的生产相依（递归，不含 dev），
+//     授权取 lock 条目的 license 栏（npm 写入 lock 时照抄套件的 package.json）
+//   cargo 节：cargo metadata 相依图中 specseal-desktop 与 specseal-cli 的正式相依（递归，不含 dev 与
+//     build 相依），workspace 成员只穿过、不列入；cargo 无法运行或 Cargo.lock 过期时警告并输出空节
+// 产出：apps/desktop/src/generated/third-party-licenses.json（{ npm, cargo }，各依名称排序；
+//   授权缺席为 null，由 UI 以接口语言显示「未标示」）
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
@@ -15,16 +15,16 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** 打包進桌面 app 的兩個工作區。 */
+/** 打包进桌面 app 的两个工作区。 */
 const WORKSPACES = ['apps/desktop', 'packages/ui'];
 
-/** 桌面 app 與隨附 CLI 的 crate。 */
-const CARGO_ROOTS = ['speclink-desktop', 'speclink-cli'];
+/** 桌面 app 与随附 CLI 的 crate。 */
+const CARGO_ROOTS = ['specseal-desktop', 'specseal-cli'];
 
 const byNameThenVersion = (a, b) =>
   a.name.localeCompare(b.name) || a.version.localeCompare(b.version, undefined, { numeric: true });
 
-/** 從 `from` 位置解析相依 `name` 的 lock 鍵：由近而遠找 node_modules，找不到為 null。 */
+/** 从 `from` 位置解析相依 `name` 的 lock 键：由近而远找 node_modules，找不到为 null。 */
 function resolveKey(packages, from, name) {
   let base = from;
   for (;;) {
@@ -36,7 +36,7 @@ function resolveKey(packages, from, name) {
   }
 }
 
-/** lock 中兩個工作區的生產相依（遞迴走 dependencies），工作區連結只穿過、不列入。 */
+/** lock 中两个工作区的生产相依（递归走 dependencies），工作区链接只穿过、不列入。 */
 export function npmLicenses(lock) {
   const packages = lock.packages ?? {};
   const seen = new Set();
@@ -59,7 +59,7 @@ export function npmLicenses(lock) {
   return [...entries.values()].sort(byNameThenVersion);
 }
 
-/** 相依圖中兩個根 crate 的正式相依（遞迴走 resolve.nodes），workspace 成員只穿過、不列入。 */
+/** 相依图中两个根 crate 的正式相依（递归走 resolve.nodes），workspace 成员只穿过、不列入。 */
 export function cargoLicenses(metadata) {
   const members = new Set(metadata.workspace_members);
   const packages = new Map(metadata.packages.map((pkg) => [pkg.id, pkg]));
@@ -86,8 +86,8 @@ export function buildLicenseList({ lock, metadata }) {
   return { npm: npmLicenses(lock), cargo: metadata ? cargoLicenses(metadata) : [] };
 }
 
-/** 執行 cargo metadata；無法執行或非零結束時警告並回 null（建置不因此失敗）。帶 `--locked`：
- *  Cargo.lock 過期時失敗而不改寫它，後續 `cargo test --locked` 的鎖檔守門才有效。 */
+/** 运行 cargo metadata；无法运行或非零结束时警告并回 null（建置不因此失败）。带 `--locked`：
+ *  Cargo.lock 过期时失败而不改写它，后续 `cargo test --locked` 的锁档守门才有效。 */
 export function readCargoMetadata({ spawn = spawnSync, warn = console.warn } = {}) {
   const args = [
     'metadata',
@@ -100,7 +100,7 @@ export function readCargoMetadata({ spawn = spawnSync, warn = console.warn } = {
   const result = spawn('cargo', args, { cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   if (result.error || result.status !== 0) {
     const reason = result.error?.message ?? result.stderr?.trim().split('\n')[0] ?? `status ${result.status}`;
-    warn(`third-party-licenses: 略過 cargo 節——cargo metadata 失敗（${reason}）`);
+    warn(`third-party-licenses: 略过 cargo 节——cargo metadata 失败（${reason}）`);
     return null;
   }
   return JSON.parse(result.stdout);
@@ -112,10 +112,10 @@ function main() {
   const out = path.join(root, 'apps/desktop/src/generated/third-party-licenses.json');
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, `${JSON.stringify(list, null, 2)}\n`);
-  console.log(`third-party-licenses: npm ${list.npm.length}、cargo ${list.cargo.length} 筆 → ${path.relative(root, out)}`);
+  console.log(`third-party-licenses: npm ${list.npm.length}、cargo ${list.cargo.length} 笔 → ${path.relative(root, out)}`);
 }
 
-// node --test 匯入本模組時只取函式，不寫檔。
+// node --test 导入本模块时只取函数，不写档。
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main();
 }

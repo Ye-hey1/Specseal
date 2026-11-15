@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
-/* 共用 semantic theme（青綠 token、@theme 映射、body 字型）——與 Desktop 同一份，
-   不建立第二套 theme（server-web-console「共用設計系統維持高密度可存取體驗」）。 */
+/* 共用 semantic theme（青绿 token、@theme 映射、body 字体）——与 Desktop 同一份，
+   不创建第二套 theme（server-web-console「共用设计系统维持高密度可访问体验」）。 */
 @import "../../../packages/ui/src/theme.css";
 
-/* 共用元件庫在 node_modules（Tailwind 預設不掃），明確納入其 class 來源。 */
+/* 共用组件库在 node_modules（Tailwind 缺省不扫），明确纳入其 class 来源。 */
 @source "../../../packages/ui/src";
 
-/* route 切換後 useFocusMain 程式聚焦 h1／main（tabindex=-1，鍵盤不可及）：
-   螢幕閱讀器仍宣告新頁標題，但不顯示瀏覽器預設 focus 外框。 */
+/* route 切换后 useFocusMain 程序聚焦 h1／main（tabindex=-1，键盘不可及）：
+   屏幕阅读器仍声明新页标题，但不显示浏览器缺省 focus 外框。 */
 [tabindex="-1"]:focus {
   outline: none;
 }
 
-/* 「reduced motion 停用轉場」（server-web-console「共用設計系統維持高密度可存取體驗」）：
-   動畫散在 Tailwind 的 transition-colors／animate-* utility 裡，逐處加 motion-reduce:
-   一定會漏且漏掉時毫無訊號，因此在樣式層一次守門。不寫 0s 而寫 0.01ms：時長為零時
-   transitionend／animationend 不會觸發，依賴這些事件收尾的元件會卡在中間狀態。 */
+/* 「reduced motion 停用转场」（server-web-console「共用设计系统维持高密度可访问体验」）：
+   动画散在 Tailwind 的 transition-colors／animate-* utility 里，逐处加 motion-reduce:
+   一定会漏且漏掉时毫无信号，因此在样式层一次守门。不写 0s 而写 0.01ms：时长为零时
+   transitionend／animationend 不会触发，依赖这些事件收尾的组件会卡在中间状态。 */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

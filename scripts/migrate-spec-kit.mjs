@@ -3,20 +3,20 @@
 //
 // 用法：node scripts/migrate-spec-kit.mjs [spec-kit 项目根，默认当前目录]
 //
-// 做什么：
-//   1. .specify/memory/constitution.md      → speclink/principles.md（项目宪法层）
-//   2. specs/<feature>/spec.md              → speclink/specs/<feature>/spec.md
+// 做什幺：
+//   1. .specify/memory/constitution.md      → specseal/principles.md（项目宪法层）
+//   2. specs/<feature>/spec.md              → specseal/specs/<feature>/spec.md
 //      启发式转换：User Story → Requirement、Given/When/Then → WHEN/THEN 场景、
 //      FR-xxx MUST 条目 → Requirement 条目；转不动的内容记入报告
-//   3. 生成 speclink/MIGRATION-REPORT.md —— 已复制 / 已转换 / 需人工 三级清单
-//   4. 结尾跑 `speclink validate` 验证产物格式合法
+//   3. 生成 specseal/MIGRATION-REPORT.md —— 已复制 / 已转换 / 需人工 三级清单
+//   4. 结尾跑 `specseal validate` 验证产物格式合法
 //
-// 不做什么：
-//   - spec-kit 的 plan.md / tasks.md 不迁移（speclink 的 changes 是变更粒度，
-//     不是 feature 常驻文件）；清单写进报告，人工决定是否补录为归档变更
-//   - 不删除、不改动任何 spec-kit 原文件
+// 不做什幺：
+//   - spec-kit 的 plan.md / tasks.md 不迁移（specseal 的 changes 是变更粒度，
+//     不是 feature 常驻文档）；清单写进报告，人工决定是否补录为归档变更
+//   - 不删除、不改动任何 spec-kit 原文档
 //
-// 前置：目标项目已运行 `speclink init`（脚本不代跑，避免覆盖既有工作区）。
+// 前置：目标项目已运行 `specseal init`（脚本不代跑，避免覆盖既有工作区）。
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -29,8 +29,8 @@ function fail(msg) {
   process.exit(1);
 }
 
-if (!existsSync(join(root, ".speclink.yaml"))) {
-  fail("目标项目未初始化：先运行 `speclink init`，再执行本脚本。");
+if (!existsSync(join(root, ".specseal.yaml"))) {
+  fail("目标项目未初始化：先运行 `specseal init`，再执行本脚本。");
 }
 const specify = join(root, ".specify");
 const specKitSpecs = join(root, "specs");
@@ -51,7 +51,7 @@ const constitution = join(specify, "memory", "constitution.md");
 if (existsSync(constitution)) {
   const src = readFileSync(constitution, "utf8");
   write(
-    "speclink/principles.md",
+    "specseal/principles.md",
     [
       "# Principles",
       "",
@@ -63,7 +63,7 @@ if (existsSync(constitution)) {
     ].join("\n"),
   );
 } else {
-  report.manual.push("未找到 .specify/memory/constitution.md——如项目有宪法内容，手工迁移到 speclink/principles.md。");
+  report.manual.push("未找到 .specify/memory/constitution.md——如项目有宪法内容，手工迁移到 specseal/principles.md。");
 }
 
 // ---------- 2) specs/<feature>/spec.md → capabilities ----------
@@ -116,12 +116,12 @@ if (existsSync(specKitSpecs)) {
       continue;
     }
     const { body, manual } = convertSpec(readFileSync(specFile, "utf8"), entry);
-    write(`speclink/specs/${entry}/spec.md`, body + "\n");
-    report.converted.push(`specs/${entry}/spec.md → speclink/specs/${entry}/spec.md`);
+    write(`specseal/specs/${entry}/spec.md`, body + "\n");
+    report.converted.push(`specs/${entry}/spec.md → specseal/specs/${entry}/spec.md`);
     report.manual.push(...manual);
     for (const extra of ["plan.md", "tasks.md", "research.md", "quickstart.md", "data-model.md"]) {
       if (existsSync(join(featureDir, extra))) {
-        report.manual.push(`specs/${entry}/${extra}：speclink 不使用 feature 常驻文件（changes 是变更粒度）——如需留痕，人工补录为归档变更。`);
+        report.manual.push(`specs/${entry}/${extra}：specseal 不使用 feature 常驻文档（changes 是变更粒度）——如需留痕，人工补录为归档变更。`);
       }
     }
   }
@@ -142,18 +142,18 @@ const reportLines = [
   "## 需人工处理",
   ...(report.manual.length ? report.manual.map((p) => `- ⚠️ ${p}`) : ["- （无）"]),
   "",
-  "收尾建议：逐个核对 speclink/specs/ 下的 Purpose 与 Scenario，然后跑 `speclink validate`。",
+  "收尾建议：逐个核对 specseal/specs/ 下的 Purpose 与 Scenario，然后跑 `specseal validate`。",
   "",
 ];
-write("speclink/MIGRATION-REPORT.md", reportLines.join("\n"));
+write("specseal/MIGRATION-REPORT.md", reportLines.join("\n"));
 
 // ---------- 4) 引擎校验 ----------
 try {
-  execFileSync("speclink", ["validate"], { cwd: root, stdio: "pipe" });
-  console.log("✓ speclink validate 通过");
+  execFileSync("specseal", ["validate"], { cwd: root, stdio: "pipe" });
+  console.log("✓ specseal validate 通过");
 } catch (err) {
   const detail = (err.stdout || "") + (err.stderr || "");
-  console.error(`✗ speclink validate 失败——转换产物有格式问题，按错误逐个修复：\n${detail.slice(0, 1500)}`);
+  console.error(`✗ specseal validate 失败——转换产物有格式问题，按错误逐个修复：\n${detail.slice(0, 1500)}`);
   process.exit(1);
 }
-console.log("\n完成。核对 speclink/MIGRATION-REPORT.md 的「需人工处理」清单。");
+console.log("\n完成。核对 specseal/MIGRATION-REPORT.md 的「需人工处理」清单。");

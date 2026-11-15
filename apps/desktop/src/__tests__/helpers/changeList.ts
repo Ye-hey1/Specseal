@@ -1,16 +1,16 @@
-// 資料源 listChanges 的回應形狀（清單項＋頂層 planError）——測試替身共用。
-import type { ChangeItem, ChangeListPayload, ChangeRequirementOverlap } from "@speclink/ui";
+// 数据源 listChanges 的回应形状（清单项＋顶层 planError）——测试替身共用。
+import type { ChangeItem, ChangeListPayload, ChangeRequirementOverlap } from "@specseal/ui";
 
 export function changeList(changes: ChangeItem[], planError: string | null = null): ChangeListPayload {
   return { changes, planError, next: null, unpromotedCuts: [] };
 }
 
-/** 清單項 requirementOverlap 的一列：與 `change` 同動 desktop-app 的「看板與任務」（雙方 MODIFIED、不衝突）。 */
+/** 清单项 requirementOverlap 的一列：与 `change` 同动 desktop-app 的「看板与任务」（双方 MODIFIED、不冲突）。 */
 export function sharedBoardRequirement(change: string): ChangeRequirementOverlap {
   return {
     change,
     capability: "desktop-app",
-    requirement: "看板與任務",
+    requirement: "看板与任务",
     ownOperation: "MODIFIED",
     otherOperation: "MODIFIED",
     conflict: false,

@@ -12,14 +12,14 @@ import {
   DropdownMenuTrigger,
   useI18n,
   type LocalePreference,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient, useSession } from "../app/context";
 import { UI_LOCALES, useLocalePreference } from "../i18n/LocaleContext";
 import { userLabel } from "../lib/userLabel";
 
-// 側欄底部的帳號選單（design D2）：觸發鈕顯示自己是誰，選單收帳號、介面語言與登出。
+// 侧栏底部的帐号菜单（design D2）：触发钮显示自己是谁，菜单收帐号、接口语言与注销。
 
-/** 跟隨系統在 LocalePreference 裡是 null，但 Radix 單選項的 value 不接受空字串。 */
+/** 跟随系统在 LocalePreference 里是 null，但 Radix 单选项的 value 不接受空字符串。 */
 const SYSTEM = "__system__";
 
 export function AccountMenu({ onNavigate }: { onNavigate?: () => void }) {
@@ -33,8 +33,8 @@ export function AccountMenu({ onNavigate }: { onNavigate?: () => void }) {
   if (!user) return null;
   const name = userLabel(user);
 
-  // 登出：撤銷 server session、reload 角色真相、導向 server 回傳的去處；失敗也回登入頁，
-  // 不留在仍顯示帳號資訊的殼。
+  // 注销：撤销 server session、reload 角色真相、导向 server 回传的去处；失败也回登录页，
+  // 不留在仍显示帐号信息的壳。
   async function logout() {
     setPending(true);
     try {

@@ -1,12 +1,12 @@
-//! speclink-desktop-core — 桌面 app 的純邏輯層。
+//! specseal-desktop-core — 桌面 app 的纯逻辑层。
 //!
-//! Tauri 殼（speclink-desktop）以 #[tauri::command] 薄包裝本 crate 的函式。
-//! 本 crate 只依賴 speclink-core 與 speclink-fs，不依賴 Tauri，故可獨立 `cargo test`。
+//! Tauri 壳（specseal-desktop）以 #[tauri::command] 薄包装本 crate 的函数。
+//! 本 crate 只依赖 specseal-core 与 specseal-fs，不依赖 Tauri，故可独立 `cargo test`。
 
 use std::path::Path;
 
-use speclink_core::workspace::Workspace;
-use speclink_fs::FsStore;
+use specseal_core::workspace::Workspace;
+use specseal_fs::FsStore;
 
 pub mod cache;
 pub mod discussions;
@@ -23,36 +23,36 @@ pub mod trackpad_gesture;
 pub mod tray_panel;
 pub mod verbs;
 
-/// 桌面 app 對單一本地 openspec/ 專案的執行語境：探索到的 workspace ＋ 其 fs store。
+/// 桌面 app 对单一本地 openspec/ 项目的运行语境：探索到的 workspace ＋ 其 fs store。
 pub struct ProjectContext {
     pub workspace: Workspace,
     pub store: FsStore,
 }
 
-/// 自 `root` 起向上探索 speclink 專案；找到則建構 [`ProjectContext`]，否則回傳 `None`
-/// （非 speclink 專案目錄；壞 `.speclink.yaml` 依引擎 fail-closed 同樣視為建構
-/// 失敗——Phase 3 WorkspaceSession 收編時再浮出錯誤細節）。不 spawn CLI、不移動
-/// 任何文件真相。
+/// 自 `root` 起向上探索 specseal 项目；找到则建构 [`ProjectContext`]，否则回传 `None`
+/// （非 specseal 项目目录；坏 `.specseal.yaml` 依引擎 fail-closed 同样视为建构
+/// 失败——Phase 3 WorkspaceSession 收编时再浮出错误细节）。不 spawn CLI、不移动
+/// 任何文档真相。
 pub fn init_core_context(root: &Path) -> Option<ProjectContext> {
     let workspace = Workspace::discover(root).ok().flatten()?;
     let store = FsStore::new(&workspace.root, &workspace.spec_dir_name);
     Some(ProjectContext { workspace, store })
 }
 
-/// 現取 worktree 觀察面（design D4：每次現取、不快取）。env 讀取慣例的唯一落點。
-pub(crate) fn facts_for(ctx: &ProjectContext) -> speclink_host::worktree::WorktreeFacts {
-    speclink_host::worktree::observed_facts(&ctx.workspace, &ctx.store, |key| {
+/// 现取 worktree 观察面（design D4：每次现取、不缓存）。env 读取惯例的唯一落点。
+pub(crate) fn facts_for(ctx: &ProjectContext) -> specseal_host::worktree::WorktreeFacts {
+    specseal_host::worktree::observed_facts(&ctx.workspace, &ctx.store, |key| {
         std::env::var(key).ok()
     })
 }
 
-/// 「這個 change 該讀／寫哪個根」的唯一裁決：有映射且副本仍持有該 change 目錄
-/// → 該 worktree 根；否則 `None`（＝主 checkout）。存在性檢查與
-/// `WorktreeOverlay::of` 的回退同步——facts 取得後、使用前副本被移除的競態
-/// 窗口內，整組讀寫一起回主 checkout，不出現半套視圖。
+/// 「这个 change 该读／写哪个根」的唯一裁决：有映射且副本仍持有该 change 目录
+/// → 该 worktree 根；否则 `None`（＝主 checkout）。存在性检查与
+/// `WorktreeOverlay::of` 的回退同步——facts 取得后、使用前副本被移除的竞态
+/// 窗口内，整组读写一起回主 checkout，不出现半套视图。
 pub(crate) fn worktree_root_for<'a>(
     ctx: &ProjectContext,
-    facts: &'a speclink_host::worktree::WorktreeFacts,
+    facts: &'a specseal_host::worktree::WorktreeFacts,
     change: &str,
 ) -> Option<&'a Path> {
     facts
@@ -63,35 +63,35 @@ pub(crate) fn worktree_root_for<'a>(
         .map(|e| e.path.as_path())
 }
 
-/// 某 change 的所在 store：有映射為其 worktree 副本、否則為主 checkout
-/// （[`worktree_root_for`] 的裁決）。給手上已有 facts、一次要處理多個 change 的呼叫端
-/// （拖排整欄補章、前置寫入後的 overlay 複檢），一次 git spawn 服務全部；只處理單一
-/// change 的動詞走 [`require_context_for_change`]。
+/// 某 change 的所在 store：有映射为其 worktree 副本、否则为主 checkout
+/// （[`worktree_root_for`] 的裁决）。给手上已有 facts、一次要处理多个 change 的调用端
+/// （拖排整栏补章、前置写入后的 overlay 复检），一次 git spawn 服务全部；只处理单一
+/// change 的动词走 [`require_context_for_change`]。
 pub(crate) fn home_store_for(
     ctx: &ProjectContext,
-    facts: &speclink_host::worktree::WorktreeFacts,
+    facts: &specseal_host::worktree::WorktreeFacts,
     change: &str,
 ) -> FsStore {
     let root = worktree_root_for(ctx, facts, change).unwrap_or(ctx.workspace.root.as_path());
     FsStore::new(root, &ctx.workspace.spec_dir_name)
 }
 
-/// 單一 change 的執行語境（design D1）：該 change 有 worktree 映射時，以那份
-/// worktree 副本為根建構 [`ProjectContext`]；否則沿用主 checkout。
+/// 单一 change 的运行语境（design D1）：该 change 有 worktree 映射时，以那份
+/// worktree 副本为根建构 [`ProjectContext`]；否则沿用主 checkout。
 ///
-/// worktree 是完整 checkout，Workspace 與 store 在其中天然成立，因此讀與寫共用
-/// 同一機制：任務完成的側效（touched 記錄、git 髒檔歸因、head commit、開工章）
-/// 隨定根一併落在 worktree 內。每次呼叫現取 observed_facts、不快取——映射條件
-/// 已含「worktree 內 change 目錄可讀」，資料夾被移除的下一次呼叫自然回讀主
-/// checkout，沒有 stale 視窗。政策關、非主 checkout、git 不可用時 facts 為空，
-/// 回傳的就是主 checkout context（行為與本函式出現前完全相同）。
+/// worktree 是完整 checkout，Workspace 与 store 在其中天然成立，因此读与写共用
+/// 同一机制：任务完成的侧效（touched 记录、git 脏档归因、head commit、开工章）
+/// 随定根一并落在 worktree 内。每次调用现取 observed_facts、不缓存——映射条件
+/// 已含「worktree 内 change 目录可读」，文件夹被移除的下一次调用自然回读主
+/// checkout，没有 stale 窗口。政策关、非主 checkout、git 不可用时 facts 为空，
+/// 回传的就是主 checkout context（行为与本函数出现前完全相同）。
 pub(crate) fn context_for_change(root: &Path, change: &str) -> Option<ProjectContext> {
     let ctx = init_core_context(root)?;
     let facts = facts_for(&ctx);
     match worktree_root_for(&ctx, &facts, change) {
-        // 以 worktree 路徑＋主 checkout 的 spec 目錄名直接建構（與 overlay 的
-        // 組裝同款），不走 discovery——向上探索在極端情境會走出 worktree、落到
-        // 祖先目錄的別的專案。
+        // 以 worktree 路径＋主 checkout 的 spec 目录名直接建构（与 overlay 的
+        // 组装同款），不走 discovery——向上探索在极端情境会走出 worktree、落到
+        // 祖先目录的别的项目。
         Some(wt_root) => {
             let workspace = Workspace {
                 root: wt_root.to_path_buf(),
@@ -104,23 +104,23 @@ pub(crate) fn context_for_change(root: &Path, change: &str) -> Option<ProjectCon
     }
 }
 
-/// [`context_for_change`] 的必得版：非 speclink 專案時回統一錯誤訊息——
-/// 動詞層（verbs.rs 與 manage.rs 的寫入動詞）共用的唯一轉譯。
+/// [`context_for_change`] 的必得版：非 specseal 项目时回统一错误消息——
+/// 动词层（verbs.rs 与 manage.rs 的写入动词）共用的唯一转译。
 pub(crate) fn require_context_for_change(
     root: &Path,
     change: &str,
 ) -> Result<ProjectContext, String> {
     context_for_change(root, change)
-        .ok_or_else(|| format!("not a speclink project: {}", root.display()))
+        .ok_or_else(|| format!("not a specseal project: {}", root.display()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use speclink_core::store::Store;
+    use specseal_core::store::Store;
     use std::path::PathBuf;
 
-    /// 本 crate 位於 <repo>/apps/desktop/core，故 repo 根為 manifest 的上三層。
+    /// 本 crate 位于 <repo>/apps/desktop/core，故 repo 根为 manifest 的上三层。
     fn repo_root() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("..")
@@ -130,12 +130,12 @@ mod tests {
 
     #[test]
     fn init_core_context_on_project_root_discovers_workspace() {
-        let ctx = init_core_context(&repo_root()).expect("should discover the speclink project");
+        let ctx = init_core_context(&repo_root()).expect("should discover the specseal project");
         assert!(
             ctx.workspace.spec_dir().join("changes").exists(),
             "discovered workspace should expose the openspec changes dir"
         );
-        // 不得 panic：驗證內嵌 core 可讀取本地文件。
+        // 不得 panic：验证内嵌 core 可读取本地文档。
         let _ = ctx.store.list_changes();
     }
 
@@ -143,30 +143,30 @@ mod tests {
     fn init_core_context_on_non_project_returns_none() {
         assert!(
             init_core_context(&crate::testfixture::fresh_non_project_dir("lib")).is_none(),
-            "a non-speclink directory should yield no project context"
+            "a non-specseal directory should yield no project context"
         );
     }
 
     #[test]
     fn worktree_root_resolution_falls_back_when_the_copy_is_gone() {
-        // 審查 finding（Round 1）：讀根解析要與 overlay 的存在性回退同步——facts
-        // 取得後、使用前 worktree 被移除的競態窗口內，解析須回主 checkout，
-        // 不得回傳指向已消失路徑的根（指紋錨才不會誤判 Stale）。
+        // 审查 finding（Round 1）：读根解析要与 overlay 的存在性回退同步——facts
+        // 取得后、使用前 worktree 被移除的竞态窗口内，解析须回主 checkout，
+        // 不得回传指向已消失路径的根（指纹锚才不会误判 Stale）。
         let fx = crate::testfixture::FixtureRoot::new("lib-root-gone");
         fx.add_change("add-auth", "schema: spec-driven\ncreated: 2026-07-01\n");
         let ctx = init_core_context(fx.root()).expect("project context");
-        let mut facts = speclink_host::worktree::WorktreeFacts::new();
+        let mut facts = specseal_host::worktree::WorktreeFacts::new();
         facts.insert(
             "add-auth".to_string(),
-            speclink_host::worktree::WorktreeEntry {
+            specseal_host::worktree::WorktreeEntry {
                 path: fx.root().join("no-such-worktree"),
-                branch: "speclink/add-auth".to_string(),
+                branch: "specseal/add-auth".to_string(),
             },
         );
         assert!(
             worktree_root_for(&ctx, &facts, "add-auth").is_none(),
-            "消失的副本須回退主 checkout"
+            "消失的副本须回退主 checkout"
         );
-        assert!(worktree_root_for(&ctx, &facts, "other").is_none(), "無映射本就回主 checkout");
+        assert!(worktree_root_for(&ctx, &facts, "other").is_none(), "无映射本就回主 checkout");
     }
 }

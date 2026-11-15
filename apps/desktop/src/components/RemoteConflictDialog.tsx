@@ -8,11 +8,11 @@ import {
   AlertDialogTitle,
   Button,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { RemoteMarkerConflict } from "../store";
 
-// 處理中三張卡一起停用：hover 只在 enabled 時命中（desktop-app「可點元素的游標與 hover 回饋」）。
+// 处理中三张卡一起停用：hover 只在 enabled 时命中（desktop-app「可点元素的光标与 hover 回馈」）。
 const CHOICE_CLASS =
   "flex items-start gap-3 rounded-lg border border-border p-3 text-left transition-colors enabled:hover:border-primary/50 enabled:hover:bg-muted/60 disabled:opacity-50";
 

@@ -1,23 +1,23 @@
-// 由 CLI npm 發布產出的 tgz 校驗清單產生 Homebrew formula（cli-distribution spec
-// 「Homebrew formula 產生器」，design D4／release-assets-trim D5：binary 的唯一來源是
-// npm，formula 的 url 指向 registry.npmjs.org 的平台子套件 tgz——homebrew-core 對
-// Node CLI 的既有寫法）。
+// 由 CLI npm 发布产出的 tgz 校验清单产生 Homebrew formula（cli-distribution spec
+// 「Homebrew formula 产生器」，design D4／release-assets-trim D5：binary 的唯一来源是
+// npm，formula 的 url 指向 registry.npmjs.org 的平台子套件 tgz——homebrew-core 对
+// Node CLI 的既有写法）。
 //
 // 用法：node scripts/release/homebrew-formula.mjs --tag v0.5.0 --sums cli-npm-sums.txt
 //
-// --sums 是 cli-npm-publish job 在發布並等 registry 可見後，對自 registry 取回的 tgz
-// （formula 指向的同一個 tarball 網址，拿到的是 registry 原 bytes）跑 sha256sum 的輸出（digest、
-// 兩空白、檔名），所以 sha256 對 registry 上的檔成立——重跑時已上架的同版被跳過也一樣。
-// 輸出到 stdout，貼進 tap repo 的 Formula/speclink.rb 即可。四組平台資產
-// 缺任一即以非零結束——checksum 每版都變，手抄或漏抄要到使用者 brew install 失敗
-// 才會發現，因此寧可不產出也不產出半套。
+// --sums 是 cli-npm-publish job 在发布并等 registry 可见后，对自 registry 取回的 tgz
+// （formula 指向的同一个 tarball 网址，拿到的是 registry 原 bytes）跑 sha256sum 的输出（digest、
+// 两空白、文件名），所以 sha256 对 registry 上的档成立——重跑时已上架的同版被跳过也一样。
+// 输出到 stdout，贴进 tap repo 的 Formula/specseal.rb 即可。四组平台资产
+// 缺任一即以非零结束——checksum 每版都变，手抄或漏抄要到用户 brew install 失败
+// 才会发现，因此宁可不产出也不产出半套。
 import { readFileSync } from 'node:fs';
 
 const REPO = 'MomoChenisMe/speclink';
-const SCOPE = '@speclink';
-const BIN = 'speclink';
+const SCOPE = '@specseal';
+const BIN = 'specseal';
 
-// brew 只用得到這四個；win32 子套件不在 formula 範圍。
+// brew 只用得到这四个；win32 子套件不在 formula 范围。
 const TARGETS = [
   { key: 'macosArm', platform: 'darwin-arm64' },
   { key: 'macosIntel', platform: 'darwin-x64' },
@@ -25,9 +25,9 @@ const TARGETS = [
   { key: 'linuxIntel', platform: 'linux-x64' },
 ];
 
-/// npm pack 的產物名：@speclink/cli-darwin-arm64@0.5.0 → speclink-cli-darwin-arm64-0.5.0.tgz。
+/// npm pack 的产物名：@specseal/cli-darwin-arm64@0.5.0 → specseal-cli-darwin-arm64-0.5.0.tgz。
 const packName = (platform, version) => `${SCOPE.slice(1)}-cli-${platform}-${version}.tgz`;
-/// registry 上該 tgz 的下載網址（registry 的檔名不帶 scope）。
+/// registry 上该 tgz 的下载网址（registry 的文件名不带 scope）。
 const registryUrl = (platform, version) =>
   `https://registry.npmjs.org/${SCOPE}/cli-${platform}/-/cli-${platform}-${version}.tgz`;
 
@@ -42,12 +42,12 @@ function parseArgs(argv) {
     const flag = argv[i];
     const value = argv[i + 1];
     if (!/^--(tag|sums)$/.test(flag) || value === undefined) {
-      fail(`無法解析的參數：${flag}——用法：--tag <v0.5.0> --sums <cli-npm-sums.txt>`);
+      fail(`无法解析的参数：${flag}——用法：--tag <v0.5.0> --sums <cli-npm-sums.txt>`);
     }
     args[flag.slice(2)] = value;
   }
   for (const required of ['tag', 'sums']) {
-    if (!args[required]) fail(`缺少必要參數 --${required}`);
+    if (!args[required]) fail(`缺少必要参数 --${required}`);
   }
   return args;
 }
@@ -58,13 +58,13 @@ let sumsText;
 try {
   sumsText = readFileSync(sums, 'utf8');
 } catch {
-  fail(`讀不到校驗清單：${sums}`);
+  fail(`读不到校验清单：${sums}`);
 }
 
 const version = tag.replace(/^v/, '');
 
-/// 校驗清單的每一行是「digest<空白>檔名」。以完整檔名（含版本）比對：版本不符的
-/// 清單等同缺條目，不會把上一版的 sha256 套到這一版。
+/// 校验清单的每一行是「digest<空白>文件名」。以完整文件名（含版本）比对：版本不符的
+/// 清单等同缺条目，不会把上一版的 sha256 套到这一版。
 const digests = new Map();
 for (const line of sumsText.split('\n')) {
   const match = line.trim().match(/^([0-9a-fA-F]{64})\s+(\S+)$/);
@@ -84,15 +84,15 @@ for (const { key, platform } of TARGETS) {
 
 if (missing.length > 0) {
   fail(
-    `校驗清單缺少下列平台的 ${BIN} tgz 條目：${missing.join('、')}` +
-      `——確認 tag（${tag}）與 cli-npm-publish 產出的清單同版後重試`,
+    `校验清单缺少下列平台的 ${BIN} tgz 条目：${missing.join('、')}` +
+      `——确认 tag（${tag}）与 cli-npm-publish 产出的清单同版后重试`,
   );
 }
 
 const byKey = Object.fromEntries(assets.map((a) => [a.key, a]));
 
-process.stdout.write(`# 由 scripts/release/homebrew-formula.mjs 產生，請勿手改；改版時重新產生。
-class Speclink < Formula
+process.stdout.write(`# 由 scripts/release/homebrew-formula.mjs 产生，请勿手改；改版时重新产生。
+class Specseal < Formula
   desc "Spec-Driven Development engine and toolkit"
   homepage "https://github.com/${REPO}"
   version "${version}"

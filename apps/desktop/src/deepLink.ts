@@ -1,8 +1,8 @@
-// speclink 網址（desktop-app「以 speclink 網址開啟詳情頁」）：外部程式以
-// speclink://change/<name>?project=<path> 或 speclink://discussion/<slug>?project=<path>
-// 叫桌面 app 開啟詳情頁，以 speclink://roadmap?project=<path> 開啟該專案的路線圖，
-// 以 speclink://project?project=<path> 切到該專案並顯示看板。
-// 解析與派送都在這裡；Tauri 殼只註冊外掛。
+// specseal 网址（desktop-app「以 specseal 网址打开详情页」）：外部程序以
+// specseal://change/<name>?project=<path> 或 specseal://discussion/<slug>?project=<path>
+// 叫桌面 app 打开详情页，以 specseal://roadmap?project=<path> 打开该项目的路线图，
+// 以 specseal://project?project=<path> 切到该项目并显示看板。
+// 解析与派送都在这里；Tauri 壳只注册插件。
 import { getCurrent, onOpenUrl } from "@tauri-apps/plugin-deep-link";
 import { toast } from "sonner";
 
@@ -10,30 +10,30 @@ import { appT } from "./i18n/runtime";
 import { findChange, findDiscussion, uncancelableOverlayOpen, type AppState } from "./store";
 import { openMainWindow } from "./tray";
 
-export type SpeclinkLinkKind = "change" | "discussion";
-/** 不帶名稱的網址種類：開專案後切畫面，沒有找不到目標的情形。 */
-type SpeclinkViewKind = "roadmap" | "project";
+export type SpecsealLinkKind = "change" | "discussion";
+/** 不带名称的网址种类：开项目后切画面，没有找不到目标的情形。 */
+type SpecsealViewKind = "roadmap" | "project";
 
-/** 解析後的網址；名稱與路徑都已百分比解碼，`project` 為專案資料夾的絕對路徑。 */
-export type SpeclinkLink =
+/** 解析后的网址；名称与路径都已百分比解码，`project` 为项目文件夹的绝对路径。 */
+export type SpecsealLink =
   | {
-      kind: SpeclinkLinkKind;
-      /** 變更名稱或討論 slug。 */
+      kind: SpecsealLinkKind;
+      /** 变更名称或讨论 slug。 */
       name: string;
       project: string;
     }
-  | { kind: SpeclinkViewKind; project: string };
+  | { kind: SpecsealViewKind; project: string };
 
-export type ParsedSpeclinkUrl =
-  | { ok: true; link: SpeclinkLink }
+export type ParsedSpecsealUrl =
+  | { ok: true; link: SpecsealLink }
   | { ok: false; reason: "scheme" | "kind" | "name" | "project" };
 
 const KINDS: readonly string[] = ["change", "discussion", "roadmap", "project"];
-/** POSIX 以 / 開頭；Windows 以磁碟代號加 :\ 或 :/ 開頭。 */
+/** POSIX 以 / 开头；Windows 以磁盘代号加 :\ 或 :/ 开头。 */
 const ABSOLUTE_PATH = /^(\/|[A-Za-z]:[\\/])/;
 
-/** 嚴格解碼：無效的百分比編碼或解出控制字元時回 null。不用 URLSearchParams——
- * 它把無效編碼靜默換成替代字元、把 + 讀成空白，路徑會悄悄變成另一個。 */
+/** 严格解码：无效的百分比编码或解出控制字符时回 null。不用 URLSearchParams——
+ * 它把无效编码静默换成替代字符、把 + 读成空白，路径会悄悄变成另一个。 */
 function decodeStrict(raw: string): string | null {
   let text: string;
   try {
@@ -44,18 +44,18 @@ function decodeStrict(raw: string): string | null {
   return /\p{Cc}/u.test(text) ? null : text;
 }
 
-export function parseSpeclinkUrl(raw: string): ParsedSpeclinkUrl {
+export function parseSpecsealUrl(raw: string): ParsedSpecsealUrl {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
     return { ok: false, reason: "scheme" };
   }
-  if (url.protocol !== "speclink:") return { ok: false, reason: "scheme" };
+  if (url.protocol !== "specseal:") return { ok: false, reason: "scheme" };
   if (!KINDS.includes(url.host)) return { ok: false, reason: "kind" };
   const segment = url.pathname.replace(/^\//, "");
   if (url.host === "roadmap" || url.host === "project") {
-    // 路線圖與專案網址不帶名稱：path 只能為空或單一 /。
+    // 路线图与项目网址不带名称：path 只能为空或单一 /。
     if (segment !== "") return { ok: false, reason: "name" };
     const project = projectParam(url);
     return project === null ? { ok: false, reason: "project" } : { ok: true, link: { kind: url.host, project } };
@@ -64,10 +64,10 @@ export function parseSpeclinkUrl(raw: string): ParsedSpeclinkUrl {
   if (name === null) return { ok: false, reason: "name" };
   const project = projectParam(url);
   if (project === null) return { ok: false, reason: "project" };
-  return { ok: true, link: { kind: url.host as SpeclinkLinkKind, name, project } };
+  return { ok: true, link: { kind: url.host as SpecsealLinkKind, name, project } };
 }
 
-/** 網址的 project 參數：恰好一個（重複時有歧義，不挑一個用）、解碼後為絕對路徑；否則 null。 */
+/** 网址的 project 参数：恰好一个（重复时有歧义，不挑一个用）、解码后为绝对路径；否则 null。 */
 function projectParam(url: URL): string | null {
   const values = url.search
     .slice(1)
@@ -78,7 +78,7 @@ function projectParam(url: URL): string | null {
   return project !== null && ABSOLUTE_PATH.test(project) ? project : null;
 }
 
-/** 派送所需的最小 store 介面（Zustand bound store 相容——AppState 的結構子集）。 */
+/** 派送所需的最小 store 接口（Zustand bound store 兼容——AppState 的结构子集）。 */
 export interface DeepLinkStore {
   getState: () => Pick<
     AppState,
@@ -98,9 +98,9 @@ export interface DeepLinkStore {
 
 type DeepLinkState = ReturnType<DeepLinkStore["getState"]>;
 
-/** 兩種網址目標各自的查找、開啟與「找不到」訊息。 */
+/** 两种网址目标各自的查找、打开与「找不到」消息。 */
 const TARGETS: Record<
-  SpeclinkLinkKind,
+  SpecsealLinkKind,
   { exists: (s: DeepLinkState, name: string) => boolean; open: (s: DeepLinkState, name: string) => void; notFound: string }
 > = {
   change: {
@@ -115,17 +115,17 @@ const TARGETS: Record<
   },
 };
 
-/** 不帶名稱的網址各自切到哪個畫面。 */
-const VIEWS: Record<SpeclinkViewKind, (s: DeepLinkState) => void> = {
+/** 不带名称的网址各自切到哪个画面。 */
+const VIEWS: Record<SpecsealViewKind, (s: DeepLinkState) => void> = {
   roadmap: (s) => s.openRoadmap(),
   project: (s) => s.openBoard(),
 };
 
-/** 訂閱啟動網址與執行中的網址，ready（分頁列還原完成）之後依到達順序一次處理一個。
- * 回傳卸載函式：解除訂閱，尚未處理的網址也不再處理（StrictMode 會先卸載再重裝一次）。 */
+/** 订阅启动网址与运行中的网址，ready（分页列还原完成）之后依到达顺序一次处理一个。
+ * 回传卸载函数：解除订阅，尚未处理的网址也不再处理（StrictMode 会先卸载再重装一次）。 */
 export function installDeepLinks(store: DeepLinkStore, ready: Promise<unknown>): () => void {
   let disposed = false;
-  // 每個網址接在前一個之後；鏈頭是就緒訊號。單一網址失敗不擋後面的。
+  // 每个网址接在前一个之后；链头是就绪信号。单一网址失败不挡后面的。
   let queue: Promise<unknown> = ready.catch(() => {});
   const enqueue = (urls: string[] | null) => {
     for (const url of urls ?? []) {
@@ -140,21 +140,21 @@ export function installDeepLinks(store: DeepLinkStore, ready: Promise<unknown>):
   };
 }
 
-/** 處理一個網址：先喚起主視窗（後續的確認框才在使用者眼前），再開專案，載入完才開詳情。
- * 只開啟與檢視，不呼叫任何寫入動作。 */
+/** 处理一个网址：先唤起主窗口（后续的确认框才在用户眼前），再开项目，加载完才开详情。
+ * 只打开与查看，不调用任何写入动作。 */
 async function openLink(store: DeepLinkStore, url: string): Promise<void> {
-  // 喚起失敗不吞掉網址：視窗也許已在前景，照常處理。
+  // 唤起失败不吞掉网址：窗口也许已在前景，照常处理。
   await openMainWindow().catch(() => {});
-  const parsed = parseSpeclinkUrl(url);
+  const parsed = parseSpecsealUrl(url);
   if (!parsed.ok) {
     toast.error(appT("deepLink.invalid"));
     return;
   }
-  // 不可取消的浮層開著：不切專案、不開詳情（與系統匣同語意）。
+  // 不可取消的浮层开着：不切项目、不开详情（与系统匣同语意）。
   if (uncancelableOverlayOpen(store.getState())) return;
   const { link } = parsed;
-  // null＝現在不能拿這個專案的清單來用：確認框、選擇器或錯誤已由開啟專案流程接手，
-  // 或載入失敗、載入期間已切走。remote 標記一律走選擇器，確認前零寫入。
+  // null＝现在不能拿这个项目的清单来用：确认框、选择器或错误已由打开项目流程接手，
+  // 或加载失败、加载期间已切走。remote 标记一律走选择器，确认前零写入。
   const key = await store.getState().openProjectAt(link.project, { remoteViaChooser: true });
   if (key === null) return;
   const s = store.getState();
@@ -167,7 +167,7 @@ async function openLink(store: DeepLinkStore, url: string): Promise<void> {
   if (!target.exists(s, name)) {
     s.setBoardView("board");
     const projectName = s.sessions[key]?.descriptor.name ?? project;
-    // 一次代入、以函式代入：名稱來自外部網址，不得被當成佔位符或 $& 取代樣式。
+    // 一次代入、以函数代入：名称来自外部网址，不得被当成占位符或 $& 取代样式。
     const message = appT(target.notFound).replace(/\{(project|name)\}/g, (_match, slot: string) =>
       slot === "project" ? projectName : name,
     );

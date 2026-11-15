@@ -19,12 +19,12 @@ import { DELTA_COLORS, DELTA_LABEL_KEYS } from "./DeltaBadges";
 import type { DocSummary } from "./DetailShell";
 import { NAME_CHIP_CLS, SECTION_HEADING_CLS } from "./DocParts";
 
-/** 排程文件內的名稱籤（同波夥伴、前置、重疊、封存順序共用；與能力名籤同款）。 */
+/** 调度文档内的名称签（同波伙伴、前置、重叠、封存顺序共用；与能力名签同款）。 */
 function PlanName({ name }: { name: string }) {
   return <span className={NAME_CHIP_CLS}>{name}</span>;
 }
 
-/** 重疊卡的 delta 操作小標籤：用詞與配色和規格文件的 delta 區段同源；title 標出屬於哪一方。 */
+/** 重叠卡的 delta 操作小标签：用词与配色和规格文档的 delta 区段同源；title 标出属于哪一方。 */
 function OpTag({ op, owner }: { op: DeltaOperation; owner: string }) {
   const { t } = useI18n();
   const key = op.toLowerCase() as Lowercase<DeltaOperation>;
@@ -35,7 +35,7 @@ function OpTag({ op, owner }: { op: DeltaOperation; owner: string }) {
   );
 }
 
-/** 前置卡與閱讀卡籤槽的同一枚狀態徽章：blockedBy 空為「可以開工」、非空為「等 N 項」（title 列出前置名）。 */
+/** 前置卡与阅读卡签槽的同一枚状态徽章：blockedBy 空为「可以开工」、非空为「等 N 项」（title 列出前置名）。 */
 function PlanStatusBadge({ blockedBy, t }: { blockedBy: string[]; t: (key: string) => string }) {
   return blockedBy.length === 0 ? (
     <Badge variant="secondary">{t("plan.canStart")}</Badge>
@@ -46,7 +46,7 @@ function PlanStatusBadge({ blockedBy, t }: { blockedBy: string[]; t: (key: strin
   );
 }
 
-/** 排程文件的一張卡片：外觀與工單文件的輪卡同一種邊框卡片，卡頭（16px 標題、右側可放籤）與內容區以分隔線分格。 */
+/** 调度文档的一张卡片：外观与工单文档的轮卡同一种边框卡片，卡头（16px 标题、右侧可放签）与内容区以分隔线分格。 */
 function PlanCard({
   section,
   title,
@@ -73,7 +73,7 @@ function PlanCard({
   );
 }
 
-/** 卡頭右端的筆數籤（重疊卡、封存順序卡）。 */
+/** 卡头右端的笔数签（重叠卡、封存顺序卡）。 */
 const countBadge = (n: number) => (
   <Badge variant="secondary" className="tabular-nums">
     {n}
@@ -81,11 +81,11 @@ const countBadge = (n: number) => (
 );
 
 /**
- * 排程文件（spec desktop-app「詳情頁的排程分頁」）：波次（同波夥伴）、前置（可增減，
- * 標題列的狀態徽章取代獨立的阻擋段）、重疊（唯讀）、封存順序四張卡片。清單項缺 wave
- * 時：remote 摘要（亦缺 dependsOn）只剩一句說明；plan 成環（payload 仍帶 dependsOn
- * 原文）另渲染前置卡（無徽章）、只能移除——解環的出口。判定沿 stage.ts 的 planWave／
- * planBlockedBy／planRequirementOverlap／planArchiveAfter 單一入口。
+ * 调度文档（spec desktop-app「详情页的调度分页」）：波次（同波伙伴）、前置（可增减，
+ * 标题列的状态徽章取代独立的阻挡段）、重叠（唯读）、封存顺序四张卡片。清单项缺 wave
+ * 时：remote 摘要（亦缺 dependsOn）只剩一句说明；plan 成环（payload 仍带 dependsOn
+ * 原文）另渲染前置卡（无徽章）、只能移除——解环的出口。判定沿 stage.ts 的 planWave／
+ * planBlockedBy／planRequirementOverlap／planArchiveAfter 单一入口。
  */
 export function PlanDoc({
   change,
@@ -95,14 +95,14 @@ export function PlanDoc({
 }: {
   change: ChangeItem;
   changes: ChangeItem[];
-  /** 候選名冊：陣列＝查詢結果、null＝自清單派生、undefined＝查詢中（不給候選）。 */
+  /** 候选名册：数组＝查找结果、null＝自清单派生、undefined＝查找中（不给候选）。 */
   roster: string[] | null | undefined;
   onSetDepends?: (change: string, on: string[], remove: boolean) => void;
 }) {
   const { t } = useI18n();
   const wave = planWave(change);
   const dependsOn = change.dependsOn ?? [];
-  // 前置卡內文（成環與一般兩個分支共用）：宣告的前置每項一列，空時「尚無前置」。
+  // 前置卡内文（成环与一般两个分支共用）：声明的前置每项一列，空时「尚无前置」。
   const dependsBody = (
     <>
       {dependsOn.length === 0 && <div className="text-muted-foreground">{t("plan.noDepends")}</div>}
@@ -141,17 +141,17 @@ export function PlanDoc({
   const requirementOverlaps = planRequirementOverlap(change);
   const archiveAfter = planArchiveAfter(change);
   const blockedBy = planBlockedBy(change);
-  // 舊 server 的 blockedBy 另含先配置、共用 capability 的變更（本機與新 server 只含宣告
-  // 前置）：列出 dependsOn 以外的名稱，徽章的數字才對得上卡片內容。
+  // 旧 server 的 blockedBy 另含先配置、共用 capability 的变更（本机与新 server 只含声明
+  // 前置）：列出 dependsOn 以外的名称，徽章的数字才对得上卡片内容。
   const undeclaredWaits = blockedBy.filter((n) => !dependsOn.includes(n));
   const others = changes.filter((c) => c.name !== change.name);
   const mates = others.filter((c) => planWave(c) === wave).map((c) => c.name);
-  // 新增候選：該變更所在名冊的其他作用中變更（add-change-plan-remote D9；未提供名冊時
-  // 自清單派生），扣掉自己與已宣告的前置（成環留給引擎拒絕）。
+  // 添加候选：该变更所在名册的其他作用中变更（add-change-plan-remote D9；未提供名册时
+  // 自清单派生），扣掉自己与已声明的前置（成环留给引擎拒绝）。
   const pool = roster === undefined ? [] : (roster ?? others.map((c) => c.name));
   const candidates = pool.filter((n) => n !== change.name && !dependsOn.includes(n));
-  // 封存卡的兩種警示：同名衝突（雙方都帶進或都拿走，先後救不了）與互相等待（雙方互列
-  // archiveAfter，封存互卡）——兩者引擎都不會讓任一方「可直接封存」。
+  // 封存卡的两种警示：同名冲突（双方都带进或都拿走，先后救不了）与互相等待（双方互列
+  // archiveAfter，封存互卡）——两者引擎都不会让任一方「可直接封存」。
   const conflictWith = conflictNames(change);
   const mutualWaits = archiveAfter.filter((n) =>
     others.some((c) => c.name === n && planArchiveAfter(c).includes(change.name)),
@@ -183,7 +183,7 @@ export function PlanDoc({
           </div>
         )}
         {onSetDepends && candidates.length > 0 && (
-          // 只當挑選器用：value 固定為空，選擇即寫入、trigger 回到提示文字。
+          // 只当挑选器用：value 固定为空，选择即写入、trigger 回到提示文本。
           <Select value="" onValueChange={(name) => onSetDepends(change.name, [name], false)}>
             <SelectTrigger aria-label={t("plan.add")} className="mt-2 w-full">
               <SelectValue placeholder={t("plan.add")} />
@@ -205,7 +205,7 @@ export function PlanDoc({
             <li key={`${o.change}/${o.capability}/${o.requirement}`} className="flex flex-wrap items-center gap-1.5">
               <PlanName name={o.change} />
               <span className="text-xs">{`${o.capability} › ${o.requirement}`}</span>
-              {/* 雙方操作：本變更在前、對方在後。 */}
+              {/* 双方操作：本变更在前、对方在后。 */}
               <OpTag op={o.ownOperation} owner={change.name} />
               <OpTag op={o.otherOperation} owner={o.change} />
               {o.conflict && (
@@ -242,15 +242,15 @@ export function PlanDoc({
   );
 }
 
-/** 同名衝突的對方變更名（去重）。 */
+/** 同名冲突的对方变更名（去重）。 */
 function conflictNames(change: ChangeItem): string[] {
   return [...new Set(planRequirementOverlap(change).filter((o) => o.conflict).map((o) => o.change))];
 }
 
 /**
- * 排程文件的籤、數字磚與兩態提示框（spec「詳情頁的排程分頁」；design D7）：缺 wave 時全空。提示框標題
- * 由兩個子句組成——前置（可以開工／等 N 項前置）與封存（也可直接封存／封存前要等 M 個變更／有同名
- * 衝突要先改）；兩子句皆綠為 tip，否則 warning。
+ * 调度文档的签、数字砖与两态提示框（spec「详情页的调度分页」；design D7）：缺 wave 时全空。提示框标题
+ * 由两个子句组成——前置（可以开工／等 N 项前置）与封存（也可直接封存／封存前要等 M 个变更／有同名
+ * 冲突要先改）；两子句皆绿为 tip，否则 warning。
  */
 export function planSummary(change: ChangeItem, { t, tn }: Translator): DocSummary {
   const wave = planWave(change);

@@ -1,0 +1,2054 @@
+//! Query API DTOs: change, spec, discussion, artifact, and derived-status
+//! read shapes.
+//!
+//! These mirror the fs-mode `--json` field names (camelCase) — the verb
+//! contract's "remote output shape matches fs" requirement makes the fs
+//! serialization the wire canon for reads. Server-side extras (repo,
+//! lifecycle, versions) are optional with defaults; the parity view drops
+//! them at the CLI boundary.
+
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use crate::binding::ScopeRef;
+use crate::command::FreeFields;
+
+/// `POST /import` request. This migration surface is intentionally closed:
+/// there is no mode field, so the store's maintenance-only Overwrite mode can
+/// never be selected over the wire.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ImportBundle {
+    pub format_version: u32,
+    pub scope: ImportScope,
+    pub project_revision: u64,
+    pub documents: Vec<ImportBundleDocument>,
+}
+
+/// The source scope declared by an import bundle. The server requires this to
+/// match the authenticated project/repo binding instead of trusting it as an
+/// alternate destination selector.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ImportScope {
+    pub project: String,
+    pub repo: String,
+}
+
+/// One content-addressed document in an [`ImportBundle`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ImportBundleDocument {
+    pub document: ImportDocumentId,
+    pub content: String,
+    pub digest: String,
+}
+
+/// The closed logical document identity used by migration bundles. The tagged
+/// shape stays path-free and maps one-to-one to the TeamStore contract.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
+pub enum ImportDocumentId {
+    ChangeMeta { change: String },
+    ChangeArtifact { change: String, artifact: String },
+    ChangeEvidence { change: String },
+    CanonicalSpec { capability: String },
+    Discussion { slug: String, archived: bool },
+    WorkflowConfig,
+    ArchivedChange { change: String, doc: String },
+    Language,
+    BoardOrder,
+}
+
+/// Successful `POST /import` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportReportResponse {
+    pub project_revision: u64,
+    pub documents: Vec<ImportedDocument>,
+}
+
+/// One imported document and its migration-only outcome.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedDocument {
+    pub document: ImportDocumentId,
+    pub outcome: ImportDocumentOutcome,
+}
+
+/// CreateNew is the only wire operation, so Created is the only representable
+/// success outcome. Overwritten deliberately does not exist in this registry.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum ImportDocumentOutcome {
+    Created,
+}
+
+/// `GET /board-order` response: the scope's opaque board-order document and
+/// the scope revision (the CAS token a later PUT sends back as `If-Match`).
+/// An absent document is a normal state — `content` is null.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct BoardOrderResponse {
+    pub content: Option<String>,
+    pub revision: u64,
+}
+
+/// `GET /changes/{name}/evidence` response: the change's completion-evidence
+/// entries, oldest first. A change that has never recorded evidence answers
+/// with an empty set — absence is a normal state, not a not-found. A name that
+/// is neither an active nor an archived change is a not-found.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeEvidenceResponse {
+    /// The name of the change the record belongs to: the active change's
+    /// name, or an archived change's own name (its archived name without the
+    /// date). A server that looks the name up through the Engine always sends
+    /// it; a server from before that reads active changes only and does not,
+    /// which is how `evidence show` tells that it cannot trust the answer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub change: Option<String>,
+    pub entries: Vec<EvidenceEntry>,
+    /// The archived name, when the record came from an archived change. Absent
+    /// for an active change, and from a server that only reads active ones.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub archived_as: Option<String>,
+}
+
+/// One task completion's recorded evidence: who completed which task, on which
+/// commit, over which files. Every field is a historical fact — what the
+/// recorder could not attribute is absent, never defaulted.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceEntry {
+    pub task_id: String,
+    #[serde(default)]
+    pub task_desc: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub head_commit: Option<String>,
+    #[serde(default)]
+    pub touched_files: Vec<String>,
+    /// UTC RFC3339 timestamp of the recording.
+    #[serde(default)]
+    pub recorded_at: String,
+}
+
+/// `PUT /board-order` request: the full replacement text. The server stores
+/// it verbatim — the CAS precondition travels in the `If-Match` header, not
+/// the body.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PutBoardOrderRequest {
+    pub content: String,
+}
+
+/// Successful `PUT /board-order` response: the scope revision the write
+/// landed at (also the new ETag value).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PutBoardOrderResponse {
+    pub revision: u64,
+}
+
+/// The board-order document's content as its readers see it: two rank maps
+/// (change name → rank, discussion slug → rank). The server stores the text
+/// opaquely; the desktop overlay and the plan endpoint's rank source both read
+/// it through [`BoardOrderDoc::from_content`], so the damage tolerance is one
+/// rule. Not a wire DTO — the wire carries the text in `content`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BoardOrderDoc {
+    pub changes: std::collections::BTreeMap<String, String>,
+    pub discussions: std::collections::BTreeMap<String, String>,
+}
+
+impl BoardOrderDoc {
+    /// Lenient read, one section at a time: absent content, bad JSON or a
+    /// non-object reads as no ranks at all; a section that is missing or not a
+    /// map of strings reads as empty while the other section still reads — a
+    /// damaged document degrades ordering, never fails a reader.
+    pub fn from_content(content: Option<&str>) -> BoardOrderDoc {
+        let Some(serde_json::Value::Object(mut doc)) =
+            content.and_then(|text| serde_json::from_str(text).ok())
+        else {
+            return BoardOrderDoc::default();
+        };
+        let mut section = |name: &str| {
+            doc.remove(name)
+                .and_then(|value| serde_json::from_value(value).ok())
+                .unwrap_or_default()
+        };
+        BoardOrderDoc { changes: section("changes"), discussions: section("discussions") }
+    }
+
+    /// The whole document after a rank write: the change section keeps only
+    /// the `active` changes' entries (an orphan left by an archived or
+    /// discarded change is dropped) and takes `ranks`; the discussion section
+    /// goes back as [`BoardOrderDoc::from_content`] read it.
+    pub fn merged_content(content: Option<&str>, active: &[&str], ranks: &[(String, String)]) -> String {
+        let mut doc = BoardOrderDoc::from_content(content);
+        doc.changes.retain(|name, _| active.contains(&name.as_str()));
+        doc.changes.extend(ranks.iter().cloned());
+        serde_json::to_string(&doc).expect("two maps of strings always serialize")
+    }
+}
+
+/// `GET /scopes` response: every project the caller is a member of, with its
+/// registered repos. This route is identity-scoped and precedes repo binding.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ScopesResponse {
+    pub projects: Vec<ProjectScope>,
+}
+
+/// One membership-filtered project inside [`ScopesResponse`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ProjectScope {
+    pub id: String,
+    pub key: String,
+    pub name: String,
+    pub repos: Vec<ScopeRef>,
+}
+
+/// `GET /specs/{capability}/document` and archived-artifact response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SpecDocumentResponse {
+    pub content: String,
+}
+
+/// `GET /archived` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchivedListResponse {
+    pub archived: Vec<ArchivedItem>,
+}
+
+/// One archived change, shaped like the desktop archive card.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchivedItem {
+    pub dated_name: String,
+    pub date: String,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tasks_total: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tasks_done: Option<usize>,
+    #[serde(default)]
+    pub spec_count: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
+    #[serde(default)]
+    pub from_discussions: Vec<String>,
+    /// How the two quality stations ended. Absent from a server that does not
+    /// report them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review_outcome: Option<StationOutcome>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verify_outcome: Option<StationOutcome>,
+    /// The document's free fields; left out when it has none.
+    #[serde(default, skip_serializing_if = "FreeFields::is_empty")]
+    pub fields: FreeFields,
+}
+
+/// `GET /search` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResponse {
+    pub hits: Vec<SearchHit>,
+}
+
+/// The first matching artifact for one active change or live discussion.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchHit {
+    pub kind: String,
+    pub id: String,
+    pub artifact: String,
+    pub snippet: String,
+}
+
+/// `GET /changes` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ListChangesResponse {
+    pub changes: Vec<ChangeSummary>,
+}
+
+/// One quality station (review or verify) of a change. `state` is always
+/// there; the stamp fields come with `stamped`. `scope` — the path and content
+/// fingerprint of every file the stamp covers — is in the single-change
+/// response only: a list item never carries it.
+///
+/// The server reports facts only. Whether the content changed after the
+/// stamp is for a client with a work tree to judge, from `tasksTotal` and
+/// `scope`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct StationState {
+    pub state: StationPhase,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stamped_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stamped_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stamped_with: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rounds: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tasks_total: Option<usize>,
+    /// The commit the stamping client reported. The server does not check it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub commit: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scope: Vec<crate::command::ReviewScopeEntryDto>,
+}
+
+/// Where a quality station is: no ticket and no stamp, an open ticket, or a
+/// stamp. A value this client does not know deserializes as
+/// [`StationPhase::Unknown`], so a newer server never breaks an older client.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum StationPhase {
+    #[default]
+    None,
+    InProgress,
+    Stamped,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+/// How a quality station ended for an archived change: never run, stamped,
+/// or archived with its ticket still open (`notPassed`). Unknown values are
+/// kept, as for [`StationPhase`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum StationOutcome {
+    None,
+    Stamped,
+    NotPassed,
+    #[serde(untagged)]
+    Unknown(String),
+}
+
+/// One change in the listing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeSummary {
+    pub name: String,
+    #[serde(default)]
+    pub summary: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub completed_tasks: usize,
+    #[serde(default)]
+    pub total_tasks: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restale_from: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub meta_error: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifecycle: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimed_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub from_discussions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delta_capabilities: Vec<String>,
+    /// When a document of the change was last modified: an RFC 3339 UTC time,
+    /// from the store. Absent when the store cannot tell — never 0 or empty.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modified_at: Option<String>,
+    /// The two quality stations, without their scope. Absent when the
+    /// change's data file is broken, and from a server that does not report
+    /// them: a client reads both cases as no data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review: Option<StationState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verify: Option<StationState>,
+    /// The branch the change was started on, or the one its landing report named.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    /// The commit the change's code was reported to have landed on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landed_commit: Option<String>,
+    /// The document's free fields; left out when it has none.
+    #[serde(default, skip_serializing_if = "FreeFields::is_empty")]
+    pub fields: FreeFields,
+}
+
+/// `GET /changes/{name}` response — the fs `StatusReport` shape plus the
+/// server's own fields. The trailing meta fields (`created`, `fromDiscussions`,
+/// `deltaCapabilities`, plus the attribution quartet `createdBy`/`createdWith`/
+/// `startedAt`/`startedBy`) feed the client's show/detail composition:
+/// `created` appears only when the meta carries the schema+created pair (the
+/// engine ShowChange unit rule), lists are omitted when empty, options when
+/// absent, and an older server simply never sends them.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ChangeStatus {
+    pub change_name: String,
+    pub schema_name: String,
+    pub is_complete: bool,
+    pub apply_requires: Vec<String>,
+    pub artifacts: Vec<ArtifactStatus>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status_version: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub repo: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lifecycle: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub claimed_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub from_discussions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delta_capabilities: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_with: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub started_by: Option<String>,
+    /// The two quality stations; a stamped one carries its scope here. Absent
+    /// as in [`ChangeSummary`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub review: Option<StationState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub verify: Option<StationState>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch: Option<String>,
+    /// The landing report: the commit, when it was reported (RFC 3339) and by whom.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landed_commit: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landed_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub landed_by: Option<String>,
+    /// The document's free fields; left out when it has none.
+    #[serde(default, skip_serializing_if = "FreeFields::is_empty")]
+    pub fields: FreeFields,
+}
+
+/// One artifact's status inside [`ChangeStatus`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactStatus {
+    pub id: String,
+    pub output_path: String,
+    pub status: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub missing_deps: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<u64>,
+}
+
+/// `GET /changes/{name}/instructions/apply` response. `preflight` is
+/// deliberately fs-only (local file checks) — the wire contract omits it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyInstructions {
+    pub change_name: String,
+    pub change_dir: String,
+    pub schema_name: String,
+    pub context_files: std::collections::BTreeMap<String, String>,
+    pub progress: Progress,
+    pub tasks: Vec<TaskEntry>,
+    pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub missing_artifacts: Option<Vec<String>>,
+    pub locale: String,
+    /// Effective TDD/audit policy toggles. Deliberately NOT `serde(default)`:
+    /// a defaulted `false` from an old server would silently switch the apply
+    /// discipline off — fail closed on version skew instead (same rationale as
+    /// [`Progress`]'s code counters).
+    pub tdd: bool,
+    pub audit: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instruction: Option<String>,
+}
+
+/// Task-completion counters inside [`ApplyInstructions`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct Progress {
+    pub total: usize,
+    pub complete: usize,
+    pub remaining: usize,
+    /// Code tasks alone (`[M]` manual tasks excluded) — what the
+    /// station gates judge against. Deliberately NOT `serde(default)`: a
+    /// defaulted 0/0/0 from an old server would read as "code work finished"
+    /// and let the gates pass — fail closed on version skew instead.
+    pub code_total: usize,
+    pub code_complete: usize,
+    pub code_remaining: usize,
+}
+
+/// One task inside [`ApplyInstructions`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskEntry {
+    pub id: String,
+    pub description: String,
+    pub done: bool,
+    /// No `serde(default)` for the same reason as [`Progress`]'s code counts:
+    /// a silent `false` from an old server would hide manual tasks from the
+    /// gates — fail closed on version skew instead.
+    pub manual: bool,
+}
+
+/// `GET /changes/{name}/instructions/{artifact}` response for a schema
+/// artifact.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactInstructions {
+    pub change_name: String,
+    pub artifact_id: String,
+    pub schema_name: String,
+    pub change_dir: String,
+    pub output_path: String,
+    pub description: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub instruction: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rules: Option<Vec<String>>,
+    pub locale: String,
+    pub template: String,
+    pub dependencies: Vec<DependencyEntry>,
+    pub unlocks: Vec<String>,
+}
+
+/// One upstream artifact inside [`ArtifactInstructions::dependencies`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DependencyEntry {
+    pub id: String,
+    pub done: bool,
+    pub path: String,
+    pub description: String,
+}
+
+/// `GET /changes/{name}/artifacts/{artifact}` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactContent {
+    #[serde(default)]
+    pub artifact: String,
+    pub content: String,
+    #[serde(default)]
+    pub version: u64,
+}
+
+/// `GET /specs` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSpecsResponse {
+    pub specs: Vec<SpecSummary>,
+}
+
+/// One canonical capability in the spec listing.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SpecSummary {
+    pub id: String,
+    pub path: String,
+}
+
+/// `GET /language` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct LanguageResponse {
+    pub content: String,
+}
+
+/// `GET /changes/{name}/validate` response — one change's structural
+/// validation, the engine's `ValidationResult` on the wire (server-verb-api:
+/// 端点固定单 change，CLI 的聚合语意由 client 组合).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidateChangeResponse {
+    pub change: String,
+    pub valid: bool,
+    #[serde(default)]
+    pub errors: Vec<String>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+}
+
+/// `GET /changes/{name}/analyze` response — the engine's full `AnalyzeReport`
+/// on the wire.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeReportResponse {
+    pub change_id: String,
+    #[serde(default)]
+    pub dimensions: Vec<AnalyzeDimension>,
+    #[serde(default)]
+    pub findings: Vec<AnalyzeFinding>,
+    #[serde(default)]
+    pub artifacts_analyzed: Vec<String>,
+    #[serde(default)]
+    pub artifacts_missing: Vec<String>,
+}
+
+/// One analysis dimension's rollup.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeDimension {
+    pub dimension: String,
+    pub status: String,
+    pub finding_count: usize,
+}
+
+/// One analysis finding, with its typed i18n messages.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeFinding {
+    pub id: String,
+    pub dimension: String,
+    pub severity: String,
+    pub location: String,
+    pub summary: String,
+    pub recommendation: String,
+    pub summary_msg: AnalyzeMsg,
+    pub recommendation_msg: AnalyzeMsg,
+}
+
+/// A typed, locale-independent message: key plus named parameters.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AnalyzeMsg {
+    pub key: String,
+    #[serde(default)]
+    pub params: std::collections::BTreeMap<String, String>,
+}
+
+/// `GET /config` response — the workflow policy view a client may read.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigResponse {
+    #[serde(default)]
+    pub schema: String,
+    #[serde(default)]
+    pub content: Option<String>,
+    #[serde(default)]
+    pub revision: u64,
+}
+
+/// `PUT /config` request — a full workflow policy document guarded by the
+/// scope revision returned from [`ConfigResponse`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PutConfigRequest {
+    pub content: String,
+    pub expected_revision: u64,
+}
+
+/// `PUT /config` response — the scope revision after the successful commit.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PutConfigResponse {
+    pub revision: u64,
+}
+
+/// `GET /whoami` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WhoamiResponse {
+    pub user: WhoamiUser,
+    #[serde(default)]
+    pub repos: Vec<WhoamiRepo>,
+}
+
+/// `GET /auth/whoami` response (root level, no project scope): the identity
+/// behind a bearer — the display a client shows right after logging in,
+/// before any project is chosen.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthWhoamiResponse {
+    pub user: WhoamiUser,
+}
+
+/// The authenticated identity inside [`WhoamiResponse`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WhoamiUser {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub handle: String,
+}
+
+/// One registered repo inside [`WhoamiResponse`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct WhoamiRepo {
+    pub name: String,
+    #[serde(default)]
+    pub git_url: String,
+}
+
+/// `GET /discussions` response.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ListDiscussionsResponse {
+    pub discussions: Vec<DiscussionInfo>,
+}
+
+/// One discussion's metadata — mirrors the fs serialization exactly
+/// (`createdBy` omitted when absent).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscussionInfo {
+    pub slug: String,
+    pub topic: String,
+    pub status: String,
+    pub rounds: usize,
+    pub created: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_by: Option<String>,
+    /// 讨论类型（目前唯一合法值 `improve`）；一般讨论缺席时省略。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    /// 已转出／并入的 change 名清单，顺序沿 frontmatter promoted_to 累加；
+    /// 由 server 于 route 边缘组装（引擎 DiscussionInfo 不带此栏），空清单省略。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub promoted_to: Vec<String>,
+    /// Conclusion 段是否已写入内文（占位注解不算）；由 server 于 route 边缘组装，
+    /// 恒填 true／false。缺席＝未知（旧 server），client 不得当成 false。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub concluded: Option<bool>,
+    /// frontmatter 是否带 `hold: true` 行（结论保留在途、还欠尚未创建的变更）；
+    /// 由 server 于 route 边缘组装，恒填 true／false。缺席＝未知（旧 server），
+    /// client 视同未保留、沿既有分区，不得当成 true。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hold: Option<bool>,
+    pub path: String,
+    pub archived: bool,
+    /// The document's free fields; left out when it has none.
+    #[serde(default, skip_serializing_if = "FreeFields::is_empty")]
+    pub fields: FreeFields,
+}
+
+/// `GET /discussions/{slug}` response. `cuts` reads an absent key as empty
+/// (a new client reading an old server).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ShowDiscussionResponse {
+    pub info: DiscussionInfo,
+    pub content: String,
+    #[serde(default)]
+    pub cuts: Vec<DiscussionCut>,
+}
+
+/// One cut in the record's conclusion, in conclusion order, as the engine
+/// parses it from the same read as `content` and `info.promotedTo`: `line` is
+/// the cut's list item first line (marker and outer whitespace removed),
+/// `unpromoted` the names of `changes` not in `promotedTo` (always empty when
+/// `changesInBold` is false). Every field reads an absent key as empty.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscussionCut {
+    #[serde(default)]
+    pub cut: String,
+    #[serde(default)]
+    pub title: String,
+    #[serde(default)]
+    pub note: String,
+    #[serde(default)]
+    pub line: String,
+    #[serde(default)]
+    pub changes: Vec<String>,
+    #[serde(default)]
+    pub changes_in_bold: bool,
+    #[serde(default)]
+    pub unpromoted: Vec<String>,
+}
+
+/// One keyword match inside a discussion record (`GET /discussions/search`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscussionMatch {
+    /// What matched: `topic`, `slug`, `ruled-out`, `decision`, `rejected` or `deferred`.
+    pub kind: String,
+    /// Where it sits: `frontmatter`, `round-N` or `conclusion`.
+    #[serde(rename = "where")]
+    pub where_: String,
+    /// The matched line, outer whitespace trimmed.
+    pub text: String,
+}
+
+/// One search hit: the discussion's info fields (flattened — the same shape as
+/// a list item, `promotedTo`/`concluded` included) plus its matches in
+/// document order.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct DiscussionHit {
+    #[serde(flatten)]
+    pub info: DiscussionInfo,
+    pub matches: Vec<DiscussionMatch>,
+}
+
+/// `GET /discussions/search?q=<space-separated keywords>` response, hits in
+/// the engine's order (topic/slug hits first, then created newest first).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchDiscussionsResponse {
+    pub hits: Vec<DiscussionHit>,
+}
+
+/// `GET /trace/{capability}` response — the CLI `trace --json` shape, field
+/// for field: the capability, each requirement's current source, the archived
+/// changes that touched it (oldest first) and the discussions they came from.
+/// The two fields that `trace --json` prints as `null` stay `null` here.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceResponse {
+    pub capability: String,
+    #[serde(default)]
+    pub requirements: Vec<TraceRequirement>,
+    #[serde(default)]
+    pub changes: Vec<TraceChange>,
+    #[serde(default)]
+    pub discussions: Vec<TraceDiscussion>,
+}
+
+/// One requirement of the canonical spec and the change its `@trace` names.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceRequirement {
+    pub name: String,
+    pub source: String,
+}
+
+/// One archived change of the chain. `fromDiscussion` is the metadata's own
+/// text; `evidence` is the per-task file lists, `null` when the change has no
+/// record.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceChange {
+    pub name: String,
+    pub archived_dir: String,
+    #[serde(default)]
+    pub from_discussion: Option<String>,
+    #[serde(default)]
+    pub evidence: Option<Vec<TraceEvidenceTask>>,
+}
+
+/// The files one task of an archived change touched.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceEvidenceTask {
+    pub task_id: String,
+    #[serde(default)]
+    pub files: Vec<String>,
+}
+
+/// A discussion the chain's changes came from, and every change it led to.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceDiscussion {
+    pub slug: String,
+    pub archived: bool,
+    #[serde(default)]
+    pub promoted_to: Vec<TracePromotedChange>,
+}
+
+/// A change a discussion led to, and the capabilities it touched.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct TracePromotedChange {
+    pub change: String,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+}
+
+/// `GET /plan` response — the CLI `plan --json` shape: waves, every placed
+/// change in placement order, the next startable change, the changes left
+/// out for corrupt metadata, and the discussion cuts not yet promoted. Array
+/// fields read an absent key as empty (a new client reading an old server).
+/// `strictOverlap` is the wire's own mark, not part of `plan --json`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanResponse {
+    #[serde(default)]
+    pub waves: Vec<PlanWave>,
+    #[serde(default)]
+    pub changes: Vec<PlanChangeEntry>,
+    pub next: Option<String>,
+    #[serde(default)]
+    pub skipped: Vec<PlanSkipped>,
+    #[serde(default)]
+    pub unpromoted_cuts: Vec<PlanUnpromotedCut>,
+    /// `true` only on the plan a server computed with `strictOverlap=true`;
+    /// absent otherwise. A server from before the strict plan ignores that
+    /// query and never sends this, which is how a client tells that the plan
+    /// it got is not the one it asked for.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub strict_overlap: bool,
+}
+
+/// A cut planned in a live discussion's conclusion with a change name not yet
+/// promoted: `changes` are every name in the cut's bold, `unpromoted` the ones
+/// not in the discussion's `promoted_to`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanUnpromotedCut {
+    pub discussion: String,
+    pub cut: String,
+    pub title: String,
+    #[serde(default)]
+    pub changes: Vec<String>,
+    #[serde(default)]
+    pub unpromoted: Vec<String>,
+}
+
+/// One wave of the plan: the changes that may run in parallel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanWave {
+    pub index: usize,
+    #[serde(default)]
+    pub changes: Vec<String>,
+}
+
+/// One change's row of the plan. `stage` is the engine's stage string
+/// (`proposed` / `in-progress` / `ready`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanChangeEntry {
+    pub name: String,
+    pub wave: usize,
+    pub stage: String,
+    #[serde(default)]
+    pub depends_on: Vec<String>,
+    #[serde(default)]
+    pub overlaps: Vec<PlanOverlap>,
+    #[serde(default)]
+    pub blocked_by: Vec<String>,
+    pub ready: bool,
+    #[serde(default)]
+    pub requirement_overlap: Vec<PlanRequirementOverlap>,
+    #[serde(default)]
+    pub archive_after: Vec<String>,
+}
+
+/// A requirement this change and `change` both touch in one capability. The
+/// operations are the engine's delta section strings (`ADDED` / `MODIFIED` /
+/// `REMOVED` / `RENAMED`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanRequirementOverlap {
+    pub change: String,
+    pub capability: String,
+    pub requirement: String,
+    pub own_operation: String,
+    pub other_operation: String,
+    pub conflict: bool,
+}
+
+/// A delta-capability overlap with one other change.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanOverlap {
+    pub change: String,
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+}
+
+/// A change left out of the plan because its metadata cannot be parsed.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PlanSkipped {
+    pub change: String,
+    pub reason: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::query::*;
+
+    #[test]
+    fn the_four_read_types_carry_fields_and_leave_the_key_out_when_there_are_none() {
+        // client-protocol「空的不串行化」「旧版用户端解析新回应」。
+        let summary = r#"{"name":"demo"}"#;
+        let status = r#"{"changeName":"demo","schemaName":"spec-driven","isComplete":false,"applyRequires":[],"artifacts":[]}"#;
+        let archived = r#"{"datedName":"2026-11-02-demo","name":"demo","date":"2026-11-02","specCount":0}"#;
+        let info = r#"{"slug":"t","topic":"T","status":"open","rounds":0,"created":"2026-11-01","path":"discussions/t.md","archived":false}"#;
+        let with = |json: &str| {
+            let mut value: serde_json::Value = serde_json::from_str(json).unwrap();
+            value["fields"] = serde_json::json!({ "ticket": "PROJ-1" });
+            value
+        };
+        macro_rules! check {
+            ($ty:ty, $json:expr) => {{
+                let plain: $ty = serde_json::from_str($json).expect("a response with no fields key");
+                assert!(plain.fields.is_empty());
+                assert!(serde_json::to_value(&plain).unwrap().get("fields").is_none(), "none is not serialized");
+                let carried: $ty = serde_json::from_value(with($json)).expect("a response with fields");
+                assert_eq!(carried.fields.get("ticket").map(String::as_str), Some("PROJ-1"));
+                assert_eq!(serde_json::to_value(&carried).unwrap()["fields"], serde_json::json!({ "ticket": "PROJ-1" }));
+            }};
+        }
+        check!(ChangeSummary, summary);
+        check!(ChangeStatus, status);
+        check!(ArchivedItem, archived);
+        check!(DiscussionInfo, info);
+    }
+
+    #[test]
+    fn server_scope_read_dtos_round_trip_in_desktop_aligned_shapes() {
+        let scopes: ScopesResponse = serde_json::from_str(
+            r#"{"projects":[{"id":"prj_demo","key":"demo","name":"Demo","repos":[{"id":"repo_backend","key":"backend","name":"Backend"}]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(scopes.projects[0].repos[0].key, "backend");
+
+        let archived: ArchivedListResponse = serde_json::from_str(
+            r#"{"archived":[{"datedName":"2026-07-20-old","date":"2026-07-20","name":"old","tasksTotal":2,"tasksDone":1,"specCount":1,"createdBy":"momo","fromDiscussions":["source"]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(archived.archived[0].tasks_total, Some(2));
+        assert_eq!(archived.archived[0].from_discussions, ["source"]);
+
+        let document = SpecDocumentResponse {
+            content: "# spec\n".to_string(),
+        };
+        let search = SearchResponse {
+            hits: vec![SearchHit {
+                kind: "change".to_string(),
+                id: "demo".to_string(),
+                artifact: "proposal.md".to_string(),
+                snippet: "…needle…".to_string(),
+            }],
+        };
+        assert_eq!(
+            serde_json::to_value(document).unwrap()["content"],
+            "# spec\n"
+        );
+        assert_eq!(
+            serde_json::to_value(search).unwrap()["hits"][0]["artifact"],
+            "proposal.md"
+        );
+    }
+
+    #[test]
+    fn server_scope_read_dtos_export_json_schema() {
+        for schema in [
+            serde_json::to_string(&schemars::schema_for!(ScopesResponse)).unwrap(),
+            serde_json::to_string(&schemars::schema_for!(SpecDocumentResponse)).unwrap(),
+            serde_json::to_string(&schemars::schema_for!(ArchivedListResponse)).unwrap(),
+            serde_json::to_string(&schemars::schema_for!(SearchResponse)).unwrap(),
+        ] {
+            assert!(
+                schema.contains("properties"),
+                "DTO schema is structural: {schema}"
+            );
+        }
+    }
+
+    #[test]
+    fn change_summary_round_trips_and_defaults_extras() {
+        let full: ChangeSummary = serde_json::from_str(
+            r#"{"name":"demo","summary":"Demo change summary","status":"done","completedTasks":2,"totalTasks":2,"repo":"backend","lifecycle":"applying","claimedBy":"me"}"#,
+        )
+        .unwrap();
+        assert_eq!(full.name, "demo");
+        assert_eq!(full.completed_tasks, 2);
+        assert_eq!(full.repo.as_deref(), Some("backend"));
+        assert!(
+            full.restale_from.is_empty(),
+            "absent restaleFrom defaults to empty"
+        );
+        assert_eq!(full.meta_error, None);
+
+        let list: ListChangesResponse =
+            serde_json::from_str(r#"{"changes":[{"name":"demo"}]}"#).unwrap();
+        assert_eq!(list.changes.len(), 1);
+
+        let json = serde_json::to_value(&full).unwrap();
+        assert_eq!(
+            json["completedTasks"], 2,
+            "fields serialize camelCase: {json}"
+        );
+        let back: ChangeSummary = serde_json::from_value(json).unwrap();
+        assert_eq!(back, full);
+    }
+
+    #[test]
+    fn change_summary_started_at_is_optional_and_camel_case() {
+        let started: ChangeSummary =
+            serde_json::from_str(r#"{"name":"demo","startedAt":"2026-07-30"}"#).unwrap();
+        assert_eq!(started.started_at.as_deref(), Some("2026-07-30"));
+        let json = serde_json::to_value(&started).unwrap();
+        assert_eq!(json["startedAt"], "2026-07-30", "field serializes camelCase: {json}");
+        let back: ChangeSummary = serde_json::from_value(json).unwrap();
+        assert_eq!(back, started);
+
+        let legacy: ChangeSummary = serde_json::from_str(r#"{"name":"demo"}"#).unwrap();
+        assert_eq!(
+            legacy.started_at, None,
+            "old payloads without startedAt still deserialize"
+        );
+        let legacy_json = serde_json::to_value(&legacy).unwrap();
+        assert!(
+            legacy_json.get("startedAt").is_none(),
+            "absent startedAt is omitted: {legacy_json}"
+        );
+    }
+
+    #[test]
+    fn change_summary_creator_fields_are_optional_and_camel_case() {
+        // remote-read-parity：清单项的创建者与来源讨论字段，有值上键、缺席省略。
+        let full: ChangeSummary = serde_json::from_str(
+            r#"{"name":"demo","createdBy":"Demo <d@e.com>","created":"2026-07-29","fromDiscussions":["auth-scope"]}"#,
+        )
+        .unwrap();
+        assert_eq!(full.created_by.as_deref(), Some("Demo <d@e.com>"));
+        assert_eq!(full.created.as_deref(), Some("2026-07-29"));
+        assert_eq!(full.from_discussions, ["auth-scope"]);
+        let json = serde_json::to_value(&full).unwrap();
+        assert_eq!(json["createdBy"], "Demo <d@e.com>");
+        assert_eq!(json["created"], "2026-07-29");
+        assert_eq!(json["fromDiscussions"], serde_json::json!(["auth-scope"]));
+        let back: ChangeSummary = serde_json::from_value(json).unwrap();
+        assert_eq!(back, full);
+
+        let legacy: ChangeSummary = serde_json::from_str(r#"{"name":"demo"}"#).unwrap();
+        assert_eq!(legacy.created_by, None, "旧 payload 无键仍可解析且得默认值");
+        assert_eq!(legacy.created, None);
+        assert!(legacy.from_discussions.is_empty());
+        let legacy_json = serde_json::to_value(&legacy).unwrap();
+        assert!(
+            legacy_json.get("createdBy").is_none()
+                && legacy_json.get("created").is_none()
+                && legacy_json.get("fromDiscussions").is_none(),
+            "absent creator fields are omitted: {legacy_json}"
+        );
+    }
+
+    #[test]
+    fn change_summary_delta_capabilities_are_optional_and_camel_case() {
+        // discuss-scout-in-flight-deltas：清单项的 delta capability 字段，有值上键、空清单省略。
+        let full: ChangeSummary =
+            serde_json::from_str(r#"{"name":"demo","deltaCapabilities":["client-protocol"]}"#)
+                .unwrap();
+        assert_eq!(full.delta_capabilities, ["client-protocol"]);
+        let json = serde_json::to_value(&full).unwrap();
+        assert_eq!(json["deltaCapabilities"], serde_json::json!(["client-protocol"]));
+
+        let legacy: ChangeSummary = serde_json::from_str(r#"{"name":"demo"}"#).unwrap();
+        assert!(legacy.delta_capabilities.is_empty(), "旧 payload 无键仍可解析且得空清单");
+        let legacy_json = serde_json::to_value(&legacy).unwrap();
+        assert!(
+            legacy_json.get("deltaCapabilities").is_none(),
+            "empty list is omitted: {legacy_json}"
+        );
+    }
+
+    #[test]
+    fn change_status_mirrors_the_fs_status_report_shape() {
+        let status: ChangeStatus = serde_json::from_str(
+            r#"{"changeName":"demo","schemaName":"spec-driven","isComplete":true,"applyRequires":["tasks"],"artifacts":[{"id":"proposal","outputPath":"proposal.md","status":"done","version":3}],"repo":"backend","lifecycle":"applying","statusVersion":4,"claimedBy":"me"}"#,
+        )
+        .unwrap();
+        assert_eq!(status.change_name, "demo");
+        assert!(status.is_complete);
+        assert_eq!(status.apply_requires, ["tasks"]);
+        assert_eq!(status.artifacts[0].output_path, "proposal.md");
+        assert_eq!(status.artifacts[0].version, Some(3));
+        assert_eq!(status.status_version, Some(4));
+
+        let json = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["changeName"], "demo");
+        assert_eq!(json["artifacts"][0]["outputPath"], "proposal.md");
+        let back: ChangeStatus = serde_json::from_value(json).unwrap();
+        assert_eq!(back, status);
+    }
+
+    #[test]
+    fn change_status_attribution_fields_are_optional_and_camel_case() {
+        // remote-read-parity：单 change 读取回应的四个 meta 归属字段，
+        // 有值上键、缺席省略、旧 payload 无键不失败。
+        let full: ChangeStatus = serde_json::from_str(
+            r#"{"changeName":"demo","schemaName":"spec-driven","isComplete":false,"applyRequires":["tasks"],"artifacts":[],"createdBy":"Demo <d@e.com>","createdWith":"claude-code","startedAt":"2026-08-25T00:00:00Z","startedBy":"Demo <d@e.com>"}"#,
+        )
+        .unwrap();
+        assert_eq!(full.created_by.as_deref(), Some("Demo <d@e.com>"));
+        assert_eq!(full.created_with.as_deref(), Some("claude-code"));
+        assert_eq!(full.started_at.as_deref(), Some("2026-08-25T00:00:00Z"));
+        assert_eq!(full.started_by.as_deref(), Some("Demo <d@e.com>"));
+        let json = serde_json::to_value(&full).unwrap();
+        assert_eq!(json["createdBy"], "Demo <d@e.com>");
+        assert_eq!(json["createdWith"], "claude-code");
+        assert_eq!(json["startedAt"], "2026-08-25T00:00:00Z");
+        assert_eq!(json["startedBy"], "Demo <d@e.com>");
+        let back: ChangeStatus = serde_json::from_value(json).unwrap();
+        assert_eq!(back, full);
+
+        let legacy: ChangeStatus = serde_json::from_str(
+            r#"{"changeName":"demo","schemaName":"spec-driven","isComplete":false,"applyRequires":[],"artifacts":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.created_by, None, "旧 payload 无键仍可解析且得默认值");
+        assert_eq!(legacy.created_with, None);
+        assert_eq!(legacy.started_at, None);
+        assert_eq!(legacy.started_by, None);
+        let legacy_json = serde_json::to_value(&legacy).unwrap();
+        for key in ["createdBy", "createdWith", "startedAt", "startedBy"] {
+            assert!(
+                legacy_json.get(key).is_none(),
+                "absent {key} is omitted: {legacy_json}"
+            );
+        }
+    }
+
+    #[test]
+    fn apply_instructions_round_trip_without_a_preflight_field() {
+        let apply: ApplyInstructions = serde_json::from_str(
+            r#"{"changeName":"demo","changeDir":"changes/demo","schemaName":"spec-driven","contextFiles":{"design":"design.md","proposal":"proposal.md","specs":"specs/**/*.md","tasks":"tasks.md"},"progress":{"total":3,"complete":3,"remaining":0,"codeTotal":2,"codeComplete":2,"codeRemaining":0},"tasks":[{"id":"1","description":"1.1 First","done":true,"manual":false},{"id":"3","description":"1.3 Hand check","done":true,"manual":true}],"state":"all_done","locale":"English","tdd":true,"audit":false,"instruction":"Work through the tasks.\n"}"#,
+        )
+        .unwrap();
+        assert_eq!(apply.change_name, "demo");
+        assert_eq!(apply.progress.total, 3);
+        assert_eq!(apply.progress.code_total, 2, "manual tasks stay out of the code counts");
+        assert_eq!(apply.tasks[0].description, "1.1 First");
+        assert!(!apply.tasks[0].manual);
+        assert!(apply.tasks[1].manual, "[M] task rides the wire as manual");
+        assert_eq!(apply.state, "all_done");
+        assert!(apply.tdd, "tdd toggle rides the wire");
+        assert!(!apply.audit);
+
+        let json = serde_json::to_value(&apply).unwrap();
+        assert_eq!(json["contextFiles"]["design"], "design.md");
+        assert_eq!(json["progress"]["codeRemaining"], 0, "camelCase on the new counters");
+        assert_eq!(json["tasks"][1]["manual"], true);
+        assert_eq!(json["tdd"], true, "camelCase policy toggles on the wire");
+        assert_eq!(json["audit"], false);
+
+        // Version-skew fail closed: an old server's payload without the policy
+        // toggles must be rejected, never defaulted to "discipline off".
+        let mut skewed = json.clone();
+        skewed.as_object_mut().unwrap().remove("tdd");
+        assert!(
+            serde_json::from_value::<ApplyInstructions>(skewed).is_err(),
+            "a payload missing tdd must fail to deserialize"
+        );
+        assert!(
+            json.get("preflight").is_none(),
+            "preflight is deliberately fs-only — the wire contract omits it"
+        );
+        assert!(
+            json.get("missingArtifacts").is_none(),
+            "absent missingArtifacts is omitted, matching fs serialization"
+        );
+        let back: ApplyInstructions = serde_json::from_value(json).unwrap();
+        assert_eq!(back, apply);
+    }
+
+    #[test]
+    fn artifact_instructions_round_trip_in_camel_case() {
+        let instr: ArtifactInstructions = serde_json::from_str(
+            r###"{"changeName":"demo","artifactId":"proposal","schemaName":"spec-driven","changeDir":"changes/demo","outputPath":"proposal.md","description":"Initial proposal","instruction":"Create the proposal.\n","locale":"English","template":"## Why\n","dependencies":[{"id":"design","done":false,"path":"design.md","description":"Design"}],"unlocks":["design"]}"###,
+        )
+        .unwrap();
+        assert_eq!(instr.artifact_id, "proposal");
+        assert_eq!(instr.dependencies[0].id, "design");
+        assert_eq!(instr.unlocks, ["design"]);
+        let json = serde_json::to_value(&instr).unwrap();
+        assert_eq!(json["outputPath"], "proposal.md");
+        assert!(
+            json.get("context").is_none() && json.get("rules").is_none(),
+            "absent optional policy fields are omitted: {json}"
+        );
+        let back: ArtifactInstructions = serde_json::from_value(json).unwrap();
+        assert_eq!(back, instr);
+    }
+
+    #[test]
+    fn artifact_content_carries_content_and_version() {
+        let got: ArtifactContent = serde_json::from_str(
+            r###"{"artifact":"design","content":"## Context\n","version":8}"###,
+        )
+        .unwrap();
+        assert_eq!(got.content, "## Context\n");
+        assert_eq!(got.version, 8);
+        let bare: ArtifactContent = serde_json::from_str(r#"{"content":""}"#).unwrap();
+        assert_eq!(bare.version, 0, "absent version defaults to zero");
+    }
+
+    #[test]
+    fn spec_language_config_and_whoami_shapes_deserialize() {
+        let specs: ListSpecsResponse = serde_json::from_str(
+            r#"{"specs":[{"id":"user-auth","path":"specs/user-auth/spec.md"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(specs.specs[0].id, "user-auth");
+
+        let language: LanguageResponse =
+            serde_json::from_str(r##"{"content":"# Language\n"}"##).unwrap();
+        assert_eq!(language.content, "# Language\n");
+
+        let config: ConfigResponse = serde_json::from_str(r#"{"schema":"spec-driven"}"#).unwrap();
+        assert_eq!(config.schema, "spec-driven");
+        assert_eq!(config.content, None, "older servers omit policy content");
+        assert_eq!(config.revision, 0, "older servers omit policy revision");
+
+        let put: PutConfigRequest = serde_json::from_str(
+            r#"{"content":"schema: spec-driven\n","expectedRevision":7}"#,
+        )
+        .unwrap();
+        assert_eq!(put.expected_revision, 7);
+        let put_json = serde_json::to_value(&put).unwrap();
+        assert_eq!(put_json["expectedRevision"], 7, "request is camelCase");
+
+        let whoami: WhoamiResponse = serde_json::from_str(
+            r#"{"user":{"name":"王小明","handle":"ming"},"repos":[{"name":"backend","gitUrl":"https://git.example.com/erp.git"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(whoami.user.handle, "ming");
+        assert_eq!(whoami.repos[0].git_url, "https://git.example.com/erp.git");
+        let json = serde_json::to_value(&whoami).unwrap();
+        assert_eq!(
+            json["repos"][0]["gitUrl"],
+            "https://git.example.com/erp.git"
+        );
+    }
+
+    #[test]
+    fn discussion_shapes_mirror_fs_serialization() {
+        let list: ListDiscussionsResponse = serde_json::from_str(
+            r#"{"discussions":[{"slug":"demo-topic","topic":"Demo topic","status":"open","rounds":0,"created":"2026-07-01","path":"discussions/demo-topic.md","archived":false}]}"#,
+        )
+        .unwrap();
+        let info = &list.discussions[0];
+        assert_eq!(info.slug, "demo-topic");
+        assert_eq!(info.created_by, None);
+        let json = serde_json::to_value(info).unwrap();
+        assert!(
+            json.get("createdBy").is_none(),
+            "absent createdBy is omitted, matching fs serialization: {json}"
+        );
+
+        let show: ShowDiscussionResponse = serde_json::from_str(
+            r##"{"info":{"slug":"demo-topic","topic":"Demo topic","status":"open","rounds":0,"created":"2026-07-01","createdBy":"Ming <m@example.com>","path":"discussions/demo-topic.md","archived":false},"content":"# Discussion\n"}"##,
+        )
+        .unwrap();
+        assert_eq!(
+            show.info.created_by.as_deref(),
+            Some("Ming <m@example.com>")
+        );
+        assert_eq!(show.content, "# Discussion\n");
+    }
+
+    // --- client-protocol「讨论详情回应的分刀 payload」---
+
+    const SHOW_INFO: &str = r#"{"slug":"panel","topic":"Panel","status":"promoted","rounds":0,"created":"2026-11-01","promotedTo":["a"],"path":"discussions/panel.md","archived":false}"#;
+
+    #[test]
+    fn show_discussion_without_cuts_reads_as_empty() {
+        // 场景「旧 server 缺 cuts 读作空数组」：回应只有 info 与 content 两键。
+        let show: ShowDiscussionResponse =
+            serde_json::from_str(&format!(r##"{{"info":{SHOW_INFO},"content":"# Discussion\n"}}"##)).unwrap();
+        assert!(show.cuts.is_empty());
+    }
+
+    #[test]
+    fn discussion_cut_absent_fields_read_as_empty_values() {
+        let cut: DiscussionCut = serde_json::from_str("{}").unwrap();
+        assert_eq!(
+            cut,
+            DiscussionCut {
+                cut: String::new(),
+                title: String::new(),
+                note: String::new(),
+                line: String::new(),
+                changes: Vec::new(),
+                changes_in_bold: false,
+                unpromoted: Vec::new(),
+            }
+        );
+    }
+
+    #[test]
+    fn discussion_cuts_are_camel_case_on_the_wire() {
+        let wire = format!(
+            r##"{{"info":{SHOW_INFO},"content":"# Discussion\n","cuts":[{{"cut":"cut 3","title":"收尾","note":"","line":"**cut 3 `d` `e`**: 收尾","changes":["d","e"],"changesInBold":true,"unpromoted":["d","e"]}}]}}"##
+        );
+        let show: ShowDiscussionResponse = serde_json::from_str(&wire).unwrap();
+        assert_eq!(show.cuts[0].cut, "cut 3");
+        assert!(show.cuts[0].changes_in_bold);
+        assert_eq!(show.cuts[0].unpromoted, ["d", "e"]);
+        let back = serde_json::to_value(&show).unwrap();
+        let wire: serde_json::Value = serde_json::from_str(&wire).unwrap();
+        assert_eq!(back, wire, "the wire shape round-trips key for key");
+    }
+
+    #[test]
+    fn discussion_search_hits_carry_info_fields_and_matches() {
+        // discuss-search-recall「讨论搜索回应 payload」：hits 每笔 = 讨论信息字段 + matches。
+        let resp: SearchDiscussionsResponse = serde_json::from_str(
+            r#"{"hits":[{"slug":"spec-drawer-trace-links","topic":"Drawer trace links","status":"concluded","rounds":2,"created":"2026-08-20","createdBy":"Ming <m@example.com>","kind":"improve","promotedTo":["drawer-provenance-links"],"concluded":true,"path":"discussions/archive/2026-08-20-spec-drawer-trace-links.md","archived":true,"matches":[{"kind":"ruled-out","where":"round-2","text":"**Ruled out**: RichDetailDrawer 加 readOnly 旗标"},{"kind":"deferred","where":"conclusion","text":"**Deferred**: drawer AND mode"}]}]}"#,
+        )
+        .unwrap();
+        let hit = &resp.hits[0];
+        assert_eq!(hit.info.slug, "spec-drawer-trace-links");
+        assert!(hit.info.archived);
+        assert_eq!(hit.info.created_by.as_deref(), Some("Ming <m@example.com>"));
+        assert_eq!(hit.info.kind.as_deref(), Some("improve"));
+        assert_eq!(hit.info.promoted_to, ["drawer-provenance-links"]);
+        assert_eq!(hit.info.concluded, Some(true));
+        assert_eq!(hit.matches.len(), 2);
+        assert_eq!(hit.matches[0].kind, "ruled-out");
+        assert_eq!(hit.matches[0].where_, "round-2");
+        assert_eq!(hit.matches[1].text, "**Deferred**: drawer AND mode");
+        // 串行化回 wire：flatten 的信息字段与 matches 的 where 键名。
+        let json = serde_json::to_value(hit).unwrap();
+        assert_eq!(json["slug"], "spec-drawer-trace-links");
+        assert_eq!(json["matches"][0]["where"], "round-2");
+        assert_eq!(json["promotedTo"][0], "drawer-provenance-links");
+    }
+
+    #[test]
+    fn discussion_search_hit_optional_fields_may_be_absent() {
+        // 缺 createdBy／kind／concluded、promotedTo 空数组 → None／None／None／空清单。
+        let resp: SearchDiscussionsResponse = serde_json::from_str(
+            r#"{"hits":[{"slug":"golden-policy","topic":"Golden policy","status":"open","rounds":0,"created":"2026-07-01","promotedTo":[],"path":"discussions/golden-policy.md","archived":false,"matches":[{"kind":"topic","where":"frontmatter","text":"Golden policy"}]}]}"#,
+        )
+        .unwrap();
+        let hit = &resp.hits[0];
+        assert_eq!(hit.info.created_by, None);
+        assert_eq!(hit.info.kind, None);
+        assert_eq!(hit.info.concluded, None);
+        assert!(hit.info.promoted_to.is_empty());
+        assert_eq!(hit.matches[0].kind, "topic");
+        assert_eq!(hit.matches[0].where_, "frontmatter");
+        let empty: SearchDiscussionsResponse = serde_json::from_str(r#"{"hits":[]}"#).unwrap();
+        assert!(empty.hits.is_empty());
+    }
+
+    #[test]
+    fn discussion_kind_is_optional_and_camel_case() {
+        // add-improve-flow：kind 有值时以单字 camelCase 曝露、无值时整个键省略，
+        // 既有 payload 形状逐比特不变。
+        let marked: ListDiscussionsResponse = serde_json::from_str(
+            r#"{"discussions":[{"slug":"improve-core","topic":"内核结构改进","status":"open","rounds":1,"created":"2026-08-07","kind":"improve","path":"discussions/improve-core.md","archived":false}]}"#,
+        )
+        .unwrap();
+        let info = &marked.discussions[0];
+        assert_eq!(info.kind.as_deref(), Some("improve"));
+        assert_eq!(serde_json::to_value(info).unwrap()["kind"], "improve");
+
+        let plain: ListDiscussionsResponse = serde_json::from_str(
+            r#"{"discussions":[{"slug":"demo-topic","topic":"Demo topic","status":"open","rounds":0,"created":"2026-07-01","path":"discussions/demo-topic.md","archived":false}]}"#,
+        )
+        .unwrap();
+        let info = &plain.discussions[0];
+        assert_eq!(info.kind, None, "旧 payload 无 kind 仍可解析");
+        let json = serde_json::to_value(info).unwrap();
+        assert!(json.get("kind").is_none(), "absent kind is omitted: {json}");
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "slug": "demo-topic",
+                "topic": "Demo topic",
+                "status": "open",
+                "rounds": 0,
+                "path": "discussions/demo-topic.md",
+                "created": "2026-07-01",
+                "archived": false,
+            }),
+            "既有形状不因新字段改变"
+        );
+    }
+
+    #[test]
+    fn discussion_concluded_is_optional_tristate() {
+        // conclusion-gated-discussion-archive：边缘组装恒填 true／false；
+        // 旧 payload 无键 → 未知（None），再串行化不出键——缺席不得当成 false。
+        let with_true: DiscussionInfo = serde_json::from_str(
+            r#"{"slug":"a","topic":"A","status":"promoted","rounds":1,"created":"2026-07-01","concluded":true,"path":"discussions/a.md","archived":false}"#,
+        )
+        .unwrap();
+        assert_eq!(with_true.concluded, Some(true));
+        let json = serde_json::to_value(&with_true).unwrap();
+        assert_eq!(json["concluded"], serde_json::json!(true));
+
+        let with_false: DiscussionInfo = serde_json::from_str(
+            r#"{"slug":"b","topic":"B","status":"promoted","rounds":1,"created":"2026-07-01","concluded":false,"path":"discussions/b.md","archived":false}"#,
+        )
+        .unwrap();
+        assert_eq!(with_false.concluded, Some(false));
+        let json = serde_json::to_value(&with_false).unwrap();
+        assert_eq!(json["concluded"], serde_json::json!(false), "false 也上键，缺席才是未知");
+
+        let legacy: DiscussionInfo = serde_json::from_str(
+            r#"{"slug":"c","topic":"C","status":"open","rounds":0,"created":"2026-07-01","path":"discussions/c.md","archived":false}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.concluded, None, "旧 payload 无键不失败且为未知");
+        let json = serde_json::to_value(&legacy).unwrap();
+        assert!(json.get("concluded").is_none(), "None 省略键: {json}");
+    }
+
+    #[test]
+    fn discussion_hold_is_optional_tristate() {
+        // discussion-hold-until-release：边缘组装恒填 true／false；旧 payload 无键
+        // → 未知（None），再串行化不出键——缺席不得当成 true。
+        let held: DiscussionInfo = serde_json::from_str(
+            r#"{"slug":"a","topic":"A","status":"promoted","rounds":1,"created":"2026-07-01","concluded":true,"hold":true,"path":"discussions/a.md","archived":false}"#,
+        )
+        .unwrap();
+        assert_eq!(held.hold, Some(true));
+        assert_eq!(serde_json::to_value(&held).unwrap()["hold"], serde_json::json!(true));
+
+        let free: DiscussionInfo = serde_json::from_str(
+            r#"{"slug":"b","topic":"B","status":"promoted","rounds":1,"created":"2026-07-01","concluded":true,"hold":false,"path":"discussions/b.md","archived":false}"#,
+        )
+        .unwrap();
+        assert_eq!(free.hold, Some(false));
+        assert_eq!(
+            serde_json::to_value(&free).unwrap()["hold"],
+            serde_json::json!(false),
+            "false 也上键，缺席才是未知"
+        );
+
+        let legacy: DiscussionInfo = serde_json::from_str(
+            r#"{"slug":"c","topic":"C","status":"open","rounds":0,"created":"2026-07-01","path":"discussions/c.md","archived":false}"#,
+        )
+        .unwrap();
+        assert_eq!(legacy.hold, None, "旧 payload 无键不失败且为未知");
+        let json = serde_json::to_value(&legacy).unwrap();
+        assert!(json.get("hold").is_none(), "None 省略键: {json}");
+    }
+
+    #[test]
+    fn discussion_promoted_to_is_optional_and_preserves_order() {
+        // remote-read-parity：promotedTo 非空上键且顺序沿 frontmatter 累加、
+        // 空清单省略键、旧 payload 无键不失败且得空清单。
+        let promoted: ListDiscussionsResponse = serde_json::from_str(
+            r#"{"discussions":[{"slug":"auth-scope","topic":"Auth scope","status":"concluded","rounds":2,"created":"2026-07-01","promotedTo":["add-auth","auth-refresh"],"path":"discussions/auth-scope.md","archived":false}]}"#,
+        )
+        .unwrap();
+        let info = &promoted.discussions[0];
+        assert_eq!(info.promoted_to, ["add-auth", "auth-refresh"]);
+        let json = serde_json::to_value(info).unwrap();
+        assert_eq!(
+            json["promotedTo"],
+            serde_json::json!(["add-auth", "auth-refresh"]),
+            "promotedTo serializes camelCase and preserves order: {json}"
+        );
+
+        let plain: ListDiscussionsResponse = serde_json::from_str(
+            r#"{"discussions":[{"slug":"demo-topic","topic":"Demo topic","status":"open","rounds":0,"created":"2026-07-01","path":"discussions/demo-topic.md","archived":false}]}"#,
+        )
+        .unwrap();
+        let info = &plain.discussions[0];
+        assert!(info.promoted_to.is_empty(), "旧 payload 无键仍可解析且得空清单");
+        let json = serde_json::to_value(info).unwrap();
+        assert!(
+            json.get("promotedTo").is_none(),
+            "empty promotedTo is omitted: {json}"
+        );
+    }
+
+    #[test]
+    fn an_evidence_response_names_the_archive_only_when_it_read_one() {
+        let active = ChangeEvidenceResponse { change: None, entries: Vec::new(), archived_as: None };
+        let json = serde_json::to_value(&active).unwrap();
+        assert!(json.get("archivedAs").is_none(), "absent, not null: {json}");
+        let archived = ChangeEvidenceResponse {
+            change: Some("demo".into()),
+            entries: Vec::new(),
+            archived_as: Some("2026-11-12-demo".into()),
+        };
+        let json = serde_json::to_value(&archived).unwrap();
+        assert_eq!(json["archivedAs"], "2026-11-12-demo");
+        assert_eq!(json["change"], "demo");
+        assert!(serde_json::to_value(&active).unwrap().get("change").is_none(), "absent, not null");
+        // A response from a server that does not send the field still parses.
+        let old: ChangeEvidenceResponse = serde_json::from_str(r#"{"entries":[]}"#).unwrap();
+        assert_eq!(old, active);
+        // A client that does not know the field reads the response as before.
+        #[derive(serde::Deserialize)]
+        struct OldClient {
+            entries: Vec<EvidenceEntry>,
+        }
+        let read: OldClient = serde_json::from_value(json).expect("an unknown field is no error");
+        assert!(read.entries.is_empty());
+    }
+
+    #[test]
+    fn a_listed_change_carries_modified_at_only_when_the_store_gave_one() {
+        let dated: ChangeSummary =
+            serde_json::from_str(r#"{"name":"demo","created":"2026-11-01","modifiedAt":"2026-11-12T03:00:00Z"}"#).unwrap();
+        assert_eq!(dated.modified_at.as_deref(), Some("2026-11-12T03:00:00Z"));
+        assert_eq!(serde_json::to_value(&dated).unwrap()["modifiedAt"], "2026-11-12T03:00:00Z");
+        let undated: ChangeSummary = serde_json::from_str(r#"{"name":"demo","created":"2026-11-01"}"#).unwrap();
+        assert_eq!(undated.modified_at, None);
+        let json = serde_json::to_value(&undated).unwrap();
+        assert!(json.get("modifiedAt").is_none(), "absent, never 0 or empty: {json}");
+        assert_eq!(json["created"], "2026-11-01");
+    }
+
+    #[test]
+    fn a_client_that_does_not_know_modified_at_reads_the_list_as_before() {
+        // 规格「变更清单的最后修改时间字段」Scenario「旧版用户端不受影响」：不认得
+        // modifiedAt 的类型解析含该字段的清单回应，其余字段的值不变。
+        #[derive(Debug, PartialEq, serde::Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct OldSummary {
+            name: String,
+            #[serde(default)]
+            summary: String,
+            #[serde(default)]
+            status: String,
+            #[serde(default)]
+            completed_tasks: usize,
+            #[serde(default)]
+            total_tasks: usize,
+            #[serde(default)]
+            created: Option<String>,
+            #[serde(default)]
+            delta_capabilities: Vec<String>,
+        }
+        #[derive(serde::Deserialize)]
+        struct OldList {
+            changes: Vec<OldSummary>,
+        }
+        let sent = ListChangesResponse {
+            changes: vec![serde_json::from_str::<ChangeSummary>(
+                r#"{"name":"demo","summary":"Demo.","status":"in-progress","completedTasks":1,"totalTasks":3,"created":"2026-11-01","deltaCapabilities":["auth"],"modifiedAt":"2026-11-12T03:00:00Z"}"#,
+            )
+            .unwrap()],
+        };
+        let text = serde_json::to_string(&sent).unwrap();
+        assert!(text.contains(r#""modifiedAt":"2026-11-12T03:00:00Z""#), "{text}");
+        let read: OldList = serde_json::from_str(&text).expect("an unknown field is no error");
+        assert_eq!(
+            read.changes,
+            [OldSummary {
+                name: "demo".into(),
+                summary: "Demo.".into(),
+                status: "in-progress".into(),
+                completed_tasks: 1,
+                total_tasks: 3,
+                created: Some("2026-11-01".into()),
+                delta_capabilities: vec!["auth".into()],
+            }]
+        );
+    }
+
+    #[test]
+    fn a_trace_response_has_the_field_names_and_nulls_of_trace_json() {
+        let text = r#"{"capability":"auth","requirements":[{"name":"Session","source":"beta"}],"changes":[{"name":"alpha","archivedDir":"2026-11-01-alpha","fromDiscussion":"origin-talk","evidence":[{"taskId":"tsk_a","files":["src/a.rs"]}]},{"name":"beta","archivedDir":"2026-11-02-beta","fromDiscussion":null,"evidence":null}],"discussions":[{"slug":"origin-talk","archived":true,"promotedTo":[{"change":"alpha","capabilities":["auth"]}]}]}"#;
+        let trace: TraceResponse = serde_json::from_str(text).unwrap();
+        assert_eq!(trace.changes[0].archived_dir, "2026-11-01-alpha");
+        assert_eq!(trace.changes[0].evidence.as_ref().unwrap()[0].task_id, "tsk_a");
+        assert_eq!(trace.changes[1].from_discussion, None);
+        assert_eq!(trace.changes[1].evidence, None);
+        assert_eq!(trace.discussions[0].promoted_to[0].capabilities, ["auth"]);
+        // Written back, it is the same text: the nulls stay, the names stay camelCase.
+        assert_eq!(serde_json::to_string(&trace).unwrap(), text);
+    }
+
+    #[test]
+    fn change_evidence_travels_camel_case_and_omits_what_it_cannot_attribute() {
+        let entry = EvidenceEntry {
+            task_id: "tsk_01ARZ3NDEKTSV4RRFFQ69G5FAV".into(),
+            task_desc: "1.1 First".into(),
+            actor: Some("Tester <t@example.com>".into()),
+            repo: Some("backend".into()),
+            head_commit: None,
+            touched_files: vec!["src/app.rs".into()],
+            recorded_at: "2026-08-23T00:00:00Z".into(),
+        };
+        let json = serde_json::to_value(ChangeEvidenceResponse { change: None, entries: vec![entry.clone()], archived_as: None })
+            .unwrap();
+        let wire = &json["entries"][0];
+        assert_eq!(wire["taskId"], "tsk_01ARZ3NDEKTSV4RRFFQ69G5FAV");
+        assert_eq!(wire["taskDesc"], "1.1 First");
+        assert_eq!(wire["actor"], "Tester <t@example.com>");
+        assert_eq!(wire["repo"], "backend");
+        assert_eq!(wire["touchedFiles"], serde_json::json!(["src/app.rs"]));
+        assert_eq!(wire["recordedAt"], "2026-08-23T00:00:00Z");
+        assert!(
+            wire.get("headCommit").is_none(),
+            "an unattributable field is absent, never defaulted: {wire}"
+        );
+
+        let back: ChangeEvidenceResponse = serde_json::from_value(json).unwrap();
+        assert_eq!(back.entries, vec![entry]);
+    }
+
+    #[test]
+    fn an_empty_evidence_set_is_a_representable_response() {
+        // 缺席是正常状态：空集合必须是能表达的成功回应，读取端不必看错误码。
+        let json = serde_json::to_value(ChangeEvidenceResponse { change: None, entries: Vec::new(), archived_as: None }).unwrap();
+        assert_eq!(json["entries"], serde_json::json!([]));
+        let back: ChangeEvidenceResponse = serde_json::from_value(json).unwrap();
+        assert!(back.entries.is_empty());
+    }
+
+    #[test]
+    fn query_dtos_export_json_schema() {
+        for (name, schema) in [
+            (
+                "ListChangesResponse",
+                schemars::schema_for!(ListChangesResponse),
+            ),
+            ("ChangeStatus", schemars::schema_for!(ChangeStatus)),
+            (
+                "ChangeEvidenceResponse",
+                schemars::schema_for!(ChangeEvidenceResponse),
+            ),
+            (
+                "ApplyInstructions",
+                schemars::schema_for!(ApplyInstructions),
+            ),
+            (
+                "ArtifactInstructions",
+                schemars::schema_for!(ArtifactInstructions),
+            ),
+            (
+                "ShowDiscussionResponse",
+                schemars::schema_for!(ShowDiscussionResponse),
+            ),
+        ] {
+            let text = serde_json::to_string(&schema)
+                .unwrap_or_else(|e| panic!("{name} schema must serialize: {e}"));
+            assert!(text.contains("properties"), "{name} schema has properties");
+        }
+        let status = serde_json::to_string(&schemars::schema_for!(ChangeStatus)).unwrap();
+        assert!(
+            status.contains("changeName") && status.contains("applyRequires"),
+            "schema fields are camelCase: {status}"
+        );
+        let show = serde_json::to_string(&schemars::schema_for!(ShowDiscussionResponse)).unwrap();
+        assert!(
+            show.contains("\"cuts\"") && show.contains("changesInBold"),
+            "the discussion detail schema carries cuts: {show}"
+        );
+    }
+
+    #[test]
+    fn a_plan_response_says_strict_overlap_only_when_it_is_one() {
+        let plain: PlanResponse = serde_json::from_str(r#"{"waves":[],"changes":[],"next":null,"skipped":[]}"#).unwrap();
+        assert!(!plain.strict_overlap, "a server that says nothing gave the plain plan");
+        assert!(serde_json::to_value(&plain).unwrap().get("strictOverlap").is_none(), "absent, not false");
+        let strict: PlanResponse =
+            serde_json::from_str(r#"{"waves":[],"changes":[],"next":null,"skipped":[],"strictOverlap":true}"#).unwrap();
+        assert!(strict.strict_overlap);
+        assert_eq!(serde_json::to_value(&strict).unwrap()["strictOverlap"], true);
+    }
+
+    #[test]
+    fn plan_response_deserializes_the_plan_payload() {
+        // 规格「plan 回应 payload」Scenario「回应反串行化」。
+        let plan: PlanResponse = serde_json::from_str(
+            r#"{"waves":[{"index":1,"changes":["a"]}],"changes":[{"name":"a","wave":1,"stage":"proposed","dependsOn":[],"overlaps":[],"blockedBy":[],"ready":true,"requirementOverlap":[{"change":"b","capability":"desktop-app","requirement":"看板与任务","ownOperation":"MODIFIED","otherOperation":"MODIFIED","conflict":false}],"archiveAfter":["b"]}],"next":"a","skipped":[]}"#,
+        )
+        .unwrap();
+        assert_eq!(plan.next.as_deref(), Some("a"));
+        assert!(plan.changes[0].ready);
+        assert_eq!(plan.waves[0].index, 1);
+        assert_eq!(plan.waves[0].changes, ["a"]);
+        assert_eq!(plan.changes[0].stage, "proposed");
+        let overlap = &plan.changes[0].requirement_overlap[0];
+        assert!(!overlap.conflict);
+        assert_eq!(overlap.own_operation, "MODIFIED");
+        assert_eq!(plan.changes[0].archive_after, ["b"]);
+    }
+
+    #[test]
+    fn plan_change_entry_reads_a_missing_array_as_empty() {
+        // 规格「plan 回应 payload」Scenario「缺数组字段容忍」：新 client 读旧 server。
+        let plan: PlanResponse = serde_json::from_str(
+            r#"{"waves":[],"changes":[{"name":"a","wave":1,"stage":"proposed","dependsOn":[],"blockedBy":[],"ready":true}],"next":"a","skipped":[]}"#,
+        )
+        .unwrap();
+        assert!(plan.changes[0].overlaps.is_empty());
+        assert!(plan.changes[0].requirement_overlap.is_empty());
+        assert!(plan.changes[0].archive_after.is_empty());
+    }
+
+    #[test]
+    fn plan_response_reads_a_missing_unpromoted_cuts_as_empty() {
+        // 规格「plan 回应 payload」：新 client 读旧 server，顶层缺 unpromotedCuts 读作空。
+        let plan: PlanResponse =
+            serde_json::from_str(r#"{"waves":[],"changes":[],"next":null,"skipped":[]}"#).unwrap();
+        assert!(plan.unpromoted_cuts.is_empty());
+    }
+
+    #[test]
+    fn plan_unpromoted_cut_reads_its_five_keys_and_missing_arrays_as_empty() {
+        let plan: PlanResponse = serde_json::from_str(
+            r#"{"next":null,"unpromotedCuts":[{"discussion":"talk-a","cut":"cut 2","title":"第二刀","changes":["add-b","add-c"],"unpromoted":["add-c"]},{"discussion":"talk-b","cut":"cut 1","title":""}]}"#,
+        )
+        .unwrap();
+        let first = &plan.unpromoted_cuts[0];
+        assert_eq!(
+            (first.discussion.as_str(), first.cut.as_str(), first.title.as_str()),
+            ("talk-a", "cut 2", "第二刀")
+        );
+        assert_eq!(first.changes, ["add-b", "add-c"]);
+        assert_eq!(first.unpromoted, ["add-c"]);
+        assert!(plan.unpromoted_cuts[1].changes.is_empty());
+        assert!(plan.unpromoted_cuts[1].unpromoted.is_empty());
+    }
+
+    #[test]
+    fn plan_response_serializes_the_cli_plan_json_keys() {
+        // 回应与 CLI `plan --json` 同形：camelCase、next 为 null 时照样出现。
+        let plan = PlanResponse {
+            waves: vec![PlanWave { index: 1, changes: vec!["a".into(), "b".into()] }],
+            changes: vec![PlanChangeEntry {
+                name: "b".into(),
+                wave: 1,
+                stage: "in-progress".into(),
+                depends_on: vec!["gone".into()],
+                overlaps: vec![PlanOverlap { change: "a".into(), capabilities: vec!["auth".into()] }],
+                blocked_by: Vec::new(),
+                ready: true,
+                requirement_overlap: vec![PlanRequirementOverlap {
+                    change: "a".into(),
+                    capability: "auth".into(),
+                    requirement: "Login".into(),
+                    own_operation: "ADDED".into(),
+                    other_operation: "ADDED".into(),
+                    conflict: true,
+                }],
+                archive_after: Vec::new(),
+            }],
+            next: None,
+            skipped: vec![PlanSkipped { change: "c".into(), reason: "bad meta".into() }],
+            unpromoted_cuts: vec![PlanUnpromotedCut {
+                discussion: "talk-a".into(),
+                cut: "cut 2".into(),
+                title: "第二刀".into(),
+                changes: vec!["add-b".into()],
+                unpromoted: vec!["add-b".into()],
+            }],
+            strict_overlap: false,
+        };
+        let json = serde_json::to_value(&plan).unwrap();
+        // 比键集合、不比键序：serde_json 的 preserve_order 可能被别的 crate 统一打开。
+        let keys = |v: &serde_json::Value| {
+            let mut k: Vec<String> = v.as_object().unwrap().keys().cloned().collect();
+            k.sort();
+            k
+        };
+        assert_eq!(keys(&json), ["changes", "next", "skipped", "unpromotedCuts", "waves"]);
+        assert_eq!(
+            keys(&json["unpromotedCuts"][0]),
+            ["changes", "cut", "discussion", "title", "unpromoted"]
+        );
+        assert_eq!(
+            keys(&json["changes"][0]),
+            [
+                "archiveAfter",
+                "blockedBy",
+                "dependsOn",
+                "name",
+                "overlaps",
+                "ready",
+                "requirementOverlap",
+                "stage",
+                "wave"
+            ]
+        );
+        assert_eq!(
+            keys(&json["changes"][0]["requirementOverlap"][0]),
+            ["capability", "change", "conflict", "otherOperation", "ownOperation", "requirement"]
+        );
+        assert_eq!(json["next"], serde_json::Value::Null);
+        assert_eq!(json["changes"][0]["overlaps"][0]["capabilities"], serde_json::json!(["auth"]));
+        assert_eq!(json["skipped"][0]["reason"], "bad meta");
+    }
+
+    #[test]
+    fn board_order_doc_reads_both_rank_maps() {
+        let doc = BoardOrderDoc::from_content(Some(
+            r#"{"changes":{"add-a":"n"},"discussions":{"topic":"f"}}"#,
+        ));
+        assert_eq!(doc.changes["add-a"], "n");
+        assert_eq!(doc.discussions["topic"], "f");
+    }
+
+    #[test]
+    fn board_order_doc_reads_unusable_content_as_no_ranks() {
+        // 缺席、坏 JSON、非对象：两段都是空的；唯一的一段类型错时那一段也是空的。不失败。
+        for content in [
+            None,
+            Some("not json"),
+            Some("[1,2]"),
+            Some("42"),
+            Some(r#"{"changes":"oops"}"#),
+        ] {
+            let doc = BoardOrderDoc::from_content(content);
+            assert!(doc.changes.is_empty() && doc.discussions.is_empty(), "{content:?}");
+        }
+        // 缺一段只影响那一段。
+        let doc = BoardOrderDoc::from_content(Some(r#"{"discussions":{"topic":"f"}}"#));
+        assert!(doc.changes.is_empty());
+        assert_eq!(doc.discussions["topic"], "f");
+    }
+
+    #[test]
+    fn board_order_doc_reads_each_section_on_its_own() {
+        // remote-board-order「一段坏掉不影响另一段」：一段类型错只让那一段是空的。
+        let doc = BoardOrderDoc::from_content(Some(r#"{"changes":{"a":"n"},"discussions":7}"#));
+        assert_eq!(doc.changes["a"], "n");
+        assert!(doc.discussions.is_empty());
+        let doc = BoardOrderDoc::from_content(Some(r#"{"changes":5,"discussions":{"t":"f"}}"#));
+        assert!(doc.changes.is_empty());
+        assert_eq!(doc.discussions["t"], "f");
+        let doc = BoardOrderDoc::from_content(Some(r#"{"changes":{"a":5,"b":"n"},"discussions":{}}"#));
+        assert!(doc.changes.is_empty(), "a section with a non-string rank reads as empty");
+        let doc = BoardOrderDoc::from_content(Some(r#"{"changes":null,"discussions":{"t":"f"}}"#));
+        assert!(doc.changes.is_empty(), "a null section reads as empty");
+        assert_eq!(doc.discussions["t"], "f");
+    }
+
+    #[test]
+    fn merged_content_prunes_orphans_and_keeps_the_discussion_section() {
+        // remote-board-order「排序请求修剪孤儿条目并带回讨论那一段」。
+        let strict = |text: &str| serde_json::from_str::<BoardOrderDoc>(text).expect("strictly a board-order document");
+        let ranks = [("c".to_string(), "g".to_string())];
+        let text = BoardOrderDoc::merged_content(
+            Some(r#"{"changes":{"a":"n","gone":"c"},"discussions":{"topic":"f"}}"#),
+            &["a", "c"],
+            &ranks,
+        );
+        let doc = strict(&text);
+        assert_eq!(doc.changes.into_iter().collect::<Vec<_>>(), [("a".into(), "n".into()), ("c".into(), "g".into())]);
+        assert_eq!(doc.discussions.into_iter().collect::<Vec<_>>(), [("topic".into(), "f".into())]);
+        // A wrong-typed change section does not take the discussion section with it.
+        let doc = strict(&BoardOrderDoc::merged_content(Some(r#"{"changes":5,"discussions":{"topic":"f"}}"#), &["c"], &ranks));
+        assert_eq!(doc.changes["c"], "g");
+        assert_eq!(doc.discussions["topic"], "f");
+        // No document, or one that is not a document, starts from empty sections.
+        for content in [None, Some("not json")] {
+            let doc = strict(&BoardOrderDoc::merged_content(content, &["c"], &ranks));
+            assert_eq!(doc, BoardOrderDoc { changes: [("c".into(), "g".into())].into(), discussions: Default::default() });
+        }
+    }
+
+    #[test]
+    fn plan_dtos_export_json_schema() {
+        let text = serde_json::to_string(&schemars::schema_for!(PlanResponse)).unwrap();
+        for field in [
+            "waves",
+            "dependsOn",
+            "blockedBy",
+            "skipped",
+            "requirementOverlap",
+            "archiveAfter",
+            "ownOperation",
+            "unpromotedCuts",
+            "unpromoted",
+        ] {
+            assert!(text.contains(field), "plan schema exposes {field}: {text}");
+        }
+    }
+
+    // --- station-status-and-landing：关卡、分支与落地的选填字段 ---
+
+    #[test]
+    fn a_response_without_the_station_fields_reads_as_no_data() {
+        // Scenario「新版用户端解析旧回应」：旧版 Server 的回应没有这些字段。
+        let list: ListChangesResponse =
+            serde_json::from_str(r#"{"changes":[{"name":"demo","status":"in-progress","totalTasks":3}]}"#).unwrap();
+        let demo = &list.changes[0];
+        assert!(demo.review.is_none() && demo.verify.is_none());
+        assert!(demo.branch.is_none() && demo.landed_commit.is_none());
+
+        let single: ChangeStatus = serde_json::from_str(
+            r#"{"changeName":"demo","schemaName":"spec-driven","isComplete":false,"applyRequires":[],"artifacts":[]}"#,
+        )
+        .unwrap();
+        assert!(single.review.is_none() && single.verify.is_none());
+        assert!(single.branch.is_none() && single.landed_commit.is_none());
+        assert!(single.landed_at.is_none() && single.landed_by.is_none());
+
+        let archived: ArchivedListResponse =
+            serde_json::from_str(r#"{"archived":[{"datedName":"2026-11-01-old","date":"2026-11-01","name":"old"}]}"#)
+                .unwrap();
+        assert!(archived.archived[0].review_outcome.is_none() && archived.archived[0].verify_outcome.is_none());
+    }
+
+    #[test]
+    fn absent_station_fields_are_not_serialized() {
+        let list: ListChangesResponse = serde_json::from_str(r#"{"changes":[{"name":"demo"}]}"#).unwrap();
+        let json = serde_json::to_value(&list).unwrap();
+        for key in ["review", "verify", "branch", "landedCommit"] {
+            assert!(json["changes"][0].get(key).is_none(), "{key}: {json}");
+        }
+    }
+
+    #[test]
+    fn a_station_state_is_camel_case_and_keeps_to_the_fields_it_has() {
+        let none = StationState { state: StationPhase::None, ..Default::default() };
+        assert_eq!(serde_json::to_value(&none).unwrap(), serde_json::json!({ "state": "none" }));
+        let in_progress = StationState { state: StationPhase::InProgress, ..Default::default() };
+        assert_eq!(serde_json::to_value(&in_progress).unwrap(), serde_json::json!({ "state": "inProgress" }));
+
+        let text = r#"{"state":"stamped","stampedAt":"2026-11-02","stampedBy":"Rev","rounds":3,"tasksTotal":12,
+            "commit":"0123456789ab","scope":[{"path":"src/a.rs","hash":"aa"}]}"#;
+        let stamped: StationState = serde_json::from_str(text).unwrap();
+        assert_eq!(stamped.state, StationPhase::Stamped);
+        assert_eq!((stamped.rounds, stamped.tasks_total), (Some(3), Some(12)));
+        assert_eq!(stamped.commit.as_deref(), Some("0123456789ab"));
+        assert_eq!(stamped.scope[0].path, "src/a.rs");
+        assert!(stamped.stamped_with.is_none());
+        let back = serde_json::to_value(&stamped).unwrap();
+        assert_eq!(back, serde_json::from_str::<serde_json::Value>(text).unwrap(), "round trip, no null keys");
+    }
+
+    #[test]
+    fn a_state_or_an_outcome_this_client_does_not_know_is_read_as_unknown() {
+        // Scenario「不认得的 state」：解析成功，读作未知。
+        let paused: StationState = serde_json::from_str(r#"{"state":"paused"}"#).unwrap();
+        assert_eq!(paused.state, StationPhase::Unknown("paused".to_string()));
+        let item: ArchivedItem = serde_json::from_str(
+            r#"{"datedName":"d","date":"2026-11-01","name":"n","reviewOutcome":"waived","verifyOutcome":"notPassed"}"#,
+        )
+        .unwrap();
+        assert_eq!(item.review_outcome, Some(StationOutcome::Unknown("waived".to_string())));
+        assert_eq!(item.verify_outcome, Some(StationOutcome::NotPassed));
+        for (outcome, text) in
+            [(StationOutcome::None, "none"), (StationOutcome::Stamped, "stamped"), (StationOutcome::NotPassed, "notPassed")]
+        {
+            assert_eq!(serde_json::to_value(&outcome).unwrap(), text);
+        }
+    }
+
+    #[test]
+    fn the_station_types_export_a_json_schema() {
+        let text = serde_json::to_string(&schemars::schema_for!(ChangeStatus)).unwrap();
+        for field in ["review", "verify", "landedCommit", "landedAt", "landedBy", "stampedAt", "tasksTotal"] {
+            assert!(text.contains(field), "the schema exposes {field}: {text}");
+        }
+    }
+}

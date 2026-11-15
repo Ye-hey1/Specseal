@@ -1,0 +1,223 @@
+//! CommandOutcome → payload 的类型化转换层。「哪个 Command 产哪个 outcome」
+//! 的不变式由 [`super::execute`] 持有，消费端只认 payload 类型——同一类型由
+//! 多个 variant 共用时，该支转换接受全部载此类型的 variant（design D1）。
+//! 转换失败回 [`WrongOutcome`] 错误值，不 panic（design D2）。
+
+use super::{
+    ChangeLandedOutcome, ChangeRankOutcome, CommandOutcome, DependsOutcome, DiscussArchiveOutcome, DiscussBindOutcome,
+    DiscussConcludeOutcome, DiscussPromoteOutcome, DiscussRoundOutcome, DiscussShowOutcome,
+    DiscussSubjectOutcome, EvidenceShowOutcome, FieldsOutcome, InProgressOutcome, InProgressRemoveOutcome, InstructionsOutcome,
+    ListOutcome, NewArtifactOutcome, NewChangeOutcome, PlanReport, SchemaOutcome, ShowOutcome,
+    TaskFlipOutcome, ValidateOutcome, WorkflowConfigShowOutcome, WorkflowConfigWriteOutcome,
+};
+use crate::analyzer::AnalyzeReport;
+use crate::archive::ArchiveOutcome;
+use crate::discard::DiscardOutcome;
+use crate::discuss::{DiscussionHit, DiscussionInfo};
+use crate::status::StatusReport;
+use crate::trace::TraceReport;
+
+/// 转换要求的 payload 类型与 outcome 实际的 variant 不合。现行引擎不变式下
+/// 不会触发；作为错误值而非 panic，让函数库调用端自行决定处置。
+#[derive(Debug)]
+pub struct WrongOutcome {
+    /// 调用端要求的 payload 类型名。
+    pub expected: &'static str,
+    /// outcome 实际的 variant 名。
+    pub actual: &'static str,
+}
+
+impl std::fmt::Display for WrongOutcome {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "wrong outcome: expected {} payload, got CommandOutcome::{}",
+            self.expected, self.actual
+        )
+    }
+}
+
+impl std::error::Error for WrongOutcome {}
+
+fn variant_name(o: &CommandOutcome) -> &'static str {
+    match o {
+        CommandOutcome::List(_) => "List",
+        CommandOutcome::Show(_) => "Show",
+        CommandOutcome::Status(_) => "Status",
+        CommandOutcome::Instructions(_) => "Instructions",
+        CommandOutcome::Validate(_) => "Validate",
+        CommandOutcome::Analyze(_) => "Analyze",
+        CommandOutcome::Trace(_) => "Trace",
+        CommandOutcome::Plan(_) => "Plan",
+        CommandOutcome::ArtifactCat(_) => "ArtifactCat",
+        CommandOutcome::EvidenceShow(_) => "EvidenceShow",
+        CommandOutcome::Language(_) => "Language",
+        CommandOutcome::DiscussList(_) => "DiscussList",
+        CommandOutcome::DiscussShow(_) => "DiscussShow",
+        CommandOutcome::DiscussSearch(_) => "DiscussSearch",
+        CommandOutcome::NewChange(_) => "NewChange",
+        CommandOutcome::NewArtifact(_) => "NewArtifact",
+        CommandOutcome::TaskDone(_) => "TaskDone",
+        CommandOutcome::TaskUndone(_) => "TaskUndone",
+        CommandOutcome::TaskMove(_) => "TaskMove",
+        CommandOutcome::Claim(_) => "Claim",
+        CommandOutcome::InProgressAdd(_) => "InProgressAdd",
+        CommandOutcome::InProgressRemove(_) => "InProgressRemove",
+        CommandOutcome::ChangeDepends(_) => "ChangeDepends",
+        CommandOutcome::ChangeSchema(_) => "ChangeSchema",
+        CommandOutcome::ChangeRank(_) => "ChangeRank",
+        CommandOutcome::ChangeLanded(_) => "ChangeLanded",
+        CommandOutcome::ChangeFieldsEdit(_) => "ChangeFieldsEdit",
+        CommandOutcome::Archive(_) => "Archive",
+        CommandOutcome::Discard(_) => "Discard",
+        CommandOutcome::DiscussNew(_) => "DiscussNew",
+        CommandOutcome::DiscussContext(_) => "DiscussContext",
+        CommandOutcome::DiscussAddRound(_) => "DiscussAddRound",
+        CommandOutcome::DiscussConclude(_) => "DiscussConclude",
+        CommandOutcome::DiscussPromote(_) => "DiscussPromote",
+        CommandOutcome::DiscussLink(_) => "DiscussLink",
+        CommandOutcome::DiscussSeal(_) => "DiscussSeal",
+        CommandOutcome::DiscussArchive(_) => "DiscussArchive",
+        CommandOutcome::DiscussDiscard(_) => "DiscussDiscard",
+        CommandOutcome::DiscussFieldsEdit(_) => "DiscussFieldsEdit",
+        CommandOutcome::ReviewAddRound(_) => "ReviewAddRound",
+        CommandOutcome::ReviewShow(_) => "ReviewShow",
+        CommandOutcome::ReviewStamp(_) => "ReviewStamp",
+        CommandOutcome::ReviewDiscard(_) => "ReviewDiscard",
+        CommandOutcome::VerifyAddRound(_) => "VerifyAddRound",
+        CommandOutcome::VerifyShow(_) => "VerifyShow",
+        CommandOutcome::VerifyStamp(_) => "VerifyStamp",
+        CommandOutcome::VerifyDiscard(_) => "VerifyDiscard",
+        CommandOutcome::WorkflowConfigShow(_) => "WorkflowConfigShow",
+        CommandOutcome::WorkflowConfigEdit(_) => "WorkflowConfigEdit",
+        CommandOutcome::WorkflowConfigReplace(_) => "WorkflowConfigReplace",
+    }
+}
+
+/// 表驱动生成 TryFrom<CommandOutcome>：一行一 payload 类型，列出该类型
+/// 接受的全部 variant。
+macro_rules! typed_outcomes {
+    ($($ty:ty => [$($variant:ident),+ $(,)?]),+ $(,)?) => {$(
+        impl TryFrom<CommandOutcome> for $ty {
+            type Error = WrongOutcome;
+            fn try_from(outcome: CommandOutcome) -> Result<Self, WrongOutcome> {
+                match outcome {
+                    $(CommandOutcome::$variant(payload) => Ok(payload),)+
+                    other => Err(WrongOutcome {
+                        expected: stringify!($ty),
+                        actual: variant_name(&other),
+                    }),
+                }
+            }
+        }
+    )+};
+}
+
+/// The two commands that read one document give its text: the artifact's
+/// content, or the LANGUAGE document.
+impl TryFrom<CommandOutcome> for String {
+    type Error = WrongOutcome;
+    fn try_from(outcome: CommandOutcome) -> Result<Self, WrongOutcome> {
+        match outcome {
+            CommandOutcome::ArtifactCat(read) => Ok(read.content),
+            CommandOutcome::Language(content) => Ok(content),
+            other => Err(WrongOutcome { expected: "String", actual: variant_name(&other) }),
+        }
+    }
+}
+
+typed_outcomes! {
+    ListOutcome => [List],
+    ShowOutcome => [Show],
+    StatusReport => [Status],
+    InstructionsOutcome => [Instructions],
+    ValidateOutcome => [Validate],
+    AnalyzeReport => [Analyze],
+    TraceReport => [Trace],
+    PlanReport => [Plan],
+    EvidenceShowOutcome => [EvidenceShow],
+    Vec<DiscussionInfo> => [DiscussList],
+    DiscussShowOutcome => [DiscussShow],
+    Vec<DiscussionHit> => [DiscussSearch],
+    NewChangeOutcome => [NewChange],
+    NewArtifactOutcome => [NewArtifact],
+    TaskFlipOutcome => [TaskDone, TaskUndone],
+    InProgressOutcome => [InProgressAdd],
+    InProgressRemoveOutcome => [InProgressRemove],
+    DependsOutcome => [ChangeDepends],
+    SchemaOutcome => [ChangeSchema],
+    ChangeRankOutcome => [ChangeRank],
+    ChangeLandedOutcome => [ChangeLanded],
+    FieldsOutcome => [ChangeFieldsEdit, DiscussFieldsEdit],
+    ArchiveOutcome => [Archive],
+    DiscardOutcome => [Discard],
+    DiscussionInfo => [DiscussNew],
+    DiscussSubjectOutcome => [DiscussContext, DiscussDiscard],
+    DiscussRoundOutcome => [DiscussAddRound],
+    DiscussConcludeOutcome => [DiscussConclude],
+    DiscussPromoteOutcome => [DiscussPromote],
+    DiscussBindOutcome => [DiscussLink, DiscussSeal],
+    DiscussArchiveOutcome => [DiscussArchive],
+    WorkflowConfigShowOutcome => [WorkflowConfigShow],
+    WorkflowConfigWriteOutcome => [WorkflowConfigEdit, WorkflowConfigReplace],
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::command::*;
+
+    fn flip_outcome(change: &str) -> TaskFlipOutcome {
+        TaskFlipOutcome {
+            change: change.into(),
+            task_id: 1,
+            task_id_arg: "1".into(),
+            description: "demo task".into(),
+            already: false,
+            stable_id: None,
+            touched_files: vec![],
+        }
+    }
+
+    #[test]
+    fn list_outcome_converts_from_list_variant() {
+        let o = CommandOutcome::List(ListOutcome { changes: None, specs: None });
+        let got = ListOutcome::try_from(o).expect("List variant carries ListOutcome");
+        assert!(got.changes.is_none());
+        assert!(got.specs.is_none());
+    }
+
+    #[test]
+    fn wrong_variant_yields_wrong_outcome_naming_both_sides() {
+        let o = CommandOutcome::Language("doc body".into());
+        let err: WrongOutcome =
+            ListOutcome::try_from(o).expect_err("Language variant does not carry ListOutcome");
+        // WrongOutcome 是标准错误值：Display 同时载期望类型名与实际 variant 名。
+        let _: &dyn std::error::Error = &err;
+        let msg = err.to_string();
+        assert!(msg.contains("ListOutcome"), "expected type name missing: {msg}");
+        assert!(msg.contains("Language"), "actual variant name missing: {msg}");
+    }
+
+    #[test]
+    fn task_flip_outcome_accepts_done_and_undone() {
+        let done = TaskFlipOutcome::try_from(CommandOutcome::TaskDone(flip_outcome("a")))
+            .expect("TaskDone carries TaskFlipOutcome");
+        assert_eq!(done.change, "a");
+        let undone = TaskFlipOutcome::try_from(CommandOutcome::TaskUndone(flip_outcome("b")))
+            .expect("TaskUndone carries TaskFlipOutcome");
+        assert_eq!(undone.change, "b");
+    }
+
+    #[test]
+    fn string_accepts_artifact_cat_and_language() {
+        let cat = String::try_from(CommandOutcome::ArtifactCat(ArtifactCatOutcome {
+            content: "cat body".into(),
+            archived_as: None,
+        }))
+            .expect("ArtifactCat carries String");
+        assert_eq!(cat, "cat body");
+        let lang = String::try_from(CommandOutcome::Language("lang body".into()))
+            .expect("Language carries String");
+        assert_eq!(lang, "lang body");
+    }
+}

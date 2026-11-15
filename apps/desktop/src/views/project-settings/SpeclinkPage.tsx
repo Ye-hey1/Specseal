@@ -1,6 +1,6 @@
-// AI 工具頁（desktop-settings-mode design D8；spec「設定頁圖形化讀寫兩層設定」）：讀寫 .speclink.yaml
-// 的 tools——「AI 工具」卡裡內建工具每個一列附開關，自訂工具描述子為不可編輯列。檔名只在頁標題下
-// 的等寬註記。remote 專案沒有這一頁（tools 屬本機 checkout 概念）。
+// AI 工具页（desktop-settings-mode design D8；spec「设置页图形化读写两层设置」）：读写 .specseal.yaml
+// 的 tools——「AI 工具」卡里内置工具每个一列附开关，自订工具描述子为不可编辑列。文件名只在页标题下
+// 的等宽注记。remote 项目没有这一页（tools 属本机 checkout 概念）。
 import {
   Button,
   SettingsCard,
@@ -8,22 +8,22 @@ import {
   SettingsRow,
   Switch,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { BUILTIN_TOOLS } from "../../builtinTools";
 import { PageAlerts } from "./parts";
 import type { ProjectSettingsState } from "./useProjectSettings";
 
-export function SpeclinkPage({ ps }: { ps: ProjectSettingsState }) {
+export function SpecsealPage({ ps }: { ps: ProjectSettingsState }) {
   const { t } = useI18n();
   return (
     <>
       <SettingsPageHeader
-        title={t("settings.projectSection.speclink")}
-        description={t("settings.speclinkPageDesc")}
+        title={t("settings.projectSection.specseal")}
+        description={t("settings.specsealPageDesc")}
         note={
-          <span data-testid="file-note-speclink" className="font-mono">
-            .speclink.yaml · tools
+          <span data-testid="file-note-specseal" className="font-mono">
+            .specseal.yaml · tools
           </span>
         }
       />

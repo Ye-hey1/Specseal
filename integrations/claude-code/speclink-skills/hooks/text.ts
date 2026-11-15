@@ -35,16 +35,16 @@ type Text = {
   cliHint: string
 }
 
-// 介面文字。階段、輪數、空狀態、文件、任務與工單沿用 desktop 的正典詞彙（packages/ui 的
+// 接口文本。阶段、轮数、空状态、文档、任务与工单沿用 desktop 的正典词汇（packages/ui 的
 // stage.*、common.rounds、board.empty、common.tab*、tasks.*、ticket.*、discussion.status*），
-// 中英兩版對等。
+// 中英两版对等。
 export const TEXT: Record<Lang, Text> = {
   en: {
     groups: { plan: 'Plan', build: 'Build', quality: 'Quality', ship: 'Ship', other: 'More' },
     panel: 'Panel',
-    panelCommand: 'Toggle the speclink side panel',
-    panelOpened: 'speclink panel opened.',
-    panelClosed: 'speclink panel closed.',
+    panelCommand: 'Toggle the specseal side panel',
+    panelOpened: 'specseal panel opened.',
+    panelClosed: 'specseal panel closed.',
     loading: 'Loading…',
     updated: time => `Updated ${time}`,
     refresh: '↻ Refresh',
@@ -69,46 +69,46 @@ export const TEXT: Record<Lang, Text> = {
     noTickets: 'No open review or verify tickets.',
     ticketNote: 'A stamp deletes its ticket, so only open tickets show.',
     skipped: names => `Skipped (bad meta): ${names}`,
-    cliHint: 'The panel needs the speclink CLI on PATH.',
+    cliHint: 'The panel needs the specseal CLI on PATH.',
   },
-  'zh-TW': {
-    groups: { plan: '規劃', build: '實作', quality: '品質', ship: '收尾', other: '其他' },
+  'zh-CN': {
+    groups: { plan: '规划', build: '实作', quality: '品质', ship: '收尾', other: '其他' },
     panel: '面板',
-    panelCommand: '開關 speclink 側邊面板',
-    panelOpened: 'speclink 面板已開啟。',
-    panelClosed: 'speclink 面板已關閉。',
-    loading: '讀取中…',
-    updated: time => `更新於 ${time}`,
-    refresh: '↻ 重新整理',
+    panelCommand: '开关 specseal 侧边面板',
+    panelOpened: 'specseal 面板已打开。',
+    panelClosed: 'specseal 面板已关闭。',
+    loading: '读取中…',
+    updated: time => `更新于 ${time}`,
+    refresh: '↻ 刷新',
     next: '下一步 ▸ ',
-    tabs: { board: '看板', talk: '討論', quality: '品質' },
-    rounds: n => `${n} 輪`,
-    open: '討論中',
-    concluded: '已結論',
-    stages: { proposed: '提案中', 'in-progress': '進行中', ready: '已就緒' },
+    tabs: { board: '看板', talk: '讨论', quality: '品质' },
+    rounds: n => `${n} 轮`,
+    open: '讨论中',
+    concluded: '已结论',
+    stages: { proposed: '提案中', 'in-progress': '进行中', ready: '已就绪' },
     waitsFor: names => `等 ${names}`,
-    noChanges: '沒有 active change',
-    noDiscussions: '沒有討論',
-    artifacts: { proposal: '提案', design: '設計', specs: '規格', tasks: '任務' },
-    manual: '手動',
-    noTasks: '（無任務）',
-    review: '審查',
-    verify: '驗證',
-    round: n => `第 ${n} 輪`,
-    findings: n => `${n} 條`,
-    noFindings: '本輪無發現',
-    noTicket: '沒有工單',
-    noTickets: '沒有未結的審查或驗證工單。',
-    ticketNote: '蓋章後工單會刪除，這裡只列未結的工單。',
-    skipped: names => `略過（meta 有誤）：${names}`,
-    cliHint: '面板需要 PATH 上有 speclink CLI。',
+    noChanges: '没有 active change',
+    noDiscussions: '没有讨论',
+    artifacts: { proposal: '提案', design: '设计', specs: '规格', tasks: '任务' },
+    manual: '手动',
+    noTasks: '（无任务）',
+    review: '审查',
+    verify: '验证',
+    round: n => `第 ${n} 轮`,
+    findings: n => `${n} 条`,
+    noFindings: '本轮无发现',
+    noTicket: '没有工单',
+    noTickets: '没有未结的审查或验证工单。',
+    ticketNote: '盖章后工单会删除，这里只列未结的工单。',
+    skipped: names => `略过（meta 有误）：${names}`,
+    cliHint: '面板需要 PATH 上有 specseal CLI。',
   },
 }
 
-// `auto` 跟著 Claude Code 自己的 `language` 設定：寫的是中文就用繁中，其餘用英文。
+// `auto` 跟着 Claude Code 自己的 `language` 设置：写的是中文就用繁中，其余用英文。
 export const resolveLang = (option: unknown, claudeLanguage: unknown): Lang => {
-  if (option === 'en' || option === 'zh-TW') {
+  if (option === 'en' || option === 'zh-CN') {
     return option
   }
-  return typeof claudeLanguage === 'string' && /中文|chinese|zh/i.test(claudeLanguage) ? 'zh-TW' : 'en'
+  return typeof claudeLanguage === 'string' && /中文|chinese|zh/i.test(claudeLanguage) ? 'zh-CN' : 'en'
 }

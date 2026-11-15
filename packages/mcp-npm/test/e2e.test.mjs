@@ -1,5 +1,5 @@
 // e2e：真 MCP Client 经 stdio 连上 server，验握手、工具清单与真实工具调用。
-// 前置：speclink CLI 在 PATH（e2e 在临时目录跑 init 建工作区）。
+// 前置：specseal CLI 在 PATH（e2e 在临时目录跑 init 建工作区）。
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -26,7 +26,7 @@ async function withClient(cwd, fn) {
 test("e2e：握手、工具清单、真实调用 guide/validate/list", async () => {
   const dir = mkdtempSync(join(tmpdir(), "specseal-mcp-e2e-"));
   try {
-    execFileSync("speclink", ["init", "--tools", "claude"], { cwd: dir, stdio: "pipe" });
+    execFileSync("specseal", ["init", "--tools", "claude"], { cwd: dir, stdio: "pipe" });
 
     await withClient(dir, async (client) => {
       const { tools } = await client.listTools();

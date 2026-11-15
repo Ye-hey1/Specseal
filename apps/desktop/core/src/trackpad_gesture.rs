@@ -1,19 +1,19 @@
-//! 觸控板手勢階段的判讀與送給前端的事件格式（desktop-swipe-back-finger-lift design D2）。
-//! macOS 的 Tauri 殼以 NSEvent 本地監聽讀捲動事件的 phase／momentumPhase 位元，交給
-//! [`classify_scroll_phase`] 判讀後廣播 [`TrackpadGestureEvent`]；殼端只做 AppKit 黏合。
+//! 触摸板手势阶段的判读与送给前端的事件格式（desktop-swipe-back-finger-lift design D2）。
+//! macOS 的 Tauri 壳以 NSEvent 本地监听读卷动事件的 phase／momentumPhase 比特，交给
+//! [`classify_scroll_phase`] 判读后广播 [`TrackpadGestureEvent`]；壳端只做 AppKit 黏合。
 
 use serde::Serialize;
 
-/// 殼廣播、前端 SwipeBack 訂閱的 Tauri 事件名。
+/// 壳广播、前端 SwipeBack 订阅的 Tauri 事件名。
 pub const TRACKPAD_GESTURE_EVENT: &str = "trackpad-gesture";
 
-// NSEventPhase 的位元值（AppKit 定義；殼端以 `.bits()` 原樣傳入）。
+// NSEventPhase 的比特值（AppKit 定义；壳端以 `.bits()` 原样传入）。
 const PHASE_BEGAN: u64 = 0x1;
 const PHASE_ENDED: u64 = 0x8;
 const PHASE_CANCELLED: u64 = 0x10;
 const PHASE_MAY_BEGIN: u64 = 0x20;
 
-/// 手指按下（began）或離開觸控板（ended）。
+/// 手指按下（began）或离开触摸板（ended）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TrackpadGesturePhase {
@@ -22,7 +22,7 @@ pub enum TrackpadGesturePhase {
 }
 
 /// `trackpad-gesture` 事件的 payload：`{"phase":"began"|"ended","swipeEnabled":bool}`。
-/// swipe_enabled 為系統設定「在頁面之間滑動」是否允許兩指滑動，只在 began 有意義。
+/// swipe_enabled 为系统设置「在页面之间滑动」是否允许两指滑动，只在 began 有意义。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TrackpadGestureEvent {
@@ -30,9 +30,9 @@ pub struct TrackpadGestureEvent {
     pub swipe_enabled: bool,
 }
 
-/// 依捲動事件的 phase／momentumPhase 位元判讀手指按下或離開。慣性事件（momentum 非 0）
-/// 不是手指動作；MayBegin／Began 為按下、Ended／Cancelled 為離開；手指移動中（Changed）
-/// 與一般滑鼠滾輪（兩者皆 0）回 None。
+/// 依卷动事件的 phase／momentumPhase 比特判读手指按下或离开。惯性事件（momentum 非 0）
+/// 不是手指动作；MayBegin／Began 为按下、Ended／Cancelled 为离开；手指移动中（Changed）
+/// 与一般鼠标滚轮（两者皆 0）回 None。
 pub fn classify_scroll_phase(phase_bits: u64, momentum_bits: u64) -> Option<TrackpadGesturePhase> {
     if momentum_bits != 0 {
         None
@@ -49,14 +49,14 @@ pub fn classify_scroll_phase(phase_bits: u64, momentum_bits: u64) -> Option<Trac
 mod tests {
     use super::*;
 
-    // 判讀不認的 NSEventPhase 位元（AppKit 定義）；認的沿用上方 PHASE_*。
+    // 判读不认的 NSEventPhase 比特（AppKit 定义）；认的沿用上方 PHASE_*。
     const NONE: u64 = 0;
     const CHANGED: u64 = 0x4;
 
     #[test]
     fn finger_down_phases_classify_as_began() {
-        // MayBegin（手指觸碰、尚未移動）也算按下：輕觸不移動（MayBegin→Cancelled）因此是
-        // began→ended，前端在 ended 遺失、卡在追蹤中時也會先歸零，不把輕觸當成結算。
+        // MayBegin（手指触碰、尚未移动）也算按下：轻触不移动（MayBegin→Cancelled）因此是
+        // began→ended，前端在 ended 遗失、卡在追踪中时也会先归零，不把轻触当成结算。
         assert_eq!(classify_scroll_phase(PHASE_MAY_BEGIN, NONE), Some(TrackpadGesturePhase::Began));
         assert_eq!(classify_scroll_phase(PHASE_BEGAN, NONE), Some(TrackpadGesturePhase::Began));
     }
@@ -69,14 +69,14 @@ mod tests {
 
     #[test]
     fn moves_momentum_and_plain_wheel_classify_as_none() {
-        assert_eq!(classify_scroll_phase(CHANGED, NONE), None, "手指移動中");
-        assert_eq!(classify_scroll_phase(NONE, CHANGED), None, "慣性捲動");
-        assert_eq!(classify_scroll_phase(NONE, NONE), None, "一般滑鼠滾輪");
+        assert_eq!(classify_scroll_phase(CHANGED, NONE), None, "手指移动中");
+        assert_eq!(classify_scroll_phase(NONE, CHANGED), None, "惯性卷动");
+        assert_eq!(classify_scroll_phase(NONE, NONE), None, "一般鼠标滚轮");
     }
 
     #[test]
     fn unknown_and_stationary_bits_classify_as_none() {
-        // 不認得的位元一律不送事件：寧可失去一次滑動，也不誤開始或誤結算。
+        // 不认得的比特一律不送事件：宁可失去一次滑动，也不误开始或误结算。
         const STATIONARY: u64 = 0x2;
         assert_eq!(classify_scroll_phase(STATIONARY, NONE), None);
         assert_eq!(classify_scroll_phase(0x40, NONE), None);
@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn momentum_wins_over_finger_bits() {
-        // 慣性事件不得開始或結束一次滑動，即使 phase 位元同時帶了按下／離開。
+        // 惯性事件不得开始或结束一次滑动，即使 phase 比特同时带了按下／离开。
         assert_eq!(classify_scroll_phase(PHASE_BEGAN, PHASE_BEGAN), None);
         assert_eq!(classify_scroll_phase(PHASE_ENDED, PHASE_ENDED), None);
     }

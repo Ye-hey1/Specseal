@@ -1,35 +1,35 @@
-//! 歸檔清單的 SQLite 衍生快取。
+//! 归档清单的 SQLite 衍生缓存。
 //!
-//! 快取限縮於歸檔（archived）change 清單——歸檔量隨時間無上限成長，每次全量重解析浪費。
-//! active change／spec 清單不經此快取（見 [`crate::query`]），一律即時經 core 讀取檔案。
+//! 缓存限缩于归档（archived）change 清单——归档量随时间无上限成长，每次全量重解析浪费。
+//! active change／spec 清单不经此缓存（见 [`crate::query`]），一律即时经 core 读取文件。
 //!
-//! 快取為衍生資料：可刪除後由歸檔目錄重建、帶 schema 版本標記；版本不符時重建。
-//! 檔案系統（`changes/archive/`）恆為真相，快取每次讀取都對照目錄收斂。
+//! 缓存为衍生数据：可删除后由归档目录重建、带 schema 版本标记；版本不符时重建。
+//! 文件系统（`changes/archive/`）恒为真相，缓存每次读取都对照目录收敛。
 
 use std::path::Path;
 
 use rusqlite::Connection;
 use serde_json::{json, Value};
-use speclink_core::station::{ArchivedOutcome, Station, REVIEW, VERIFY};
-use speclink_core::store::Store;
+use specseal_core::station::{ArchivedOutcome, Station, REVIEW, VERIFY};
+use specseal_core::store::Store;
 
 use crate::init_core_context;
 use crate::query::archived_status_str;
 
-/// 快取 schema 版本。改動快取表結構時遞增——舊版本會被丟棄重建。
-/// v2：archived_changes 加 tasks_total／tasks_done（清單徽章，首次收斂後零解析）。
-/// v3：加 spec_count／created_by／from_discussions（封存卡收合資訊，spec-archive-drawer design D5）。
-/// v4：加 review_status（封存時的審查結局，spec client-protocol「已封存清單的審查結局欄位」）。
-/// v5：加 verify_status（封存時的驗證結局，spec client-protocol「已封存清單的驗證結局欄位」）。
-/// v6：加 why_excerpt／created（封存卡描述列與抽屜出身列，spec client-protocol
-///     「已封存清單的呈現輔助欄位」）。
-/// v7：加 doc_lines／lead_days／lead_hours／review_rounds／verify_rounds（已封存頁的
-///     流程成本摘要，spec client-protocol「已封存清單的流程成本欄位」）。
-/// v8：表結構不變；審查與驗證的結局改成「有工單優先」，存下的舊結局要重算。
+/// 缓存 schema 版本。改动缓存表结构时递增——旧版本会被丢弃重建。
+/// v2：archived_changes 加 tasks_total／tasks_done（清单徽章，首次收敛后零解析）。
+/// v3：加 spec_count／created_by／from_discussions（封存卡收合信息，spec-archive-drawer design D5）。
+/// v4：加 review_status（封存时的审查结局，spec client-protocol「已封存清单的审查结局字段」）。
+/// v5：加 verify_status（封存时的验证结局，spec client-protocol「已封存清单的验证结局字段」）。
+/// v6：加 why_excerpt／created（封存卡描述列与抽屉出身列，spec client-protocol
+///     「已封存清单的呈现辅助字段」）。
+/// v7：加 doc_lines／lead_days／lead_hours／review_rounds／verify_rounds（已封存页的
+///     流程成本摘要，spec client-protocol「已封存清单的流程成本字段」）。
+/// v8：表结构不变；审查与验证的结局改成「有工单优先」，存下的旧结局要重算。
 const CACHE_VERSION: i64 = 8;
 
-/// 回傳歸檔 change 清單：`{ "archived": [ { datedName, date, name } ] }`，按 datedName 排序。
-/// 非專案回傳 `{ "archived": [] }`。
+/// 回传归档 change 清单：`{ "archived": [ { datedName, date, name } ] }`，按 datedName 排序。
+/// 非项目回传 `{ "archived": [] }`。
 pub fn archived_changes_at(root: &Path) -> Value {
     let Some(ctx) = init_core_context(root) else {
         return json!({ "archived": [] });
@@ -38,7 +38,7 @@ pub fn archived_changes_at(root: &Path) -> Value {
     let mut names = read_archive_dir_names(&archive_dir);
     names.sort();
     let db_path = ctx.workspace.work_dir().join("desktop-cache.db");
-    // 快取失敗（如磁碟/鎖問題）時退回直接以目錄資料回應——真相恆為檔案。
+    // 缓存失败（如磁盘/锁问题）时退回直接以目录数据回应——真相恒为文件。
     let items = match reconcile(&db_path, &ctx.store, &names) {
         Ok(items) => items,
         Err(_) => names.iter().map(|n| item_for(n)).collect(),
@@ -46,7 +46,7 @@ pub fn archived_changes_at(root: &Path) -> Value {
     json!({ "archived": items })
 }
 
-/// 列出歸檔目錄下的子目錄名（各為一個 dated_name）。目錄不存在時回傳空。
+/// 列出归档目录下的子目录名（各为一个 dated_name）。目录不存在时回传空。
 fn read_archive_dir_names(archive_dir: &Path) -> Vec<String> {
     let Ok(entries) = std::fs::read_dir(archive_dir) else {
         return Vec::new();
@@ -58,7 +58,7 @@ fn read_archive_dir_names(archive_dir: &Path) -> Vec<String> {
         .collect()
 }
 
-/// 以目前歸檔目錄為準收斂快取，回傳排序後的清單項。
+/// 以目前归档目录为准收敛缓存，回传排序后的清单项。
 fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::Result<Vec<Value>> {
     if let Some(parent) = db_path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -66,8 +66,8 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
     let conn = Connection::open(db_path)?;
     ensure_schema(&conn)?;
 
-    // 只為尚未快取的名稱讀 meta 與解析任務計數——這是快取相對「每次全量重解析」
-    // 的省力點；之後清單讀取零解析。
+    // 只为尚未缓存的名称读 meta 与解析任务计数——这是缓存相对「每次全量重解析」
+    // 的省力点；之后清单读取零解析。
     for name in names {
         let cached: bool = conn.query_row(
             "SELECT 1 FROM archived_changes WHERE dated_name = ?1",
@@ -78,34 +78,34 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
         if !cached {
             let meta = store.read_archived_meta(name).unwrap_or_default();
             let counts = store.read_archived_artifact(name, "tasks.md").map(|text| {
-                let tasks = speclink_core::tasks::parse(&text);
-                let (total, complete, _) = speclink_core::tasks::progress(&tasks);
+                let tasks = specseal_core::tasks::parse(&text);
+                let (total, complete, _) = specseal_core::tasks::progress(&tasks);
                 (total as i64, complete as i64)
             });
-            // 封存卡收合資訊（design D4/D5）：入庫使清單讀取零解析。from_discussions
-            // 以逗號串存放（與 meta 累積器同格式），讀出時同語意拆分。
-            // 歸檔 metadata 的壞檔語意不在 fail-closed 範圍（僅活躍 change）——
-            // 歷史紀錄照舊寬鬆讀取。
-            let parsed = speclink_core::model::ChangeMeta::from_text(Some(&meta)).unwrap_or_default();
+            // 封存卡收合信息（design D4/D5）：入库使清单读取零解析。from_discussions
+            // 以逗号串存放（与 meta 累积器同格式），读出时同语意拆分。
+            // 归档 metadata 的坏档语意不在 fail-closed 范围（仅活跃 change）——
+            // 历史纪录照旧宽松读取。
+            let parsed = specseal_core::model::ChangeMeta::from_text(Some(&meta)).unwrap_or_default();
             let spec_count = store.archived_delta_capabilities(name).len() as i64;
-            // 審查結局（封存即定格，不重算凍結度）：含工單 → reviewedNotPassed；否則
-            // 含章 → reviewed；皆無 → none（順序是引擎的 ArchivedOutcome）。入庫後清單
-            // 讀取零解析。驗證結局同構且獨立判定：同一項可以是「審查通過」卻「曾驗證未通過」。
+            // 审查结局（封存即定格，不重算冻结度）：含工单 → reviewedNotPassed；否则
+            // 含章 → reviewed；皆无 → none（顺序是引擎的 ArchivedOutcome）。入库后清单
+            // 读取零解析。验证结局同构且独立判定：同一项可以是「审查通过」却「曾验证未通过」。
             let outcome = |st: &Station, stamped: bool| {
                 let ticket_archived = store.read_archived_artifact(name, st.doc).is_some();
                 archived_status_str(st, ArchivedOutcome::of(ticket_archived, stamped))
             };
             let review_status = outcome(&REVIEW, parsed.reviewed_at.is_some());
             let verify_status = outcome(&VERIFY, parsed.verified_at.is_some());
-            // 呈現輔助欄位（desktop-archived-parity D2）：封存卡描述列的 Why 首句與
-            // 抽屜出身列的建立日期。來源不可讀／缺席時存 NULL，讀出時不插 key。
+            // 呈现辅助字段（desktop-archived-parity D2）：封存卡描述列的 Why 首句与
+            // 抽屉出身列的创建日期。来源不可读／缺席时存 NULL，读出时不插 key。
             let why_excerpt = store
                 .read_archived_artifact(name, "proposal.md")
                 .as_deref()
                 .and_then(crate::query::why_excerpt);
-            // 流程成本（process-cost-metrics D4）：單項由 core 算，缺席存 NULL；
-            // 存不進 SQLite 整數的超大輪數一樣存 NULL（讀出時不插 key）。
-            let cost = speclink_core::cost::archived_cost(store, name);
+            // 流程成本（process-cost-metrics D4）：单项由 core 算，缺席存 NULL；
+            // 存不进 SQLite 整数的超大轮数一样存 NULL（读出时不插 key）。
+            let cost = specseal_core::cost::archived_cost(store, name);
             let int = |n: Option<u64>| n.and_then(|n| i64::try_from(n).ok());
             conn.execute(
                 "INSERT OR REPLACE INTO archived_changes (dated_name, meta, tasks_total, tasks_done, spec_count, created_by, from_discussions, review_status, verify_status, why_excerpt, created, doc_lines, lead_days, lead_hours, review_rounds, verify_rounds) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
@@ -131,7 +131,7 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
         }
     }
 
-    // 移除已不在歸檔目錄中的殘留列（真相是目錄）。
+    // 移除已不在归档目录中的残留列（真相是目录）。
     let keep: std::collections::HashSet<&str> = names.iter().map(|s| s.as_str()).collect();
     let mut stmt = conn.prepare("SELECT dated_name FROM archived_changes")?;
     let existing: Vec<String> = stmt
@@ -150,7 +150,7 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
     )?;
     let items: Vec<Value> = stmt
         .query_map([], |r| {
-            // 流程成本欄位：JSON 鍵與 SELECT 欄位編號寫在同一處，缺席（NULL）時為 None。
+            // 流程成本字段：JSON 键与 SELECT 字段编号写在同一处，缺席（NULL）时为 None。
             let cost = [
                 ("docLines", r.get::<_, Option<i64>>(10)?.map(Value::from)),
                 ("leadDays", r.get::<_, Option<i64>>(11)?.map(Value::from)),
@@ -188,12 +188,12 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
                 cost,
             ) = row;
             let mut item = item_for(&n);
-            // 無 tasks.md 的封存項徽章欄位缺席（前端據此不顯示徽章）。
+            // 无 tasks.md 的封存项徽章字段缺席（前端据此不显示徽章）。
             if let (Some(total), Some(done)) = (total, done) {
                 item["tasksTotal"] = json!(total);
                 item["tasksDone"] = json!(done);
             }
-            // 封存卡收合資訊恆存在 key：缺席語意為 0／null／空陣列（design D4）。
+            // 封存卡收合信息恒存在 key：缺席语意为 0／null／空数组（design D4）。
             item["specCount"] = json!(spec_count.unwrap_or(0));
             item["createdBy"] = json!(created_by);
             let discussions: Vec<&str> = from_discussions
@@ -203,14 +203,14 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
             item["fromDiscussions"] = json!(discussions);
             item["reviewStatus"] = json!(review_status.as_deref().unwrap_or("none"));
             item["verifyStatus"] = json!(verify_status.as_deref().unwrap_or("none"));
-            // 呈現輔助欄位缺席時不插 key（spec：不以空字串或 null 佔位）。
+            // 呈现辅助字段缺席时不插 key（spec：不以空字符串或 null 占位）。
             if let Some(excerpt) = why_excerpt {
                 item["whyExcerpt"] = json!(excerpt);
             }
             if let Some(created) = created {
                 item["created"] = json!(created);
             }
-            // 流程成本欄位同規則：缺席不插 key。
+            // 流程成本字段同规则：缺席不插 key。
             for (key, value) in cost {
                 if let Some(value) = value {
                     item[key] = value;
@@ -222,7 +222,7 @@ fn reconcile(db_path: &Path, store: &dyn Store, names: &[String]) -> rusqlite::R
     Ok(items)
 }
 
-/// 確保快取 schema 存在且版本相符；版本不符或缺失時丟棄重建。
+/// 确保缓存 schema 存在且版本相符；版本不符或缺失时丢弃重建。
 fn ensure_schema(conn: &Connection) -> rusqlite::Result<()> {
     let version: Option<i64> = conn
         .query_row(
@@ -246,13 +246,13 @@ fn ensure_schema(conn: &Connection) -> rusqlite::Result<()> {
     Ok(())
 }
 
-/// 由 dated_name（`YYYY-MM-DD-<name>`）廉價拆出顯示欄位，不讀檔。
+/// 由 dated_name（`YYYY-MM-DD-<name>`）廉价拆出显示字段，不读档。
 fn item_for(dated_name: &str) -> Value {
     let (date, name) = split_dated_name(dated_name);
     json!({ "datedName": dated_name, "date": date, "name": name })
 }
 
-/// 拆 `YYYY-MM-DD-<name>`：前 10 字為日期、第 12 字起為名稱；不符格式時 date 空、name 為全名。
+/// 拆 `YYYY-MM-DD-<name>`：前 10 字为日期、第 12 字起为名称；不符格式时 date 空、name 为全名。
 fn split_dated_name(dated: &str) -> (&str, &str) {
     let bytes = dated.as_bytes();
     let looks_dated = bytes.len() > 11
@@ -279,17 +279,17 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
 
-    /// 建立一個含歸檔 change 的暫存 fixture 專案（speclink/ 使 discover 成功）。
+    /// 创建一个含归档 change 的暂存 fixture 项目（specseal/ 使 discover 成功）。
     fn fixture_project(tag: &str, archived: &[&str]) -> PathBuf {
-        let root = std::env::temp_dir().join(format!("speclink-cache-{}-{}", tag, std::process::id()));
+        let root = std::env::temp_dir().join(format!("specseal-cache-{}-{}", tag, std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let archive = root.join("speclink").join("changes").join("archive");
+        let archive = root.join("specseal").join("changes").join("archive");
         for name in archived {
             let dir = archive.join(name);
             fs::create_dir_all(&dir).unwrap();
             fs::write(dir.join("proposal.md"), "## Why\narchived\n").unwrap();
         }
-        fs::create_dir_all(root.join("speclink").join("specs")).unwrap();
+        fs::create_dir_all(root.join("specseal").join("specs")).unwrap();
         root
     }
 
@@ -304,15 +304,15 @@ mod tests {
 
     #[test]
     fn archived_list_carries_review_outcome_three_states() {
-        // spec client-protocol「已封存清單的審查結局欄位」：封存目錄含工單 →
-        // reviewedNotPassed（章還在也一樣：重開的工單取代了舊章）；否則含章 → reviewed；
-        // 皆無 → none。已封存側不重算凍結度（封存即定格）——此處的假 hash 不得使
-        // reviewed 降級。
+        // spec client-protocol「已封存清单的审查结局字段」：封存目录含工单 →
+        // reviewedNotPassed（章还在也一样：重开的工单取代了旧章）；否则含章 → reviewed；
+        // 皆无 → none。已封存侧不重算冻结度（封存即定格）——此处的假 hash 不得使
+        // reviewed 降级。
         let root = fixture_project(
             "review",
             &["2026-01-01-plain", "2026-01-02-passed", "2026-01-03-carried", "2026-01-04-reopened"],
         );
-        let archive = root.join("speclink").join("changes").join("archive");
+        let archive = root.join("specseal").join("changes").join("archive");
         const STAMPED: &str = "schema: spec-driven\ncreated: 2026-01-01\nreviewed_at: 2026-01-02\nreviewed_by: Rev <r@example.com>\nreviewed_with: claude\nreviewed_tasks_total: 1\nreviewed_scope:\n  - path: src/lib.rs\n    hash: dead\n";
         const TICKET: &str = "# Review — carried\n\n## Round 1\n\n**Scope**: src/lib.rs\n\n- [CRITICAL] src/lib.rs — broken\n";
         fs::write(archive.join("2026-01-02-passed").join(".meta.yaml"), STAMPED).unwrap();
@@ -338,15 +338,15 @@ mod tests {
 
     #[test]
     fn archived_list_carries_verify_outcome_three_states() {
-        // spec client-protocol「已封存清單的驗證結局欄位」：封存目錄含工單 →
-        // verifiedNotPassed（章還在也一樣）；否則含章 → verified；皆無 → none。
-        // 已封存側不重算凍結度（封存即定格）——假 hash 不得使 verified 降級。
-        // 兩站在同一項上獨立判定：末項同時是「審查通過」與「曾驗證未通過」。
+        // spec client-protocol「已封存清单的验证结局字段」：封存目录含工单 →
+        // verifiedNotPassed（章还在也一样）；否则含章 → verified；皆无 → none。
+        // 已封存侧不重算冻结度（封存即定格）——假 hash 不得使 verified 降级。
+        // 两站在同一项上独立判定：末项同时是「审查通过」与「曾验证未通过」。
         let root = fixture_project(
             "verify",
             &["2026-02-01-plain", "2026-02-02-passed", "2026-02-03-carried", "2026-02-04-reopened"],
         );
-        let archive = root.join("speclink").join("changes").join("archive");
+        let archive = root.join("specseal").join("changes").join("archive");
         const STAMPED: &str = "schema: spec-driven\ncreated: 2026-02-01\nverified_at: 2026-02-02\nverified_by: Ver <v@example.com>\nverified_with: claude\nverified_tasks_total: 1\nverified_scope:\n  - path: src/lib.rs\n    hash: dead\n";
         fs::write(archive.join("2026-02-02-passed").join(".meta.yaml"), STAMPED).unwrap();
         fs::write(archive.join("2026-02-04-reopened").join(".meta.yaml"), STAMPED).unwrap();
@@ -395,10 +395,10 @@ mod tests {
     #[test]
     fn rebuilds_when_cache_file_missing() {
         let root = fixture_project("missing", &["2026-03-03-gamma"]);
-        // 第一次讀建立快取
+        // 第一次读创建缓存
         let _ = archived_changes_at(&root);
-        // 刪掉快取檔，仍應由歸檔目錄重建
-        let _ = fs::remove_file(root.join(".speclink").join("desktop-cache.db"));
+        // 删掉缓存档，仍应由归档目录重建
+        let _ = fs::remove_file(root.join(".specseal").join("desktop-cache.db"));
         let got = dated_names(&archived_changes_at(&root));
         assert_eq!(got, vec!["2026-03-03-gamma"]);
         let _ = fs::remove_dir_all(&root);
@@ -407,9 +407,9 @@ mod tests {
     #[test]
     fn rebuilds_on_schema_version_mismatch() {
         let root = fixture_project("ver", &["2026-04-04-delta"]);
-        let db_dir = root.join(".speclink");
+        let db_dir = root.join(".specseal");
         fs::create_dir_all(&db_dir).unwrap();
-        // 預先寫入一個版本不符的快取
+        // 预先写入一个版本不符的缓存
         let conn = Connection::open(db_dir.join("desktop-cache.db")).unwrap();
         conn.execute("CREATE TABLE schema_version (version INTEGER)", []).unwrap();
         conn.execute("INSERT INTO schema_version (version) VALUES (999)", []).unwrap();
@@ -425,7 +425,7 @@ mod tests {
         let _ = crate::query::list_changes_at(&root);
         let _ = crate::query::list_specs_at(&root);
         assert!(
-            !root.join(".speclink").join("desktop-cache.db").exists(),
+            !root.join(".specseal").join("desktop-cache.db").exists(),
             "active listing must not touch the archived cache"
         );
         let _ = fs::remove_dir_all(&root);
@@ -434,7 +434,7 @@ mod tests {
     #[test]
     fn task_counts_converge_once_and_read_zero_parse_afterwards() {
         let root = fixture_project("counts", &["2026-06-06-zeta"]);
-        let dir = root.join("speclink").join("changes").join("archive").join("2026-06-06-zeta");
+        let dir = root.join("specseal").join("changes").join("archive").join("2026-06-06-zeta");
         fs::write(dir.join("tasks.md"), "## 1. G\n\n- [x] 1.1 a\n- [x] 1.2 b\n- [ ] 1.3 c\n").unwrap();
 
         let v = archived_changes_at(&root);
@@ -442,8 +442,8 @@ mod tests {
         assert_eq!(item["tasksTotal"], 3, "first read converges counts into the cache: {item}");
         assert_eq!(item["tasksDone"], 2);
 
-        // 首次收斂後清單讀取零解析：改動檔案不影響已快取的計數
-        //（封存內容本就不再變動，這證明讀取路徑不再碰 tasks.md）。
+        // 首次收敛后清单读取零解析：改动文件不影响已缓存的计数
+        //（封存内容本就不再变动，这证明读取路径不再碰 tasks.md）。
         fs::write(dir.join("tasks.md"), "- [ ] only one\n").unwrap();
         let v2 = archived_changes_at(&root);
         let item2 = &v2["archived"].as_array().unwrap()[0];
@@ -465,10 +465,10 @@ mod tests {
     #[test]
     fn v1_cache_is_dropped_and_rebuilt_with_counts() {
         let root = fixture_project("v1", &["2026-06-08-theta"]);
-        let dir = root.join("speclink").join("changes").join("archive").join("2026-06-08-theta");
+        let dir = root.join("specseal").join("changes").join("archive").join("2026-06-08-theta");
         fs::write(dir.join("tasks.md"), "- [x] 1.1 done\n").unwrap();
-        // 預寫一個 v1 快取（舊表結構、已含該列）——版本升級須整表重建。
-        let db_dir = root.join(".speclink");
+        // 预写一个 v1 缓存（旧表结构、已含该列）——版本升级须整表重建。
+        let db_dir = root.join(".specseal");
         fs::create_dir_all(&db_dir).unwrap();
         let conn = Connection::open(db_dir.join("desktop-cache.db")).unwrap();
         conn.execute_batch(
@@ -494,11 +494,11 @@ mod tests {
 
     #[test]
     fn archived_items_carry_card_info_fields() {
-        // 封存變更卡收合資訊（spec-archive-drawer design D4）：specCount 為 specs/ 下
-        // capability 目錄數、createdBy 取 .meta.yaml 的 created_by（缺席 null）、
-        // fromDiscussions 為來源討論 slug 陣列（缺席空陣列）；欄位入快取，首次收斂後零解析。
+        // 封存变更卡收合信息（spec-archive-drawer design D4）：specCount 为 specs/ 下
+        // capability 目录数、createdBy 取 .meta.yaml 的 created_by（缺席 null）、
+        // fromDiscussions 为来源讨论 slug 数组（缺席空数组）；字段入缓存，首次收敛后零解析。
         let root = fixture_project("cardinfo", &["2026-06-10-kappa", "2026-06-11-lambda"]);
-        let dir = root.join("speclink").join("changes").join("archive").join("2026-06-10-kappa");
+        let dir = root.join("specseal").join("changes").join("archive").join("2026-06-10-kappa");
         fs::write(
             dir.join(".meta.yaml"),
             "schema: spec-driven\ncreated: 2026-06-01\ncreated_by: momo\nfrom_discussion: alpha-search, beta-cache\narchived_at: 2026-06-10\n",
@@ -513,16 +513,16 @@ mod tests {
         let arr = v["archived"].as_array().unwrap();
         let by_name = |n: &str| arr.iter().find(|i| i["datedName"] == n).unwrap().clone();
         let kappa = by_name("2026-06-10-kappa");
-        assert_eq!(kappa["specCount"], 2, "specs/ 下兩個 capability 目錄: {kappa}");
+        assert_eq!(kappa["specCount"], 2, "specs/ 下两个 capability 目录: {kappa}");
         assert_eq!(kappa["createdBy"], "momo");
         assert_eq!(kappa["fromDiscussions"], json!(["alpha-search", "beta-cache"]));
-        // meta 與 specs 全缺席的封存項：null／空陣列，清單照常回傳。
+        // meta 与 specs 全缺席的封存项：null／空数组，清单照常回传。
         let lambda = by_name("2026-06-11-lambda");
         assert_eq!(lambda["specCount"], 0);
         assert!(lambda["createdBy"].is_null());
         assert_eq!(lambda["fromDiscussions"], json!([]));
 
-        // 首次收斂後零解析：改動 meta 不影響已快取的欄位（封存內容本就不再變動）。
+        // 首次收敛后零解析：改动 meta 不影响已缓存的字段（封存内容本就不再变动）。
         fs::write(dir.join(".meta.yaml"), "created_by: someone-else\n").unwrap();
         let v2 = archived_changes_at(&root);
         let item2 = v2["archived"].as_array().unwrap().iter().find(|i| i["datedName"] == "2026-06-10-kappa").unwrap().clone();
@@ -532,16 +532,16 @@ mod tests {
 
     #[test]
     fn v2_cache_is_dropped_and_rebuilt_with_card_info() {
-        // 版本遞升（spec-archive-drawer design D5）：新欄位入庫使 CACHE_VERSION 2→3，
-        // 舊 v2 快取整表重建、新欄位補齊、版本蓋 3 章。
+        // 版本递升（spec-archive-drawer design D5）：新字段入库使 CACHE_VERSION 2→3，
+        // 旧 v2 缓存整表重建、新字段补齐、版本盖 3 章。
         let root = fixture_project("v2", &["2026-06-12-mu"]);
-        let dir = root.join("speclink").join("changes").join("archive").join("2026-06-12-mu");
+        let dir = root.join("specseal").join("changes").join("archive").join("2026-06-12-mu");
         fs::write(dir.join(".meta.yaml"), "created: 2026-06-01\ncreated_by: momo\n").unwrap();
         fs::create_dir_all(dir.join("specs").join("cap-a")).unwrap();
         fs::write(dir.join("specs").join("cap-a").join("spec.md"), "## ADDED Requirements\n").unwrap();
         fs::write(dir.join("tasks.md"), "- [x] 1.1 done\n").unwrap();
-        // 預寫一個 v2 快取（v2 表結構、已含該列）——版本升級須整表重建。
-        let db_dir = root.join(".speclink");
+        // 预写一个 v2 缓存（v2 表结构、已含该列）——版本升级须整表重建。
+        let db_dir = root.join(".specseal");
         fs::create_dir_all(&db_dir).unwrap();
         let conn = Connection::open(db_dir.join("desktop-cache.db")).unwrap();
         conn.execute_batch(
@@ -568,19 +568,19 @@ mod tests {
 
     #[test]
     fn archived_items_carry_why_excerpt_and_created() {
-        // spec client-protocol「已封存清單的呈現輔助欄位」：whyExcerpt 為封存
-        // proposal.md 的 Why 區段首個非空行、created 取 metadata 的建立日期；
-        // 來源不可讀或缺席時該欄位不插 key（不以空字串或 null 佔位），
-        // 清單其餘欄位照常回傳。
+        // spec client-protocol「已封存清单的呈现辅助字段」：whyExcerpt 为封存
+        // proposal.md 的 Why 区段首个非空行、created 取 metadata 的创建日期；
+        // 来源不可读或缺席时该字段不插 key（不以空字符串或 null 占位），
+        // 清单其余字段照常回传。
         let root = fixture_project(
             "whyexcerpt",
             &["2026-07-01-nu", "2026-07-02-xi", "2026-07-03-omicron"],
         );
-        let archive = root.join("speclink").join("changes").join("archive");
-        // 兩欄位俱在。
+        let archive = root.join("specseal").join("changes").join("archive");
+        // 两字段俱在。
         fs::write(
             archive.join("2026-07-01-nu").join("proposal.md"),
-            "## Why\n\n看板搜尋列缺席，跨卡找東西只能逐欄翻。\n\n## What Changes\n\n- 補搜尋列\n",
+            "## Why\n\n看板搜索列缺席，跨卡找东西只能逐栏翻。\n\n## What Changes\n\n- 补搜索列\n",
         )
         .unwrap();
         fs::write(
@@ -588,17 +588,17 @@ mod tests {
             "schema: spec-driven\ncreated: 2026-06-20\narchived_at: 2026-07-01\n",
         )
         .unwrap();
-        // proposal 缺席（fixture 預設會寫一份，此處移除）——metadata 仍可得。
+        // proposal 缺席（fixture 缺省会写一份，此处移除）——metadata 仍可得。
         fs::remove_file(archive.join("2026-07-02-xi").join("proposal.md")).unwrap();
         fs::write(
             archive.join("2026-07-02-xi").join(".meta.yaml"),
             "schema: spec-driven\ncreated: 2026-06-21\n",
         )
         .unwrap();
-        // proposal 在但無 Why 區段，且 metadata 全缺席。
+        // proposal 在但无 Why 区段，且 metadata 全缺席。
         fs::write(
             archive.join("2026-07-03-omicron").join("proposal.md"),
-            "## What Changes\n\n只有這段。\n",
+            "## What Changes\n\n只有这段。\n",
         )
         .unwrap();
 
@@ -607,22 +607,22 @@ mod tests {
         let by_name = |n: &str| arr.iter().find(|i| i["datedName"] == n).unwrap().clone();
 
         let nu = by_name("2026-07-01-nu");
-        assert_eq!(nu["whyExcerpt"], "看板搜尋列缺席，跨卡找東西只能逐欄翻。");
+        assert_eq!(nu["whyExcerpt"], "看板搜索列缺席，跨卡找东西只能逐栏翻。");
         assert_eq!(nu["created"], "2026-06-20");
 
         let xi = by_name("2026-07-02-xi");
         assert!(xi.get("whyExcerpt").is_none(), "proposal 缺席 → 不插 key: {xi}");
-        assert_eq!(xi["created"], "2026-06-21", "另一欄位照常");
-        assert_eq!(xi["datedName"], "2026-07-02-xi", "既有欄位照常回傳");
+        assert_eq!(xi["created"], "2026-06-21", "另一字段照常");
+        assert_eq!(xi["datedName"], "2026-07-02-xi", "既有字段照常回传");
 
         let omicron = by_name("2026-07-03-omicron");
-        assert!(omicron.get("whyExcerpt").is_none(), "無 Why 區段 → 不插 key: {omicron}");
-        assert!(omicron.get("created").is_none(), "metadata 無建立日期 → 不插 key");
+        assert!(omicron.get("whyExcerpt").is_none(), "无 Why 区段 → 不插 key: {omicron}");
+        assert!(omicron.get("created").is_none(), "metadata 无创建日期 → 不插 key");
 
-        // 首次收斂後零解析：改動 proposal 不影響已快取的欄位。
+        // 首次收敛后零解析：改动 proposal 不影响已缓存的字段。
         fs::write(
             archive.join("2026-07-01-nu").join("proposal.md"),
-            "## Why\n\n改過的內容。\n",
+            "## Why\n\n改过的内容。\n",
         )
         .unwrap();
         let v2 = archived_changes_at(&root);
@@ -634,7 +634,7 @@ mod tests {
             .unwrap()
             .clone();
         assert_eq!(
-            nu2["whyExcerpt"], "看板搜尋列缺席，跨卡找東西只能逐欄翻。",
+            nu2["whyExcerpt"], "看板搜索列缺席，跨卡找东西只能逐栏翻。",
             "cached excerpt served without re-parsing"
         );
         let _ = fs::remove_dir_all(&root);
@@ -648,10 +648,10 @@ mod tests {
 
     #[test]
     fn archived_items_carry_process_cost_fields() {
-        // spec client-protocol「已封存清單的流程成本欄位」三個情境：新格式帶齊、
-        // 舊格式只帶得出的欄位、沒有 metadata 與文件時全部缺席（不插 key）。
+        // spec client-protocol「已封存清单的流程成本字段」三个情境：新格式带齐、
+        // 旧格式只带得出的字段、没有 metadata 与文档时全部缺席（不插 key）。
         let root = fixture_project("cost", &["2026-10-22-demo", "2026-08-14-old", "2026-08-15-empty"]);
-        let archive = root.join("speclink").join("changes").join("archive");
+        let archive = root.join("specseal").join("changes").join("archive");
         let demo = archive.join("2026-10-22-demo");
         fs::write(
             demo.join(".meta.yaml"),
@@ -696,9 +696,9 @@ mod tests {
 
     #[test]
     fn rounds_too_large_for_sqlite_are_left_out_instead_of_wrapping() {
-        // u64 上限放不進 SQLite 的 i64：存 NULL、讀出不插 key，不會變成負數。
+        // u64 上限放不进 SQLite 的 i64：存 NULL、读出不插 key，不会变成负数。
         let root = fixture_project("huge-rounds", &["2026-07-06-rho"]);
-        let dir = root.join("speclink").join("changes").join("archive").join("2026-07-06-rho");
+        let dir = root.join("specseal").join("changes").join("archive").join("2026-07-06-rho");
         fs::write(dir.join(".meta.yaml"), format!("reviewed_rounds: {}\nverified_rounds: 4\n", u64::MAX))
             .unwrap();
         let v = archived_changes_at(&root);
@@ -710,9 +710,9 @@ mod tests {
 
     #[test]
     fn v6_cache_is_dropped_and_rebuilt_with_process_cost() {
-        // design D5：五欄入庫使 CACHE_VERSION 6→7，舊 v6 快取整表重建。
+        // design D5：五栏入库使 CACHE_VERSION 6→7，旧 v6 缓存整表重建。
         let root = fixture_project("v6", &["2026-07-05-pi"]);
-        let db_dir = root.join(".speclink");
+        let db_dir = root.join(".specseal");
         fs::create_dir_all(&db_dir).unwrap();
         let conn = Connection::open(db_dir.join("desktop-cache.db")).unwrap();
         conn.execute_batch(
@@ -737,16 +737,16 @@ mod tests {
 
     #[test]
     fn v7_cache_is_dropped_so_stored_outcomes_follow_the_ticket_first_rule() {
-        // v8：結局改成「有工單優先」。v7 存下的 reviewed 是舊順序算的，整表重建後重算。
+        // v8：结局改成「有工单优先」。v7 存下的 reviewed 是旧顺序算的，整表重建后重算。
         let root = fixture_project("v7", &["2026-11-04-reopened"]);
-        let dir = root.join("speclink").join("changes").join("archive").join("2026-11-04-reopened");
+        let dir = root.join("specseal").join("changes").join("archive").join("2026-11-04-reopened");
         fs::write(
             dir.join(".meta.yaml"),
             "schema: spec-driven\ncreated: 2026-11-01\nreviewed_at: 2026-11-02\nreviewed_tasks_total: 1\nreviewed_scope:\n  - path: src/lib.rs\n    hash: dead\n",
         )
         .unwrap();
         fs::write(dir.join("review.md"), "# Review — reopened\n\n## Round 1\n\n**Scope**: src/lib.rs\n\n- [WARNING] src/lib.rs — reopened\n").unwrap();
-        let db_dir = root.join(".speclink");
+        let db_dir = root.join(".specseal");
         fs::create_dir_all(&db_dir).unwrap();
         let conn = Connection::open(db_dir.join("desktop-cache.db")).unwrap();
         conn.execute_batch(
@@ -767,8 +767,8 @@ mod tests {
     #[test]
     fn cache_failure_falls_back_to_directory_listing_without_badges() {
         let root = fixture_project("fallback", &["2026-06-09-iota"]);
-        // 讓快取檔位置變成目錄——Connection::open 失敗，走目錄直讀退回路徑。
-        fs::create_dir_all(root.join(".speclink").join("desktop-cache.db")).unwrap();
+        // 让缓存档位置变成目录——Connection::open 失败，走目录直读退回路径。
+        fs::create_dir_all(root.join(".specseal").join("desktop-cache.db")).unwrap();
         let v = archived_changes_at(&root);
         let got = dated_names(&v);
         assert_eq!(got, vec!["2026-06-09-iota"], "fallback still serves the directory truth");
@@ -779,7 +779,7 @@ mod tests {
 
     #[test]
     fn non_project_yields_empty_archived() {
-        let root = std::env::temp_dir().join(format!("speclink-cache-none-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("specseal-cache-none-{}", std::process::id()));
         let _ = fs::create_dir_all(&root);
         assert_eq!(archived_changes_at(&root), json!({ "archived": [] }));
         let _ = fs::remove_dir_all(&root);

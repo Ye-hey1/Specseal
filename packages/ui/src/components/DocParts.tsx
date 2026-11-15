@@ -9,24 +9,24 @@ import { Button } from "./ui/button";
 import { CopyButton } from "./CopyButton";
 import { Markdown } from "./Markdown";
 
-// 變更文件渲染器的共用零件（desktop-change-doc-views design D2）：全部只用 token class，ui/ 原語不動。
+// 变更文档渲染器的共用零件（desktop-change-doc-views design D2）：全部只用 token class，ui/ 原语不动。
 
-/** 章節標題款式（16px 粗體）：提案／設計章節、任務群組卡頭、delta 需求標題、排程卡頭、工單輪卡頭同源。 */
+/** 章节标题款式（16px 粗体）：提案／设计章节、任务群组卡头、delta 需求标题、调度卡头、工单轮卡头同源。 */
 export const SECTION_HEADING_CLS = "text-base font-semibold";
-/** 次級標籤（Capabilities 內的新增／修改能力、Goals 兩欄小標）。 */
+/** 次级标签（Capabilities 内的添加／修改能力、Goals 两栏小标）。 */
 export const SUB_LABEL_CLS = "text-sm font-semibold";
 
-/** 列內 Markdown：段落不留上下距（列本身已有間距）。 */
+/** 列内 Markdown：段落不留上下距（列本身已有间距）。 */
 export const ROW_MD_CLS = "min-w-0 flex-1 [&_p]:my-0";
 
-/** 一個二級標題段：`h2` 帶本頁目錄錨點、右端計數籤，段間細線（末段無線）。 */
+/** 一个二级标题段：`h2` 带本页目录锚点、右端计数签，段间细线（末段无线）。 */
 export function DocSection({
   sectionKey,
   title,
   count,
   children,
 }: {
-  /** 白名單 key；白名單外為 null（`data-section="custom"`）。 */
+  /** 白名单 key；白名单外为 null（`data-section="custom"`）。 */
   sectionKey: string | null;
   title: string;
   count?: number;
@@ -49,7 +49,7 @@ export function DocSection({
   );
 }
 
-/** 列式章節：列點群交給 `renderList`、prose 照排，標題右端為頂層列點數（零則不出）。 */
+/** 列式章节：列点群交给 `renderList`、prose 照排，标题右端为顶层列点数（零则不出）。 */
 export function ListSection({
   section,
   title,
@@ -68,7 +68,7 @@ export function ListSection({
   );
 }
 
-/** 依序渲染列點群與 prose 段：列點群交給 `renderList`，prose 照 Markdown。 */
+/** 依序渲染列点群与 prose 段：列点群交给 `renderList`，prose 照 Markdown。 */
 export function ListBlocks({ blocks, renderList }: { blocks: ListBlock[]; renderList: (items: ListItem[]) => ReactNode }) {
   return (
     <div className="flex flex-col gap-3">
@@ -79,7 +79,7 @@ export function ListBlocks({ blocks, renderList }: { blocks: ListBlock[]; render
   );
 }
 
-/** 細線列：每列一段 Markdown；`icon` 放在列首（非目標的禁止圖示）。 */
+/** 细线列：每列一段 Markdown；`icon` 放在列首（非目标的禁止图标）。 */
 export function RowList({ items, icon }: { items: string[]; icon?: ReactNode }) {
   return (
     <ul data-row-list className="divide-y divide-border/70">
@@ -93,7 +93,7 @@ export function RowList({ items, icon }: { items: string[]; icon?: ReactNode }) 
   );
 }
 
-/** 編號步驟：序號圓標＋內文。 */
+/** 编号步骤：序号圆标＋内文。 */
 export function NumberedSteps({ items }: { items: string[] }) {
   return (
     <ol data-numbered-steps className="flex flex-col gap-2.5">
@@ -109,7 +109,7 @@ export function NumberedSteps({ items }: { items: string[] }) {
   );
 }
 
-/** 替代方案列：方案一行、落敗理由灰字一行；理由為 null 時只有方案。`icon` 放在列首（擱置的時鐘）。 */
+/** 替代方案列：方案一行、落败理由灰字一行；理由为 null 时只有方案。`icon` 放在列首（搁置的时钟）。 */
 export function OptionReasonRows({
   items,
   icon,
@@ -147,7 +147,7 @@ export function OptionReasonRows({
   );
 }
 
-/** 鍵值列：左鍵灰字、右值 Markdown。 */
+/** 键值列：左键灰字、右值 Markdown。 */
 export function KeyValueRows({ rows }: { rows: { key: string; value: string }[] }) {
   return (
     <dl className="divide-y divide-border/70">
@@ -161,10 +161,10 @@ export function KeyValueRows({ rows }: { rows: { key: string; value: string }[] 
   );
 }
 
-/** 等寬名稱籤的款式：能力籤、決策 D 籤、任務 D 籤共用。 */
+/** 等宽名称签的款式：能力签、决策 D 签、任务 D 签共用。 */
 export const NAME_CHIP_CLS = "inline-flex shrink-0 items-center rounded bg-muted px-1.5 py-0.5 font-mono text-xs";
 
-/** 能力名籤：`onClick` 有時為可點的 button。 */
+/** 能力名签：`onClick` 有时为可点的 button。 */
 export function NameChip({ name, onClick }: { name: string; onClick?: () => void }) {
   if (!onClick) {
     return (
@@ -185,7 +185,7 @@ export function NameChip({ name, onClick }: { name: string; onClick?: () => void
   );
 }
 
-/** 指令籤：等寬指令原文＋複製鈕。結論的「下一步」與未轉出提示框共用。 */
+/** 指令签：等宽指令原文＋拷贝钮。结论的「下一步」与未转出提示框共用。 */
 export function CommandChip({ command }: { command: string }) {
   const { t } = useI18n();
   return (
@@ -196,16 +196,16 @@ export function CommandChip({ command }: { command: string }) {
   );
 }
 
-/** hover 籤時才浮出的動作鈕（鍵盤聚焦時也顯現）。 */
+/** hover 签时才浮出的动作钮（键盘聚焦时也显现）。 */
 const REVEAL_ON_CHIP_HOVER = "opacity-0 transition-opacity group-hover/path:opacity-100 focus-visible:opacity-100 data-[copied]:opacity-100";
 
-/** 宿主的本機路徑動作：鈕的文案（依平台，如 macOS「在 Finder 顯示」）與動作本身。 */
+/** 宿主的本机路径动作：钮的文案（依平台，如 macOS「在 Finder 显示」）与动作本身。 */
 export interface PathReveal {
   label: string;
   reveal: (path: string) => void;
 }
 
-/** 等寬路徑籤：hover 出複製鈕；宿主提供本機路徑動作時另出顯示鈕。 */
+/** 等宽路径签：hover 出拷贝钮；宿主提供本机路径动作时另出显示钮。 */
 export function PathChip({ path, note, reveal }: { path: string; note?: string | null; reveal?: PathReveal }) {
   const { t } = useI18n();
   return (
@@ -232,7 +232,7 @@ export function PathChip({ path, note, reveal }: { path: string; note?: string |
   );
 }
 
-/** 「展開其餘 N 段」「還有 N 個」：點了就全部展開、鈕消失。 */
+/** 「展开其余 N 段」「还有 N 个」：点了就全部展开、钮消失。 */
 export function MoreToggle({ label, onExpand }: { label: string; onExpand: () => void }) {
   return (
     <Button type="button" variant="ghost" size="sm" aria-expanded={false} className="text-muted-foreground" onClick={onExpand}>
@@ -241,8 +241,8 @@ export function MoreToggle({ label, onExpand }: { label: string; onExpand: () =>
   );
 }
 
-/** 整列可點的展開切換鈕，左側 chevron 標示開合（設計決策卡、工單輪卡與套用規則列同一種）；
- * 內距、間距與換行由呼叫端給。 */
+/** 整列可点的展开切换钮，左侧 chevron 标示开合（设计决策卡、工单轮卡与套用规则列同一种）；
+ * 内距、间距与换行由调用端给。 */
 export function ExpandToggle({
   open,
   onToggle,
@@ -271,7 +271,7 @@ export function ExpandToggle({
   );
 }
 
-/** 單行標題的行內標記：程式碼成等寬籤、粗體成粗體，其餘文字原樣（任務標題、手動提示框、決策與風險標題）。 */
+/** 单行标题的行内标记：代码成等宽签、粗体成粗体，其余文本原样（任务标题、手动提示框、决策与风险标题）。 */
 export function InlineMarks({ text }: { text: string }) {
   return (
     <>

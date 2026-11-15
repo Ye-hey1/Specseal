@@ -1,8 +1,8 @@
-// 面板樣式呈現層（spec「面板樣式」；design D5）：主視窗推送的
-// TraySnapshot 薄渲染——分區內容與原生選單同源（同一 store 快照），不自建
-// 資料查詢路徑。原生質感（vibrancy、不搶焦點、失焦收合、高度自適應）由
-// Rust 側面板視窗與入口層承擔，此元件只負責結構與回呼；複製鈕常駐列尾、
-// 分區圖示沿用看板同款（KanbanBoard 的 stage 圖示）。
+// 面板样式呈现层（spec「面板样式」；design D5）：主窗口推送的
+// TraySnapshot 薄渲染——分区内容与原生菜单同源（同一 store 快照），不自建
+// 数据查找路径。原生质感（vibrancy、不抢焦点、失焦收合、高度自适应）由
+// Rust 侧面板窗口与入口层承担，此组件只负责结构与回呼；拷贝钮常驻列尾、
+// 分区图标沿用看板同款（KanbanBoard 的 stage 图标）。
 import {
   useEffect,
   useLayoutEffect,
@@ -38,7 +38,7 @@ import {
   useI18n,
   type ChangeItem,
   type Stage,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -80,7 +80,7 @@ import {
 import { tabRevealScrollLeft } from "./tabStrip";
 import { edgeFade, edgeFadeMask, type EdgeFadeSide, type ScrollMetrics } from "./edgeFade";
 
-/** 分區圖示與看板欄位同款（KanbanBoard）：提案中／進行中／已就緒。 */
+/** 分区图标与看板字段同款（KanbanBoard）：提案中／进行中／已就绪。 */
 const STAGE_ICONS: Record<Stage, LucideIcon> = {
   proposed: Lightbulb,
   "in-progress": Hammer,
@@ -88,42 +88,42 @@ const STAGE_ICONS: Record<Stage, LucideIcon> = {
 };
 
 export interface TrayPanelProps {
-  /** 主視窗推送的快照；null＝尚未收到（lazy 建窗後的短暫空窗）。 */
+  /** 主窗口推送的快照；null＝尚未收到（lazy 建窗后的短暂空窗）。 */
   snapshot: TraySnapshot | null;
-  /** 面板所在平台（tray-panel-windows design D2）：只決定根層外觀——macOS 為毛玻璃補光
-      與 13px 圓角，Windows 為不透明側欄底色、不畫圓角；其餘呈現不分平台。 */
+  /** 面板所在平台（tray-panel-windows design D2）：只决定根层外观——macOS 为毛玻璃补光
+      与 13px 圆角，Windows 为不透明侧栏底色、不画圆角；其余呈现不分平台。 */
   platform: Platform;
   onOpenProject: (key: string) => void;
   onOpenChange: (name: string) => void;
   onOpenDiscussion: (slug: string) => void;
   onOpenApp: () => void;
-  /** 開主視窗並切至作用中專案的專案設定頁（動作區「專案設定」；與原生選單同語意）。 */
+  /** 开主窗口并切至作用中项目的项目设置页（动作区「项目设置」；与原生菜单同语意）。 */
   onOpenProjectSettings: () => void;
-  /** 開主視窗並切至設定頁（動作區「設定」；與原生選單同語意）。 */
+  /** 开主窗口并切至设置页（动作区「设置」；与原生菜单同语意）。 */
   onOpenSettings: () => void;
-  /** 結束 app（動作區「結束」；面板端經 Rust 命令結束行程）。 */
+  /** 结束 app（动作区「结束」；面板端经 Rust 命令结束行程）。 */
   onQuit: () => void;
-  /** 複製回呼（面板入口接 clipboard 外掛——Rust 端，不受焦點限制）。 */
+  /** 拷贝回呼（面板入口接 clipboard 插件——Rust 端，不受焦点限制）。 */
   onCopy: (text: string) => void;
-  /** 快速加入專案（design D7）：開資料夾選擇器，選定即加入並切換、取消無事。 */
+  /** 快速加入项目（design D7）：开文件夹选择器，选定即加入并切换、取消无事。 */
   onAddProject: () => void;
-  /** 原地 retry：只回流主視窗 store，不顯示或聚焦主視窗。 */
+  /** 原地 retry：只回流主窗口 store，不显示或聚焦主窗口。 */
   onRetryWorkspace: (key: string) => void;
-  /** 顯式在主視窗顯示對應 recovery destination。 */
+  /** 显式在主窗口显示对应 recovery destination。 */
   onOpenRecovery: (key: string) => void;
-  /** 顯式顯示並聚焦對應 connection 的伺服器設定。 */
+  /** 显式显示并聚焦对应 connection 的服务器设置。 */
   onOpenServerSettings: (connectionId: string) => void;
-  /** 顯式顯示並聚焦對應 connection 的登入流程。 */
+  /** 显式显示并聚焦对应 connection 的登录流程。 */
   onReauthenticate: (connectionId: string) => void;
 }
 
-/** 分區卡標頭（tray-panel-restyle design D2）：12px 粗體前景色；其下有內容（列、骨架、
-    失敗提示、收合列）才畫細線——空狀態卡只有標頭，不留一條孤線。 */
+/** 分区卡标头（tray-panel-restyle design D2）：12px 粗体前景色；其下有内容（列、骨架、
+    失败提示、收合列）才画细线——空状态卡只有标头，不留一条孤线。 */
 const sectionHeaderClass = (hasBody: boolean) =>
   cn("px-3 py-2 text-foreground", hasBody && "border-b border-border/70");
 
-/** 面板卡片（spec「面板樣式」；tray-panel-restyle design D1）：白底細框 12px
-    圓角卡疊在補光層上——tab 條、各分區、動作區各一張。overflow-hidden 讓最後一列的
+/** 面板卡片（spec「面板样式」；tray-panel-restyle design D1）：白底细框 12px
+    圆角卡叠在补光层上——tab 条、各分区、动作区各一张。overflow-hidden 让最后一列的
     hover 底色被卡角裁切。 */
 function PanelCard({
   testid,
@@ -131,7 +131,7 @@ function PanelCard({
   children,
 }: {
   testid: string;
-  /** 附加樣式（空狀態卡的最小高度與垂直置中，design D8）。 */
+  /** 附加样式（空状态卡的最小高度与垂直置中，design D8）。 */
   className?: string;
   children: ReactNode;
 }) {
@@ -145,11 +145,11 @@ function PanelCard({
   );
 }
 
-/** 空狀態分區卡附加樣式（design D8）：最小高度＋內容垂直置中——生命週期
-    零筆階段卡與討論零筆卡共用，維持空狀態同構。 */
+/** 空状态分区卡附加样式（design D8）：最小高度＋内容垂直置中——生命周期
+    零笔阶段卡与讨论零笔卡共用，维持空状态同构。 */
 const emptyCardClass = "min-h-12 justify-center";
 
-/** role="button" 的 div 補上 Enter／Space 切換（與原生 button 一致：按住不放的自動重複不再切換）。 */
+/** role="button" 的 div 补上 Enter／Space 切换（与原生 button 一致：按住不放的自动重复不再切换）。 */
 const toggleOnKey = (toggle: () => void) => (event: KeyboardEvent<HTMLElement>) => {
   if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
@@ -157,18 +157,18 @@ const toggleOnKey = (toggle: () => void) => (event: KeyboardEvent<HTMLElement>) 
   }
 };
 
-/** 分區的載入狀態（design D3）：四張內容卡同一個答案，由 store 導出的旗標換算。 */
+/** 分区的加载状态（design D3）：四张内容卡同一个答案，由 store 导出的旗标换算。 */
 type SectionLoad = "loading" | "failed" | "ready";
 
 /**
- * 可收合的內容卡（spec「面板內容卡收合」）：生命週期三卡、討論卡與已轉出卡共用。
- * 整條分區標題為觸發區（role="button"、tabIndex=-1、Enter／Space），
- * 箭頭放 SectionHeader 的 action 插槽、在計數之後（展開朝下、收合朝右）。收合時只留
- * 標題一行——其下內容卸載（溢出列的展開暫態隨之歸零），不套空狀態最小高度、標題下
- * 不畫細線。
+ * 可收合的内容卡（spec「面板内容卡收合」）：生命周期三卡、讨论卡与已转出卡共用。
+ * 整条分区标题为触发区（role="button"、tabIndex=-1、Enter／Space），
+ * 箭头放 SectionHeader 的 action 插槽、在计数之后（展开朝下、收合朝右）。收合时只留
+ * 标题一行——其下内容卸载（溢出列的展开暂态随之归零），不套空状态最小高度、标题下
+ * 不画细线。
  *
- * 載入狀態由卡片統一換算：載入中為佔位列、失敗為失敗提示，兩者都不出計數（不謊報 0）；
- * 有料時才顯示 count 與 children。empty＝有料時其下也沒有內容的空狀態卡。
+ * 加载状态由卡片统一换算：加载中为占位列、失败为失败提示，两者都不出计数（不谎报 0）；
+ * 有料时才显示 count 与 children。empty＝有料时其下也没有内容的空状态卡。
  */
 function SectionCard({
   id,
@@ -182,7 +182,7 @@ function SectionCard({
   empty,
   children,
 }: {
-  /** 只用來組 testid；"promoted" 不屬於收合集合（已轉出卡的展開狀態另存）。 */
+  /** 只用来组 testid；"promoted" 不属于收合集合（已转出卡的展开状态另存）。 */
   id: TraySectionId | "promoted";
   collapsed: boolean;
   onToggle: () => void;
@@ -190,7 +190,7 @@ function SectionCard({
   icon: ReactNode;
   label: string;
   count: number;
-  /** 未給為中性（Badge 的 secondary 變體），同 SectionHeader。 */
+  /** 未给为中性（Badge 的 secondary 变体），同 SectionHeader。 */
   countClassName?: string;
   empty: boolean;
   children: ReactNode;
@@ -236,8 +236,8 @@ function SectionCard({
   );
 }
 
-/** 分區載入失敗的終態列（spec「面板分區載入失敗終態」）：讀不到 ≠ 確認是空的，
-    故不走空狀態文案；亦不留骨架——載入已經結束了。 */
+/** 分区加载失败的终态列（spec「面板分区加载失败终态」）：读不到 ≠ 确认是空的，
+    故不走空状态文案；亦不留骨架——加载已经结束了。 */
 function SectionLoadFailed({ label }: { label: string }) {
   return (
     <div
@@ -251,7 +251,7 @@ function SectionLoadFailed({ label }: { label: string }) {
   );
 }
 
-/** 分區載入中的佔位列組（design D5）：兩列即讀得出「有內容正在載」。 */
+/** 分区加载中的占位列组（design D5）：两列即读得出「有内容正在载」。 */
 function SectionSkeleton() {
   return (
     <>
@@ -261,13 +261,13 @@ function SectionSkeleton() {
   );
 }
 
-/** 捲動停止後指示條淡出的延遲（ms）——比照 macOS overlay 捲軸的滯留時間。 */
+/** 卷动停止后指示条淡出的延迟（ms）——比照 macOS overlay 滚动条的滞留时间。 */
 const SCROLL_IDLE_MS = 800;
 
 /**
- * 監看可捲區的捲動量測（tab 條與中段共用）：立即回報一次，之後於捲動時（scrolled=true）與
- * 可捲區或其直接子節點尺寸改變時（scrolled=false）再回報——中段的內容 wrapper 隨收合與快照
- * 增減改變高度，可捲區本身被 flex 約束、外框不變。回傳解除監看的函式。
+ * 监看可卷区的卷动量测（tab 条与中段共用）：立即回报一次，之后于卷动时（scrolled=true）与
+ * 可卷区或其直接子节点尺寸改变时（scrolled=false）再回报——中段的内容 wrapper 随收合与快照
+ * 增减改变高度，可卷区本身被 flex 约束、外框不变。回传解除监看的函数。
  */
 function watchScroll(
   el: HTMLElement,
@@ -293,22 +293,22 @@ function watchScroll(
   };
 }
 
-/** 遮罩掛在可捲區本身（不隨內容捲動）；WebKit 仍認前綴屬性，兩個都給。 */
+/** 遮罩挂在可卷区本身（不随内容卷动）；WebKit 仍认前缀属性，两个都给。 */
 const edgeFadeStyle = (axis: "x" | "y", side: EdgeFadeSide) => {
   const mask = edgeFadeMask(axis, side);
   return { maskImage: mask, WebkitMaskImage: mask };
 };
 
 /**
- * 可捲中段（spec 三段式版面）：生命週期／討論分區或復原卡；捲動面自 body 收斂至此容器，
- * overscroll-none 隨遷防 rubber-band。一次監看同時供上下緣淡出與捲動指示條：
- * - 上下緣依是否還有被捲走的內容淡出（design「中段上下緣淡出：與 tab 條共用邊緣淡出」），
- *   卡片不會在頁首／頁尾邊緣被硬切；遮罩掛在捲動容器上，指示條與頁首頁尾都在它之外、不被淡出。
- * - 捲動指示條（spec：捲動時浮現、停止後自動隱去、不佔版面寬度）自繪而非用原生捲軸——系統
- *   「總是顯示捲軸」偏好會讓原生捲軸常駐且佔寬、無法淡出，而 spec 要求此行為不依賴系統偏好。
- *   內容未溢出時不渲染；指示條為捲動容器的兄弟節點，才不會隨內容一起捲走。
- * 內層 wrapper 保持自然高度，入口層的 ResizeObserver 觀察的是這層（高度量測依據）。捲動時只有
- * 本元件重繪：卡片是上層傳入的 children，不隨捲動重繪。
+ * 可卷中段（spec 三段式版面）：生命周期／讨论分区或复原卡；卷动面自 body 收敛至此容器，
+ * overscroll-none 随迁防 rubber-band。一次监看同时供上下缘淡出与卷动指示条：
+ * - 上下缘依是否还有被卷走的内容淡出（design「中段上下缘淡出：与 tab 条共用边缘淡出」），
+ *   卡片不会在页眉／页脚边缘被硬切；遮罩挂在卷动容器上，指示条与页眉页脚都在它之外、不被淡出。
+ * - 卷动指示条（spec：卷动时浮现、停止后自动隐去、不占版面宽度）自绘而非用原生滚动条——系统
+ *   「总是显示滚动条」偏好会让原生滚动条常驻且占宽、无法淡出，而 spec 要求此行为不依赖系统偏好。
+ *   内容未溢出时不渲染；指示条为卷动容器的兄弟节点，才不会随内容一起卷走。
+ * 内层 wrapper 保持自然高度，入口层的 ResizeObserver 观察的是这层（高度量测依据）。卷动时只有
+ * 本组件重绘：卡片是上层传入的 children，不随卷动重绘。
  */
 function PanelScrollArea({ children }: { children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -369,16 +369,16 @@ function PanelScrollArea({ children }: { children: ReactNode }) {
   );
 }
 
-/** 卡內的列（design D2）：細線分隔、hover 整列半透明前景色灰底——列內符號維持本色。
-    變更列、討論列與溢出列共用。 */
+/** 卡内的列（design D2）：细线分隔、hover 整列半透明前景色灰底——列内符号维持本色。
+    变更列、讨论列与溢出列共用。 */
 const rowClass =
   "flex w-full items-center gap-2 border-b border-border/70 px-3 py-1.5 text-left last:border-b-0 hover:bg-foreground/5";
 
-/** 動作區塊卡的按鈕（文字鈕與圖示鈕共用）：hover 半透明前景色灰底，與面板列同語彙。 */
+/** 动作区块卡的按钮（文本钮与图标钮共用）：hover 半透明前景色灰底，与面板列同语汇。 */
 const actionButtonClass = "flex items-center rounded-lg hover:bg-foreground/5";
 
-/** 動作區塊卡的圖示鈕：名稱走 aria-label＋原生 title——面板是無焦點的一瞥介面，
-    掛 Radix Tooltip 會多一層 portal 與焦點管理（同站章 tooltip 的做法）。 */
+/** 动作区块卡的图标钮：名称走 aria-label＋原生 title——面板是无焦点的一瞥接口，
+    挂 Radix Tooltip 会多一层 portal 与焦点管理（同站章 tooltip 的做法）。 */
 function ActionIconButton({
   label,
   Icon,
@@ -402,7 +402,7 @@ function ActionIconButton({
   );
 }
 
-/** 分區溢出（spec「分區溢出摺疊」）：直列前 5、其餘收進「還有 N 個…」可展開列。 */
+/** 分区溢出（spec「分区溢出折叠」）：直列前 5、其余收进「还有 N 个…」可展开列。 */
 function OverflowGroup({
   rows,
   moreLabel,
@@ -427,7 +427,7 @@ function OverflowGroup({
   );
 }
 
-/** 專案 tab 與「加入專案」共用的直欄容器（方塊＋其下文字，hover 灰底）。 */
+/** 项目 tab 与「加入项目」共用的直栏容器（方块＋其下文本，hover 灰底）。 */
 const TAB_ITEM = "flex shrink-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 hover:bg-foreground/5";
 
 function tabStatusLabel(tab: TrayTabSnapshot, t: (key: string) => string): string {
@@ -445,9 +445,9 @@ function tabStatusLabel(tab: TrayTabSnapshot, t: (key: string) => string): strin
 }
 
 /**
- * 分頁狀態文字的語意色（spec「介面狀態語意色分層」）：選取由首字母方塊承載，
- * 狀態則由方塊下這行文字承載——還原中＝藍、離線／需重新登入＝琥珀警示、
- * 連不上＝紅。無狀態文字的本機分頁走中性。
+ * 分页状态文本的语意色（spec「接口状态语意色分层」）：选取由首字母方块承载，
+ * 状态则由方块下这行文本承载——还原中＝蓝、脱机／需重新登录＝琥珀警示、
+ * 连不上＝红。无状态文本的本机分页走中性。
  */
 function tabStatusTone(tab: TrayTabSnapshot): string {
   if (tab.source === "local") return "text-muted-foreground";
@@ -488,8 +488,8 @@ function PanelRecoveryCard({
   const restoring = tab.status === "restoring";
   const needsReauth = tab.failureKind === "needs-reauth";
   const summary = tabStatusLabel(tab, t);
-  // 卡面依狀態分色：還原中＝進行中的藍、需重新登入＝警示琥珀、其餘失敗＝錯誤紅。
-  // （舊版一律塗琥珀，連不上與「等一下就好」看起來一樣嚴重。）
+  // 卡面依状态分色：还原中＝进行中的蓝、需重新登录＝警示琥珀、其余失败＝错误红。
+  // （旧版一律涂琥珀，连不上与「等一下就好」看起来一样严重。）
   const tone = restoring ? "inProgress" : needsReauth ? "warning" : "danger";
   return (
     <section
@@ -497,7 +497,7 @@ function PanelRecoveryCard({
       data-status={tab.status}
       role="status"
       aria-live="polite"
-      // 白卡（tray-panel-restyle design D5），只借語意色的邊框——故 surface 之後再蓋回白底。
+      // 白卡（tray-panel-restyle design D5），只借语意色的边框——故 surface 之后再盖回白底。
       className={cn("rounded-xl border p-3", SEMANTIC_SURFACE[tone], "bg-card")}
     >
       <div className="flex items-start gap-2.5">
@@ -583,7 +583,7 @@ export function TrayPanel({
 }: TrayPanelProps) {
   const { t } = useI18n();
   const tabStripRef = useRef<HTMLDivElement>(null);
-  // 已轉出卡的展開狀態（design D4）：面板 webview 只建一次，重啟 app 後由本機記憶讀回。
+  // 已转出卡的展开状态（design D4）：面板 webview 只建一次，重启 app 后由本机记忆读回。
   const [promotedExpanded, setPromotedExpanded] = useState(readTrayPromotedExpanded);
   const togglePromoted = () => {
     const next = !promotedExpanded;
@@ -595,8 +595,8 @@ export function TrayPanel({
     <DiscussionRow key={d.slug} d={d} onOpen={onOpenDiscussion} onCopy={onCopy} copyLabel={t("tray.copySlug")} />
   );
   const collapseLabel = t("tray.collapse");
-  // 內容卡收合（spec「面板內容卡收合」）：本機記憶、所有專案共用一份——切換專案與快照更新
-  // 都不改它，只有點擊會改（收合中的卡有新項目也不自動展開）。
+  // 内容卡收合（spec「面板内容卡收合」）：本机记忆、所有项目共用一份——切换项目与快照更新
+  // 都不改它，只有点击会改（收合中的卡有新项目也不自动展开）。
   const [collapsedSections, setCollapsedSections] = useState(readTrayCollapsedSections);
   const toggleSection = (id: TraySectionId) => {
     const next = new Set(collapsedSections);
@@ -605,7 +605,7 @@ export function TrayPanel({
     setCollapsedSections(next);
     writeTrayCollapsedSections(next);
   };
-  // 收合狀態與切換由分區 id 從同一份收合集合推出：呼叫端只寫一次 id。
+  // 收合状态与切换由分区 id 从同一份收合集合推出：调用端只写一次 id。
   const sectionCollapse = (id: TraySectionId) => ({
     id,
     collapsed: collapsedSections.has(id),
@@ -622,17 +622,17 @@ export function TrayPanel({
     items: changes.filter((c) => changeStage(c) === stage),
   }));
   const pendingTabKey = snapshot?.pendingTabKey ?? null;
-  // 首訪載入中：分區以佔位列呈現。條件整條由 store 導出（design D3）——面板
-  // 不自行組合旗標，與主視窗看板恆為同一個答案。快照未到（null）同樣算載入
-  // 中——面板剛開、主視窗尚未推第一份快照，此時畫空分區與畫佔位列是同一個問題。
-  // 首訪載入失敗的終態：載入已結束（故不與骨架並存），但沒有真值可畫——
-  // 顯示失敗提示而非空態文案。
+  // 首访加载中：分区以占位列呈现。条件整条由 store 导出（design D3）——面板
+  // 不自行组合旗标，与主窗口看板恒为同一个答案。快照未到（null）同样算加载
+  // 中——面板刚开、主窗口尚未推第一份快照，此时画空分区与画占位列是同一个问题。
+  // 首访加载失败的终态：加载已结束（故不与骨架并存），但没有真值可画——
+  // 显示失败提示而非空态文案。
   const sectionLoad: SectionLoad =
     !snapshot || snapshot.workspaceLoading ? "loading" : snapshot.workspaceLoadFailed ? "failed" : "ready";
   const activeKey = snapshot?.activeKey ?? null;
 
-  // tab 條左右淡出（design「專案 tab 條：「＋」固定右端、邊緣淡出、捲到作用中」）：tab 尺寸
-  // 固定，改在 tab 清單改變時重新監看——新 tab 才被觀察，且立即重算一次。
+  // tab 条左右淡出（design「项目 tab 条：「＋」固定右端、边缘淡出、卷到作用中」）：tab 尺寸
+  // 固定，改在 tab 清单改变时重新监看——新 tab 才被观察，且立即重算一次。
   const [tabFade, setTabFade] = useState<EdgeFadeSide>("none");
   const tabKeys = tabs.map((tab) => tab.key).join("\n");
   useEffect(() => {
@@ -641,8 +641,8 @@ export function TrayPanel({
     return watchScroll(strip, "x", (metrics) => setTabFade(edgeFade(metrics)));
   }, [tabKeys]);
 
-  // 捲到作用中 tab：作用中專案改變時；面板視窗只建一次、之後隱藏／顯示，再次開啟時
-  // 面板取得焦點，也捲一次。直接設 scrollLeft 而非 scrollIntoView——後者會連帶捲動外層。
+  // 卷到作用中 tab：作用中项目改变时；面板窗口只建一次、之后隐藏／显示，再次打开时
+  // 面板取得焦点，也卷一次。直接设 scrollLeft 而非 scrollIntoView——后者会连带卷动外层。
   useLayoutEffect(() => {
     const strip = tabStripRef.current;
     if (!strip || activeKey === null) return;
@@ -670,14 +670,14 @@ export function TrayPanel({
       : null;
 
   return (
-    // macOS 補光層（tray-panel-content-priority「毛玻璃找回」）：HudWindow（NSVisualEffectView
-    // 舊世代）無亮度自適應——卡內亮度改由不透明白卡錨定，根層只鋪側欄面色約六成（隨深淺
-    // 模式），毛玻璃自外框與卡片縫隙透出約四成（九成時幾乎看不見）。六成是當初針對深色
-    // 背景實測的濃度。圓角 13px 與 Rust 側 apply_vibrancy 半徑一致——補光畫出圓角外會在
-    // 頂角留下方形殘料。Windows（tray-panel-windows design D1／D2）視窗不透明、無毛玻璃，
-    // 根層鋪不透明側欄面色；圓角由 Windows 11 系統畫，面板不自繪。
-    // h-screen 撐滿視窗：三段式版面的中段（flex-1）才有約束高度。
-    // 卡與卡之間只以 gap 分隔，不畫分割線。
+    // macOS 补光层（tray-panel-content-priority「毛玻璃找回」）：HudWindow（NSVisualEffectView
+    // 旧世代）无亮度自适应——卡内亮度改由不透明白卡锚定，根层只铺侧栏面色约六成（随深浅
+    // 模式），毛玻璃自外框与卡片缝隙透出约四成（九成时几乎看不见）。六成是当初针对深色
+    // 背景实测的浓度。圆角 13px 与 Rust 侧 apply_vibrancy 半径一致——补光画出圆角外会在
+    // 顶角留下方形残料。Windows（tray-panel-windows design D1／D2）窗口不透明、无毛玻璃，
+    // 根层铺不透明侧栏面色；圆角由 Windows 11 系统画，面板不自绘。
+    // h-screen 撑满窗口：三段式版面的中段（flex-1）才有约束高度。
+    // 卡与卡之间只以 gap 分隔，不画分割线。
     <div
       data-testid="panel-root"
       className={cn(
@@ -685,16 +685,16 @@ export function TrayPanel({
         platform === "windows" ? "bg-sidebar" : "rounded-[13px] bg-sidebar/60",
       )}
     >
-      {/* 固定頁首（spec 三段式版面）：tab 條卡常駐、不隨內容捲動。 */}
+      {/* 固定页眉（spec 三段式版面）：tab 条卡常驻、不随内容卷动。 */}
       <div data-testid="panel-header" className="shrink-0">
       <PanelCard testid="panel-project-card">
       <div className="flex">
-      {/* 專案 tab 條（spec「面板樣式」；tray-panel-restyle design D3）：首字母
-          方塊與主視窗圖示列同形（取 projectTile 同一份常數，作用中實心主色）＋其下專案名，
-          超寬橫向捲動且隱藏捲軸，有 tab 被遮住的一側以遮罩淡出；點 tab 沿用 open-project
-          原地切換語意（不喚主視窗）。刻意用 div 非 button——面板中唯一可 tab 元素會吃到
-          WebKit 的預設焦點（design D4）。relative 讓 tab 的 offsetLeft 以可捲區為基準
-          （捲到作用中 tab 的計算依此）。 */}
+      {/* 项目 tab 条（spec「面板样式」；tray-panel-restyle design D3）：首字母
+          方块与主窗口图标列同形（取 projectTile 同一份常数，作用中实心主色）＋其下项目名，
+          超宽横向卷动且隐藏滚动条，有 tab 被遮住的一侧以遮罩淡出；点 tab 沿用 open-project
+          原地切换语意（不唤主窗口）。刻意用 div 非 button——面板中唯一可 tab 元素会吃到
+          WebKit 的缺省焦点（design D4）。relative 让 tab 的 offsetLeft 以可卷区为基准
+          （卷到作用中 tab 的计算依此）。 */}
       <div
         ref={tabStripRef}
         data-testid="panel-project-tabs"
@@ -705,7 +705,7 @@ export function TrayPanel({
         className="relative flex min-w-0 flex-1 gap-1 overflow-x-auto p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
           {tabs.map((tab) => {
-            // 識別與切換把手皆為 locator key（workspace-session 決策 6）。
+            // 识别与切换把手皆为 locator key（workspace-session 决策 6）。
             const active = tab.key === snapshot?.activeKey;
             return (
               <div
@@ -724,18 +724,18 @@ export function TrayPanel({
                 }`}
                 tabIndex={-1}
                 onClick={() => onOpenProject(tab.key)}
-                // 名稱在方塊下會截斷（max-w-14），title 帶出全名。
+                // 名称在方块下会截断（max-w-14），title 带出全名。
                 title={tab.name}
                 className={cn(TAB_ITEM, "w-16")}
               >
-                {/* 選取只由方塊承載：作用中不論 ready／restoring／error 皆實心主色（與圖示列一致），
-                    狀態交給其下狀態文字的語意色。 */}
+                {/* 选取只由方块承载：作用中不论 ready／restoring／error 皆实心主色（与图标列一致），
+                    状态交给其下状态文本的语意色。 */}
                 <span
                   aria-hidden
                   data-project-tile
                   className={cn(RAIL_SQUARE, active ? PROJECT_TILE_ACTIVE : PROJECT_TILE_IDLE)}
                 >
-                  {/* 切換中蓋過首字母：探測擋在翻頁前，此處是使用者唯一的「有在動」訊號。 */}
+                  {/* 切换中盖过首字母：探测挡在翻页前，此处是用户唯一的「有在动」信号。 */}
                   {tab.key === pendingTabKey ? (
                     <LoaderCircle
                       data-tab-pending="true"
@@ -764,11 +764,11 @@ export function TrayPanel({
             );
           })}
       </div>
-        {/* 快速加入專案（design D7）：固定在 tab 條卡右端、不隨 tab 捲走——專案再多也看得到；
-            位置與主視窗圖示列「專案在前、＋在後」同序。與專案 tab 同構：虛線框「＋」（與
-            圖示列同形）＋其下名稱——只留圖示在一排帶名稱的 tab 旁顯得突兀。文字不截斷：
-            英文「Add project」比專案 tab 寬，這一項跟著文字長（min-w 與專案 tab 對齊）。
-            外層 py-1.5 對齊可捲區內距，「＋」與首字母方塊同高。 */}
+        {/* 快速加入项目（design D7）：固定在 tab 条卡右端、不随 tab 卷走——项目再多也看得到；
+            位置与主窗口图标列「项目在前、＋在后」同序。与项目 tab 同构：虚线框「＋」（与
+            图标列同形）＋其下名称——只留图标在一排带名称的 tab 旁显得突兀。文本不截断：
+            英文「Add project」比项目 tab 宽，这一项跟着文本长（min-w 与项目 tab 对齐）。
+            外层 py-1.5 对齐可卷区内距，「＋」与首字母方块同高。 */}
         <div className="shrink-0 py-1.5 pr-1.5">
           <div
             data-testid="panel-add-project"
@@ -793,7 +793,7 @@ export function TrayPanel({
       </PanelCard>
       </div>
 
-      {/* 可捲中段（spec 三段式版面）：生命週期／討論分區或復原卡。 */}
+      {/* 可卷中段（spec 三段式版面）：生命周期／讨论分区或复原卡。 */}
       <PanelScrollArea>
       {activeRecovery ? (
         <PanelRecoveryCard
@@ -809,7 +809,7 @@ export function TrayPanel({
             <div
               data-testid="panel-stale-status"
               role="status"
-              // 琥珀淡底卡（design D5）：與專案欄的提示卡同語意，保留淡底而非白卡。
+              // 琥珀淡底卡（design D5）：与项目栏的提示卡同语意，保留淡底而非白卡。
               className={cn(
                 "flex min-h-8 items-center gap-2 rounded-xl border px-3 py-2 text-[11px]",
                 SEMANTIC_SURFACE.warning,
@@ -819,7 +819,7 @@ export function TrayPanel({
               <span className="font-medium">{tabStatusLabel(activeStale, t)}</span>
               <span className="ml-auto text-muted-foreground">{t("tray.recovery.stale")}</span>
               {activeStale.status === "needs-reauth" && (
-                // 中性 outline：警示由整列的琥珀底承載，按鈕再塗琥珀只會兩片顏色互搶。
+                // 中性 outline：警示由整列的琥珀底承载，按钮再涂琥珀只会两片颜色互抢。
                 <Button
                   variant="outline"
                   size="sm"
@@ -832,10 +832,10 @@ export function TrayPanel({
             </div>
           )}
 
-      {/* 生命週期分區：三階段分區卡常駐（工作站常駐、衍生群組有料才現）——
-          零筆階段呈標題＋計數 0 的空狀態卡（與討論分區同構，design D8），
-          分區位置固定不隨資料增減跳動；原生選單的全空佔位文案不在此重現。
-          生命週期在前、討論在後（與原生選單同序）：討論一多也不會把三個階段擠出第一屏。 */}
+      {/* 生命周期分区：三阶段分区卡常驻（工作站常驻、衍生群组有料才现）——
+          零笔阶段呈标题＋计数 0 的空状态卡（与讨论分区同构，design D8），
+          分区位置固定不随数据增减跳动；原生菜单的全空占位文案不在此重现。
+          生命周期在前、讨论在后（与原生菜单同序）：讨论一多也不会把三个阶段挤出第一屏。 */}
       {staged.map(({ stage, Icon, items }) => (
         <SectionCard
           key={stage}
@@ -864,10 +864,10 @@ export function TrayPanel({
         </SectionCard>
       ))}
 
-      {/* 討論卡（spec「討論列表」）：計數與空狀態只看討論中，「還有 N 個…」是卡內最後一列。
-          slug 為題、topic 為描述（識別錨點慣例，與看板討論卡一致）。四種狀態（載入中、失敗、
-          有料、空）共用同一標題，只差計數與其下內容：載入中為佔位列、失敗為失敗提示（計數
-          未知，不謊報 0）、空為計數 0 的空狀態卡（與非空同構，design D8）。 */}
+      {/* 讨论卡（spec「讨论列表」）：计数与空状态只看讨论中，「还有 N 个…」是卡内最后一列。
+          slug 为题、topic 为描述（识别锚点惯例，与看板讨论卡一致）。四种状态（加载中、失败、
+          有料、空）共用同一标题，只差计数与其下内容：加载中为占位列、失败为失败提示（计数
+          未知，不谎报 0）、空为计数 0 的空状态卡（与非空同构，design D8）。 */}
       <SectionCard
         {...sectionCollapse("discussions")}
         load={sectionLoad}
@@ -884,11 +884,11 @@ export function TrayPanel({
         />
       </SectionCard>
 
-      {/* 已轉出卡（spec「討論列表」）：討論卡正下方的獨立卡，靠卡片間距與討論中分開。
-          收合外觀與互動同其他內容卡，但展開狀態走自己的記憶（預設收合），不進收合集合。
-          只在討論清單 ready 且有料時呈現——載入中與失敗時筆數未知，由討論卡呈現佔位或提示。
-          圖示與計數徽章為中性灰（desktop-app「介面狀態語意色分層」）：徽章不傳 countClassName，
-          沿用 Badge 的 secondary 變體。不用 ArrowUpRight——頁尾「開啟 Speclink」已用同一圖示。 */}
+      {/* 已转出卡（spec「讨论列表」）：讨论卡正下方的独立卡，靠卡片间距与讨论中分开。
+          收合外观与交互同其他内容卡，但展开状态走自己的记忆（缺省收合），不进收合集合。
+          只在讨论清单 ready 且有料时呈现——加载中与失败时笔数未知，由讨论卡呈现占位或提示。
+          图标与计数徽章为中性灰（desktop-app「接口状态语意色分层」）：徽章不传 countClassName，
+          沿用 Badge 的 secondary 变体。不用 ArrowUpRight——页脚「打开 Specseal」已用同一图标。 */}
       {sectionLoad === "ready" && promotedDiscussions.length > 0 && (
         <SectionCard
           id="promoted"
@@ -912,11 +912,11 @@ export function TrayPanel({
       )}
       </PanelScrollArea>
 
-      {/* 固定頁尾（spec 三段式版面）：動作區卡常駐、不隨內容捲動。
-          動作區單列：「開啟 Speclink」文字鈕佔滿左側（最常用、保留文字），右側專案設定、
-          設定、結束三顆圖示鈕（與原生選單同序——專案層動作在前、app 層在後；圖示沿用
-          側欄同款）；「設定」與「結束」之間以細直線分隔符隔開防誤按——只留加寬空白看起來像
-          排版出錯。四顆皆 tabIndex=-1 退出 Tab 順序（同複製鈕）。 */}
+      {/* 固定页脚（spec 三段式版面）：动作区卡常驻、不随内容卷动。
+          动作区单列：「打开 Specseal」文本钮占满左侧（最常用、保留文本），右侧项目设置、
+          设置、结束三颗图标钮（与原生菜单同序——项目层动作在前、app 层在后；图标沿用
+          侧栏同款）；「设置」与「结束」之间以细直线分隔符隔开防误按——只留加宽空白看起来像
+          排版出错。四颗皆 tabIndex=-1 退出 Tab 顺序（同拷贝钮）。 */}
       <div data-testid="panel-footer" className="shrink-0">
       <PanelCard testid="panel-actions-card">
       <div className="flex items-center gap-0.5 p-1">
@@ -961,21 +961,21 @@ function DiscussionRow({
         <div className="truncate font-mono text-[12px]">{d.slug}</div>
         <div className="truncate text-[11px] text-muted-foreground">{d.topic}</div>
       </div>
-      {/* 列尾常駐複製鈕：tabIndex=-1 退出 tab 順序（design D4）——面板成 key window 後 WebKit
-          會把焦點給第一個可 tab 元素，複製鈕不退出就吃到焦點框。變更列同理。 */}
+      {/* 列尾常驻拷贝钮：tabIndex=-1 退出 tab 顺序（design D4）——面板成 key window 后 WebKit
+          会把焦点给第一个可 tab 元素，拷贝钮不退出就吃到焦点框。变更列同理。 */}
       <CopyButton value={d.slug} label={copyLabel} onCopy={onCopy} tabIndex={-1} />
     </div>
   );
 }
 
 /**
- * 變更列的品質站章（spec tray-status-menu「面板變更列的品質站章」；design D7）：
- * 站章直接影響收尾動作（未結工單擋封存、降級章提示留意），所以進 tray；建立者
- * 頭像、來源討論標記、restale 與 metaError 是閱讀脈絡，留在看板。
+ * 变更列的品质站章（spec tray-status-menu「面板变更列的品质站章」；design D7）：
+ * 站章直接影响收尾动作（未结工单挡封存、降级章提示留意），所以进 tray；创建者
+ * 头像、来源讨论标记、restale 与 metaError 是阅读脉络，留在看板。
  *
- * 圖示、色調與 tooltip 詞條全部取自 packages/ui 匯出的兩張站別樣式表——面板不
- * 另建第二份對照，否則卡片改了色、tray 不會跟著改。tooltip 以 `title` 承載：
- * 面板是無焦點的一瞥介面，掛 Radix Tooltip 會多一層 portal 與焦點管理。
+ * 图标、色调与 tooltip 词条全部取自 packages/ui 导出的两张站别样式表——面板不
+ * 另建第二份对照，否则卡片改了色、tray 不会跟着改。tooltip 以 `title` 承载：
+ * 面板是无焦点的一瞥接口，挂 Radix Tooltip 会多一层 portal 与焦点管理。
  */
 function StationBadges({ c }: { c: ChangeItem }) {
   const { t } = useI18n();
@@ -1014,7 +1014,7 @@ function ChangeRow({
   copyLabel,
 }: {
   c: ChangeItem;
-  /** 所屬生命週期階段——進度條填色取 STAGE_BAR 深淺階梯（design D3）。 */
+  /** 所属生命周期阶段——进度条填色取 STAGE_BAR 深浅阶梯（design D3）。 */
   stage: Stage;
   onOpen: (name: string) => void;
   onCopy: (text: string) => void;
@@ -1022,9 +1022,9 @@ function ChangeRow({
 }) {
   const { t } = useI18n();
   const pct = c.totalTasks > 0 ? Math.round((c.completedTasks / c.totalTasks) * 100) : 0;
-  // 波次與阻擋（spec tray-status-menu「變更列的波次標示與順序同源」；design D7）：
-  // 列首波次數字與看板卡片共用 card.wave 詞條；被擋列整列變淡、title 列前置。
-  // 判定歸 planWave／planBlockedBy 單一入口，缺 wave（remote、成環）列與從前一致。
+  // 波次与阻挡（spec tray-status-menu「变更列的波次标示与顺序同源」；design D7）：
+  // 列首波次数字与看板卡片共用 card.wave 词条；被挡列整列变淡、title 列前置。
+  // 判定归 planWave／planBlockedBy 单一入口，缺 wave（remote、成环）列与从前一致。
   const wave = planWave(c);
   const blockedBy = planBlockedBy(c);
   const blockedTitle = blockedBy.length > 0 ? planBlockedLabel(blockedBy, t) : undefined;
@@ -1032,7 +1032,7 @@ function ChangeRow({
     <div
       data-testid={`panel-change-${c.name}`}
       onClick={() => onOpen(c.name)}
-      // 淡化落在列的內容（直接子節點）上：列本身降透明度會連底部分隔線一起變淡。
+      // 淡化落在列的内容（直接子节点）上：列本身降透明度会连底部分隔线一起变淡。
       className={cn(rowClass, blockedBy.length > 0 && "[&>*]:opacity-60")}
       title={blockedTitle}
     >
@@ -1049,9 +1049,9 @@ function ChangeRow({
           )}
           <span className="truncate">{c.name}</span>
           <StationBadges c={c} />
-          {/* worktree 標記：掛著＝工作正於副本進行中，與站章同屬影響收尾動作
-              的狀態（merge 前不能封存），故進 tray；色調與 tooltip 詞條沿看板
-              卡片同款（SEMANTIC_TONE.inProgress＋card.worktree），不另建對照。 */}
+          {/* worktree 标记：挂着＝工作正于副本进行中，与站章同属影响收尾动作
+              的状态（merge 前不能封存），故进 tray；色调与 tooltip 词条沿看板
+              卡片同款（SEMANTIC_TONE.inProgress＋card.worktree），不另建对照。 */}
           {c.worktree && (
             <span
               aria-label={t("card.worktree")}

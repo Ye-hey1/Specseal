@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# src/http.js 預設關閉 TLS 驗證；檔案已 git add 但未 commit，audit 的 git diff HEAD 看得到它。
+# src/http.js 缺省关闭 TLS 验证；文件已 git add 但未 commit，audit 的 git diff HEAD 看得到它。
 source "$(dirname "$0")/../fixtures.sh"
 eval_git_init
 echo '# http client' >README.md

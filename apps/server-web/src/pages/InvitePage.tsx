@@ -1,16 +1,16 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 import { useClient, useSession } from "../app/context";
 import { useAsync } from "../lib/useAsync";
 import { readFormError } from "../lib/formError";
 import { Field } from "../components/Field";
 import { FocusFooter, FocusHeader, FocusNotice } from "../layouts/FocusLayout";
 
-// 邀請接受（server-identity「邀請一次性且到期失效」, D2／D3）。token 由 URL path 帶入；
-// 有效邀請顯示設定密碼表單，提交後 Server 原子建帳號並建立 session，SPA 依回傳的
-// destination 導向（admin→/admin，一般→/account）。已用／過期／未知 token 一律顯示
-// 不可區分的「邀請無效」且無表單。
+// 邀请接受（server-identity「邀请一次性且到期失效」, D2／D3）。token 由 URL path 带入；
+// 有效邀请显示设置密码表单，提交后 Server 原子建帐号并创建 session，SPA 依回传的
+// destination 导向（admin→/admin，一般→/account）。已用／过期／未知 token 一律显示
+// 不可区分的「邀请无效」且无表单。
 export function InvitePage() {
   const { t } = useI18n();
   const client = useClient();
@@ -49,14 +49,14 @@ export function InvitePage() {
     );
   }
   if (!data) {
-    // 已用／過期／未知 token：不可區分的固定訊息，不回顯內部原因。
+    // 已用／过期／未知 token：不可区分的固定消息，不回显内部原因。
     return <FocusNotice title={t("invite.invalidTitle")} body={t("invite.invalidBody")} />;
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       <FocusHeader title={t("invite.title")} description={t("invite.body").replace("{email}", data.email)} />
-      {/* 唯讀資訊：受邀帳號與要加入的這台 server，設定密碼前先確認沒有找錯地方。 */}
+      {/* 唯读信息：受邀帐号与要加入的这台 server，设置密码前先确认没有找错地方。 */}
       <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 rounded-lg bg-muted/50 px-3 py-2.5 text-[13px]">
         <dt className="text-muted-foreground">{t("field.email")}</dt>
         <dd className="truncate">{data.email}</dd>

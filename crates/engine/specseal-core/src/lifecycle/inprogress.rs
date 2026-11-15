@@ -1,0 +1,609 @@
+//! In-progress change markers — the "started" station of the change lifecycle
+//! (created → started → archived), stored in the change's own metadata
+//! document so the marker travels with the repository and rides whatever
+//! backend the [`Store`] provides. (The pre-migration SQLite database under
+//! `.git/specseal-app/` was host-local and had zero readers; leftovers on
+//! existing machines are harmless and intentionally not migrated.)
+//!
+//! The command surface is parity-sensitive: add is silent, idempotent, and
+//! succeeds for unknown change names (measured pre-migration baseline —
+//! exit 0, no output, and in that case nothing is written).
+
+use crate::model::edit_meta;
+use crate::store::Store;
+use crate::util;
+use anyhow::Result;
+
+/// 开工章的三个键，写入与撤销都以这组为准。
+const STARTED_KEYS: [&str; 3] = ["started_at", "started_by", "started_with"];
+
+/// 变更所在分支的键：开工时与开工章一起写入、退回提案中时一起移除。
+pub(crate) const BRANCH_KEY: &str = "branch";
+
+/// 守门拒绝:change 带工作痕迹(已勾任务或 touched 记录),in-progress 标记
+/// 不可机械移除。结构化证据随错误走——CLI stderr、server 409 载荷与 desktop
+/// 对话框各自呈现;Display 即 CLI 的人眼文本。
+#[derive(Debug, Clone)]
+pub struct RevertBlocked {
+    pub change: String,
+    /// tasks.md 的已勾任务数(缺档视为 0)。
+    pub checked_tasks: usize,
+    /// touched 记录 v1 与 v2 两清单的文件联集(去重、首见序)。
+    pub touched_files: Vec<String>,
+}
+
+impl std::fmt::Display for RevertBlocked {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "cannot remove the in-progress marker for '{}': work traces exist",
+            self.change
+        )?;
+        if self.checked_tasks > 0 {
+            write!(
+                f,
+                "\n  checked tasks: {} — uncheck them (specseal task undone) and retry",
+                self.checked_tasks
+            )?;
+        }
+        if !self.touched_files.is_empty() {
+            write!(f, "\n  touched files: {}", self.touched_files.join(", "))?;
+            write!(
+                f,
+                "\n  touched records may mix work from other changes — have an agent or a human judge them (no mechanical cleanup)"
+            )?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for RevertBlocked {}
+
+/// Remove the in-progress marker — the reverse verb of [`add`], for changes
+/// started by mistake. Gated on zero work traces; see the change-lifecycle
+/// spec「in-progress 标记可自 change meta 移除(零工作痕迹守门)」.
+///
+/// Returns whether THIS call removed the marker — `false` for the idempotent
+/// not-started success (zero writes, no event). Unknown names error loudly,
+/// deliberately asymmetric with [`add`]'s parity-frozen silence.
+pub fn remove(store: &dyn Store, name: &str) -> Result<bool> {
+    // Same single-path-segment guard as [`add`], but loud: a name with
+    // separators is never an active change, and a correction verb aimed at the
+    // wrong name must say so instead of silently writing outside changes/.
+    let not_found = || anyhow::anyhow!("Change '{name}' not found.");
+    if name.contains(['/', '\\', ':']) || name.contains("..") {
+        return Err(not_found());
+    }
+    // Fail-closed gate lives in `edit_meta`: a corrupt document must not read
+    // as "not started" and take the idempotent pass — the closure never runs.
+    let removed = edit_meta(store, name, |m| {
+        // Zero-work-trace gate, judged before idempotence: a change whose stage
+        // still derives as in-progress (checked tasks without a stamp) must hear
+        // "blocked, traces exist", not "already proposed".
+        let tasks =
+            crate::tasks::parse(&store.read_artifact(name, "tasks.md").unwrap_or_default());
+        let checked_tasks = tasks.iter().filter(|t| t.done).count();
+        let touched_files = crate::tasks::TouchedRecord::load(store, name).all_files();
+        if checked_tasks > 0 || !touched_files.is_empty() {
+            return Err(RevertBlocked {
+                change: name.to_string(),
+                checked_tasks,
+                touched_files,
+            }
+            .into());
+        }
+        if STARTED_KEYS.iter().all(|k| m.get(k).is_none()) {
+            return Ok(false);
+        }
+        // Drop exactly the three started_* lines and the branch recorded with
+        // them; every other byte stays as-is.
+        for key in STARTED_KEYS {
+            m.remove(key);
+        }
+        m.remove(BRANCH_KEY);
+        Ok(true)
+    })?;
+    removed.ok_or_else(not_found)
+}
+
+/// Mark a change as in-progress by stamping `started_at` / `started_by` /
+/// `started_with` into its metadata document (via [`edit_meta`] — every other
+/// byte is preserved, never re-serialized). Identity and agent attribution follow the created_* rule:
+/// what the caller cannot attribute is absent, not defaulted. A change already
+/// carrying a started_* field keeps its first stamp verbatim.
+///
+/// `branch` is the branch the caller observed its checkout on (the engine reads
+/// no git): it lands in the same write as the marker, a malformed name refuses
+/// before any write, and an already-started change keeps the branch it has.
+///
+/// Returns whether THIS call stamped the marker — `false` for the silent
+/// no-op successes (unknown name, already stamped), so the command layer can
+/// tell a mutation from an idempotent pass and only report an event for the
+/// former. Output and exit behavior stay parity-frozen either way.
+pub fn add(
+    store: &dyn Store,
+    name: &str,
+    identity: Option<&str>,
+    agent: Option<&str>,
+    branch: Option<&str>,
+) -> Result<bool> {
+    let branch = branch.map(crate::model::checked_branch).transpose()?;
+    // Active change names are single path segments by construction (directory
+    // entries); anything else could address a metadata document outside
+    // changes/ through the raw write pair. Baseline shape for any unknown
+    // name is a silent success with zero file effects — keep it.
+    if name.contains(['/', '\\', ':']) || name.contains("..") {
+        return Ok(false);
+    }
+    // Fail-closed gate lives in `edit_meta`: a corrupt document must not read
+    // as "not started" and take the stamp — the closure never runs. An unknown
+    // name is `None` → the parity-frozen silent `false`.
+    let stamped = edit_meta(store, name, |m| {
+        if STARTED_KEYS.iter().any(|k| m.get(k).is_some()) {
+            return Ok(false);
+        }
+        let clean = util::yaml_scalar;
+        m.set("started_at", &util::now_rfc3339())?;
+        if let Some(id) = identity {
+            m.set("started_by", &clean(id))?;
+        }
+        if let Some(agent) = agent {
+            m.set("started_with", &clean(agent))?;
+        }
+        if let Some(branch) = branch {
+            m.set(BRANCH_KEY, &util::yaml_roundtrip_scalar(branch))?;
+            // `checked_branch` already refused a name YAML cannot carry. What
+            // is left is the document: the edit only sees a key written as
+            // `branch:` in the first column, so a hand-written `branch : x`
+            // would get a second line and stop parsing (the landing command
+            // has the same guard). Refuse unless the result reads back as
+            // this branch.
+            let reads_back = crate::model::ChangeMeta::from_text(Some(&m.text()))
+                .is_ok_and(|meta| meta.branch.as_deref() == Some(branch));
+            if !reads_back {
+                anyhow::bail!(crate::command::InvalidContent(format!(
+                    "invalid branch {branch:?} — the change's metadata cannot record it"
+                )));
+            }
+        }
+        Ok(true)
+    })?;
+    Ok(stamped.unwrap_or(false))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::store::Store;
+    use crate::teststore::TestStore;
+
+    const EXISTING_META: &str = "schema: spec-driven\ncreated: 2026-07-01\ncreated_by: Base Line <base@example.com>\ncreated_with: claude\nfrom_discussion: 桌面即时刷新与封存浏览\n";
+
+    #[test]
+    fn add_appends_started_fields_and_preserves_existing_fields_verbatim() {
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", Some("Tester <t@example.com>"), Some("claude"), None).unwrap();
+
+        let meta = store.meta("demo");
+        assert!(
+            meta.starts_with(EXISTING_META),
+            "existing fields must be preserved byte-for-byte, got: {meta}"
+        );
+        let added: Vec<&str> = meta[EXISTING_META.len()..].lines().collect();
+        let [started_at, started_by, started_with] = added[..] else {
+            panic!("expected exactly the three started fields, got: {added:?}");
+        };
+        let stamp = started_at.strip_prefix("started_at: ").expect("started_at first");
+        assert!(crate::util::is_offset_stamp(stamp), "started_at is not an offset stamp: {stamp}");
+        assert_eq!(started_by, "started_by: Tester <t@example.com>");
+        assert_eq!(started_with, "started_with: claude");
+        // The stamped document parses and exposes the started fields (the date part).
+        let parsed = crate::model::ChangeMeta::from_text(Some(&meta)).expect("stamped meta parses");
+        assert_eq!(parsed.started_at.as_deref(), Some(&stamp[..10]));
+        assert_eq!(parsed.started_by.as_deref(), Some("Tester <t@example.com>"));
+        assert_eq!(parsed.started_with.as_deref(), Some("claude"));
+    }
+
+    #[test]
+    fn add_preserves_existing_board_rank_verbatim() {
+        // spec「meta 写入路径对 board_rank 互不破坏」反向：开工标记作用于
+        // 含 board_rank 的 meta 时原样保留该字段，开工字段如常写入。
+        let with_rank = "schema: spec-driven\ncreated: 2026-07-01\nboard_rank: n\n";
+        let store = TestStore::with_meta("demo", with_rank);
+        super::add(&store, "demo", None, None, None).unwrap();
+        let meta = store.meta("demo");
+        assert!(
+            meta.starts_with(with_rank),
+            "board_rank must survive the started stamp byte-for-byte: {meta}"
+        );
+        let parsed = crate::model::ChangeMeta::from_text(Some(&meta)).expect("stamped meta parses");
+        assert_eq!(parsed.board_rank.as_deref(), Some("n"));
+        assert!(parsed.started_at.is_some());
+    }
+
+    #[test]
+    fn add_without_identity_or_agent_stamps_only_started_at() {
+        // Same mechanism as created_by / created_with: fields the caller cannot
+        // attribute are absent, not defaulted.
+        let store = TestStore::with_meta("demo", "schema: spec-driven\ncreated: 2026-07-01\n");
+        super::add(&store, "demo", None, None, None).unwrap();
+
+        let meta = store.meta("demo");
+        assert!(meta.contains("started_at: "));
+        assert!(!meta.contains("started_by"));
+        assert!(!meta.contains("started_with"));
+    }
+
+    #[test]
+    fn add_handles_meta_missing_trailing_newline() {
+        let store = TestStore::with_meta("demo", "schema: spec-driven\ncreated: 2026-07-01");
+        super::add(&store, "demo", None, None, None).unwrap();
+        let meta = store.meta("demo");
+        assert!(
+            meta.contains("created: 2026-07-01\nstarted_at: "),
+            "a missing trailing newline must not glue fields together: {meta}"
+        );
+    }
+
+    #[test]
+    fn repeated_add_is_idempotent_and_keeps_the_first_stamp() {
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", Some("First <first@example.com>"), Some("claude"), None).unwrap();
+        let after_first = store.meta("demo");
+
+        // A second add — even with a different identity/agent — must not
+        // rewrite the first work stamp, and must not write at all.
+        super::add(&store, "demo", Some("Second <second@example.com>"), Some("codex"), None).unwrap();
+        assert_eq!(store.meta("demo"), after_first, "first stamp must be kept verbatim");
+        assert_eq!(*store.meta_writes.borrow(), 1, "idempotent re-add must not write");
+    }
+
+    #[test]
+    fn add_sanitizes_control_characters_out_of_identity_and_agent() {
+        // Sharp edge (Scoundrel): a git user.name carrying a newline would
+        // otherwise inject arbitrary YAML fields into the metadata document.
+        let store = TestStore::with_meta("demo", "schema: spec-driven\n");
+        super::add(
+            &store,
+            "demo",
+            Some("Evil\nstarted_with: forged\rname"),
+            Some("agent\nfrom_discussion: fake"),
+            None,
+        )
+        .unwrap();
+        let meta = store.meta("demo");
+        // 结构性断言：不得出现被注入的独立字段行；文档仍可解析且值完整落在
+        // 对应字段内（风险值以引号包覆，不破坏整档解析）。
+        assert!(
+            meta.lines().all(|l| !l.starts_with("from_discussion:")),
+            "newline in agent must not inject a field line: {meta}"
+        );
+        let parsed = crate::model::ChangeMeta::from_text(Some(&meta)).expect("stamped meta parses");
+        assert_eq!(parsed.started_by.as_deref(), Some("Evil started_with: forged name"));
+        assert_eq!(parsed.started_with.as_deref(), Some("agent from_discussion: fake"));
+        assert!(parsed.from_discussion.is_none());
+        assert_eq!(parsed.schema.as_deref(), Some("spec-driven"), "document must keep parsing");
+    }
+
+    #[test]
+    fn add_refuses_on_corrupt_meta_without_writing() {
+        // spec「坏 metadata 使生命周期写入 fail closed」：坏档不得被解读为
+        // 未开工而叠写 started_* 行——拒绝、指名文件，.meta.yaml 逐比特不变。
+        const BAD: &str = ": : :\n\t bad yaml [unclosed\n";
+        let store = TestStore::with_meta("demo", BAD);
+        let err = super::add(&store, "demo", Some("T <t@example.com>"), Some("claude"), None)
+            .expect_err("corrupt meta must refuse the stamp");
+        assert!(
+            err.to_string().contains("specseal/changes/demo/.meta.yaml"),
+            "error must name the metadata file: {err}"
+        );
+        assert_eq!(store.meta("demo"), BAD, "meta byte-identical");
+        assert_eq!(*store.meta_writes.borrow(), 0, "refusal must not write");
+    }
+
+    #[test]
+    fn add_refuses_to_address_outside_a_single_path_segment() {
+        // Sharp edge (Scoundrel): `in-progress add "../evil"` must not stamp a
+        // metadata document outside changes/. Baseline behavior for any unknown
+        // name is a silent success with zero file effects — keep that shape.
+        let store = TestStore::with_meta("../evil", "schema: spec-driven\n");
+        assert!(super::add(&store, "../evil", None, None, None).is_ok());
+        assert!(super::add(&store, "a/b", None, None, None).is_ok());
+        assert!(super::add(&store, "C:\\evil", None, None, None).is_ok());
+        assert_eq!(*store.meta_writes.borrow(), 0, "non-segment names must not write");
+    }
+
+    #[test]
+    fn add_for_missing_change_is_a_silent_no_op() {
+        // Pre-migration baseline (measured): unknown names succeed silently
+        // with exit 0 and no output. The meta flow keeps that shape — no
+        // error, and nothing written anywhere.
+        let store = TestStore::default();
+        assert!(super::add(&store, "ghost", Some("T <t@example.com>"), None, None).is_ok());
+        assert_eq!(*store.meta_writes.borrow(), 0);
+        assert!(store.read_change_meta("ghost").is_none());
+    }
+
+    // --- 开工时记下分支（spec change-landing「开工时记下分支」）---
+
+    fn branch_of(store: &TestStore) -> Option<String> {
+        crate::model::ChangeMeta::from_text(Some(&store.meta("demo"))).expect("meta parses").branch
+    }
+
+    #[test]
+    fn add_with_a_branch_records_it_in_the_same_write_as_the_marker() {
+        // Scenario「在功能分支上开工」。
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        let stamped = super::add(&store, "demo", None, None, Some("feature/x")).unwrap();
+        assert!(stamped);
+        let meta = store.meta("demo");
+        assert!(meta.starts_with(EXISTING_META), "existing fields kept: {meta}");
+        assert!(meta.contains("started_at: "), "{meta}");
+        assert!(meta.ends_with("branch: feature/x\n"), "{meta}");
+        assert_eq!(*store.meta_writes.borrow(), 1, "the marker and the branch land in one write");
+    }
+
+    #[test]
+    fn add_without_a_branch_writes_no_branch_key() {
+        // Scenario「detached HEAD 不记分支」：没有提供时不写入空值。
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", None, None, None).unwrap();
+        let meta = store.meta("demo");
+        assert!(meta.contains("started_at: "), "{meta}");
+        assert!(meta.lines().all(|l| !l.starts_with("branch")), "{meta}");
+    }
+
+    #[test]
+    fn a_repeated_add_keeps_the_first_branch() {
+        // Scenario「已开工时不改分支」。
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", None, None, Some("feature/x")).unwrap();
+        let after_first = store.meta("demo");
+        let stamped = super::add(&store, "demo", None, None, Some("other")).unwrap();
+        assert!(!stamped);
+        assert_eq!(store.meta("demo"), after_first);
+        assert_eq!(*store.meta_writes.borrow(), 1, "the second add must not write");
+    }
+
+    #[test]
+    fn a_branch_with_a_slash_and_cjk_reads_back_unchanged() {
+        // Scenario「含斜线与中文的分支名称」。
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", None, None, Some("功能/登录")).unwrap();
+        assert_eq!(branch_of(&store).as_deref(), Some("功能/登录"));
+    }
+
+    #[test]
+    fn branch_names_yaml_would_misread_read_back_unchanged() {
+        // 分支名称可以是 YAML 会读成别种值、或带 YAML 记号的字：写入后读回原值，
+        // 文档其余字段照常解析，不多出别的键。
+        // 含零宽字符与 BOM：不是空白也不是控制字符，照原样存、照原样读回。
+        for name in [
+            "null", "true", "123", "1e5", "~", "a:b", "a#b", "#x", "-x", "x\"y", "[x]", "a\\b", "x:", "'x'", "x\u{200B}y",
+            "\u{FEFF}x", "é/🚀", "0x1F", ".inf", "2026-11-12",
+        ] {
+            let store = TestStore::with_meta("demo", EXISTING_META);
+            super::add(&store, "demo", None, None, Some(name)).unwrap();
+            assert_eq!(branch_of(&store).as_deref(), Some(name), "{name:?}: {}", store.meta("demo"));
+            let parsed = crate::model::ChangeMeta::from_text(Some(&store.meta("demo"))).unwrap();
+            assert_eq!(parsed.created_with.as_deref(), Some("claude"), "{name:?}");
+        }
+    }
+
+    #[test]
+    fn a_branch_yaml_cannot_carry_is_refused_and_never_corrupts_the_meta() {
+        // U+FFFE 与 U+FFFF 不是空白也不是控制字符；YAML 却带不了它们，写进去整份 meta
+        // 就再也解析不了。分支检查连「存不存得进去」一起看，所以 CLI 自己带分支前用同一个
+        // 检查就能略过这种名称；开工在任何写入之前拒绝。
+        for name in ["x\u{FFFE}", "\u{FFFF}y", "a\u{FFFE}b"] {
+            assert!(crate::model::checked_branch(name).is_err(), "{name:?}");
+            let store = TestStore::with_meta("demo", EXISTING_META);
+            let err = super::add(&store, "demo", None, None, Some(name)).expect_err("must refuse");
+            assert!(
+                err.downcast_ref::<crate::command::InvalidContent>().is_some(),
+                "{name:?} is a caller error: {err}"
+            );
+            assert_eq!(store.meta("demo"), EXISTING_META, "{name:?}");
+            assert_eq!(*store.meta_writes.borrow(), 0, "{name:?}");
+        }
+    }
+
+    #[test]
+    fn a_malformed_branch_refuses_with_zero_writes() {
+        // 1 到 255 个字符、不含控制字符与空白；否则是调用端参数错误，开工标记也不写。
+        let too_long = "b".repeat(256);
+        for bad in ["", "a b", "a\tb", "a\nstarted_with: forged", "a\u{0}b", "a\u{3000}b", too_long.as_str()] {
+            let store = TestStore::with_meta("demo", EXISTING_META);
+            let err = super::add(&store, "demo", None, None, Some(bad)).expect_err("malformed branch must refuse");
+            assert!(
+                err.downcast_ref::<crate::command::InvalidContent>().is_some(),
+                "{bad:?} is a caller error: {err}"
+            );
+            assert_eq!(store.meta("demo"), EXISTING_META, "{bad:?}");
+            assert_eq!(*store.meta_writes.borrow(), 0, "{bad:?}");
+        }
+        // 255 个字符（非 ASCII 也算一个）是上限内。
+        let longest = "分".repeat(255);
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", None, None, Some(&longest)).unwrap();
+        assert_eq!(branch_of(&store).as_deref(), Some(longest.as_str()));
+    }
+
+    #[test]
+    fn remove_drops_the_branch_with_the_marker() {
+        // Scenario「退回提案中移除分支」。
+        let store = TestStore::with_meta("demo", EXISTING_META);
+        super::add(&store, "demo", None, None, Some("feature/x")).unwrap();
+        let removed = super::remove(&store, "demo").unwrap();
+        assert!(removed);
+        assert_eq!(store.meta("demo"), EXISTING_META, "back to the bytes before the add");
+    }
+
+    // --- remove:反向动词与零工作痕迹守门 ---
+
+    use crate::tasks::{EvidenceEntry, TouchedEntry, TouchedRecord};
+
+    /// 带开工戳记的 meta:started_* 三行之后仍有字段(board_rank),
+    /// 逼出「行过滤」而非「截尾」的实作。
+    const STARTED_META: &str = "schema: spec-driven\ncreated: 2026-07-01\ncreated_by: Base Line <base@example.com>\ncreated_with: claude\nfrom_discussion: 桌面即时刷新与封存浏览\nstarted_at: 2026-07-30\nstarted_by: Tester <t@example.com>\nstarted_with: claude\nboard_rank: n\n";
+
+    fn v1_entry(files: &[&str]) -> TouchedEntry {
+        TouchedEntry {
+            task_id: "1".to_string(),
+            task_desc: "1.1 first task".to_string(),
+            files: files.iter().map(|f| f.to_string()).collect(),
+        }
+    }
+
+    fn v2_entry(files: &[&str]) -> EvidenceEntry {
+        EvidenceEntry {
+            task_id: "tsk_0000000000000000".to_string(),
+            task_desc: "1.1 first task".to_string(),
+            actor: None,
+            repo: None,
+            head_commit: None,
+            touched_files: files.iter().map(|f| f.to_string()).collect(),
+            recorded_at: "2026-07-30T00:00:00Z".to_string(),
+        }
+    }
+
+    fn save_touched(store: &TestStore, change: &str, v1: Vec<TouchedEntry>, v2: Vec<EvidenceEntry>) {
+        let mut rec = TouchedRecord::load(store, change);
+        rec.change = change.to_string();
+        rec.touched = v1;
+        rec.entries = v2;
+        rec.save(store).unwrap();
+    }
+
+    fn blocked(err: &anyhow::Error) -> &super::RevertBlocked {
+        err.downcast_ref::<super::RevertBlocked>()
+            .unwrap_or_else(|| panic!("gate refusal must carry RevertBlocked evidence, got: {err}"))
+    }
+
+    #[test]
+    fn remove_strips_started_lines_and_preserves_the_rest_verbatim() {
+        // 零痕迹:无 tasks.md(缺档视为 0)、无 touched 记录(缺档视为空)。
+        let store = TestStore::with_meta("demo", STARTED_META);
+
+        let removed = super::remove(&store, "demo").unwrap();
+
+        assert!(removed, "a stamped change with zero traces must actually remove");
+        assert_eq!(
+            store.meta("demo"),
+            format!("{EXISTING_META}board_rank: n\n"),
+            "started_* lines removed, every other line byte-identical (no re-serialization)"
+        );
+        let parsed = crate::model::ChangeMeta::from_text(Some(&store.meta("demo"))).unwrap();
+        assert!(parsed.started_at.is_none());
+        assert!(parsed.started_by.is_none());
+        assert!(parsed.started_with.is_none());
+    }
+
+    #[test]
+    fn remove_refuses_when_tasks_are_checked() {
+        let store = TestStore::with_meta("demo", STARTED_META);
+        store.put_artifact("demo", "tasks.md", "## 1. G\n\n- [x] 1.1 a\n- [x] 1.2 b\n- [ ] 1.3 c\n");
+
+        let err = super::remove(&store, "demo").expect_err("checked tasks must block");
+
+        let evidence = blocked(&err);
+        assert_eq!(evidence.change, "demo");
+        assert_eq!(evidence.checked_tasks, 2);
+        assert!(evidence.touched_files.is_empty());
+        assert_eq!(store.meta("demo"), STARTED_META, "refusal must not touch the meta");
+        assert_eq!(*store.meta_writes.borrow(), 0, "refusal must not write");
+    }
+
+    #[test]
+    fn remove_refuses_when_touched_v1_list_is_nonempty() {
+        let store = TestStore::with_meta("demo", STARTED_META);
+        save_touched(&store, "demo", vec![v1_entry(&["src/a.rs"])], vec![]);
+
+        let err = super::remove(&store, "demo").expect_err("v1 touched must block");
+
+        let evidence = blocked(&err);
+        assert_eq!(evidence.checked_tasks, 0);
+        assert_eq!(evidence.touched_files, vec!["src/a.rs"]);
+        assert_eq!(*store.meta_writes.borrow(), 0);
+    }
+
+    #[test]
+    fn remove_refuses_when_v2_evidence_entries_are_nonempty() {
+        let store = TestStore::with_meta("demo", STARTED_META);
+        save_touched(&store, "demo", vec![], vec![v2_entry(&["src/b.rs"])]);
+
+        let err = super::remove(&store, "demo").expect_err("v2 entries must block");
+
+        let evidence = blocked(&err);
+        assert_eq!(evidence.touched_files, vec!["src/b.rs"]);
+        assert_eq!(*store.meta_writes.borrow(), 0);
+    }
+
+    #[test]
+    fn remove_evidence_unions_and_dedupes_both_touched_lists() {
+        // spec Example「证据清单为两版记录的联集去重」:v1 含 a、b,
+        // v2 含 b、c → 恰为 a、b、c 三项,首见序,无重复。
+        let store = TestStore::with_meta("demo", STARTED_META);
+        save_touched(
+            &store,
+            "demo",
+            vec![v1_entry(&["src/a.rs", "src/b.ts"])],
+            vec![v2_entry(&["src/b.ts", "src/c.rs"])],
+        );
+
+        let err = super::remove(&store, "demo").expect_err("traces must block");
+
+        assert_eq!(blocked(&err).touched_files, vec!["src/a.rs", "src/b.ts", "src/c.rs"]);
+    }
+
+    #[test]
+    fn remove_for_unknown_change_errors_loudly() {
+        // 与 add 的静默刻意不对称:修正动作打错名字必须明确报错。
+        let store = TestStore::default();
+
+        let err = super::remove(&store, "ghost").expect_err("unknown change must error");
+
+        let msg = err.to_string();
+        assert!(msg.contains("ghost") && msg.contains("not found"), "error names the change: {msg}");
+        assert_eq!(*store.meta_writes.borrow(), 0);
+    }
+
+    #[test]
+    fn remove_refuses_to_address_outside_a_single_path_segment() {
+        // Sharp edge (Scoundrel): `in-progress remove "../evil"` must not write
+        // a metadata document outside changes/ — non-segment names are never
+        // active changes, so they take the loud not-found path.
+        let store = TestStore::with_meta("../evil", STARTED_META);
+
+        let err = super::remove(&store, "../evil").expect_err("non-segment name must error");
+
+        assert!(err.to_string().contains("not found"), "not-found shape: {err}");
+        assert_eq!(*store.meta_writes.borrow(), 0);
+    }
+
+    #[test]
+    fn remove_on_an_unstarted_change_is_idempotent_with_zero_writes() {
+        let store = TestStore::with_meta("demo", EXISTING_META);
+
+        let removed = super::remove(&store, "demo").unwrap();
+
+        assert!(!removed, "nothing to remove must report false (no event upstream)");
+        assert_eq!(store.meta("demo"), EXISTING_META, "meta byte-identical");
+        assert_eq!(*store.meta_writes.borrow(), 0, "idempotent pass must not write");
+    }
+
+    #[test]
+    fn remove_refuses_on_corrupt_meta_without_writing() {
+        // Fail-closed 与 add 同款:坏档不得被解读为未开工而幂等放行。
+        const BAD: &str = ": : :\n\t bad yaml [unclosed\n";
+        let store = TestStore::with_meta("demo", BAD);
+
+        let err = super::remove(&store, "demo").expect_err("corrupt meta must refuse");
+
+        assert!(
+            err.to_string().contains("specseal/changes/demo/.meta.yaml"),
+            "error must name the metadata file: {err}"
+        );
+        assert_eq!(store.meta("demo"), BAD, "meta byte-identical");
+        assert_eq!(*store.meta_writes.borrow(), 0, "refusal must not write");
+    }
+}

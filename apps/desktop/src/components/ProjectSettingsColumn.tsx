@@ -1,10 +1,10 @@
-// 專案設定分類欄（desktop-settings-mode design D2）：專案設定模式下取代專案欄——「工作流程」組
-// （上層分類「品質關卡」底下有審查規則、子代理模型兩個子項）與「專案」組 AI 工具（遠端專案無此組）。
-// 組名與分類名一律是概念名，與應用程式設定相同；設定檔路徑只在各頁標題下的註記。解析失敗的檔所掛
-// 分類項帶警示點（上層分類沒有自己的頁，不掛）。底部 notice 槽放技能檔提示卡（提示跨頁常駐，專案
-// 設定頁也在）。
+// 项目设置分类栏（desktop-settings-mode design D2）：项目设置模式下取代项目栏——「工作流程」组
+// （上层分类「品质关卡」底下有审查规则、子代理模型两个子项）与「项目」组 AI 工具（远程项目无此组）。
+// 组名与分类名一律是概念名，与应用程序设置相同；设置档路径只在各页标题下的注记。解析失败的档所挂
+// 分类项带警示点（上层分类没有自己的页，不挂）。底部 notice 槽放技能档提示卡（提示跨页常驻，项目
+// 设置页也在）。
 import type { ReactNode } from "react";
-import { NavItem, SEMANTIC_TONE, SettingsGroupHeader, cn, useI18n } from "@speclink/ui";
+import { NavItem, SEMANTIC_TONE, SettingsGroupHeader, cn, useI18n } from "@specseal/ui";
 
 import {
   PROJECT_SETTINGS_CATEGORIES,
@@ -13,7 +13,7 @@ import {
   type ProjectSettingsSection,
 } from "../settingsCatalog";
 
-/** 分類項的解析失敗警示點。 */
+/** 分类项的解析失败警示点。 */
 function WarningDot() {
   return (
     <span
@@ -28,24 +28,24 @@ export function ProjectSettingsColumn({
   section,
   remote,
   configParseError,
-  speclinkParseError,
+  specsealParseError,
   onSelect,
   notice,
 }: {
   section: ProjectSettingsSection;
   remote: boolean;
-  /** 工作流設定檔解析失敗：「工作流程」組的分類項與子項帶警示點。 */
+  /** 工作流设置档解析失败：「工作流程」组的分类项与子项带警示点。 */
   configParseError: boolean;
-  /** .speclink.yaml 解析失敗：AI 工具項帶警示點。 */
-  speclinkParseError: boolean;
+  /** .specseal.yaml 解析失败：AI 工具项带警示点。 */
+  specsealParseError: boolean;
   onSelect: (section: ProjectSettingsSection) => void;
-  /** 底部提示卡（null＝無）。 */
+  /** 底部提示卡（null＝无）。 */
   notice?: ReactNode;
 }) {
   const { t } = useI18n();
   const groups = [
     { group: "config", label: t("settings.group.workflow"), parseError: configParseError },
-    { group: "project", label: t("settings.group.project"), parseError: speclinkParseError },
+    { group: "project", label: t("settings.group.project"), parseError: specsealParseError },
   ] as const;
   return (
     <nav aria-label={t("settings.projectColumnLabel")} className="flex w-[200px] shrink-0 flex-col gap-0.5 p-2 pb-3">
@@ -70,7 +70,7 @@ export function ProjectSettingsColumn({
             </div>
             {items.map((category, index) => {
               if (!category.parent) return item(category);
-              // 子項在目錄裡相鄰：第一個子項帶出上層分類與整組子項，其餘略過。
+              // 子项在目录里相邻：第一个子项带出上层分类与整组子项，其余略过。
               if (items[index - 1]?.parent === category.parent) return null;
               const parentLabel = t(QUALITY_PARENT.labelKey);
               return (

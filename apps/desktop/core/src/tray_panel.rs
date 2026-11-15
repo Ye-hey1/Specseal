@@ -1,13 +1,13 @@
-//! 系統匣面板的 Windows 定位與開閉競態計算（tray-status-menu「面板樣式」平台差異——
-//! Windows；design D3／D4）。Tauri 殼只做視窗操作，可單元測試的兩段純計算放這裡。
+//! 系统匣面板的 Windows 定位与开闭竞态计算（tray-status-menu「面板样式」平台差异——
+//! Windows；design D3／D4）。Tauri 壳只做窗口操作，可单元测试的两段纯计算放这里。
 
 use std::time::{Duration, Instant};
 
-/// 失焦收起後的開啟抑制門檻（D4）：在 Windows 點系統匣圖示會先讓面板失焦收起、
-/// 點擊事件才送到——門檻內的開啟要求就是這次點擊，忽略它面板才關得掉。
+/// 失焦收起后的打开抑制门槛（D4）：在 Windows 点系统匣图标会先让面板失焦收起、
+/// 点击事件才送到——门槛内的打开要求就是这次点击，忽略它面板才关得掉。
 const REOPEN_SUPPRESS: Duration = Duration::from_millis(300);
 
-/// 實體像素矩形（與 Tauri 的 PhysicalPosition<i32>／PhysicalSize<u32> 同型）。
+/// 实体像素矩形（与 Tauri 的 PhysicalPosition<i32>／PhysicalSize<u32> 同型）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PxRect {
     pub x: i32,
@@ -16,10 +16,10 @@ pub struct PxRect {
     pub height: u32,
 }
 
-/// 面板左上角位置（D3）：水平以圖示為中心並限制在 work area 內；垂直貼齊工作列那一側——
-/// 圖示在 work area 垂直中線以下（工作列在底部）時面板底部貼齊 work area 下緣，否則
-/// （工作列在頂端）面板頂部貼齊 work area 上緣。area 為圖示所在螢幕的 work area；
-/// 只看這個螢幕，副螢幕的負座標不會讓面板翻到別的螢幕。
+/// 面板左上角位置（D3）：水平以图标为中心并限制在 work area 内；垂直贴齐任务栏那一侧——
+/// 图标在 work area 垂直中线以下（任务栏在底部）时面板底部贴齐 work area 下缘，否则
+/// （任务栏在顶端）面板顶部贴齐 work area 上缘。area 为图标所在屏幕的 work area；
+/// 只看这个屏幕，副屏幕的负座标不会让面板翻到别的屏幕。
 pub fn panel_position(
     icon: PxRect,
     panel_width: u32,
@@ -42,14 +42,14 @@ pub fn panel_position(
     (x, y)
 }
 
-/// 把面板左緣 x 限制在 work area 內：超出右緣往左貼齊、超出左緣往右貼齊；
-/// 面板比 work area 還寬時貼齊左緣。
+/// 把面板左缘 x 限制在 work area 内：超出右缘往左贴齐、超出左缘往右贴齐；
+/// 面板比 work area 还宽时贴齐左缘。
 fn clamp_panel_x(candidate_x: i32, panel_width: u32, area_left: i32, area_width: u32) -> i32 {
     let max_x = area_left + area_width as i32 - panel_width as i32;
     candidate_x.min(max_x).max(area_left)
 }
 
-/// 開啟要求是否落在失焦收起後的抑制窗口內（D4）。沒有收起紀錄即不忽略。
+/// 打开要求是否落在失焦收起后的抑制窗口内（D4）。没有收起纪录即不忽略。
 pub fn should_ignore_open(last_hidden: Option<Instant>, now: Instant) -> bool {
     last_hidden.is_some_and(|hidden| now.saturating_duration_since(hidden) < REOPEN_SUPPRESS)
 }
@@ -58,9 +58,9 @@ pub fn should_ignore_open(last_hidden: Option<Instant>, now: Instant) -> bool {
 mod tests {
     use super::*;
 
-    // --- panel_position：圖示所在螢幕 work area 內的面板位置（D3） ---
+    // --- panel_position：图标所在屏幕 work area 内的面板位置（D3） ---
 
-    /// 底部工作列上、中心在 (center_x, 1056) 的 32×48 圖示；work area 為 0–1920 × 0–1032。
+    /// 底部任务栏上、中心在 (center_x, 1056) 的 32×48 图标；work area 为 0–1920 × 0–1032。
     fn bottom_taskbar_icon(center_x: i32) -> PxRect {
         PxRect {
             x: center_x - 16,
@@ -79,8 +79,8 @@ mod tests {
 
     #[test]
     fn position_centers_on_the_icon_and_hugs_the_bottom_taskbar() {
-        // Example「水平位置限制」第 1 列：圖示中心 1000 → 左緣 840；
-        // Example「垂直位置」第 1 列：工作列在底部 → 上緣 1032 - 420 = 612。
+        // Example「水平位置限制」第 1 列：图标中心 1000 → 左缘 840；
+        // Example「垂直位置」第 1 列：任务栏在底部 → 上缘 1032 - 420 = 612。
         assert_eq!(
             panel_position(bottom_taskbar_icon(1000), 320, 420, BOTTOM_TASKBAR_AREA),
             (840, 612)
@@ -89,7 +89,7 @@ mod tests {
 
     #[test]
     fn position_hugs_the_right_edge_near_the_right_of_the_work_area() {
-        // Example「水平位置限制」第 2 列：圖示中心 1860 → 左緣 1600。
+        // Example「水平位置限制」第 2 列：图标中心 1860 → 左缘 1600。
         assert_eq!(
             panel_position(bottom_taskbar_icon(1860), 320, 420, BOTTOM_TASKBAR_AREA).0,
             1600
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn position_hugs_the_left_edge_near_the_left_of_the_work_area() {
-        // Example「水平位置限制」第 3 列：圖示中心 100 → 左緣 0。
+        // Example「水平位置限制」第 3 列：图标中心 100 → 左缘 0。
         assert_eq!(
             panel_position(bottom_taskbar_icon(100), 320, 420, BOTTOM_TASKBAR_AREA).0,
             0
@@ -107,7 +107,7 @@ mod tests {
 
     #[test]
     fn position_hugs_the_top_taskbar_below_the_icon() {
-        // Example「垂直位置」第 2 列：工作列在頂端（圖示中心 y 24、work area 48–1080）→ 上緣 48。
+        // Example「垂直位置」第 2 列：任务栏在顶端（图标中心 y 24、work area 48–1080）→ 上缘 48。
         let icon = PxRect {
             x: 984,
             y: 0,
@@ -125,8 +125,8 @@ mod tests {
 
     #[test]
     fn position_stays_on_a_monitor_stacked_above_the_primary() {
-        // Example「垂直位置」第 3 列：副螢幕在主螢幕上方、工作列在其底部（圖示中心 y -24、
-        // work area -1080–-48）→ 上緣 -48 - 420 = -468，留在副螢幕、不翻到主螢幕。
+        // Example「垂直位置」第 3 列：副屏幕在主屏幕上方、任务栏在其底部（图标中心 y -24、
+        // work area -1080–-48）→ 上缘 -48 - 420 = -468，留在副屏幕、不翻到主屏幕。
         let icon = PxRect {
             x: 984,
             y: -48,
@@ -142,7 +142,7 @@ mod tests {
         assert_eq!(panel_position(icon, 320, 420, area), (840, -468));
     }
 
-    // --- clamp_panel_x：水平限制在圖示所在螢幕的 work area 內（D3） ---
+    // --- clamp_panel_x：水平限制在图标所在屏幕的 work area 内（D3） ---
 
     #[test]
     fn clamp_keeps_a_position_already_inside_the_work_area() {
@@ -164,7 +164,7 @@ mod tests {
         assert_eq!(clamp_panel_x(840, 320, 0, 300), 0);
     }
 
-    // --- should_ignore_open：失焦收起後的重開抑制（D4） ---
+    // --- should_ignore_open：失焦收起后的重开抑制（D4） ---
 
     #[test]
     fn open_is_not_ignored_without_a_hide_record() {

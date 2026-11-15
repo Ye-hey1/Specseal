@@ -26,30 +26,30 @@ import type { DocSummary, DocTile } from "./DetailShell";
 import { CommandChip, InlineMarks, NAME_CHIP_CLS } from "./DocParts";
 import type { PromotedRow } from "./PromotedDoc";
 
-/** 討論頁的文件節點：記錄切分成功時結論、討論過程、背景，失敗時「記錄」；衍生變更恆在。 */
+/** 讨论页的文档节点：记录切分成功时结论、讨论过程、背景，失败时「记录」；衍生变更恒在。 */
 export type DiscussionTab = "conclusion" | "rounds" | "context" | "promote" | "record";
 
-/** 兩頁自記錄與清單推出的同一份資料：渲染器的分刀、背景與衍生列、閱讀卡標題區的推導都吃它。 */
+/** 两页自记录与清单推出的同一份数据：渲染器的分刀、背景与衍生列、阅读卡标题区的推导都吃它。 */
 export interface DiscussionDocData {
   sections: DiscussionSections | null;
   rounds: DiscussionRound[] | null;
   conclusion: ReturnType<typeof parseConclusion>;
-  /** 引擎的刀對回決定細節後的刀卡（記錄沒有分刀資料時為空）。 */
+  /** 引擎的刀对回决定细节后的刀卡（记录没有分刀数据时为空）。 */
   cuts: CutCard[];
-  /** 決定的定案細節數（刀卡認領的列不計）；結論沒有決定欄位時為 null。 */
+  /** 决定的定案细节数（刀卡认领的列不计）；结论没有决定字段时为 null。 */
   detailCount: number | null;
-  /** 背景的推導（記錄切分失敗時為 null）：ContextDoc 與背景數字磚共用。 */
+  /** 背景的推导（记录切分失败时为 null）：ContextDoc 与背景数字砖共用。 */
   context: ContextModel | null;
   status: string;
   hold: boolean;
   created: string | null;
   rows: PromotedRow[];
   recordPath: string | null;
-  /** 未轉出提示框的「前往」：只有討論詳情頁傳入（已封存討論頁沒有提示框）。 */
+  /** 未转出提示框的「前往」：只有讨论详情页传入（已封存讨论页没有提示框）。 */
   onLocateCut?: (id: string) => void;
 }
 
-/** 兩頁共用的名稱清單（背景名稱籤、先前討論比對）：本討論的 slug 由 `self` 排除。 */
+/** 两页共用的名称清单（背景名称签、先前讨论比对）：本讨论的 slug 由 `self` 排除。 */
 export function discussionNames(
   self: string,
   lists: { specNames?: string[]; changes?: ChangeItem[]; archivedChanges?: ArchivedItem[]; discussionSlugs?: string[] },
@@ -63,7 +63,7 @@ export function discussionNames(
   };
 }
 
-/** 記錄全文與其刀（undefined＝載入中、null＝不存在）與頁已持有的清單 → `DiscussionDocData`。 */
+/** 记录全文与其刀（undefined＝加载中、null＝不存在）与页已持有的清单 → `DiscussionDocData`。 */
 export function discussionDocData(input: {
   doc: DiscussionDocument | null | undefined;
   status: string;
@@ -101,23 +101,23 @@ const EMPTY: DocSummary = { badges: null, tiles: [], callout: null };
 const fill = (template: string, values: Record<string, string | number>) =>
   Object.entries(values).reduce((s, [k, v]) => s.replace(`{${k}}`, String(v)), template);
 
-/** 一份文件的閱讀卡標題區：數字磚與提示框、出處行。 */
+/** 一份文档的阅读卡标题区：数字砖与提示框、出处行。 */
 interface DocHeaderParts {
   summary: (data: DiscussionDocData, i18n: Translator) => DocSummary;
   provenance: (data: DiscussionDocData, i18n: Translator) => ReactNode[];
 }
 
 /**
- * 討論文件閱讀卡標題區的推導單一入口（design D6，對稱 changeDocSummary）：數字磚與提示框全由記錄結構與清單
- * 推出，缺資料少一格、條件不成立沒有提示框；記錄未載入或切分失敗時皆空。討論文件沒有籤。
+ * 讨论文档阅读卡标题区的推导单一入口（design D6，对称 changeDocSummary）：数字砖与提示框全由记录结构与清单
+ * 推出，缺数据少一格、条件不成立没有提示框；记录未加载或切分失败时皆空。讨论文档没有签。
  */
 export function discussionDocSummary(tab: DiscussionTab, data: DiscussionDocData, i18n: Translator): DocSummary {
   const parts = data.sections ? DOC_HEADERS[tab] : undefined;
   return parts ? parts.summary(data, i18n) : EMPTY;
 }
 
-/** 閱讀卡出處行（design D6）：結論為記錄路徑與「N 輪之後寫入」、討論過程為日期範圍與各 mode 輪數、背景為
- * 「記錄建立時寫入一次」與建立日、衍生變更為分組依據；已封存討論頁沒有記錄路徑段。 */
+/** 阅读卡出处行（design D6）：结论为记录路径与「N 轮之后写入」、讨论过程为日期范围与各 mode 轮数、背景为
+ * 「记录创建时写入一次」与创建日、衍生变更为分组依据；已封存讨论页没有记录路径段。 */
 export function discussionDocProvenance(tab: DiscussionTab, data: DiscussionDocData, i18n: Translator): ReactNode[] {
   const parts = data.sections ? DOC_HEADERS[tab] : undefined;
   return parts ? parts.provenance(data, i18n) : [];
@@ -140,9 +140,9 @@ function conclusionTiles(data: DiscussionDocData, { t, tn }: Translator): DocTil
   return tiles.filter((tile): tile is DocTile => tile !== null);
 }
 
-/** 結論的未轉出提示框（live 討論、至少一刀整刀未轉出）：每刀一列附「前往」，末行接轉出指令籤。判定與刀卡同一支
- * `cutPromotion`（只讀引擎欄位），列出的刀＝畫成虛線框的刀。只排除已封存：引擎只拒絕從已封存的記錄轉出，
- * 已轉出、未保留的 live 討論照樣能轉出下一刀。 */
+/** 结论的未转出提示框（live 讨论、至少一刀整刀未转出）：每刀一列附「前往」，末行接转出指令签。判定与刀卡同一支
+ * `cutPromotion`（只读引擎字段），列出的刀＝画成虚线框的刀。只排除已封存：引擎只拒绝从已封存的记录转出，
+ * 已转出、未保留的 live 讨论照样能转出下一刀。 */
 function unpromotedCallout(data: DiscussionDocData, t: Translate): ReactNode {
   if (data.status === "archived") return null;
   const todo = data.cuts.filter((cut) => cutPromotion(cut) === "none");
@@ -178,7 +178,7 @@ function unpromotedCallout(data: DiscussionDocData, t: Translate): ReactNode {
       {slug && (
         <p className="flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
           {t("conclusion.unpromotedHint")}
-          <CommandChip command={`/speclink-propose --from-discussion ${slug}`} />
+          <CommandChip command={`/specseal-propose --from-discussion ${slug}`} />
         </p>
       )}
     </Callout>
@@ -216,7 +216,7 @@ function roundsSummary(data: DiscussionDocData, { t, tn }: Translator): DocSumma
 function contextSummary(data: DiscussionDocData, t: Translate): DocSummary {
   const tile = (count: number, label: string): DocTile | null => (count > 0 ? { value: count, label: t(label) } : null);
   const ctx = data.context;
-  // 先前討論：`Prior discussions:` 行在時恆有一格（含 0），行缺席時沒有這格。
+  // 先前讨论：`Prior discussions:` 行在时恒有一格（含 0），行缺席时没有这格。
   const prior = ctx && ctx.meta.prior !== null ? ctx.rel.prior.length : null;
   const tiles: (DocTile | null)[] = [
     tile(ctx?.rel.specs.length ?? 0, "context.tileSpecs"),
@@ -239,7 +239,7 @@ function contextSummary(data: DiscussionDocData, t: Translate): DocSummary {
 function promoteSummary(data: DiscussionDocData, t: Translate): DocSummary {
   const { rows } = data;
   if (rows.length === 0) return EMPTY;
-  // 已封存討論頁的退回列所在未知：兩格寧缺勿錯。
+  // 已封存讨论页的退回列所在未知：两格宁缺勿错。
   const known = rows.every((r) => r.state !== null);
   const count = (state: PromotedRow["state"]) => rows.filter((r) => r.state === state).length;
   const withTasks = rows.filter((r) => r.tasks);
@@ -273,7 +273,7 @@ function roundsProvenance(data: DiscussionDocData, { t, tn }: Translator): React
   ];
 }
 
-/** 文件 → 標題區；「記錄」（切分失敗的整篇退回）沒有標題區。 */
+/** 文档 → 标题区；「记录」（切分失败的整篇退回）没有标题区。 */
 const DOC_HEADERS: Partial<Record<DiscussionTab, DocHeaderParts>> = {
   conclusion: {
     summary: (data, i18n) => ({ ...EMPTY, tiles: conclusionTiles(data, i18n), callout: unpromotedCallout(data, i18n.t) }),

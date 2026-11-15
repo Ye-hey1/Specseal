@@ -5,39 +5,39 @@
 
 ### 新功能
 
-- `speclink plan` 会列出讨论结论中尚未转出的刀，`plan --json` 也多了 `unpromotedCuts` 字段。
-- 桌面 app 支持 `speclink://` 网址：其他进程可直接打开某项目的变更或讨论详情页，app 没在运行时会自动启动；Windows、Linux 再次启动 app 时，改为把已开的窗口带到前景。
-- 看板页添加路线图查看：每一波一栏、画出变更之间的依赖，并列出尚未转出的刀与拷贝转出指令的钮，也能用 `speclink://roadmap` 网址直接打开。
-- 添加 `speclink://project` 网址：桌面 app 会切到该项目并显示看板，Herdr 面板的 Logo 用它切到目前 space 的项目。
+- `specseal plan` 会列出讨论结论中尚未转出的刀，`plan --json` 也多了 `unpromotedCuts` 字段。
+- 桌面 app 支持 `specseal://` 网址：其他进程可直接打开某项目的变更或讨论详情页，app 没在运行时会自动启动；Windows、Linux 再次启动 app 时，改为把已开的窗口带到前景。
+- 看板页添加路线图查看：每一波一栏、画出变更之间的依赖，并列出尚未转出的刀与拷贝转出指令的钮，也能用 `specseal://roadmap` 网址直接打开。
+- 添加 `specseal://project` 网址：桌面 app 会切到该项目并显示看板，Herdr 面板的 Logo 用它切到目前 space 的项目。
 - 添加 Herdr mod（`integrations/herdr/`）：用面板显示目前项目的变更与讨论，可停靠在窗口右边一栏或开成浮动窗口，并跟着焦点所在的终端机切换项目，需要 Herdr 0.1.13 以上。
 - 面板每一列依阶段和章建议下一个技能，按一下就送给对的 agent，`⋯` 可展开这一列其他能用的技能，列上也会显示审查与验证的章，并在该收尾时建议 `worktree-merge` 或 `archive+commit`。
 - 开工钮会在目前的 space 开新 agent，有开 worktree 流程时先问要用 worktree 还是直接 apply；技能跳窗（`⌘⇧N`）可选技能与搭配的变更，再开新分页或放到输入框；列上的附加钮会把名称接到目前分页的输入框。
 - 面板列上会显示正在做该变更或讨论的 agent 与状态，点了就切过去，另有选用的 Claude Code hook 可追踪手打的指令。
-- Claude Code 的 `speclink-skills` 插件会即时把目前的变更回报给 Herdr，面板就能保持同步。
-- 停靠版面的左侧栏也接上 Speclink：Spaces 清单依阶段显示变更数量，Agents 清单依 space 和状态分组，并显示阶段与任务进度。
+- Claude Code 的 `specseal-skills` 插件会即时把目前的变更回报给 Herdr，面板就能保持同步。
+- 停靠版面的左侧栏也接上 Specseal：Spaces 清单依阶段显示变更数量，Agents 清单依 space 和状态分组，并显示阶段与任务进度。
 - 面板、技能跳窗与 Herdr 内置画面都跟随系统语言：中文系统用中文，其他系统用英文。
-- 目前的 space 不是 Speclink 项目时，面板会显示提示卡，按「初始化」就在新分页运行 `speclink init`。
+- 目前的 space 不是 Specseal 项目时，面板会显示提示卡，按「初始化」就在新分页运行 `specseal init`。
 
 ### 改善
 
-- 讨论详情页、`speclink plan` 与路线图改用同一套方式判定分刀：以 `*`、`+`、编号起头的列点与列点外的粗体段落不再算刀、会留在定案细节，连到旧版 server 时则不显示分刀区段。
+- 讨论详情页、`specseal plan` 与路线图改用同一套方式判定分刀：以 `*`、`+`、编号起头的列点与列点外的粗体段落不再算刀、会留在定案细节，连到旧版 server 时则不显示分刀区段。
 
 ## 0.11.0（2026-10-27）
 
 ### 新功能
 
-- 规格文档夹缺省改为 `speclink/`、变更数据档改为 `.meta.yaml`：既有的 `openspec/` 项目升级后运行 `speclink update` 就会搬过来（有其他 worktree 或未提交修改时会暂缓并说明原因，搬完要自己 commit，团队成员请先升级再 pull），在 OpenSpec 项目运行 `speclink init` 会直接导入，还没搬的项目照常可用、只多印一行警告。
-- 桌面 app 跟上规格文档夹迁移：打开旧项目时，技能档提示会写明 `openspec/` 将改名为 `speclink/`，按下更新后搬好并照常自动更新；「激活」OpenSpec 项目时会先导入；设置页与对话框都照项目实际使用的文档夹显示路径。
-- 添加内置产出流程 no-spec-change（不改规格），给不改任何正式规格承诺行为的变更使用：没有 delta 规格、`speclink validate` 不再警告缺少 delta、封存不必带 `--skip-specs`，`/speclink-propose` 会替你判断该用哪一个，`/speclink-verify` 会检查这类变更真的没改到承诺的行为。
-- 添加 `speclink change schema <变更名> <产出流程>`，可以替还没封存的变更换产出流程；不改规格的变更后来改到承诺的行为时，`/speclink-ingest` 会先切回 spec-driven 再补 delta 规格，`/speclink-verify` 的建议也会列出切换步骤，没有 specs 这一步的变更也不会再被误写 delta 规格。
+- 规格文档夹缺省改为 `specseal/`、变更数据档改为 `.meta.yaml`：既有的 `openspec/` 项目升级后运行 `specseal update` 就会搬过来（有其他 worktree 或未提交修改时会暂缓并说明原因，搬完要自己 commit，团队成员请先升级再 pull），在 OpenSpec 项目运行 `specseal init` 会直接导入，还没搬的项目照常可用、只多印一行警告。
+- 桌面 app 跟上规格文档夹迁移：打开旧项目时，技能档提示会写明 `openspec/` 将改名为 `specseal/`，按下更新后搬好并照常自动更新；「激活」OpenSpec 项目时会先导入；设置页与对话框都照项目实际使用的文档夹显示路径。
+- 添加内置产出流程 no-spec-change（不改规格），给不改任何正式规格承诺行为的变更使用：没有 delta 规格、`specseal validate` 不再警告缺少 delta、封存不必带 `--skip-specs`，`/specseal-propose` 会替你判断该用哪一个，`/specseal-verify` 会检查这类变更真的没改到承诺的行为。
+- 添加 `specseal change schema <变更名> <产出流程>`，可以替还没封存的变更换产出流程；不改规格的变更后来改到承诺的行为时，`/specseal-ingest` 会先切回 spec-driven 再补 delta 规格，`/specseal-verify` 的建议也会列出切换步骤，没有 specs 这一步的变更也不会再被误写 delta 规格。
 - 审查与验证盖章时会记下各自跑了几轮，封存时会记下封存时间，变更的时间字段改为带时区的秒级时戳（输出仍只显示日期）；桌面 app 的已封存页添加「流程成本」摘要，列出文档行数、任务数、创建到封存的天数与小时数，以及品质关卡轮数的中位数。
-- `/speclink-quality` 在第一轮之前会先比对主分支：主分支改过本变更也改过的档时，先停下来建议你 rebase，免得盖章后章失效；repo 有 CI 时，收尾盖章的选项会提醒你先等 CI 在所有平台通过。
+- `/specseal-quality` 在第一轮之前会先比对主分支：主分支改过本变更也改过的档时，先停下来建议你 rebase，免得盖章后章失效；repo 有 CI 时，收尾盖章的选项会提醒你先等 CI 在所有平台通过。
 
 ## 0.10.0（2026-10-16）
 
 ### 新功能
 
-- 每个技能都会请 agent 用你说话的语言跟你对话，apply、quality 这类长流程不再中途改讲英文；locale 仍只决定文档与报告的语言，并扩及讨论记录、`/speclink-config` 写入的 context 与 rules，以及 `/speclink-audit` 的报告（未设置 locale 时为英文），运行 `speclink update` 即可取得新的技能档。
+- 每个技能都会请 agent 用你说话的语言跟你对话，apply、quality 这类长流程不再中途改讲英文；locale 仍只决定文档与报告的语言，并扩及讨论记录、`/specseal-config` 写入的 context 与 rules，以及 `/specseal-audit` 的报告（未设置 locale 时为英文），运行 `specseal update` 即可取得新的技能档。
 
 ## 0.9.0（2026-10-15）
 
@@ -52,15 +52,15 @@
 - 规格详情页换上同一套三栏骨架，手册页的阅读卡也对齐详情页。
 - 设置改成设置模式：应用进程设置与项目设置各自在左栏列出分类、每类一页，并添加浅色／深色／跟随系统的外观选项与自动检查更新的开关。
 - 项目设置的项目说明与产出规则改用有行号与上色的代码编辑器，项目说明可以切换编辑与预览，⌘S 保存。
-- 设置添加「关于 Speclink」页，提供版本信息与一键拷贝、原代码与回报问题链接和授权条款，macOS 菜单的「关于 Speclink」直接开这一页。
+- 设置添加「关于 Specseal」页，提供版本信息与一键拷贝、原代码与回报问题链接和授权条款，macOS 菜单的「关于 Specseal」直接开这一页。
 - macOS 有了跟着接口语言的原生菜单列，提供打开项目、切页、搜索看板、检查更新等快捷键，设置页添加「键盘快捷键」卡，列出你的平台实际生效的快捷键。
 - Windows 的系统匣图标左键改开与 macOS 相同的面板，右键保留原生菜单。
-- 项目可以在 openspec/config.yaml 写下自己的审查规则与严重度，`/speclink-review` 依这些规则定级，`/speclink-config` 与桌面设置页协助维护。
+- 项目可以在 openspec/config.yaml 写下自己的审查规则与严重度，`/specseal-review` 依这些规则定级，`/specseal-config` 与桌面设置页协助维护。
 - 审查工单记下首轮套用的审查规则，桌面 app 的「审查」分页显示这次依哪些规则判定。
-- `speclink init` 与 `speclink update` 可以选 GitHub Copilot，技能写到 `.github/skills/` 并使用 Copilot 的叫用语法。
-- 添加 Claude Code 插件 speclink-skills（这个 repo 就是它的 marketplace）：彩色的技能列标出目前的步骤与变更，侧边面板分看板、讨论、品质三分页，在输入框打 # 可以选取提案中的变更，终端机太窄时技能列改成三列。
+- `specseal init` 与 `specseal update` 可以选 GitHub Copilot，技能写到 `.github/skills/` 并使用 Copilot 的叫用语法。
+- 添加 Claude Code 插件 specseal-skills（这个 repo 就是它的 marketplace）：彩色的技能列标出目前的步骤与变更，侧边面板分看板、讨论、品质三分页，在输入框打 # 可以选取提案中的变更，终端机太窄时技能列改成三列。
 - 更新日志改成中英双语：repo 有英文 CHANGELOG.md 与繁中 CHANGELOG.zh-CN.md，GitHub Release 说明英文在前、繁中收合，桌面 app 依接口语言显示条目。
-- Speclink 改用新的接合 S 标志，并添加深色背景用的字标。
+- Specseal 改用新的接合 S 标志，并添加深色背景用的字标。
 - server 后台拿掉右侧抽屉：用户与项目改成有自己网址、可以刷新与分享的详情页，邀请、创建与更名改在画面中央的对话框，邀请链接与密钥明文直接显示在对话框里。
 
 ### 修正
@@ -68,7 +68,7 @@
 - server 一律挡下 reader 角色的写入（CLI 与桌面远程看板都一样），送出格式错误的内容时回 400 并说明哪里不合格式，不再显示服务器内部错误。
 - 英文接口的计数依数量用单数或复数（例如「1 scenario」），详情页状态栏的英文标签不再压到数值。
 - 从系统匣打开变更或讨论时，主窗口上开着的对话框会先关掉，不再和详情叠在一起。
-- `/speclink-ingest` 的参数可以直接指定要更新哪个变更。
+- `/specseal-ingest` 的参数可以直接指定要更新哪个变更。
 
 ### 改善
 
@@ -88,7 +88,7 @@
 - server 后台的列表页、稽核纪录与设置型页改用桌面 app 的清单与设置组件，总览顶端改成四格数字砖，撤销钮只在鼠标移入该列时出现。
 - 品质关卡每一轮只跑受影响的测试、三个子代理同时派出，每轮少等约 40 分钟，worktree 合并后也不再每次被问 `--base`。
 - 19 个技能依同一份跨模型的写法规范重写，规则更短、不重复，Claude、Codex 与 Copilot 的模型都更容易照做。
-- `/speclink-config` 改用一张表确认全部政策，审查规则改成选用，并协助判断一条规矩该放审查规则还是产出规则。
+- `/specseal-config` 改用一张表确认全部政策，审查规则改成选用，并协助判断一条规矩该放审查规则还是产出规则。
 - 写入审查规则时，技能档比引擎旧会提醒你先更新，`--dry-run` 的差异只标出真的改动的行。
 - README 改成英文为主的开源首页，繁中版改名为 README.zh-CN.md，并添加 CONTRIBUTING、SECURITY 与 issue 范本。
 
@@ -96,7 +96,7 @@
 
 ### 新功能
 
-- `speclink plan` 的波次改成只看声明的依赖，两个变更动到同一个 capability 不再把其中一个推到后面，没有依赖的小变更可以马上开工；两个变更动到同一个 requirement 时，plan 改为标出封存顺序（谁要等谁先封存）与同名冲突，archive 与 commit 技能封存前会提醒、封存后会点名排在后面的变更先对照正式规格重写；没有看板顺序的变更改依被依赖数、任务数与创建时间排，添加的 `speclink change rank` 可以把变更排到另一个之前或之后，propose 与 ingest 收尾会替小而急的变更插队；要用旧算法时加 `--strict-overlap`（只限本机）。
+- `specseal plan` 的波次改成只看声明的依赖，两个变更动到同一个 capability 不再把其中一个推到后面，没有依赖的小变更可以马上开工；两个变更动到同一个 requirement 时，plan 改为标出封存顺序（谁要等谁先封存）与同名冲突，archive 与 commit 技能封存前会提醒、封存后会点名排在后面的变更先对照正式规格重写；没有看板顺序的变更改依被依赖数、任务数与创建时间排，添加的 `specseal change rank` 可以把变更排到另一个之前或之后，propose 与 ingest 收尾会替小而急的变更插队；要用旧算法时加 `--strict-overlap`（只限本机）。
 - 桌面 app 详情面板的「调度」分页改成波次、前置、重叠、封存顺序四张卡片：是否被挡住改成前置卡上的徽章，重叠卡列出和哪个变更撞到哪个 requirement、双方各做了什幺操作，封存顺序卡列出封存时要排在谁后面，遇到同名冲突或互相等待时显示警示；remote 项目也看得到同一份信息，连到旧版 server 时前置卡会另列 server 依重叠判定的等待。
 
 ## 0.7.0（2026-09-22）
@@ -104,18 +104,18 @@
 ### 新功能
 
 - 桌面 app 的变更详情面板在审查或验证进行中时，多出「审查」「验证」分页，直接看到工单里卡了哪些 findings：每轮可收合、最后一轮展开，每条 finding 标严重度、路径与描述，已接受的标「已接受」签；工单盖章或放弃后分页自动消失。已封存的变更若曾审查或验证未通过，也能看到带走的工单。
-- `/speclink-discuss` 写结论时改用条列：Decision 一句定论起头、其后一点一行，Rejected alternatives 与 Deferred 每项一行写方案与理由，分几刀转出就每刀一个 bullet；桌面 app 的结论分页因此不再出现整段长句。旧的讨论记录不会被改写。
+- `/specseal-discuss` 写结论时改用条列：Decision 一句定论起头、其后一点一行，Rejected alternatives 与 Deferred 每项一行写方案与理由，分几刀转出就每刀一个 bullet；桌面 app 的结论分页因此不再出现整段长句。旧的讨论记录不会被改写。
 
 ## 0.6.0（2026-09-17）
 
 ### 新功能
 
-- `speclink plan` 会算出所有未封存变更的运行顺序：分成一波一波（同一波可以并行），列出每个变更被谁挡住，并指出下一个可开工的变更；`speclink change depends` 可以声明「这个变更要等哪些变更先做完」，apply 技能开工前会先看 plan、被挡住就停下，propose 收尾会把判定出的依赖落档。
+- `specseal plan` 会算出所有未封存变更的运行顺序：分成一波一波（同一波可以并行），列出每个变更被谁挡住，并指出下一个可开工的变更；`specseal change depends` 可以声明「这个变更要等哪些变更先做完」，apply 技能开工前会先看 plan、被挡住就停下，propose 收尾会把判定出的依赖落档。
 - 桌面 app 的看板、系统匣与详情面板都照 plan 的顺序排列：卡片标出波次、被挡住的变更变淡，详情面板添加「调度」分页可以查看与增减前置，拖排不能跨越声明的依赖，依赖成环时看板会提示。
 - remote 模式也有同一套运行顺序：server 提供 plan 与前置写入，桌面连 server 的看板、系统匣与 CLI 的 remote 模式行为与本机一致；调度分页添加前置的候选改取自该变更所在的名册，worktree 内的变更不会再选到被引擎拒绝的名字。
 - 封存完成后，archive 与 commit 技能会提示「下一个可开工」的变更；commit 技能的「先封存再一起提交」子流程补上封存前的顺序建议与手册过期提醒。
 - apply-with-worktree 建 worktree 之前先以 plan 守门：多个变更名时分出可并行与须等前置的，被挡住的变更不会留下空 worktree；ingest 收尾会重判本变更的依赖并落档。
-- `/speclink-discuss` 开场侦察纳入进行中变更的 delta 规格：假设清单会标出「进行中变更 X 将改动」哪些需求，避免讨论创建在正被改掉的规格上；`speclink list --json` 每笔变更多带 delta 的 capability 清单。
+- `/specseal-discuss` 开场侦察纳入进行中变更的 delta 规格：假设清单会标出「进行中变更 X 将改动」哪些需求，避免讨论创建在正被改掉的规格上；`specseal list --json` 每笔变更多带 delta 的 capability 清单。
 
 ### 修正
 
@@ -127,14 +127,14 @@
 
 ### 新功能
 
-- Release 页从 21 个档收成 6 个：macOS 一个 universal dmg 同时跑 Apple Silicon 与 Intel、Windows 安装器、Linux 两种架构的 AppImage，加上自动更新用的 .app.tar.gz 与 latest.json；CLI 改由 npm 单一来源供给——`npm i -g @speclink/cli` 装到的是原生运行档，Homebrew 与 `install.sh` 抓的是同一份套件，无图形接口的 Linux 也能 curl 一行装好；Linux 桌面版不再出 .deb，既有 .deb 用户请移除后改装 AppImage。
+- Release 页从 21 个档收成 6 个：macOS 一个 universal dmg 同时跑 Apple Silicon 与 Intel、Windows 安装器、Linux 两种架构的 AppImage，加上自动更新用的 .app.tar.gz 与 latest.json；CLI 改由 npm 单一来源供给——`npm i -g @specseal/cli` 装到的是原生运行档，Homebrew 与 `install.sh` 抓的是同一份套件，无图形接口的 Linux 也能 curl 一行装好；Linux 桌面版不再出 .deb，既有 .deb 用户请移除后改装 AppImage。
 - 桌面 app 的窗口回到前景时会重新检查更新，长时间开着 app 也能发现新版本，不必再到设置页手动按「检查更新」。
 
 ## 0.4.0（2026-09-13）
 
 ### 新功能
 
-- 一份讨论分多刀转出变更时，最后一刀带 `--last`（`discuss promote`、`new change --from-discussion`、`discuss seal` 都收），最后一个变更封存后讨论记录自动随行封存，不用再手动跑 `speclink discuss archive`。
+- 一份讨论分多刀转出变更时，最后一刀带 `--last`（`discuss promote`、`new change --from-discussion`、`discuss seal` 都收），最后一个变更封存后讨论记录自动随行封存，不用再手动跑 `specseal discuss archive`。
 
 ### 改善
 
@@ -145,15 +145,15 @@
 ### 新功能
 
 - 每个 release 版本都有白话的更新日志：repo 添加 CHANGELOG.md，桌面 app 更新后首次启动会弹出「X.Y.Z 更新内容」，之后也能从设置页的「更新日志」再看一次。
-- `speclink validate` 提早抓出封存时会被拒收的 delta（目标需求不存在、撞名、少声明移除的 scenario），不用做到封存才发现。
+- `specseal validate` 提早抓出封存时会被拒收的 delta（目标需求不存在、撞名、少声明移除的 scenario），不用做到封存才发现。
 - 手册页的出处可以只锚定规格里的一段需求，别段的封存不会再把整页标成「可能过期」；重生后内文没变的页只换时戳。
-- `/speclink-improve` 添加第六条摩擦信号：文档夹与模块的分组整理有了自己的准入判准。
+- `/specseal-improve` 添加第六条摩擦信号：文档夹与模块的分组整理有了自己的准入判准。
 
 ### 修正
 
-- `speclink analyze` 收敛四条误报：design 标题不再要求整串抄进 tasks，REMOVED 区块不再要求 scenario；四个面向的规则正式写进规格。
-- 用 `--hold` 保留在途的讨论，转出下一刀时不再被清掉旗标、也不会被连带封存；看板上与「已转出」的讨论分开呈现，收尾由 `speclink discuss archive` 明示解除。
-- `speclink archive --mark-tasks-complete` 遇到结构不合法的变更时，封存被拒也不会再把 tasks.md 全勾。
+- `specseal analyze` 收敛四条误报：design 标题不再要求整串抄进 tasks，REMOVED 区块不再要求 scenario；四个面向的规则正式写进规格。
+- 用 `--hold` 保留在途的讨论，转出下一刀时不再被清掉旗标、也不会被连带封存；看板上与「已转出」的讨论分开呈现，收尾由 `specseal discuss archive` 明示解除。
+- `specseal archive --mark-tasks-complete` 遇到结构不合法的变更时，封存被拒也不会再把 tasks.md 全勾。
 - 讨论记录的状态改写只动 frontmatter，内文出现相同字符串不再被误改；封存时对 meta 损坏的在途变更改成保守处理，讨论不会被误扫进封存区。
 - 发版流程对刚上架的 npm 套件改成轮询查找，不再因 registry 延迟可见而误判失败。
 
@@ -161,10 +161,10 @@
 
 ### 新功能
 
-- 添加 `/speclink-manual` 技能：一句话就能从正式规格生成 wiki 式的新人手册，或让 AI 在对话中带你导览系统。
+- 添加 `/specseal-manual` 技能：一句话就能从正式规格生成 wiki 式的新人手册，或让 AI 在对话中带你导览系统。
 - 桌面 app 添加「手册」页：侧栏树、搜索与上一页／下一页由手册页自动推导，可能过期的页面会标示出来。
-- 添加 `speclink trace` 动词与 `/speclink-trace` 技能：沿「规格 → 变更 → 讨论 → 代码」回答某个功能怎幺来的、为什幺这样设计。
-- 添加 `speclink discuss search`：依关键字找出封存讨论里的定案；discuss 与 improve 技能开场会先查旧讨论，不再重提已否决的方向。
+- 添加 `specseal trace` 动词与 `/specseal-trace` 技能：沿「规格 → 变更 → 讨论 → 代码」回答某个功能怎幺来的、为什幺这样设计。
+- 添加 `specseal discuss search`：依关键字找出封存讨论里的定案；discuss 与 improve 技能开场会先查旧讨论，不再重提已否决的方向。
 - 讨论可用 `discuss conclude --hold` 保留在途，一份讨论可以分期转出多个变更。
 - 讨论的生命周期改由结论决定：还没写结论的讨论不会被连带封存，看板也分得出「已转出但未结论」的讨论。
 - 桌面 app 的「添加 Workspace」记住最近开过的 workspace，分页关掉之后也能一键再开。
@@ -172,13 +172,13 @@
 - 桌面 app 的规格、变更与讨论抽屉的溯源签都可以点：规格 → 变更 → 讨论三跳闭环。
 - 远程模式的认领真正落盘：桌面远程看板可以认领变更，并看到是谁在做。
 - 远程模式勾任务时，触及文档的证据会保存到 server，之后 drift、commit 与封存溯源都查得到。
-- `@speclink/engine` 发布到 npm：不用自备 Rust 工具链，就能把引擎接进自己的脚本。
+- `@specseal/engine` 发布到 npm：不用自备 Rust 工具链，就能把引擎接进自己的脚本。
 - Node SDK 的 createEngine 可以注入操作者身分并提供盖章动词，多人系统的章不再匿名。
 - 新开 capability 时挡下重复命名并建议近似名，不会再产出两份语意重复的规格。
 
 ### 修正
 
-- `speclink init --force` 切换工具时会清掉前一个工具的技能目录；技能档过期提示也涵盖自订描述子。
+- `specseal init --force` 切换工具时会清掉前一个工具的技能目录；技能档过期提示也涵盖自订描述子。
 - 手册页的「可能过期」判定改比到时戳，封存后立刻重生的手册不再被误标。
 - 讨论记录内文含「## 」开头的行时，轮次不再错乱，也不会被误当成结论。
 - 远程模式的审查与验证改读 server 上的证据，不再因本机没有证据档而卡住要求手动输入。
@@ -189,8 +189,8 @@
 
 ### 改善
 
-- onboard 技能改名为 baseline（`/speclink-baseline`），与 OpenSpec 的 Onboard 区隔。
-- 技能收尾的交棒句更清楚：propose 后盘点运行顺序、apply 后可以直接封存、worktree 收尾列出 `/speclink-quality`、archive 后提醒提交。
+- onboard 技能改名为 baseline（`/specseal-baseline`），与 OpenSpec 的 Onboard 区隔。
+- 技能收尾的交棒句更清楚：propose 后盘点运行顺序、apply 后可以直接封存、worktree 收尾列出 `/specseal-quality`、archive 后提醒提交。
 - 技能路由改由 description 与交棒句承载，不再注入 marker。
 - discuss 技能流程重写：先读正典再侦察、依需求清晰度分流、多需求讨论有固定惯例。
 - 内置产出流程收敛为单一正典，验证强度对齐 OpenSpec。

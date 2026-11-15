@@ -4,16 +4,16 @@ import { render } from "@testing-library/react";
 import { App } from "../App";
 import { makeAdminClient, renderAt, setViewport } from "./helpers/adminHarness";
 
-// 使用者可見文案（proposal「相容性影響：使用者可見文案」與 openspec/LANGUAGE.md）：
-// 工程詞退場，改用中文正典詞。這是一份對照清單而非個別頁面的行為測試——文案漂移最容易
-// 在改版時無聲發生，所以由一支測試把六個管理目的地與帳號頁一起釘住。
+// 用户可见文案（proposal「兼容性影响：用户可见文案」与 openspec/LANGUAGE.md）：
+// 工程词退场，改用中文正典词。这是一份对照清单而非个别页面的行为测试——文案漂移最容易
+// 在改版时无声发生，所以由一支测试把六个管理目的地与帐号页一起钉住。
 //
-// 多語系後這批中文正典詞只在 zh-TW 成立，因此各測試明示語言：中文版斷言正典詞出現，
-// 英文版斷言同一批中文詞完全不出現（只翻一半的頁面會在這裡露餡）。
+// 多语系后这批中文正典词只在 zh-CN 成立，因此各测试明示语言：中文版断言正典词出现，
+// 英文版断言同一批中文词完全不出现（只翻一半的页面会在这里露馅）。
 
-// 退場的工程詞：出現在任何使用者可見文字裡都算退化。
+// 退场的工程词：出现在任何用户可见文本里都算退化。
 const RETIRED = [
-  "建立 project",
+  "创建 project",
   "Project key",
   "Repo key",
   "Personal Access Tokens",
@@ -31,7 +31,7 @@ const MEMBER_SESSION = {
 
 const ACCOUNT = {
   user: { id: "u1", email: "member@example.com", display: "Member", admin: false },
-  memberships: [{ projectKey: "alpha", projectName: "Alpha 專案", role: "editor" }],
+  memberships: [{ projectKey: "alpha", projectName: "Alpha 项目", role: "editor" }],
   pats: [
     {
       id: "p1",
@@ -63,48 +63,48 @@ const ADMIN_DESTINATIONS = [
   "/admin/audit",
 ];
 
-/** 中文正典詞——英文版不得出現任何一個。 */
+/** 中文正典词——英文版不得出现任何一个。 */
 const ZH_CANONICAL = [
-  "專案代號",
-  "儲存庫代號",
-  "存取金鑰",
-  "登入工作階段",
-  "資料結構版本",
-  "待送佇列",
-  "建立專案",
+  "项目代号",
+  "保存库代号",
+  "访问密钥",
+  "登录工作阶段",
+  "数据结构版本",
+  "待送队列",
+  "创建项目",
 ];
 
 beforeEach(() => {
   setViewport(false);
   localStorage.clear();
-  localStorage.setItem("speclink.tourSeen", "1");
+  localStorage.setItem("specseal.tourSeen", "1");
 });
 
-function setLanguage(locale: "zh-TW" | "en") {
-  localStorage.setItem("speclink.uiLocale", locale);
+function setLanguage(locale: "zh-CN" | "en") {
+  localStorage.setItem("specseal.uiLocale", locale);
 }
 
-/** 該畫面目前的全部可見文字。 */
+/** 该画面目前的全部可见文本。 */
 function visibleText(): string {
   return document.body.textContent ?? "";
 }
 
-describe("使用者可見文案不含工程詞（zh-TW）", () => {
-  it.each(ADMIN_DESTINATIONS)("%s 不出現退場的工程詞", async (route) => {
-    setLanguage("zh-TW");
+describe("用户可见文案不含工程词（zh-CN）", () => {
+  it.each(ADMIN_DESTINATIONS)("%s 不出现退场的工程词", async (route) => {
+    setLanguage("zh-CN");
     const { unmount } = renderAt(route, makeAdminClient());
     await screen.findByRole("heading", { level: 1 });
-    // 等資料層渲染完成，才不會只驗到載入中的骨架。
-    await waitFor(() => expect(screen.queryByText("載入中…")).toBeNull());
+    // 等数据层渲染完成，才不会只验到加载中的骨架。
+    await waitFor(() => expect(screen.queryByText("加载中…")).toBeNull());
     const text = visibleText();
     for (const term of RETIRED) {
-      expect(text, `${route} 不應出現「${term}」`).not.toContain(term);
+      expect(text, `${route} 不应出现「${term}」`).not.toContain(term);
     }
     unmount();
   });
 
-  it("帳號頁不出現退場的工程詞", async () => {
-    setLanguage("zh-TW");
+  it("帐号页不出现退场的工程词", async () => {
+    setLanguage("zh-CN");
     render(
       <App
         client={
@@ -120,45 +120,45 @@ describe("使用者可見文案不含工程詞（zh-TW）", () => {
         initialEntries={["/account"]}
       />,
     );
-    await screen.findByRole("heading", { level: 1, name: "帳號" });
+    await screen.findByRole("heading", { level: 1, name: "帐号" });
     const text = visibleText();
     for (const term of RETIRED) {
-      expect(text, `帳號頁不應出現「${term}」`).not.toContain(term);
+      expect(text, `帐号页不应出现「${term}」`).not.toContain(term);
     }
   });
 });
 
-describe("中文正典詞出現在對應畫面（zh-TW）", () => {
-  beforeEach(() => setLanguage("zh-TW"));
+describe("中文正典词出现在对应画面（zh-CN）", () => {
+  beforeEach(() => setLanguage("zh-CN"));
 
-  it("專案與儲存庫頁使用專案代號與儲存庫代號", async () => {
+  it("项目与保存库页使用项目代号与保存库代号", async () => {
     renderAt("/admin/registry", makeAdminClient());
     await screen.findByText("Demo");
-    expect(visibleText()).toContain("代號");
+    expect(visibleText()).toContain("代号");
     const { default: userEvent } = await import("@testing-library/user-event");
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /建立專案/ }));
-    await screen.findByRole("alertdialog", { name: /建立專案/ });
-    expect(screen.getByLabelText(/專案代號/)).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /创建项目/ }));
+    await screen.findByRole("alertdialog", { name: /创建项目/ });
+    expect(screen.getByLabelText(/项目代号/)).toBeTruthy();
   });
 
-  it("憑證頁使用存取金鑰", async () => {
+  it("凭证页使用访问密钥", async () => {
     renderAt("/admin/credentials", makeAdminClient());
-    // 分頁標籤後帶計數籤，名稱以「存取金鑰」開頭。
-    expect(await screen.findByRole("tab", { name: /^存取金鑰/ })).toBeTruthy();
+    // 分页标签后带计数签，名称以「访问密钥」开头。
+    expect(await screen.findByRole("tab", { name: /^访问密钥/ })).toBeTruthy();
   });
 
-  it("系統頁使用資料結構版本與待送佇列", async () => {
+  it("系统页使用数据结构版本与待送队列", async () => {
     renderAt("/admin/system", makeAdminClient());
-    // 系統頁的 h1 在載入中就已渲染，兩個詞都在資料回來後的區段裡——等區段而非標題，
-    // 否則慢機器（Windows runner）會讀到「載入中…」就斷言。
-    await screen.findByRole("region", { name: "執行環境" });
+    // 系统页的 h1 在加载中就已渲染，两个词都在数据回来后的区段里——等区段而非标题，
+    // 否则慢机器（Windows runner）会读到「加载中…」就断言。
+    await screen.findByRole("region", { name: "运行环境" });
     const text = visibleText();
-    expect(text).toContain("資料結構版本");
-    expect(text).toContain("待送佇列");
+    expect(text).toContain("数据结构版本");
+    expect(text).toContain("待送队列");
   });
 
-  it("帳號頁使用存取金鑰與登入工作階段", async () => {
+  it("帐号页使用访问密钥与登录工作阶段", async () => {
     render(
       <App
         client={
@@ -174,13 +174,13 @@ describe("中文正典詞出現在對應畫面（zh-TW）", () => {
         initialEntries={["/account"]}
       />,
     );
-    await screen.findByRole("heading", { level: 1, name: "帳號" });
+    await screen.findByRole("heading", { level: 1, name: "帐号" });
     const text = visibleText();
-    expect(text).toContain("存取金鑰");
-    expect(text).toContain("登入工作階段");
+    expect(text).toContain("访问密钥");
+    expect(text).toContain("登录工作阶段");
   });
 
-  it("初始設定頁使用專案代號與儲存庫代號", async () => {
+  it("初始设置页使用项目代号与保存库代号", async () => {
     render(
       <App
         client={
@@ -203,28 +203,28 @@ describe("中文正典詞出現在對應畫面（zh-TW）", () => {
         initialEntries={["/setup?token=t"]}
       />,
     );
-    expect(await screen.findByLabelText(/專案代號/)).toBeTruthy();
-    expect(screen.getByLabelText(/儲存庫代號/)).toBeTruthy();
+    expect(await screen.findByLabelText(/项目代号/)).toBeTruthy();
+    expect(screen.getByLabelText(/保存库代号/)).toBeTruthy();
     expect(visibleText()).not.toContain("Project key");
     expect(visibleText()).not.toContain("Repo key");
   });
 });
 
-describe("英文版不殘留中文正典詞（en）", () => {
+describe("英文版不残留中文正典词（en）", () => {
   beforeEach(() => setLanguage("en"));
 
-  it.each(ADMIN_DESTINATIONS)("%s 不出現任何中文正典詞", async (route) => {
+  it.each(ADMIN_DESTINATIONS)("%s 不出现任何中文正典词", async (route) => {
     const { unmount } = renderAt(route, makeAdminClient());
     await screen.findByRole("heading", { level: 1 });
     await waitFor(() => expect(screen.queryByText("Loading…")).toBeNull());
     const text = visibleText();
     for (const term of ZH_CANONICAL) {
-      expect(text, `${route} 的英文版不應出現「${term}」`).not.toContain(term);
+      expect(text, `${route} 的英文版不应出现「${term}」`).not.toContain(term);
     }
     unmount();
   });
 
-  it("帳號頁不出現任何中文正典詞", async () => {
+  it("帐号页不出现任何中文正典词", async () => {
     render(
       <App
         client={
@@ -243,7 +243,7 @@ describe("英文版不殘留中文正典詞（en）", () => {
     await screen.findByRole("heading", { level: 1, name: "Account" });
     const text = visibleText();
     for (const term of ZH_CANONICAL) {
-      expect(text, `帳號頁的英文版不應出現「${term}」`).not.toContain(term);
+      expect(text, `帐号页的英文版不应出现「${term}」`).not.toContain(term);
     }
   });
 });

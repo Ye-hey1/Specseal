@@ -1,10 +1,10 @@
-// 伺服器頁（desktop-settings-mode design D7；spec「伺服器管理最小面」）：頁標題右側「新增連線」
-// 展開新增卡；連線卡一列一個 server（狀態籤、右側動作與「⋯」）；預設卡；登入方式卡。
+// 服务器页（desktop-settings-mode design D7；spec「服务器管理最小面」）：页标题右侧「添加连接」
+// 展开添加卡；连接卡一列一个 server（状态签、右侧动作与「⋯」）；缺省卡；登录方式卡。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 
 import { ServersPage } from "../views/settings/ServersPage";
 import type { ConnectionView } from "../adapter/connections";
@@ -13,7 +13,7 @@ import { APP_MESSAGES } from "../i18n/messages";
 vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({ writeText: vi.fn() }));
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -44,105 +44,105 @@ function page(over: Partial<Props> = {}) {
 const serverRow = (origin: string) => screen.getByTestId(`server-row-${origin}`);
 
 describe("ServersPage", () => {
-  it("頁標題「伺服器」；「新增連線」展開新增卡，送出成功後收起", async () => {
+  it("页标题「服务器」；「添加连接」展开添加卡，送出成功后收起", async () => {
     const onAdd = vi.fn().mockResolvedValue(undefined);
     render(page({ onAdd }));
-    expect(screen.getByRole("heading", { level: 2, name: "伺服器" })).toBeTruthy();
-    expect(screen.queryByPlaceholderText("伺服器位址（http://…）")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "新增連線" }));
-    const card = screen.getByRole("region", { name: "新增連線" });
-    fireEvent.change(within(card).getByPlaceholderText("伺服器位址（http://…）"), { target: { value: "https://new.example" } });
-    fireEvent.change(within(card).getByPlaceholderText("顯示名"), { target: { value: "新站" } });
-    fireEvent.click(within(card).getByRole("button", { name: "新增" }));
+    expect(screen.getByRole("heading", { level: 2, name: "服务器" })).toBeTruthy();
+    expect(screen.queryByPlaceholderText("服务器地址（http://…）")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "添加连接" }));
+    const card = screen.getByRole("region", { name: "添加连接" });
+    fireEvent.change(within(card).getByPlaceholderText("服务器地址（http://…）"), { target: { value: "https://new.example" } });
+    fireEvent.change(within(card).getByPlaceholderText("显示名"), { target: { value: "新站" } });
+    fireEvent.click(within(card).getByRole("button", { name: "添加" }));
     expect(onAdd).toHaveBeenCalledWith("https://new.example", "新站");
-    await waitFor(() => expect(screen.queryByRole("region", { name: "新增連線" })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "添加连接" })).toBeNull());
   });
 
-  it("新增卡的取消收起卡片", () => {
+  it("添加卡的取消收起卡片", () => {
     render(page());
-    fireEvent.click(screen.getByRole("button", { name: "新增連線" }));
-    fireEvent.click(within(screen.getByRole("region", { name: "新增連線" })).getByRole("button", { name: "取消" }));
-    expect(screen.queryByRole("region", { name: "新增連線" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "添加连接" }));
+    fireEvent.click(within(screen.getByRole("region", { name: "添加连接" })).getByRole("button", { name: "取消" }));
+    expect(screen.queryByRole("region", { name: "添加连接" })).toBeNull();
   });
 
-  it("連線卡：已登入列為「已登入」籤＋登出、登入過期列為警示籤＋重新登入；兩列皆有等寬網址與「⋯」", () => {
+  it("连接卡：已登录列为「已登录」签＋注销、登录过期列为警示签＋重新登录；两列皆有等宽网址与「⋯」", () => {
     render(page({ connections: [A, B], focusConnectionId: "c2" }));
     const rowA = serverRow("https://a.example");
-    expect(within(rowA).getByText("已登入").className).toContain("bg-status-success/12");
+    expect(within(rowA).getByText("已登录").className).toContain("bg-status-success/12");
     expect(within(rowA).getByText("https://a.example").className).toContain("font-mono");
     expect(within(rowA).getByText("Momo")).toBeTruthy();
-    expect(within(rowA).getByRole("button", { name: "登出" })).toBeTruthy();
-    expect(within(rowA).getByRole("button", { name: "更多動作" })).toBeTruthy();
+    expect(within(rowA).getByRole("button", { name: "注销" })).toBeTruthy();
+    expect(within(rowA).getByRole("button", { name: "更多动作" })).toBeTruthy();
     const rowB = serverRow("https://b.example");
-    expect(within(rowB).getByText("登入過期").className).toContain("bg-status-warning/12");
-    expect(within(rowB).getByRole("button", { name: "重新登入" })).toBeTruthy();
-    expect(within(rowB).queryByRole("button", { name: "登出" })).toBeNull();
-    expect(within(rowB).getByRole("button", { name: "更多動作" })).toBeTruthy();
+    expect(within(rowB).getByText("登录过期").className).toContain("bg-status-warning/12");
+    expect(within(rowB).getByRole("button", { name: "重新登录" })).toBeTruthy();
+    expect(within(rowB).queryByRole("button", { name: "注销" })).toBeNull();
+    expect(within(rowB).getByRole("button", { name: "更多动作" })).toBeTruthy();
   });
 
-  it("連線失效（session 回報需重新登入）時不經導向也呈現登入過期＋重新登入，且不搶焦點", () => {
+  it("连接失效（session 回报需重新登录）时不经导向也呈现登录过期＋重新登录，且不抢焦点", () => {
     render(page({ connections: [A, B], expiredConnectionIds: ["c2"] }));
     const rowB = serverRow("https://b.example");
-    expect(within(rowB).getByText("登入過期")).toBeTruthy();
-    const reauth = within(rowB).getByRole("button", { name: "重新登入" });
+    expect(within(rowB).getByText("登录过期")).toBeTruthy();
+    const reauth = within(rowB).getByRole("button", { name: "重新登录" });
     expect(document.activeElement).not.toBe(reauth);
-    expect(within(serverRow("https://a.example")).getByRole("button", { name: "登出" })).toBeTruthy();
+    expect(within(serverRow("https://a.example")).getByRole("button", { name: "注销" })).toBeTruthy();
   });
 
-  it("未登入列為「未登入」籤＋登入", () => {
+  it("未登录列为「未登录」签＋登录", () => {
     render(page({ connections: [C] }));
     const row = serverRow("https://c.example");
-    expect(within(row).getByText("未登入")).toBeTruthy();
-    expect(within(row).getByRole("button", { name: "登入" })).toBeTruthy();
+    expect(within(row).getByText("未登录")).toBeTruthy();
+    expect(within(row).getByRole("button", { name: "登录" })).toBeTruthy();
   });
 
-  it("「⋯」選單含開啟專案與移除", async () => {
+  it("「⋯」菜单含打开项目与移除", async () => {
     const onOpenWorkspace = vi.fn();
     const onRemove = vi.fn();
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(page({ onOpenWorkspace, onRemove }));
-    await user.click(within(serverRow("https://a.example")).getByRole("button", { name: "更多動作" }));
-    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["開啟專案", "移除"]);
-    await user.click(screen.getByRole("menuitem", { name: "開啟專案" }));
+    await user.click(within(serverRow("https://a.example")).getByRole("button", { name: "更多动作" }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["打开项目", "移除"]);
+    await user.click(screen.getByRole("menuitem", { name: "打开项目" }));
     expect(onOpenWorkspace).toHaveBeenCalledWith("c1");
-    await user.click(within(serverRow("https://a.example")).getByRole("button", { name: "更多動作" }));
+    await user.click(within(serverRow("https://a.example")).getByRole("button", { name: "更多动作" }));
     await user.click(screen.getByRole("menuitem", { name: "移除" }));
     expect(onRemove).toHaveBeenCalledWith("c1");
   });
 
-  it("無連線時顯示空狀態", () => {
+  it("无连接时显示空状态", () => {
     render(page({ connections: [] }));
     expect(screen.getByTestId("servers-empty")).toBeTruthy();
   });
 
-  it("預設卡：下拉只列已登入連線與「不預選」，選取回呼", async () => {
+  it("缺省卡：下拉只列已登录连接与「不预选」，选取回呼", async () => {
     const onDefaultConnectionChange = vi.fn();
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(page({ connections: [A, C], defaultConnectionId: null, onDefaultConnectionChange }));
-    const trigger = within(screen.getByRole("region", { name: "預設" })).getByRole("combobox", { name: "新增遠端專案時預設使用" });
-    expect(trigger.textContent).toContain("不預選");
+    const trigger = within(screen.getByRole("region", { name: "缺省" })).getByRole("combobox", { name: "添加远程项目时缺省使用" });
+    expect(trigger.textContent).toContain("不预选");
     await user.click(trigger);
-    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["不預選", "甲站"]);
+    expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["不预选", "甲站"]);
     await user.click(screen.getByRole("option", { name: "甲站" }));
     expect(onDefaultConnectionChange).toHaveBeenCalledWith("c1");
   });
 
-  it("預設指向已登出的連線時下拉顯示「不預選」", () => {
+  it("缺省指向已注销的连接时下拉显示「不预选」", () => {
     render(page({ connections: [A, C], defaultConnectionId: "c3" }));
-    const trigger = screen.getByRole("combobox", { name: "新增遠端專案時預設使用" });
-    expect(trigger.textContent).toContain("不預選");
+    const trigger = screen.getByRole("combobox", { name: "添加远程项目时缺省使用" });
+    expect(trigger.textContent).toContain("不预选");
   });
 
-  it("登入方式卡：依序是瀏覽器登入、裝置登入、存取金鑰三列，無按鈕", () => {
+  it("登录方式卡：依序是浏览器登录、设备登录、访问密钥三列，无按钮", () => {
     render(page());
-    const card = screen.getByRole("region", { name: "登入方式" });
+    const card = screen.getByRole("region", { name: "登录方式" });
     const rows = within(card).getAllByRole("group");
-    expect(rows).toEqual(["瀏覽器登入", "裝置登入", "存取金鑰"].map((name) => within(card).getByRole("group", { name })));
-    expect(rows[0].textContent).toContain("優先");
+    expect(rows).toEqual(["浏览器登录", "设备登录", "访问密钥"].map((name) => within(card).getByRole("group", { name })));
+    expect(rows[0].textContent).toContain("优先");
     expect(within(card).queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("登入方式卡在介面語言為 en 時以英文呈現三列", () => {
+  it("登录方式卡在接口语言为 en 时以英文呈现三列", () => {
     rtlRender(page(), {
       wrapper: ({ children }: { children: ReactNode }) => (
         <I18nProvider locale="en" messages={APP_MESSAGES}>

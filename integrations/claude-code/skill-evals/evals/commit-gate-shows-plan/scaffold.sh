@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# change add-greeting 以 task done 記錄 greeting.txt；另有無關的 notes.txt 改動。
+# change add-greeting 以 task done 记录 greeting.txt；另有无关的 notes.txt 改动。
 source "$(dirname "$0")/../fixtures.sh"
 eval_git_init
 echo 'notes' >notes.txt

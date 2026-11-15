@@ -1,7 +1,7 @@
 {
-  "name": "@speclink/server",
+  "name": "@specseal/server",
   "version": "0.0.0-dev",
-  "description": "Speclink server — one-line start via npx; platform binaries ship as optionalDependencies",
+  "description": "Specseal server — one-line start via npx; platform binaries ship as optionalDependencies",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -9,14 +9,14 @@
     "directory": "packages/server-npm"
   },
   "bin": {
-    "speclink-server": "bin/speclink-server.mjs"
+    "specseal-server": "bin/specseal-server.mjs"
   },
   "files": [
-    "bin/speclink-server.mjs"
+    "bin/specseal-server.mjs"
   ],
   "engines": {
     "node": ">=18"
   },
   "private": true,
-  "//": "private 擋誤發布；發布用的副本由 scripts/npm/npm-server-package.mjs 物化（去掉 private、蓋版本、補 optionalDependencies）"
+  "//": "private 挡误发布；发布用的副本由 scripts/npm/npm-server-package.mjs 物化（去掉 private、盖版本、补 optionalDependencies）"
 }

@@ -5,10 +5,10 @@ import { BIN } from "./tools.mjs";
 const DEFAULT_TIMEOUT_MS = 120_000;
 
 /**
- * 运行 speclink CLI。argv 由 tools.mjs 的 buildArgs 构造（参数已校验）。
+ * 运行 specseal CLI。argv 由 tools.mjs 的 buildArgs 构造（参数已校验）。
  * @returns {Promise<{code: number, stdout: string, stderr: string}>}
  */
-export function runSpeclink(args, { cwd = process.cwd(), stdin, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+export function runSpecseal(args, { cwd = process.cwd(), stdin, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(BIN, args, { cwd, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
@@ -19,7 +19,7 @@ export function runSpeclink(args, { cwd = process.cwd(), stdin, timeoutMs = DEFA
       if (!settled) {
         settled = true;
         child.kill("SIGKILL");
-        reject(new Error(`speclink ${args.join(" ")} timed out after ${timeoutMs}ms`));
+        reject(new Error(`specseal ${args.join(" ")} timed out after ${timeoutMs}ms`));
       }
     }, timeoutMs);
 

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// 文件截圖的場景佈置（user-documentation spec「使用者文件以截圖呈現實際介面」、
-// design D1／D2）。本腳本不按快門——版面與時機交給人判斷，腳本只負責兩件人做
-// 容易出錯的事：把使用者的 desktop 狀態安全地移開再放回，以及造出一個內容固定
-// 的示範 workspace。
+// 文档截屏的场景布置（user-documentation spec「用户文档以截屏呈现实际接口」、
+// design D1／D2）。本脚本不按快门——版面与时机交给人判断，脚本只负责两件人做
+// 容易出错的事：把用户的 desktop 状态安全地移开再放回，以及造出一个内容固定
+// 的示范 workspace。
 //
 // 用法：
-//   node scripts/docs/docs-screenshots.mjs --dry-run   只印出會搬什麼、會造什麼，不動任何檔案
-//   node scripts/docs/docs-screenshots.mjs --setup     備份 → 佈置 → 等你拍完按 Enter → 還原
-//   node scripts/docs/docs-screenshots.mjs --restore   單獨還原（--setup 中途當掉時的救援入口）
+//   node scripts/docs/docs-screenshots.mjs --dry-run   只印出会搬什幺、会造什幺，不动任何文档
+//   node scripts/docs/docs-screenshots.mjs --setup     备份 → 布置 → 等你拍完按 Enter → 还原
+//   node scripts/docs/docs-screenshots.mjs --restore   单独还原（--setup 中途当掉时的救援入口）
 //
-// desktop 沒有資料目錄隔離：分頁與連線都存在使用者層級的狀態目錄，dev 與安裝版
-// 共用。要拍到乾淨的全新狀態只能整個移開再放回，因此還原在 Ctrl+C 下也必須執行。
+// desktop 没有数据目录隔离：分页与连接都存在用户层级的状态目录，dev 与安装版
+// 共用。要拍到干净的全新状态只能整个移开再放回，因此还原在 Ctrl+C 下也必须运行。
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
@@ -22,49 +22,49 @@ import { checkoutCliPath } from '../dev/cli.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-/// tauri.conf.json 的 identifier；macOS 的兩處狀態落點都以它命名。
-export const APP_IDENTIFIER = 'app.speclink.desktop';
+/// tauri.conf.json 的 identifier；macOS 的两处状态落点都以它命名。
+export const APP_IDENTIFIER = 'app.specseal.desktop';
 
-/// 拍攝期間必須整個移開的使用者狀態。兩處分屬不同層，缺一不可：
-/// - appConfigDir：connections.json（Server 連線清單）
-/// - WebView 資料目錄：localStorage（speclink.projectTabs＝workspace 分頁、介面偏好）
-///   分頁不在 appConfigDir——那裡的 tabs.json 是七月的殘留、現行程式碼已不再讀寫，
-///   只搬 appConfigDir 的話截圖仍會帶著使用者真實的 workspace 名稱。
+/// 拍摄期间必须整个移开的用户状态。两处分属不同层，缺一不可：
+/// - appConfigDir：connections.json（Server 连接清单）
+/// - WebView 数据目录：localStorage（specseal.projectTabs＝workspace 分页、接口偏好）
+///   分页不在 appConfigDir——那里的 tabs.json 是七月的残留、现行代码已不再读写，
+///   只搬 appConfigDir 的话截屏仍会带着用户真实的 workspace 名称。
 export function stateDirsFor({ home, platform }) {
   if (platform !== 'darwin') {
-    throw new Error(`截圖場景腳本目前只支援 macOS，目前平台為 ${platform}`);
+    throw new Error(`截屏场景脚本目前只支持 macOS，目前平台为 ${platform}`);
   }
   return [
     {
       key: 'app-config',
-      label: '設定目錄（Server 連線清單）',
+      label: '设置目录（Server 连接清单）',
       path: path.posix.join(home, 'Library', 'Application Support', APP_IDENTIFIER),
     },
     {
       key: 'webview-data',
-      label: 'WebView 資料目錄（workspace 分頁、介面偏好）',
+      label: 'WebView 数据目录（workspace 分页、接口偏好）',
       path: path.posix.join(home, 'Library', 'WebKit', APP_IDENTIFIER),
     },
   ];
 }
 
-/// 腳本自建的兩個工作路徑。備份刻意放在 home 而非暫存區——暫存區可能被系統清掉
-/// 或在重開機後消失，而備份沒還原就等於使用者的分頁與連線設定消失。
+/// 脚本自建的两个工作路径。备份刻意放在 home 而非暂存区——暂存区可能被系统清掉
+/// 或在重开机后消失，而备份没还原就等于用户的分页与连接设置消失。
 export function pathsFor({ home, tmpdir }) {
   return {
-    backupRoot: path.posix.join(home, '.speclink-docs-screenshots-backup'),
-    // 目錄名會出現在分頁與視窗標題上，所以用中性的示範專案名。
+    backupRoot: path.posix.join(home, '.specseal-docs-screenshots-backup'),
+    // 目录名会出现在分页与窗口标题上，所以用中性的示范项目名。
     workspace: path.posix.join(tmpdir, 'acme-web'),
   };
 }
 
-/// 備份清單的落點（--restore 靠它知道哪些目錄「原本就不存在」）。
+/// 备份清单的落点（--restore 靠它知道哪些目录「原本就不存在」）。
 export function manifestPathIn(backupRoot) {
   return path.posix.join(backupRoot, 'manifest.json');
 }
 
-/// 每個狀態目錄對應一個以 key 命名的備份落點——兩處的目錄名相同，用 basename
-/// 會互相覆蓋。
+/// 每个状态目录对应一个以 key 命名的备份落点——两处的目录名相同，用 basename
+/// 会互相覆盖。
 export function backupPlanFor({ stateDirs, backupRoot, exists }) {
   return stateDirs.map((dir) => ({
     key: dir.key,
@@ -75,8 +75,8 @@ export function backupPlanFor({ stateDirs, backupRoot, exists }) {
   }));
 }
 
-/// 還原步驟：拍攝期間 app 會自行重建狀態目錄，所以兩種情況都要先刪掉現場的目錄，
-/// 差別只在後面搬不搬得回來。原本不存在的不帶備份路徑——沒有東西可搬回。
+/// 还原步骤：拍摄期间 app 会自行重建状态目录，所以两种情况都要先删掉现场的目录，
+/// 差别只在后面搬不搬得回来。原本不存在的不带备份路径——没有东西可搬回。
 export function restoreStepsFor(entries) {
   return entries.map((entry) =>
     entry.existed
@@ -85,34 +85,34 @@ export function restoreStepsFor(entries) {
   );
 }
 
-/// pgrep 的 exit code 語意：0＝有符合、1＝沒有符合、其餘＝pgrep 本身失敗。
-/// 失敗絕不可當成「沒在跑」——那會讓備份在 app 執行中開始，還原結果被 app 退出時
-/// 寫回的記憶體狀態覆蓋掉。
+/// pgrep 的 exit code 语意：0＝有符合、1＝没有符合、其余＝pgrep 本身失败。
+/// 失败绝不可当成「没在跑」——那会让备份在 app 运行中开始，还原结果被 app 退出时
+/// 写回的内存状态覆盖掉。
 export function appIsRunning(result) {
   if (result.error) {
-    throw new Error(`無法確認 desktop app 是否執行中（pgrep：${result.error.message}）`);
+    throw new Error(`无法确认 desktop app 是否运行中（pgrep：${result.error.message}）`);
   }
   if (result.status === 0) return true;
   if (result.status === 1) return false;
   const how = result.status === null ? `signal ${result.signal}` : `exit ${result.status}`;
-  throw new Error(`無法確認 desktop app 是否執行中（pgrep 以 ${how} 結束）`);
+  throw new Error(`无法确认 desktop app 是否运行中（pgrep 以 ${how} 结束）`);
 }
 
-/// 備份：拒絕條件全部在任何搬移之前判定，被拒絕的路徑上一個檔案都不會動。
+/// 备份：拒绝条件全部在任何搬移之前判定，被拒绝的路径上一个文档都不会动。
 export function prepareBackup({ platform, home, backupRoot, isRunning, ops }) {
   const stateDirs = stateDirsFor({ home, platform });
 
   if (isRunning) {
     throw new Error(
-      'Speclink desktop 正在執行——請先完全結束 app 再重跑（不代為結束 app：你可能正在裡面工作）',
+      'Specseal desktop 正在运行——请先完全结束 app 再重跑（不代为结束 app：你可能正在里面工作）',
     );
   }
 
-  // 備份路徑還在，代表上一次拍攝沒有還原完成。覆蓋它就等於把使用者真正的設定
-  // 換成拍攝期間的空白狀態，這是本腳本最不能犯的錯。
+  // 备份路径还在，代表上一次拍摄没有还原完成。覆盖它就等于把用户真正的设置
+  // 换成拍摄期间的空白状态，这是本脚本最不能犯的错。
   if (ops.exists(backupRoot)) {
     throw new Error(
-      `備份路徑已存在：${backupRoot}\n上一次拍攝沒有還原完成。先執行 --restore 把它搬回原位，再重跑 --setup。`,
+      `备份路径已存在：${backupRoot}\n上一次拍摄没有还原完成。先运行 --restore 把它搬回原位，再重跑 --setup。`,
     );
   }
 
@@ -125,32 +125,32 @@ export function prepareBackup({ platform, home, backupRoot, isRunning, ops }) {
   return plan;
 }
 
-/// 待拍清單（readme-open-source-refresh design「截圖依語言分目錄、檔名相同」）。
-/// 每個檔名在 SHOT_LOCALES 的每個語言目錄各拍一張：英文文件引用 en/、繁中文件引用 zh-TW/。
+/// 待拍清单（readme-open-source-refresh design「截屏依语言分目录、文档名相同」）。
+/// 每个文档名在 SHOT_LOCALES 的每个语言目录各拍一张：英文文档引用 en/、繁中文档引用 zh-CN/。
 export const SHOT_LIST = [
-  { file: 'desktop-board.png', what: '看板四欄都有卡片' },
-  { file: 'desktop-change-detail.png', what: '變更詳情頁（文件樹、內容、資訊三欄）' },
-  { file: 'desktop-discussion.png', what: '討論詳情頁' },
-  { file: 'desktop-spec.png', what: '規格詳情頁' },
+  { file: 'desktop-board.png', what: '看板四栏都有卡片' },
+  { file: 'desktop-change-detail.png', what: '变更详情页（文档树、内容、信息三栏）' },
+  { file: 'desktop-discussion.png', what: '讨论详情页' },
+  { file: 'desktop-spec.png', what: '规格详情页' },
   { file: 'desktop-archived.png', what: '已封存列表' },
-  { file: 'desktop-manual.png', what: '手冊頁' },
-  { file: 'desktop-settings.png', what: '設定模式' },
-  { file: 'server-setup.png', what: 'server 初始設定第二步（建立專案與儲存庫）' },
-  { file: 'server-overview.png', what: '後台總覽（含「開始使用」區塊）' },
-  { file: 'server-members.png', what: '使用者詳情頁的成員資格' },
-  { file: 'server-project.png', what: '專案詳情頁（儲存庫與成員）' },
-  { file: 'desktop-tray.png', what: '系統匣面板（只擷取面板視窗，不含選單列）' },
-  { file: 'claude-code-panel.png', what: 'Claude Code 技能列與側邊面板的看板分頁' },
-  { file: 'claude-code-quality.png', what: 'Claude Code 側邊面板的品質分頁（列出示範審查工單）' },
-  { file: 'claude-code-hash-menu.png', what: 'Claude Code 輸入框打 # 跳出的變更選單' },
-  { file: 'herdr-panel.png', what: 'Herdr 視窗：左邊的階段徽章與 Agents 清單、右邊的 Speclink 面板，要看得到章的圖示和 ⋯ 展開的技能（用隔離視窗和假 agent 拍）' },
+  { file: 'desktop-manual.png', what: '手册页' },
+  { file: 'desktop-settings.png', what: '设置模式' },
+  { file: 'server-setup.png', what: 'server 初始设置第二步（创建项目与保存库）' },
+  { file: 'server-overview.png', what: '后台总览（含「开始使用」区块）' },
+  { file: 'server-members.png', what: '用户详情页的成员资格' },
+  { file: 'server-project.png', what: '项目详情页（保存库与成员）' },
+  { file: 'desktop-tray.png', what: '系统匣面板（只截取面板窗口，不含菜单列）' },
+  { file: 'claude-code-panel.png', what: 'Claude Code 技能列与侧边面板的看板分页' },
+  { file: 'claude-code-quality.png', what: 'Claude Code 侧边面板的品质分页（列出示范审查工单）' },
+  { file: 'claude-code-hash-menu.png', what: 'Claude Code 输入框打 # 跳出的变更菜单' },
+  { file: 'herdr-panel.png', what: 'Herdr 窗口：左边的阶段徽章与 Agents 清单、右边的 Specseal 面板，要看得到章的图标和 ⋯ 展开的技能（用隔离窗口和假 agent 拍）' },
   { file: 'herdr-skill-picker.png', what: 'Herdr 的技能跳窗（只裁跳窗）' },
 ];
 
-/// 截圖的介面語言，也是 SHOT_DIR 底下的子目錄名。
-export const SHOT_LOCALES = ['en', 'zh-TW'];
+/// 截屏的接口语言，也是 SHOT_DIR 底下的子目录名。
+export const SHOT_LOCALES = ['en', 'zh-CN'];
 
-/// 截圖存放位置（相對 repo root）。
+/// 截屏存放位置（相对 repo root）。
 export const SHOT_DIR = 'docs/assets/screenshots';
 
 const TEAM_INVITES = {
@@ -611,13 +611,13 @@ The system SHALL let admins filter log entries by actor and by date range.
   },
 };
 
-/// 示範變更：看板四欄各至少一張卡，另有兩個已封存（規格頁才有兩份正式規格）。
-/// 內容全部由本腳本產生，不引用任何真實資料。
+/// 示范变更：看板四栏各至少一张卡，另有两个已封存（规格页才有两份正式规格）。
+/// 内容全部由本脚本产生，不引用任何真实数据。
 export const DEMO_CHANGES = [TEAM_INVITES, SEARCH_RANKING, KEYBOARD_SHORTCUTS, DARK_MODE, AUDIT_LOG];
 
-/// 已就緒變更上的一張未結審查工單（docs-tray-and-mod-screenshots design D2）。不蓋章，
-/// 讓桌面詳情頁與 Claude Code 外掛的品質分頁都有內容。finding 為虛構，路徑只能是
-/// 示範檔——審查範圍由 evidence 推出，add-round 拒收範圍外的路徑。
+/// 已就绪变更上的一张未结审查工单（docs-tray-and-mod-screenshots design D2）。不盖章，
+/// 让桌面详情页与 Claude Code 插件的品质分页都有内容。finding 为虚构，路径只能是
+/// 示范档——审查范围由 evidence 推出，add-round 拒收范围外的路径。
 export const DEMO_REVIEW = {
   change: KEYBOARD_SHORTCUTS.name,
   file: {
@@ -644,7 +644,7 @@ export const actions = [
   ],
 };
 
-/// 示範討論：已結論，讓討論頁不是空的。
+/// 示范讨论：已结论，让讨论页不是空的。
 export const DEMO_DISCUSSION = {
   slug: 'background-exports',
   topic: 'Should large exports run in the background?',
@@ -654,7 +654,7 @@ export const DEMO_DISCUSSION = {
     'Option A: run the export as a background job and report progress in a toast.\nOption B: keep it blocking but refuse exports above a size cap.\n\nOption B is cheaper, but the cap has to be guessed and the people it blocks are exactly the ones who need the export most.\n',
     'The import path already runs on the job queue, so Option A reuses it instead of adding a second mechanism.\nA 1,000-item threshold keeps small exports instant; above it the job takes over.\n',
   ],
-  // 結論照 discuss 技能現行的寫法：Decision 一句起頭、其後一點一行，再接 Rationale 與 Rejected alternatives。
+  // 结论照 discuss 技能现行的写法：Decision 一句起头、其后一点一行，再接 Rationale 与 Rejected alternatives。
   conclusion: `**Decision**: Run large exports as a background job and report progress in a toast.
 - Exports above 1,000 items move to the job queue; smaller exports stay instant.
 - The toast shows progress and links to the file when it is ready.
@@ -666,12 +666,12 @@ export const DEMO_DISCUSSION = {
 `,
 };
 
-/// 示範用的 git 身分：示範 workspace 內的 .meta.yaml 會記下 created_by，
-/// 沿用使用者的全域 git 設定就會把真名與 email 拍進截圖裡。
-const DEMO_IDENTITY = { name: 'Speclink Demo', email: 'demo@speclink.invalid' };
+/// 示范用的 git 身分：示范 workspace 内的 .meta.yaml 会记下 created_by，
+/// 沿用用户的全域 git 设置就会把真名与 email 拍进截屏里。
+const DEMO_IDENTITY = { name: 'Specseal Demo', email: 'demo@specseal.invalid' };
 
-/// 示範手冊：符合 manual-pages 契約的最小一份（index、about 與取材自已封存規格的內容頁）。
-/// generated 在寫檔當下才填——要晚於封存寫下的規格時戳，手冊頁才不會被標成可能過期。
+/// 示范手册：符合 manual-pages 契约的最小一份（index、about 与取材自已封存规格的内容页）。
+/// generated 在写档当下才填——要晚于封存写下的规格时戳，手册页才不会被标成可能过期。
 export const DEMO_MANUAL = [
   {
     file: 'index.md',
@@ -749,7 +749,7 @@ The audit log answers one question: who changed what, and when.
 
 ## Scope
 
-Every page comes from the specs in \`speclink/specs/\`. The manual does not read the code.
+Every page comes from the specs in \`specseal/specs/\`. The manual does not read the code.
 
 ## Contradictions in the specs
 
@@ -761,7 +761,7 @@ None found.
   },
 ];
 
-/// 一頁手冊的完整檔案內容：六欄 frontmatter、內文、頁尾出處行。
+/// 一页手册的完整文档内容：六栏 frontmatter、内文、页脚出处行。
 export function renderManualPage(page, generated) {
   const list = (items) => `[${items.join(', ')}]`;
   const sources =
@@ -780,12 +780,12 @@ export function renderManualPage(page, generated) {
     '',
     page.body.trim(),
     '',
-    `**出處**：${sources}`,
+    `**出处**：${sources}`,
     '',
   ].join('\n');
 }
 
-/// 帶本機時區偏移的 RFC 3339 秒級時戳（manual-pages 契約的 generated 格式）。
+/// 带本机时区偏移的 RFC 3339 秒级时戳（manual-pages 契约的 generated 格式）。
 function localTimestamp(date = new Date()) {
   const pad = (n) => String(n).padStart(2, '0');
   const offset = -date.getTimezoneOffset();
@@ -799,34 +799,34 @@ function localTimestamp(date = new Date()) {
 }
 
 export function dryRunReport({ plan, workspace }) {
-  const lines = ['[dry-run] 不會搬移、建立或刪除任何檔案。', '', '將備份的狀態目錄：'];
+  const lines = ['[dry-run] 不会搬移、创建或删除任何文档。', '', '将备份的状态目录：'];
   for (const entry of plan) {
-    const note = entry.existed ? '' : '（目前不存在，還原階段改為刪除拍攝期間產生的目錄）';
+    const note = entry.existed ? '' : '（目前不存在，还原阶段改为删除拍摄期间产生的目录）';
     lines.push(`  - ${entry.label}${note}`);
-    lines.push(`      來源：${entry.source}`);
-    lines.push(`      落點：${entry.backup}`);
+    lines.push(`      来源：${entry.source}`);
+    lines.push(`      落点：${entry.backup}`);
   }
-  lines.push('', `將建立的示範 workspace：${workspace}`, '', '示範內容：');
+  lines.push('', `将创建的示范 workspace：${workspace}`, '', '示范内容：');
   for (const change of DEMO_CHANGES) {
     lines.push(`  - [${STATE_LABEL[change.state]}] ${change.name} — ${change.description}`);
   }
-  lines.push(`  - [已結論的討論] ${DEMO_DISCUSSION.topic}`);
+  lines.push(`  - [已结论的讨论] ${DEMO_DISCUSSION.topic}`);
   const severities = DEMO_REVIEW.findings.map((f) => f.severity).join('、');
-  lines.push(`  - [審查工單] ${DEMO_REVIEW.change} — 第一輪 ${severities}，不蓋章`);
+  lines.push(`  - [审查工单] ${DEMO_REVIEW.change} — 第一轮 ${severities}，不盖章`);
   for (const page of DEMO_MANUAL) {
-    lines.push(`  - [手冊頁] ${page.title}（${page.file}）`);
+    lines.push(`  - [手册页] ${page.title}（${page.file}）`);
   }
-  lines.push('', `待拍清單（每個檔名在 ${SHOT_LOCALES.map((l) => `${SHOT_DIR}/${l}/`).join(' 與 ')} 各一張）：`);
+  lines.push('', `待拍清单（每个文档名在 ${SHOT_LOCALES.map((l) => `${SHOT_DIR}/${l}/`).join(' 与 ')} 各一张）：`);
   for (const shot of SHOT_LIST) {
     lines.push(`  - ${shot.file} — ${shot.what}`);
   }
   return lines;
 }
 
-const STATE_LABEL = { proposed: '提案中', 'in-progress': '進行中', ready: '已就緒', archived: '已封存' };
+const STATE_LABEL = { proposed: '提案中', 'in-progress': '进行中', ready: '已就绪', archived: '已封存' };
 
 // ---------------------------------------------------------------------------
-// 以下為實際執行路徑（測試以注入的假 ops 覆蓋上方的純函式，不進入這一段）
+// 以下为实际运行路径（测试以注入的假 ops 覆盖上方的纯函数，不进入这一段）
 // ---------------------------------------------------------------------------
 
 const realOps = {
@@ -837,25 +837,25 @@ const realOps = {
 };
 
 function detectAppRunning() {
-  // 涵蓋安裝版與 dev 兩種執行形態：兩者的執行檔名相同，只有路徑不同。
-  return appIsRunning(spawnSync('pgrep', ['-x', 'speclink-desktop']));
+  // 涵盖安装版与 dev 两种运行形态：两者的运行文档名相同，只有路径不同。
+  return appIsRunning(spawnSync('pgrep', ['-x', 'specseal-desktop']));
 }
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { stdio: 'inherit', ...options });
   if (result.error) {
-    throw new Error(`${command} ${args.join(' ')} 無法執行：${result.error.message}`);
+    throw new Error(`${command} ${args.join(' ')} 无法运行：${result.error.message}`);
   }
   if (result.status !== 0) {
     const how = result.status === null ? `signal ${result.signal}` : result.status;
-    throw new Error(`${command} ${args.join(' ')} 以非零結束（${how}）`);
+    throw new Error(`${command} ${args.join(' ')} 以非零结束（${how}）`);
   }
 }
 
 function cli(workspace, args, options = {}) {
   const binary = checkoutCliPath();
   if (!existsSync(binary)) {
-    throw new Error(`找不到 checkout 的 CLI：${binary}——先執行 cargo build -p speclink-cli`);
+    throw new Error(`找不到 checkout 的 CLI：${binary}——先运行 cargo build -p specseal-cli`);
   }
   run(binary, args, { cwd: workspace, ...options });
 }
@@ -864,27 +864,27 @@ function cliJson(workspace, args) {
   const binary = checkoutCliPath();
   const result = spawnSync(binary, args, { cwd: workspace, encoding: 'utf8' });
   if (result.error || result.status !== 0) {
-    throw new Error(`speclink ${args.join(' ')} 失敗：${result.error?.message ?? result.stderr}`);
+    throw new Error(`specseal ${args.join(' ')} 失败：${result.error?.message ?? result.stderr}`);
   }
   return JSON.parse(result.stdout);
 }
 
-/// 造出示範 workspace。全新目錄——既有內容一律先清掉，避免上一次拍攝的殘留混進畫面。
-/// 對外開放是為了能單獨驗證示範內容，不必連帶搬動使用者的狀態目錄。
+/// 造出示范 workspace。全新目录——既有内容一律先清掉，避免上一次拍摄的残留混进画面。
+/// 对外开放是为了能单独验证示范内容，不必连带搬动用户的状态目录。
 export function createDemoWorkspace(workspace) {
   rmSync(workspace, { recursive: true, force: true });
   mkdirSync(workspace, { recursive: true });
 
   run('git', ['init', '-q', '.'], { cwd: workspace });
-  // local 設定蓋過全域：created_by 會被寫進每個 .meta.yaml。
+  // local 设置盖过全域：created_by 会被写进每个 .meta.yaml。
   run('git', ['config', 'user.name', DEMO_IDENTITY.name], { cwd: workspace });
   run('git', ['config', 'user.email', DEMO_IDENTITY.email], { cwd: workspace });
 
   cli(workspace, ['init', '--tools', 'claude']);
-  // 先 commit：task done 把當下的髒檔記進 evidence，不 commit 的話每個變更都會記到
-  // init 產生的 .speclink.yaml，審查範圍就會跨變更撞名而解析不出來。
+  // 先 commit：task done 把当下的脏档记进 evidence，不 commit 的话每个变更都会记到
+  // init 产生的 .specseal.yaml，审查范围就会跨变更撞名而解析不出来。
   run('git', ['add', '-A'], { cwd: workspace });
-  run('git', ['commit', '-q', '-m', 'Initialize Speclink'], { cwd: workspace });
+  run('git', ['commit', '-q', '-m', 'Initialize Specseal'], { cwd: workspace });
 
   for (const change of DEMO_CHANGES) {
     cli(workspace, ['new', 'change', change.name, '--description', change.description]);
@@ -893,10 +893,10 @@ export function createDemoWorkspace(workspace) {
     if (change.state === 'proposed') continue;
 
     const reviewed = change.name === DEMO_REVIEW.change;
-    // 審查基準要在標記進行中之前取，否則 review scope 會判定基準太晚。
+    // 审查基准要在标记进行中之前取，否则 review scope 会判定基准太晚。
     if (reviewed) cli(workspace, ['review', 'prepare', change.name]);
     cli(workspace, ['in-progress', 'add', change.name]);
-    // 示範檔在 task done 之前寫好，才會記進 evidence、成為審查範圍。
+    // 示范档在 task done 之前写好，才会记进 evidence、成为审查范围。
     if (reviewed) writeDemoFile(workspace, DEMO_REVIEW.file);
     const ids = cliJson(workspace, ['instructions', 'apply', '--change', change.name, '--json']).tasks.map(
       (task) => task.id,
@@ -920,7 +920,7 @@ export function createDemoWorkspace(workspace) {
     stdio: ['pipe', 'inherit', 'inherit'],
   });
 
-  const manualDir = path.join(workspace, 'speclink', 'manual');
+  const manualDir = path.join(workspace, 'specseal', 'manual');
   mkdirSync(manualDir, { recursive: true });
   const generated = localTimestamp();
   for (const page of DEMO_MANUAL) {
@@ -929,7 +929,7 @@ export function createDemoWorkspace(workspace) {
 }
 
 function writeChangeArtifacts(workspace, change) {
-  const dir = path.join(workspace, 'speclink', 'changes', change.name);
+  const dir = path.join(workspace, 'specseal', 'changes', change.name);
   writeFileSync(path.join(dir, 'proposal.md'), change.artifacts.proposal);
   writeFileSync(path.join(dir, 'design.md'), change.artifacts.design);
   writeFileSync(path.join(dir, 'tasks.md'), change.artifacts.tasks);
@@ -944,7 +944,7 @@ function writeDemoFile(workspace, file) {
   writeFileSync(target, file.body);
 }
 
-/// 凍結審查範圍後寫入第一輪，不蓋章。
+/// 冻结审查范围后写入第一轮，不盖章。
 function openReviewTicket(workspace) {
   const { change, findings } = DEMO_REVIEW;
   const { patchHash, paths } = cliJson(workspace, ['review', 'scope', change, '--json']);
@@ -961,12 +961,12 @@ function openReviewTicket(workspace) {
   });
 }
 
-/// 還原：先刪掉現場的目錄，再把備份搬回。任一步失敗都印出備份路徑——使用者至少
-/// 知道自己的設定還完整地躺在哪裡。
+/// 还原：先删掉现场的目录，再把备份搬回。任一步失败都印出备份路径——用户至少
+/// 知道自己的设置还完整地躺在哪里。
 function restoreAll({ backupRoot, workspace }) {
   const manifest = manifestPathIn(backupRoot);
   if (!existsSync(manifest)) {
-    console.log(`沒有待還原的備份（${manifest} 不存在）。`);
+    console.log(`没有待还原的备份（${manifest} 不存在）。`);
     rmSync(workspace, { recursive: true, force: true });
     return;
   }
@@ -978,7 +978,7 @@ function restoreAll({ backupRoot, workspace }) {
       if (step.action === 'restore') renameSync(step.backup, step.source);
     } catch (error) {
       throw new Error(
-        `還原 ${step.source} 失敗：${error.message}\n備份完整保留在 ${backupRoot}，手動把 ${step.backup ?? '（原本不存在）'} 搬回 ${step.source} 即可。`,
+        `还原 ${step.source} 失败：${error.message}\n备份完整保留在 ${backupRoot}，手动把 ${step.backup ?? '（原本不存在）'} 搬回 ${step.source} 即可。`,
       );
     }
   }
@@ -986,33 +986,33 @@ function restoreAll({ backupRoot, workspace }) {
   rmSync(manifestPathIn(backupRoot), { force: true });
   rmSync(backupRoot, { recursive: true, force: true });
   rmSync(workspace, { recursive: true, force: true });
-  console.log('✓ 已還原原本的 desktop 狀態，示範 workspace 已清除。');
+  console.log('✓ 已还原原本的 desktop 状态，示范 workspace 已清除。');
 }
 
 function printHandoff(workspace) {
   console.log('');
   console.log('─'.repeat(72));
-  console.log('狀態已備份，示範 workspace 已就緒：');
+  console.log('状态已备份，示范 workspace 已就绪：');
   console.log(`  ${workspace}`);
   console.log('');
-  console.log('接著請你手動完成：');
-  console.log('  1. 開啟 Speclink desktop（此時它是全新狀態，沒有任何分頁與連線）');
-  console.log('  2. 把上面這個路徑加入為專案');
-  console.log('  3. 每種介面語言各拍一輪（在設定切換語言），只擷取 app 視窗：');
+  console.log('接着请你手动完成：');
+  console.log('  1. 打开 Specseal desktop（此时它是全新状态，没有任何分页与连接）');
+  console.log('  2. 把上面这个路径加入为项目');
+  console.log('  3. 每种接口语言各拍一轮（在设置切换语言），只截取 app 窗口：');
   for (const locale of SHOT_LOCALES) {
     console.log(`     ${locale} → ${SHOT_DIR}/${locale}/`);
   }
   for (const shot of SHOT_LIST.filter((s) => s.file.startsWith('desktop-'))) {
     console.log(`       ${shot.file} — ${shot.what}`);
   }
-  console.log('     系統匣面板從選單列的 Speclink 圖示打開；它不在 layer 0，取視窗 ID 時別只找 layer 0');
-  console.log('     （server 四張另外用一次性的 server 擷取，資料目錄放在暫存區，不碰 .dev/）');
-  console.log('     （claude-code 三張不需要 desktop：在 Terminal 新視窗對示範 workspace 開 Claude Code，');
-  console.log('       用 --settings 只開 speclink-skills、清空 statusLine；只開面板、點分頁、打 #，');
-  console.log('       不按 Enter 送出提示。畫面會顯示專案路徑，示範 workspace 要建在 /Users/Shared/acme-web）');
-  console.log('  4. 拍完先完全結束 desktop app，再回到這裡按 Enter 還原');
+  console.log('     系统匣面板从菜单列的 Specseal 图标打开；它不在 layer 0，取窗口 ID 时别只找 layer 0');
+  console.log('     （server 四张另外用一次性的 server 截取，数据目录放在暂存区，不碰 .dev/）');
+  console.log('     （claude-code 三张不需要 desktop：在 Terminal 新窗口对示范 workspace 开 Claude Code，');
+  console.log('       用 --settings 只开 specseal-skills、清空 statusLine；只开面板、点分页、打 #，');
+  console.log('       不按 Enter 送出提示。画面会显示项目路径，示范 workspace 要建在 /Users/Shared/acme-web）');
+  console.log('  4. 拍完先完全结束 desktop app，再回到这里按 Enter 还原');
   console.log('');
-  console.log('中途 Ctrl+C 也會還原；若腳本整個當掉，改跑 --restore。');
+  console.log('中途 Ctrl+C 也会还原；若脚本整个当掉，改跑 --restore。');
   console.log('─'.repeat(72));
   console.log('');
 }
@@ -1020,7 +1020,7 @@ function printHandoff(workspace) {
 async function waitForEnter() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   try {
-    await new Promise((resolve) => rl.question('拍完並關閉 app 後按 Enter 還原…', resolve));
+    await new Promise((resolve) => rl.question('拍完并关闭 app 后按 Enter 还原…', resolve));
   } finally {
     rl.close();
   }
@@ -1053,7 +1053,7 @@ async function main(argv) {
     ops: realOps,
   });
 
-  // 備份已經落地：從這一刻起，任何離開路徑都必須還原。
+  // 备份已经落地：从这一刻起，任何离开路径都必须还原。
   let restored = false;
   const restoreOnce = () => {
     if (restored) return;
@@ -1067,7 +1067,7 @@ async function main(argv) {
   };
   for (const signal of ['SIGINT', 'SIGTERM']) {
     process.on(signal, () => {
-      console.log(`\n收到 ${signal}，還原中…`);
+      console.log(`\n收到 ${signal}，还原中…`);
       restoreOnce();
       process.exit(1);
     });
@@ -1082,7 +1082,7 @@ async function main(argv) {
   }
 }
 
-// node --test 匯入本模組時只取函式，不執行任何搬移。
+// node --test 导入本模块时只取函数，不运行任何搬移。
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main(process.argv.slice(2)).catch((error) => {
     console.error(`docs-screenshots: ${error.message}`);

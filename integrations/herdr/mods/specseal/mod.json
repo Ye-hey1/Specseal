@@ -1,0 +1,5 @@
+{
+  "place": "none",
+  "title": "Specseal",
+  "overlay": { "kind": "window", "key": "specseal", "width": 400, "height": 0.85 }
+}

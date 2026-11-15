@@ -1,15 +1,15 @@
-// 技能檔提示確認框（desktop-app spec「指令檔過期提示」；desktop-notice-relocation design D1）：
-// 琥珀圖示＋標題＋說明、一張細框卡三列（專案技能檔版本、Speclink 版本、檔案數），按鈕依
-// 狀態——過期／缺失三鍵「稍後」「保留現狀」「更新／安裝技能檔」、較新兩鍵「保留現狀」
-// 「更新 Speclink」。ConfirmDialog 是兩鍵式，三選項以上各自組 AlertDialog（spec「共用元件
-// 唯一來源」）。較新態不提供任何改寫動作：按「更新」把新版檔案改寫回舊內容，正是
-// 2026-08-05 事故的形狀——改開設定頁軟體更新卡。「稍後」只關框、「保留現狀」寫入既有略過
-// 記憶；更新／安裝不自行關框：成功由提示消失收合，失敗的錯誤留在內容卡下方可重試。
-// 規格資料夾遷移由同一個框承載（desktop-spec-dir-migration D2）：按下前寫明會改名或為何
-// 暫緩，遷移完成後改顯示要 commit 的路徑與提醒，直到使用者按「知道了」。
-// remote 專案的基準是 Server 提供的技能（remote-skill-delivery D6）：多一列「Server 提供的
-// 技能版本」；app 比 Server 舊時多一句說明與「更新 Speclink」，安裝或更新仍然可用——Server
-// 的技能是對的，只是舊版的 Speclink 可能認不得新指令。
+// 技能档提示确认框（desktop-app spec「指令档过期提示」；desktop-notice-relocation design D1）：
+// 琥珀图标＋标题＋说明、一张细框卡三列（项目技能档版本、Specseal 版本、文件数），按钮依
+// 状态——过期／缺失三键「稍后」「保留现状」「更新／安装技能档」、较新两键「保留现状」
+// 「更新 Specseal」。ConfirmDialog 是两键式，三选项以上各自组 AlertDialog（spec「共用组件
+// 唯一来源」）。较新态不提供任何改写动作：按「更新」把新版文件改写回旧内容，正是
+// 2026-08-05 事故的形状——改开设置页软件更新卡。「稍后」只关框、「保留现状」写入既有略过
+// 记忆；更新／安装不自行关框：成功由提示消失收合，失败的错误留在内容卡下方可重试。
+// 规格文件夹迁移由同一个框承载（desktop-spec-dir-migration D2）：按下前写明会改名或为何
+// 暂缓，迁移完成后改显示要 commit 的路径与提醒，直到用户按「知道了」。
+// remote 项目的基准是 Server 提供的技能（remote-skill-delivery D6）：多一列「Server 提供的
+// 技能版本」；app 比 Server 旧时多一句说明与「更新 Specseal」，安装或更新仍然可用——Server
+// 的技能是对的，只是旧版的 Specseal 可能认不得新指令。
 import { AlertCircle } from "lucide-react";
 import {
   AlertDialog,
@@ -25,7 +25,7 @@ import {
   SEMANTIC_TONE,
   cn,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { AssetUpdateResult, MigrationProbe } from "../adapter/workspace";
 import type { AssetPromptState } from "../assetPrompt";
@@ -34,17 +34,17 @@ export interface AssetNoticeDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   prompt: AssetPromptState | null;
-  /** 再生進行中：全部動作鍵停用。 */
+  /** 再生进行中：全部动作键停用。 */
   busy: boolean;
-  /** 上次更新／安裝的失敗訊息（呈現於內容卡下方、可重試）。 */
+  /** 上次更新／安装的失败消息（呈现于内容卡下方、可重试）。 */
   error: string | null;
   onApply: () => void;
   onDismiss: () => void;
-  /** 較新態的主動作：切到設定頁並捲到軟體更新卡。 */
+  /** 较新态的主动作：切到设置页并卷到软件更新卡。 */
   onOpenSettingsUpdate: () => void;
-  /** 上次更新的遷移結果；有值時顯示完成態（提示已消失也照樣顯示）。 */
+  /** 上次更新的迁移结果；有值时显示完成态（提示已消失也照样显示）。 */
   migrated: AssetUpdateResult["migrated"] | null;
-  /** 完成態的「知道了」。 */
+  /** 完成态的「知道了」。 */
   onDone: () => void;
 }
 
@@ -66,19 +66,19 @@ export function AssetNoticeDialog({
   const newer = prompt.kind === "newer";
   const migrateOnly = prompt.kind === "migrate";
   const { server } = prompt;
-  // 版本列同一套技能檔版號（專案的標記、Server 提供的、這版 Speclink 帶的），一眼比得出誰新誰舊。
+  // 版本列同一套技能档版号（项目的标记、Server 提供的、这版 Specseal 带的），一眼比得出谁新谁旧。
   const rows: Array<[string, string]> = [
     [t("assets.dialog.projectVersion"), prompt.projectVersion ?? "—"],
     ...(server ? [[t("assets.dialog.serverVersion"), prompt.version] as [string, string]] : []),
     [t("assets.dialog.appVersion"), server ? server.appVersion : prompt.version],
     [t(newer ? "assets.dialog.revertCount" : "assets.dialog.fileCount"), String(prompt.fileCount)],
   ];
-  // remote 專案的過期與缺失另有文案：換上的是 Server 提供的內容，不是「你的 Speclink 這一版」。
+  // remote 项目的过期与缺失另有文案：换上的是 Server 提供的内容，不是「你的 Specseal 这一版」。
   const text = server && (prompt.kind === "stale" || prompt.kind === "missing") ? SERVER_TEXT[prompt.kind] : null;
   const title = text?.title ?? `assets.dialog.${prompt.kind}Title`;
   const desc = text?.desc ?? `assets.dialog.${prompt.kind}Desc`;
   return (
-    // 更新進行中不收框（含 Esc）：完成態與錯誤都要留在框內。
+    // 更新进行中不收框（含 Esc）：完成态与错误都要留在框内。
     <AlertDialog open={open} onOpenChange={(next) => !busy && onOpenChange(next)}>
       <AlertDialogContent data-testid="asset-notice-dialog">
         <AlertDialogHeader>
@@ -149,21 +149,21 @@ export function AssetNoticeDialog({
   );
 }
 
-/** 主動作的文案：過期→更新、缺失→安裝、只剩遷移→更新規格資料夾（較新態沒有這個鍵）。 */
+/** 主动作的文案：过期→更新、缺失→安装、只剩迁移→更新规格文件夹（较新态没有这个键）。 */
 const APPLY_LABEL: Record<Exclude<AssetPromptState["kind"], "newer">, string> = {
   stale: "assets.dialog.update",
   missing: "assets.dialog.install",
   migrate: "assets.dialog.migrate",
 };
 
-/** remote 專案的標題與說明：基準是 Server 提供的技能。 */
+/** remote 项目的标题与说明：基准是 Server 提供的技能。 */
 const SERVER_TEXT = {
   stale: { title: "assets.dialog.serverStaleTitle", desc: "assets.dialog.serverStaleDesc" },
   missing: { title: "assets.dialog.missingTitle", desc: "assets.dialog.serverMissingDesc" },
 } as const;
 
-/** 按下更新前的遷移說明：會改名什麼，或這次為何不改名——暫緩只出現在技能檔過期或缺失的
- * 提示裡，按更新仍會更新技能檔，要講明資料夾不動。 */
+/** 按下更新前的迁移说明：会改名什么，或这次为何不改名——暂缓只出现在技能档过期或缺失的
+ * 提示里，按更新仍会更新技能档，要讲明文件夹不动。 */
 function MigrationNote({ migration }: { migration: Exclude<MigrationProbe, { state: "none" }> }) {
   const { t, tn } = useI18n();
   const lines =
@@ -193,7 +193,7 @@ function MigrationNote({ migration }: { migration: Exclude<MigrationProbe, { sta
   );
 }
 
-/** 遷移完成態：做了什麼、要 commit 的路徑；資料夾改名時再加兩則提醒（與 CLI 相同）。 */
+/** 迁移完成态：做了什么、要 commit 的路径；文件夹改名时再加两则提醒（与 CLI 相同）。 */
 function MigratedDialog({
   open,
   migrated,
@@ -225,7 +225,7 @@ function MigratedDialog({
           ))}
         </ul>
         <AlertDialogFooter>
-          {/* 按鈕與 Esc 都經 onOpenChange 收框，onDone 只走一次。 */}
+          {/* 按钮与 Esc 都经 onOpenChange 收框，onDone 只走一次。 */}
           <AlertDialogAction>{t("assets.done.close")}</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

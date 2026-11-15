@@ -1,15 +1,15 @@
 import type { ChangeItem, ChangeRequirementOverlap } from "./adapter";
 
-/** SDD 生命週期階段（不含 Archived——歸檔由歸檔清單另計）。 */
+/** SDD 生命周期阶段（不含 Archived——归档由归档清单另计）。 */
 export type Stage = "proposed" | "in-progress" | "ready";
 
-/** 看板欄位順序（左→右流動）。顯示標籤經 i18n：t(`stage.${stage}`)。 */
+/** 看板字段顺序（左→右流动）。显示标签经 i18n：t(`stage.${stage}`)。 */
 export const STAGES: Stage[] = ["proposed", "in-progress", "ready"];
 
 /**
- * 各階段的徽章／chip 配色——每階一色相（提案中＝主色、進行中＝藍、已就緒＝綠），
- * 色值在 theme.css 的 stage-* token。看板欄計數徽章、討論欄 promoted chip 與
- * 系統匣分區計數共用此單一來源，避免多處配色分歧。
+ * 各阶段的徽章／chip 配色——每阶一色相（提案中＝主色、进行中＝蓝、已就绪＝绿），
+ * 色值在 theme.css 的 stage-* token。看板栏计数徽章、讨论栏 promoted chip 与
+ * 系统匣分区计数共用此单一来源，避免多处配色分歧。
  */
 export const STAGE_BADGE: Record<Stage, string> = {
   proposed: "bg-stage-proposed/10 text-stage-proposed",
@@ -17,33 +17,33 @@ export const STAGE_BADGE: Record<Stage, string> = {
   ready: "bg-stage-ready text-primary-foreground",
 };
 
-/** 各階段的進度條填色——看板欄位進度條與系統匣面板進度條共用。 */
+/** 各阶段的进度条填色——看板字段进度条与系统匣面板进度条共用。 */
 export const STAGE_BAR: Record<Stage, string> = {
   proposed: "bg-stage-proposed",
   "in-progress": "bg-stage-in-progress",
   ready: "bg-stage-ready",
 };
 
-/** 各階段的圖示色——與 STAGE_BAR 同色相；看板欄標題與面板分區標題共用。 */
+/** 各阶段的图标色——与 STAGE_BAR 同色相；看板栏标题与面板分区标题共用。 */
 export const STAGE_ICON: Record<Stage, string> = {
   proposed: "text-stage-proposed",
   "in-progress": "text-stage-in-progress",
   ready: "text-stage-ready",
 };
 
-/** 討論的色相（桃紫，專屬）——看板討論欄標頭與系統匣討論分區的圖示與計數共用。 */
+/** 讨论的色相（桃紫，专属）——看板讨论栏标头与系统匣讨论分区的图标与计数共用。 */
 export const DISCUSSION_TONE = {
   icon: "text-stage-discussion",
   badge: "bg-stage-discussion/10 text-stage-discussion",
 } as const;
 
 /**
- * 由生命週期標記派生 change 的階段（優先序由上而下）：
- * - 任務全完成（總數 > 0 且完成數 == 總數）→ ready（可歸檔，全完成優先）
- * - meta 含 started_at 或任務完成數 > 0 → in-progress（任務進度涵蓋手改
- *   tasks.md、agent 直改、git pull 等繞過工具的寫入路徑——派生管顯示，
- *   開工歸屬仍只由 meta 的 started_* 誠實記錄）
- * - 其餘 → proposed（剛 propose 完、全未勾、未開工）
+ * 由生命周期标记派生 change 的阶段（优先序由上而下）：
+ * - 任务全完成（总数 > 0 且完成数 == 总数）→ ready（可归档，全完成优先）
+ * - meta 含 started_at 或任务完成数 > 0 → in-progress（任务进度涵盖手改
+ *   tasks.md、agent 直改、git pull 等绕过工具的写入路径——派生管显示，
+ *   开工归属仍只由 meta 的 started_* 诚实记录）
+ * - 其余 → proposed（刚 propose 完、全未勾、未开工）
  */
 export function changeStage(c: ChangeItem): Stage {
   if (c.totalTasks > 0 && c.completedTasks >= c.totalTasks) return "ready";
@@ -52,10 +52,10 @@ export function changeStage(c: ChangeItem): Stage {
 }
 
 /**
- * 待手動判定的單一入口（spec desktop-app「看板卡片的待手動標示」）：寫碼任務
- * 全完成、僅餘未勾 `[M]` 時回傳剩餘手測項數，其餘回 0——含兩個不浮現的邊界：
- * remote 摘要缺寫碼進度欄位（undefined 不猜、不以全量計數代打），以及
- * codeTotal 為 0 的全手動變更（「寫碼全完成」的空真值不視為待手動）。
+ * 待手动判定的单一入口（spec desktop-app「看板卡片的待手动标示」）：写码任务
+ * 全完成、仅余未勾 `[M]` 时回传剩余手测项数，其余回 0——含两个不浮现的边界：
+ * remote 摘要缺写码进度字段（undefined 不猜、不以全量计数代打），以及
+ * codeTotal 为 0 的全手动变更（「写码全完成」的空真值不视为待手动）。
  */
 export function awaitingManualCount(c: ChangeItem): number {
   const remaining = c.totalTasks - c.completedTasks;
@@ -64,35 +64,35 @@ export function awaitingManualCount(c: ChangeItem): number {
 }
 
 /**
- * 波次讀取入口（spec desktop-app「看板卡片的波次與阻擋標示」）：清單項帶 wave
- * 才有波次；remote 摘要、plan 成環或壞 meta 時欄位缺席，回 null——卡片與排程
- * 分頁只讀結果、不自行判斷缺席原因。
+ * 波次读取入口（spec desktop-app「看板卡片的波次与阻挡标示」）：清单项带 wave
+ * 才有波次；remote 摘要、plan 成环或坏 meta 时字段缺席，回 null——卡片与调度
+ * 分页只读结果、不自行判断缺席原因。
  */
 export function planWave(c: ChangeItem): number | null {
   return typeof c.wave === "number" ? c.wave : null;
 }
 
-/** 阻擋清單讀取入口：只在波次存在時成立（排程欄位同進同出），其餘回空陣列。 */
+/** 阻挡清单读取入口：只在波次存在时成立（调度字段同进同出），其余回空数组。 */
 export function planBlockedBy(c: ChangeItem): string[] {
   return planWave(c) === null ? [] : (c.blockedBy ?? []);
 }
 
-/** requirement 級重疊讀取入口：與 planBlockedBy 同一規則；舊 server 缺欄位時也回空陣列。 */
+/** requirement 级重叠读取入口：与 planBlockedBy 同一规则；旧 server 缺字段时也回空数组。 */
 export function planRequirementOverlap(c: ChangeItem): ChangeRequirementOverlap[] {
   return planWave(c) === null ? [] : (c.requirementOverlap ?? []);
 }
 
-/** 封存順序讀取入口（本變更該排在其後封存的變更）：與 planBlockedBy 同一規則。 */
+/** 封存顺序读取入口（本变更该排在其后封存的变更）：与 planBlockedBy 同一规则。 */
 export function planArchiveAfter(c: ChangeItem): string[] {
   return planWave(c) === null ? [] : (c.archiveAfter ?? []);
 }
 
-/** 波次文字（card.wave）：卡片章、面板列首、排程分頁共用同一處組裝。 */
+/** 波次文本（card.wave）：卡片章、面板列首、调度分页共用同一处组装。 */
 export function planWaveLabel(wave: number, t: (key: string) => string): string {
   return t("card.wave").replace("{n}", String(wave));
 }
 
-/** 前置清單文字（card.blockedTitle）：名稱以語系分隔符相連，卡片 tooltip 與面板列 title 共用。 */
+/** 前置清单文本（card.blockedTitle）：名称以语系分隔符相连，卡片 tooltip 与面板列 title 共用。 */
 export function planBlockedLabel(blockedBy: readonly string[], t: (key: string) => string): string {
   return t("card.blockedTitle").replace("{names}", blockedBy.join(t("common.listSeparator")));
 }

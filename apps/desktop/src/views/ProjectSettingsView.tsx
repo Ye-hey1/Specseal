@@ -1,7 +1,7 @@
-// 專案設定（spec 需求「設定頁圖形化讀寫兩層設定」「設定頁編輯專案說明與產出規則」；
-// desktop-settings-mode design D8）：依專案設定分類欄的所在分類渲染一頁——專案說明、產出規則、
-// 審查規則、子代理模型、產出流程、.speclink.yaml（remote 無此頁）。狀態與動作在 useProjectSettings，各頁共用、
-// 切頁不重載。
+// 项目设置（spec 需求「设置页图形化读写两层设置」「设置页编辑项目说明与产出规则」；
+// desktop-settings-mode design D8）：依项目设置分类栏的所在分类渲染一页——项目说明、产出规则、
+// 审查规则、子代理模型、产出流程、.specseal.yaml（remote 无此页）。状态与动作在 useProjectSettings，各页共用、
+// 切页不重载。
 import { useEffect } from "react";
 
 import type { WorkspaceSettingsProvider } from "../session";
@@ -9,19 +9,19 @@ import type { ProjectSettingsSection } from "../settingsCatalog";
 import { ContextPage } from "./project-settings/ContextPage";
 import { ReviewRulesPage } from "./project-settings/ReviewRulesPage";
 import { RulesPage } from "./project-settings/RulesPage";
-import { SpeclinkPage } from "./project-settings/SpeclinkPage";
+import { SpecsealPage } from "./project-settings/SpecsealPage";
 import { SubagentModelPage } from "./project-settings/SubagentModelPage";
 import { WorkflowPage } from "./project-settings/WorkflowPage";
 import { useProjectSettings } from "./project-settings/useProjectSettings";
 
 export interface ProjectSettingsViewProps {
-  /** 活躍 session 的設定面（root 已綁定；workspace-session 決策 3）。 */
+  /** 活跃 session 的设置面（root 已绑定；workspace-session 决策 3）。 */
   settings: WorkspaceSettingsProvider;
-  /** 專案設定分類欄的所在分類（remote 專案的 .speclink.yaml 已由 App 退回專案說明）。 */
+  /** 项目设置分类栏的所在分类（remote 项目的 .specseal.yaml 已由 App 退回项目说明）。 */
   section: ProjectSettingsSection;
-  /** 回報兩層設定檔的解析失敗——專案設定分類欄據此掛警示點（desktop-settings-mode design D2）。 */
-  onParseErrors?: (errors: { config: boolean; speclink: boolean }) => void;
-  /** 回報有無未存修改——App 的返回據此先問要不要捨棄。 */
+  /** 回报两层设置档的解析失败——项目设置分类栏据此挂警示点（desktop-settings-mode design D2）。 */
+  onParseErrors?: (errors: { config: boolean; specseal: boolean }) => void;
+  /** 回报有无未存修改——App 的返回据此先问要不要舍弃。 */
   onDirtyChange?: (dirty: boolean) => void;
 }
 
@@ -33,19 +33,19 @@ export function ProjectSettingsView({
 }: ProjectSettingsViewProps) {
   const ps = useProjectSettings(settings);
   const configParseError = ps !== null && ps.snap.workflow.parseError !== null;
-  const speclinkParseError = ps !== null && ps.snap.app.parseError !== null;
+  const specsealParseError = ps !== null && ps.snap.app.parseError !== null;
   const dirty = ps !== null && ps.dirty;
   useEffect(() => {
-    onParseErrors?.({ config: configParseError, speclink: speclinkParseError });
-  }, [onParseErrors, configParseError, speclinkParseError]);
+    onParseErrors?.({ config: configParseError, specseal: specsealParseError });
+  }, [onParseErrors, configParseError, specsealParseError]);
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [onDirtyChange, dirty]);
-  // 卸載（離開專案設定、切到設定頁還沒就緒的分頁）時清掉回報：分類欄不沿用上一個專案的
-  // 警示點，返回也不再問。
+  // 卸载（离开项目设置、切到设置页还没就绪的分页）时清掉回报：分类栏不沿用上一个项目的
+  // 警示点，返回也不再问。
   useEffect(
     () => () => {
-      onParseErrors?.({ config: false, speclink: false });
+      onParseErrors?.({ config: false, specseal: false });
       onDirtyChange?.(false);
     },
     [onParseErrors, onDirtyChange],
@@ -59,7 +59,7 @@ export function ProjectSettingsView({
       {section === "review" && <ReviewRulesPage ps={ps} />}
       {section === "subagent" && <SubagentModelPage ps={ps} />}
       {section === "workflow" && <WorkflowPage ps={ps} />}
-      {section === "speclink" && <SpeclinkPage ps={ps} />}
+      {section === "specseal" && <SpecsealPage ps={ps} />}
     </div>
   );
 }

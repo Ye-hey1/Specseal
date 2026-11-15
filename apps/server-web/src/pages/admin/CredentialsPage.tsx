@@ -17,7 +17,7 @@ import {
   useI18n,
   usePaging,
   PageHeader,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { useAsync } from "../../lib/useAsync";
 import { useListScroll } from "../../lib/useListScroll";
@@ -29,21 +29,21 @@ import { RevocationPill } from "../../components/RevocationPill";
 import { RevokeButton } from "../../components/RevokeButton";
 import { AdminError, AdminLoading } from "./states";
 
-// 管理憑證頁（server-admin, server-web-console「管理列表提供搜尋、篩選、分頁與具引導的
-// 空狀態」；server-web-list-pages design D2、D3、D6、D8）：全站存取金鑰與裝置憑證的 metadata
-// （絕不呈現祕密——payload 亦無祕密），以列表卡頂端兩個分頁區分。列不可點，列尾是狀態籤與
-// 滑過才出現的撤銷鈕；撤銷先以確認框確認後立即生效。
+// 管理凭证页（server-admin, server-web-console「管理列表提供搜索、筛选、分页与具引导的
+// 空状态」；server-web-list-pages design D2、D3、D6、D8）：全站访问密钥与设备凭证的 metadata
+// （绝不呈现秘密——payload 亦无秘密），以列表卡顶端两个分页区分。列不可点，列尾是状态签与
+// 滑过才出现的撤销钮；撤销先以确认框确认后立即生效。
 
 type Confirm = { title: string; run: () => Promise<void> };
 
-/** 關鍵字比對：以使用者看得到的欄位為準，不含不透明 id。 */
+/** 关键字比对：以用户看得到的字段为准，不含不透明 id。 */
 function matches(haystack: string[], keyword: string): boolean {
   const needle = keyword.trim().toLowerCase();
   if (!needle) return true;
   return haystack.some((field) => field.toLowerCase().includes(needle));
 }
 
-/** 列說明以「 · 」串接各段；窄螢幕只留第一段（前綴或使用者）。 */
+/** 列说明以「 · 」串接各段；窄屏幕只留第一段（前缀或用户）。 */
 function joinMeta(parts: ReactNode[], narrow: boolean): ReactNode {
   const shown = narrow ? parts.slice(0, 1) : parts;
   return shown.map((part, i) => (
@@ -91,7 +91,7 @@ export function CredentialsPage() {
   const nothingAtAll =
     data != null && data.pats.length === 0 && data.deviceFamilies.length === 0;
 
-  // 搜尋、篩選與切分頁都回到第 1 頁。
+  // 搜索、筛选与切分页都回到第 1 页。
   function firstPage() {
     patPaging.setPage(1);
     devicePaging.setPage(1);
@@ -105,8 +105,8 @@ export function CredentialsPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4">
-      {/* 建立入口常駐而不只出現在空狀態：建完第一把之後就再也找不到新增的地方了。
-          存取金鑰只能建給自己，所以指向帳號頁——這裡沒有代建的 API。 */}
+      {/* 创建入口常驻而不只出现在空状态：建完第一把之后就再也找不到添加的地方了。
+          访问密钥只能建给自己，所以指向帐号页——这里没有代建的 API。 */}
       <PageHeader
         level={1}
         title={t("credentials.title")}
@@ -187,7 +187,7 @@ export function CredentialsPage() {
                 )
               }
             >
-              {/* 該類完全沒有時說明用途（不放建立鈕，建立入口常駐頁首）；有資料但篩不出來才是無符合。 */}
+              {/* 该类完全没有时说明用途（不放创建钮，创建入口常驻页眉）；有数据但筛不出来才是无符合。 */}
               <TabsContent value="keys">
                 {data.pats.length === 0 ? (
                   <EmptyState icon={KeyRound} title={t("credentials.noKeysTitle")} description={t("credentials.noKeysBody")} />

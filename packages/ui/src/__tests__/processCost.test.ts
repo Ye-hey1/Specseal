@@ -1,5 +1,5 @@
-// spec desktop-app「已封存頁的流程成本摘要」的彙總規則：中位數、P90、樣本數與
-// 顯示格式（process-cost-metrics design D4：彙總在呈現層的純函式）。
+// spec desktop-app「已封存页的流程成本摘要」的汇总规则：中位数、P90、样本数与
+// 显示格式（process-cost-metrics design D4：汇总在呈现层的纯函数）。
 import { describe, it, expect } from "vitest";
 
 import type { ArchivedItem } from "../adapter";
@@ -19,14 +19,14 @@ describe("median and P90", () => {
   it("takes the ⌈0.9 × n⌉-th smallest value as P90", () => {
     expect(p90([100, 200, 400])).toBe(400);
     expect(p90([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])).toBe(9);
-    // 0.9 × 30 在浮點數是 27.000000000000004——位置仍是第 27 個。
+    // 0.9 × 30 在浮点数是 27.000000000000004——位置仍是第 27 个。
     expect(p90(Array.from({ length: 30 }, (_, i) => i + 1))).toBe(27);
   });
 });
 
 describe("summarizeProcessCost", () => {
   it("summarizes doc lines, tasks and lead days with their sample counts", () => {
-    // Scenario「顯示中位數、P90 與樣本數」。
+    // Scenario「显示中位数、P90 与样本数」。
     const summary = summarizeProcessCost([
       item("a", { docLines: 100, tasksTotal: 4, leadDays: 0 }),
       item("b", { docLines: 200, tasksTotal: 6, leadDays: 0 }),
@@ -40,7 +40,7 @@ describe("summarizeProcessCost", () => {
   });
 
   it("averages the two middle values of an even sample", () => {
-    // Scenario「偶數筆取中間兩值平均」。
+    // Scenario「偶数笔取中间两值平均」。
     const summary = summarizeProcessCost([
       item("a", { docLines: 10, leadDays: 0, leadHours: 6 }),
       item("b", { docLines: 20, leadDays: 1, leadHours: 30.5 }),
@@ -51,7 +51,7 @@ describe("summarizeProcessCost", () => {
   });
 
   it("counts only the items that carry a field and leaves out numbers with no samples", () => {
-    // Scenario「舊記錄沒有輪數時不顯示該項」＋輪數各自計樣本。
+    // Scenario「旧记录没有轮数时不显示该项」＋轮数各自计样本。
     const summary = summarizeProcessCost([
       item("old", { docLines: 300, leadDays: 2 }),
       item("new", { docLines: 100, leadDays: 0, leadHours: 5, reviewRounds: 3 }),
@@ -63,7 +63,7 @@ describe("summarizeProcessCost", () => {
   });
 
   it("returns an empty summary when no item carries a process cost field", () => {
-    // Scenario「沒有資料時整個摘要不出現」：沒有封存變更，或遠端清單只帶任務數。
+    // Scenario「没有数据时整个摘要不出现」：没有封存变更，或远程清单只带任务数。
     expect(summarizeProcessCost([])).toEqual({});
     expect(
       summarizeProcessCost([item("remote-a", { tasksTotal: 4 }), item("remote-b", { tasksTotal: 6 })]),

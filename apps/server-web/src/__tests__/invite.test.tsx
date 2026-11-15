@@ -4,9 +4,9 @@ import userEvent from "@testing-library/user-event";
 import { App } from "../App";
 import { WebApiError } from "../api/client";
 
-// 邀請接受流程（server-identity「邀請一次性且到期失效」, D2／D3）。token 由 URL path
-// 帶入；有效邀請顯示設定密碼表單，提交後由 typed client 建帳號並自動登入，SPA 依
-// Server 回傳的 destination 導向；無效邀請顯示不可區分的「邀請無效」且無表單。
+// 邀请接受流程（server-identity「邀请一次性且到期失效」, D2／D3）。token 由 URL path
+// 带入；有效邀请显示设置密码表单，提交后由 typed client 建帐号并自动登录，SPA 依
+// Server 回传的 destination 导向；无效邀请显示不可区分的「邀请无效」且无表单。
 
 const UNAUTH = { authenticated: false, user: null, home: "/login" };
 
@@ -39,27 +39,27 @@ beforeEach(() => {
   })) as unknown as typeof window.matchMedia;
 });
 
-describe("邀請接受流程", () => {
-  it("有效邀請顯示 email 與設定密碼表單", async () => {
+describe("邀请接受流程", () => {
+  it("有效邀请显示 email 与设置密码表单", async () => {
     renderAt("/invite/tok123", makeClient());
-    expect(await screen.findByRole("heading", { level: 1, name: "接受邀請" })).toBeTruthy();
-    expect(screen.getByText("為 invitee@example.com 設定登入密碼；建立後會直接登入。")).toBeTruthy();
-    // 密碼欄上方兩列唯讀資訊：電子郵件與伺服器。
-    const info = screen.getByText("伺服器").closest("dl") as HTMLElement;
-    expect(within(info).getByText("電子郵件")).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 1, name: "接受邀请" })).toBeTruthy();
+    expect(screen.getByText("为 invitee@example.com 设置登录密码；创建后会直接登录。")).toBeTruthy();
+    // 密码栏上方两列唯读信息：电子邮件与服务器。
+    const info = screen.getByText("服务器").closest("dl") as HTMLElement;
+    expect(within(info).getByText("电子邮件")).toBeTruthy();
     expect(within(info).getByText("invitee@example.com")).toBeTruthy();
     expect(within(info).getByText(window.location.host)).toBeTruthy();
-    expect(screen.getByLabelText(/密碼|password/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /建立帳號|接受邀請|設定密碼/ })).toBeTruthy();
+    expect(screen.getByLabelText(/密码|password/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /创建帐号|接受邀请|设置密码/ })).toBeTruthy();
   });
 
-  it("提交密碼呼叫 acceptInvitation 並帶 token 與密碼", async () => {
+  it("提交密码调用 acceptInvitation 并带 token 与密码", async () => {
     const acceptInvitation = vi.fn(async () => ({ destination: "/account" }));
     const client = makeClient({ acceptInvitation });
     renderAt("/invite/tok123", client);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/密碼|password/i), "hunter2password");
-    await user.click(screen.getByRole("button", { name: /建立帳號|接受邀請|設定密碼/ }));
+    await user.type(await screen.findByLabelText(/密码|password/i), "hunter2password");
+    await user.click(screen.getByRole("button", { name: /创建帐号|接受邀请|设置密码/ }));
     await waitFor(() => expect(acceptInvitation).toHaveBeenCalledOnce());
     expect(acceptInvitation).toHaveBeenCalledWith(
       "tok123",
@@ -67,30 +67,30 @@ describe("邀請接受流程", () => {
     );
   });
 
-  it("無效邀請顯示邀請無效，且無設定密碼表單", async () => {
+  it("无效邀请显示邀请无效，且无设置密码表单", async () => {
     const client = makeClient({
       getInvitation: vi.fn(async () => {
-        throw new WebApiError(404, "invalid_invitation", "邀請無效");
+        throw new WebApiError(404, "invalid_invitation", "邀请无效");
       }),
     });
     renderAt("/invite/bad", client);
     const notice = await screen.findByRole("alert");
-    expect(within(notice).getByRole("heading", { level: 1, name: "邀請無效" })).toBeTruthy();
+    expect(within(notice).getByRole("heading", { level: 1, name: "邀请无效" })).toBeTruthy();
     expect(notice.querySelector("svg")?.getAttribute("class")).toContain("text-status-warning");
     expect(document.querySelectorAll("input")).toHaveLength(0);
   });
 
-  it("接受失敗的欄位錯誤以 role=alert 宣告", async () => {
+  it("接受失败的字段错误以 role=alert 声明", async () => {
     const client = makeClient({
       acceptInvitation: vi.fn(async () => {
-        throw new WebApiError(400, "validation_error", "密碼太短", { password: "密碼至少 8 碼" });
+        throw new WebApiError(400, "validation_error", "密码太短", { password: "密码至少 8 码" });
       }),
     });
     renderAt("/invite/tok123", client);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/密碼|password/i), "x");
-    await user.click(screen.getByRole("button", { name: /建立帳號|接受邀請|設定密碼/ }));
+    await user.type(await screen.findByLabelText(/密码|password/i), "x");
+    await user.click(screen.getByRole("button", { name: /创建帐号|接受邀请|设置密码/ }));
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("密碼至少 8 碼");
+    expect(alert.textContent).toContain("密码至少 8 码");
   });
 });

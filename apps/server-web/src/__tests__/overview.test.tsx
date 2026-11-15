@@ -3,10 +3,10 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { makeAdminClient, renderAt, setViewport } from "./helpers/adminHarness";
 
-// 管理總覽（server-web-console「總覽提供可行動入口與待辦」；server-web-list-pages design D10）：
-// 768px 置中欄；頂端四格數字磚（與 desktop 閱讀卡同款、每格可點進對應頁），其下「需要處理」
-// 「系統健康」「最近活動」三張設定型卡。沒有待處理事項時整張卡不渲染——空標題與空清單只是
-// 視覺噪音。識別資料結構版本屬系統健康摘要，不是獨立數字磚。
+// 管理总览（server-web-console「总览提供可行动入口与待办」；server-web-list-pages design D10）：
+// 768px 置中栏；顶端四格数字砖（与 desktop 阅读卡同款、每格可点进对应页），其下「需要处理」
+// 「系统健康」「最近活动」三张设置型卡。没有待处理事项时整张卡不渲染——空标题与空清单只是
+// 视觉噪音。识别数据结构版本属系统健康摘要，不是独立数字砖。
 
 const HEALTHY = {
   activeUsers: 2,
@@ -32,14 +32,14 @@ const HEALTHY = {
 
 beforeEach(() => setViewport(false));
 
-/** 主內容區內的數字磚（側欄也有「使用者」等連結，查詢限定在主內容區）。 */
+/** 主内容区内的数字砖（侧栏也有「用户」等链接，查找限定在主内容区）。 */
 const tiles = () => Array.from(screen.getByRole("main").querySelectorAll<HTMLElement>("[data-doc-tile]"));
 
-describe("總覽數字磚與版面", () => {
-  it("四格數字磚皆為連結，目的地依序為使用者、專案、憑證與邀請中分頁，標籤帶次要計數", async () => {
+describe("总览数字砖与版面", () => {
+  it("四格数字砖皆为链接，目的地依序为用户、项目、凭证与邀请中分页，标签带次要计数", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    // 標題在資料閘門之外就渲染，不能當等待錨點——等一個依賴資料的區塊。
-    await screen.findByRole("region", { name: "系統健康" });
+    // 标题在数据闸门之外就渲染，不能当等待锚点——等一个依赖数据的区块。
+    await screen.findByRole("region", { name: "系统健康" });
     expect(tiles().map((tile) => tile.tagName)).toEqual(["A", "A", "A", "A"]);
     expect(tiles().map((tile) => tile.getAttribute("href"))).toEqual([
       "/admin/users",
@@ -48,69 +48,69 @@ describe("總覽數字磚與版面", () => {
       "/admin/users?tab=pending",
     ]);
     expect(tiles().map((tile) => tile.textContent)).toEqual([
-      "2使用者 · 停權 1",
-      "3專案 · 儲存庫 4",
-      "5憑證 · 有效",
-      "1待啟用 · 邀請未使用",
+      "2用户 · 停权 1",
+      "3项目 · 保存库 4",
+      "5凭证 · 有效",
+      "1待激活 · 邀请未使用",
     ]);
   });
 
-  it("點待啟用數字磚直接看到使用者頁的邀請中分頁", async () => {
+  it("点待激活数字砖直接看到用户页的邀请中分页", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    await screen.findByRole("region", { name: "系統健康" });
+    await screen.findByRole("region", { name: "系统健康" });
     const user = userEvent.setup();
     await user.click(tiles()[3]);
-    const pending = await screen.findByRole("tab", { name: /^邀請中/ });
+    const pending = await screen.findByRole("tab", { name: /^邀请中/ });
     expect(pending.getAttribute("aria-selected")).toBe("true");
   });
 
-  it("內容欄 768px 置中", async () => {
+  it("内容栏 768px 置中", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    await screen.findByRole("region", { name: "系統健康" });
+    await screen.findByRole("region", { name: "系统健康" });
     const column = screen
-      .getByRole("heading", { level: 1, name: "總覽" })
+      .getByRole("heading", { level: 1, name: "总览" })
       .closest("[data-page-header]")?.parentElement as HTMLElement;
     expect(column.className).toContain("max-w-[768px]");
     expect(column.className).toContain("mx-auto");
   });
 
-  it("識別資料結構版本呈現於系統健康摘要，而非獨立數字磚", async () => {
+  it("识别数据结构版本呈现于系统健康摘要，而非独立数字砖", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    const health = await screen.findByRole("region", { name: "系統健康" });
-    const schema = within(health).getByRole("group", { name: "資料結構版本" });
+    const health = await screen.findByRole("region", { name: "系统健康" });
+    const schema = within(health).getByRole("group", { name: "数据结构版本" });
     expect(schema.textContent).toContain("v6");
     expect(tiles()).toHaveLength(4);
-    expect(screen.queryByRole("link", { name: /資料結構版本/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /数据结构版本/ })).toBeNull();
   });
 
-  it("系統健康與最近活動的標頭各自提供前往系統與稽核的入口", async () => {
+  it("系统健康与最近活动的标头各自提供前往系统与稽核的入口", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    const health = await screen.findByRole("region", { name: "系統健康" });
-    expect(within(health).getByRole("link", { name: /系統/ }).getAttribute("href")).toBe(
+    const health = await screen.findByRole("region", { name: "系统健康" });
+    expect(within(health).getByRole("link", { name: /系统/ }).getAttribute("href")).toBe(
       "/admin/system",
     );
-    const activity = screen.getByRole("region", { name: "最近活動" });
+    const activity = screen.getByRole("region", { name: "最近活动" });
     expect(within(activity).getByRole("link", { name: /稽核/ }).getAttribute("href")).toBe(
       "/admin/audit",
     );
   });
 
-  it("最近活動一列含動作名稱、對象、日期與操作者", async () => {
+  it("最近活动一列含动作名称、对象、日期与操作者", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    const activity = await screen.findByRole("region", { name: "最近活動" });
-    const row = within(activity).getByRole("group", { name: "邀請使用者 new@example.com" });
+    const activity = await screen.findByRole("region", { name: "最近活动" });
+    const row = within(activity).getByRole("group", { name: "邀请用户 new@example.com" });
     expect(row.textContent).toContain("2026-01-03 · a1");
   });
 });
 
-describe("總覽待辦區塊", () => {
-  it("無待處理事項時整塊不渲染", async () => {
+describe("总览待办区块", () => {
+  it("无待处理事项时整块不渲染", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
-    await screen.findByRole("region", { name: "系統健康" });
-    expect(screen.queryByRole("region", { name: "需要處理" })).toBeNull();
+    await screen.findByRole("region", { name: "系统健康" });
+    expect(screen.queryByRole("region", { name: "需要处理" })).toBeNull();
   });
 
-  it("無有效憑證時呈現該事項並提供建立存取金鑰入口", async () => {
+  it("无有效凭证时呈现该事项并提供创建访问密钥入口", async () => {
     renderAt(
       "/admin",
       makeAdminClient({
@@ -121,14 +121,14 @@ describe("總覽待辦區塊", () => {
         })),
       }),
     );
-    const todos = await screen.findByRole("region", { name: "需要處理" });
-    expect(todos.textContent).toContain("憑證");
-    expect(within(todos).getByRole("link", { name: /建立存取金鑰/ }).getAttribute("href")).toBe(
+    const todos = await screen.findByRole("region", { name: "需要处理" });
+    expect(todos.textContent).toContain("凭证");
+    expect(within(todos).getByRole("link", { name: /创建访问密钥/ }).getAttribute("href")).toBe(
       "/account",
     );
   });
 
-  it("有待啟用邀請時呈現該事項並連往使用者頁的邀請中分頁", async () => {
+  it("有待激活邀请时呈现该事项并连往用户页的邀请中分页", async () => {
     renderAt(
       "/admin",
       makeAdminClient({
@@ -138,15 +138,15 @@ describe("總覽待辦區塊", () => {
         })),
       }),
     );
-    const todos = await screen.findByRole("region", { name: "需要處理" });
+    const todos = await screen.findByRole("region", { name: "需要处理" });
     expect(todos.textContent).toContain("2");
-    expect(within(todos).getByRole("link", { name: /查看邀請/ }).getAttribute("href")).toBe(
+    expect(within(todos).getByRole("link", { name: /查看邀请/ }).getAttribute("href")).toBe(
       "/admin/users?tab=pending",
     );
   });
-  // fix-english-status-labels-and-plurals：英文介面數量為 1 時用單數（server-web-console「後台英文計數文案依數量使用單數或複數」）。
-  it("英文介面只有 1 位待啟用時寫「1 user has not activated yet.」", async () => {
-    localStorage.setItem("speclink.uiLocale", "en");
+  // fix-english-status-labels-and-plurals：英文接口数量为 1 时用单数（server-web-console「后台英文计数文案依数量使用单数或复数」）。
+  it("英文接口只有 1 位待激活时写「1 user has not activated yet.」", async () => {
+    localStorage.setItem("specseal.uiLocale", "en");
     try {
       renderAt(
         "/admin",
@@ -161,57 +161,57 @@ describe("總覽待辦區塊", () => {
       expect(todos.textContent).toContain("1 user has not activated yet.");
       expect(todos.textContent).not.toContain("1 users");
     } finally {
-      localStorage.removeItem("speclink.uiLocale");
+      localStorage.removeItem("specseal.uiLocale");
     }
   });
 
-  it("英文介面只有 1 個儲存庫時，專案計數卡寫「1 repository」", async () => {
-    localStorage.setItem("speclink.uiLocale", "en");
+  it("英文接口只有 1 个保存库时，项目计数卡写「1 repository」", async () => {
+    localStorage.setItem("specseal.uiLocale", "en");
     try {
       renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => ({ ...HEALTHY, projects: 1, repos: 1 })) }));
       const projectTile = await screen.findByText(/1 repository/);
       expect(projectTile.textContent).not.toContain("repositories");
     } finally {
-      localStorage.removeItem("speclink.uiLocale");
+      localStorage.removeItem("specseal.uiLocale");
     }
   });
 });
 
-// server-setup「完成 setup 即可邀請與連線」要求導向 /admin?welcome=1 顯示連線資訊；
-// server-admin「Store 不健康時 identity 管理仍可用」要求 overview 明確顯示 storeHealthy:false。
-describe("總覽的歡迎區塊與儲存後端健康", () => {
+// server-setup「完成 setup 即可邀请与连接」要求导向 /admin?welcome=1 显示连接信息；
+// server-admin「Store 不健康时 identity 管理仍可用」要求 overview 明确显示 storeHealthy:false。
+describe("总览的欢迎区块与保存后端健康", () => {
   const CONNECTION = {
-    publicUrl: "https://speclink.example",
+    publicUrl: "https://specseal.example",
     projectKey: "demo",
     repoKey: "backend",
   };
 
-  it("welcome=1 呈現初始設定完成的連線資訊三欄位且可複製", async () => {
+  it("welcome=1 呈现初始设置完成的连接信息三字段且可拷贝", async () => {
     renderAt(
       "/admin?welcome=1",
       makeAdminClient({
         getAdminOverview: vi.fn(async () => ({ ...HEALTHY, connection: CONNECTION })),
       }),
     );
-    const welcome = await screen.findByRole("region", { name: /開始使用/ });
+    const welcome = await screen.findByRole("region", { name: /开始使用/ });
     expect(within(welcome).getByText(CONNECTION.publicUrl)).toBeTruthy();
     expect(within(welcome).getByText(CONNECTION.projectKey)).toBeTruthy();
     expect(within(welcome).getByText(CONNECTION.repoKey)).toBeTruthy();
-    expect(within(welcome).getAllByRole("button", { name: /複製/ }).length).toBe(3);
+    expect(within(welcome).getAllByRole("button", { name: /拷贝/ }).length).toBe(3);
   });
 
-  it("無 welcome 參數時不呈現歡迎區塊", async () => {
+  it("无 welcome 参数时不呈现欢迎区块", async () => {
     renderAt(
       "/admin",
       makeAdminClient({
         getAdminOverview: vi.fn(async () => ({ ...HEALTHY, connection: CONNECTION })),
       }),
     );
-    await screen.findByRole("region", { name: "系統健康" });
-    expect(screen.queryByRole("region", { name: /開始使用/ })).toBeNull();
+    await screen.findByRole("region", { name: "系统健康" });
+    expect(screen.queryByRole("region", { name: /开始使用/ })).toBeNull();
   });
 
-  it("storeHealthy:false 時以 role=alert 呈現降級狀態與可公開錯誤", async () => {
+  it("storeHealthy:false 时以 role=alert 呈现降级状态与可公开错误", async () => {
     renderAt(
       "/admin",
       makeAdminClient({
@@ -224,12 +224,12 @@ describe("總覽的歡迎區塊與儲存後端健康", () => {
     );
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("store unreachable");
-    // spec「儲存健康徽章」：徽章與同頁的降級警示語意一致——異常為紅系，
-    // 不能與正常一樣壓成灰（同頁上下文一紅一灰講同一件事，讀起來自相矛盾）。
-    expect(screen.getByText("異常").className).toContain("destructive");
+    // spec「保存健康徽章」：徽章与同页的降级警示语意一致——异常为红系，
+    // 不能与正常一样压成灰（同页上下文一红一灰讲同一件事，读起来自相矛盾）。
+    expect(screen.getByText("异常").className).toContain("destructive");
   });
 
-  it("儲存健康徽章：正常為綠系，與異常的紅系一眼可辨", async () => {
+  it("保存健康徽章：正常为绿系，与异常的红系一眼可辨", async () => {
     renderAt("/admin", makeAdminClient({ getAdminOverview: vi.fn(async () => HEALTHY) }));
     const badge = await screen.findByText("正常");
     expect(badge.className).toContain("status-success");

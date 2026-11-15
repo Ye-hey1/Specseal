@@ -75,7 +75,7 @@ test("buildArgs：各工具拼出预期的 argv", () => {
   ]);
 });
 
-test("verify add-round 声明了 stdin 通道", () => {
+test("verify add-round 声明了 stdin 信道", () => {
   const def = TOOL_DEFS.find((t) => t.name === "specseal_verify_add_round");
   assert.equal(def.stdinArg, "content");
 });

@@ -1,8 +1,8 @@
-// 零專案空狀態（design D7）：字標、標題、說明、「新增專案」與「連線 Server」、
-// 最近開啟卡（與新增專案對話框同一份清單與開啟流程）、底部 CLI 提示。
+// 零项目空状态（design D7）：字标、标题、说明、「添加项目」与「连接 Server」、
+// 最近打开卡（与添加项目对话框同一份清单与打开流程）、底部 CLI 提示。
 import { useEffect } from "react";
 import { Cloud, FolderOpen } from "lucide-react";
-import { Button, Wordmark, useI18n } from "@speclink/ui";
+import { Button, Wordmark, useI18n } from "@specseal/ui";
 
 import type { ConnectionView, ConnectionsAdapter } from "../adapter/connections";
 import type { WorkspaceAdapter } from "../adapter/workspace";
@@ -12,10 +12,10 @@ import type { WorkspaceChooserIntent } from "../store";
 import { RecentList, useRecentOpener, type OpenLocal } from "./RecentList";
 
 export interface EmptyWorkspaceProps {
-  /** 已濾掉專案列上開著的項目（零專案時即全部記錄）。 */
+  /** 已滤掉项目列上开着的项目（零项目时即全部记录）。 */
   recents: RecentEntry[];
   connections: ConnectionView[];
-  /** 重整連線清單；回傳讀取是否成功（成功才判定 remote 列的連線錯誤態）。 */
+  /** 重整连接清单；回传读取是否成功（成功才判定 remote 列的连接错误态）。 */
   onRefreshConnections: () => Promise<boolean>;
   workspace: Pick<WorkspaceAdapter, "openProject">;
   connectionAdapter: Pick<ConnectionsAdapter, "inspectCheckout">;
@@ -46,7 +46,7 @@ export function EmptyWorkspace({
     onOpenRemote,
   });
   useEffect(() => {
-    // 掛載時讀一次連線清單；之後的連線變動由 store 推進 connections。
+    // 挂载时读一次连接清单；之后的连接变动由 store 推进 connections。
     recent.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

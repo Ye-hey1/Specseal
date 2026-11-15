@@ -1,6 +1,6 @@
 ---
 type: tool_used
 tool: Bash
-input_match: 'speclink archive'
+input_match: 'specseal archive'
 min: 1
 ---

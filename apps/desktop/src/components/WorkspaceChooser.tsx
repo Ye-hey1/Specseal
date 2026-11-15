@@ -12,7 +12,7 @@ import {
   StepProgress,
   cn,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import {
   defaultConnectionOf,
@@ -48,37 +48,37 @@ export interface WorkspaceChooserProps {
   workspace: Pick<WorkspaceAdapter, "pickFolder" | "openProject">;
   onOpenLocal: OpenLocal;
   onRequestMigration?: (root: string) => Promise<void>;
-  /** 新增並隨即登入；回傳正規化 origin 供本面追蹤該連線的互動狀態。 */
+  /** 添加并随即登录；回传范式 origin 供本面追踪该连接的交互状态。 */
   onAddServer: (baseUrl: string, name: string) => Promise<string | null>;
-  /** 逐連線互動狀態（keyed by origin）——登入回饋在本面就地渲染（design 決策三）。 */
+  /** 逐连接交互状态（keyed by origin）——登录回馈在本面就地渲染（design 决策三）。 */
   phases: Record<string, ConnectionPhase>;
-  /** 取消等待授權：停止輪詢、回未登入。 */
+  /** 取消等待授权：停止轮询、回未登录。 */
   onCancelLogin: (origin: string) => void;
-  /** PAT 單次過境提交。 */
+  /** PAT 单次过境提交。 */
   onSubmitPat: (origin: string, pat: string) => void;
-  /** 重整連線清單；回傳讀取是否成功——失敗時清單保留現值，最近開啟列據此
-   * 不把 remote 條目誤判成「連線已移除」。 */
+  /** 重整连接清单；回传读取是否成功——失败时清单保留现值，最近打开列据此
+   * 不把 remote 条目误判成「连接已移除」。 */
   onRefreshConnections: () => Promise<boolean>;
   onOpenRemote: (
     connectionId: string,
     target: string,
     checkoutRoot?: string,
   ) => Promise<void>;
-  /** 最近開啟清單（design D3）：已在 App 層濾掉分頁列上開著的項目。 */
+  /** 最近打开清单（design D3）：已在 App 层滤掉分页列上开着的项目。 */
   recents: RecentEntry[];
-  /** 自最近開啟清單移除一筆（以 locator key）。 */
+  /** 自最近打开清单移除一笔（以 locator key）。 */
   onRemoveRecent: (key: string) => void;
-  /** 伺服器頁入口：預選已登入 connection 並直達 scopes。 */
+  /** 服务器页入口：预选已登录 connection 并直达 scopes。 */
   initialConnectionId?: string | null;
-  /** remote marker 未登入時：server 步驟預填 marker url。 */
+  /** remote marker 未登录时：server 步骤预填 marker url。 */
   initialServerUrl?: string | null;
-  /** 空狀態「連線 Server」入口：直接起始於 Server 步驟。 */
+  /** 空状态「连接 Server」入口：直接起始于 Server 步骤。 */
   initialStep?: "server" | null;
-  /** 既有 marker 缺工具選集：直達 checkout 步驟並預選此 scope。 */
+  /** 既有 marker 缺工具选集：直达 checkout 步骤并预选此 scope。 */
   initialScope?: { projectKey: string; repoKey: string } | null;
-  /** 既有 marker 缺工具選集：checkout 步驟預填此資料夾路徑並自動 inspect。 */
+  /** 既有 marker 缺工具选集：checkout 步骤预填此文件夹路径并自动 inspect。 */
   initialCheckoutPath?: string | null;
-  /** 伺服器頁「預設」卡選定的連線：Server 步驟預選（存在且已登入才預選，仍可改選）。 */
+  /** 服务器页「缺省」卡选定的连接：Server 步骤预选（存在且已登录才预选，仍可改选）。 */
   defaultConnectionId?: string | null;
 }
 
@@ -89,7 +89,7 @@ const STEP_NUMBER: Record<Step, number> = {
   checkout: 4,
 };
 
-/** 第一步的來源卡（design D8）：點卡只選取，動作由頁尾主要鈕執行。 */
+/** 第一步的来源卡（design D8）：点卡只选取，动作由页脚主要钮运行。 */
 function ChoiceCard({
   icon,
   title,
@@ -113,7 +113,7 @@ function ChoiceCard({
       onClick={onClick}
       className={cn(
         "group flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors",
-        // 停用為箭頭且無 hover（desktop-app「可點元素的游標與 hover 回饋」）：hover 只在 enabled 時命中。
+        // 停用为箭头且无 hover（desktop-app「可点元素的光标与 hover 回馈」）：hover 只在 enabled 时命中。
         selected ? "border-primary bg-primary/5" : "border-border enabled:hover:border-primary/50 enabled:hover:bg-muted/60",
         disabled && "cursor-default opacity-50",
       )}
@@ -136,7 +136,7 @@ function ChoiceCard({
   );
 }
 
-/** 步驟 2–4 的整列單選列（design D8）：選中主色淡底、左側圓點。 */
+/** 步骤 2–4 的整列单选列（design D8）：选中主色淡底、左侧圆点。 */
 function RadioRow({
   checked,
   onClick,
@@ -187,7 +187,7 @@ function RadioRow({
   );
 }
 
-/** chooser 與正式遷移共用的 membership scope 單選面。 */
+/** chooser 与正式迁移共用的 membership scope 单选面。 */
 export function ScopeSelection({
   scopes,
   selected,
@@ -275,20 +275,20 @@ export function WorkspaceChooser({
   const [scope, setScope] = useState<ScopeChoice | null>(null);
   const [checkoutMode, setCheckoutMode] = useState<"skip" | "folder" | null>(null);
   const [checkoutRoot, setCheckoutRoot] = useState<string | null>(null);
-  // folder mode 的 built-in 工具選集：inspect 回傳既有選集作為初值，開啟時交給 bind。
+  // folder mode 的 built-in 工具选集：inspect 回传既有选集作为初值，打开时交给 bind。
   const [checkoutTools, setCheckoutTools] = useState<string[]>([]);
   const [serverUrl, setServerUrl] = useState("");
   const [serverName, setServerName] = useState("");
   const [showAddServer, setShowAddServer] = useState(false);
-  /** 剛從本面發起登入的連線 origin（addConnection 回傳）；其互動狀態就地渲染。 */
+  /** 刚从本面发起登录的连接 origin（addConnection 回传）；其交互状态就地渲染。 */
   const [pendingOrigin, setPendingOrigin] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [localProject, setLocalProject] = useState<{ root: string; name: string } | null>(null);
-  /** 第一步選取的來源卡（design D8）：未選時頁尾主要鈕停用。 */
+  /** 第一步选取的来源卡（design D8）：未选时页脚主要钮停用。 */
   const [source, setSource] = useState<"local" | "server" | null>(null);
-  /** 最近開啟列（design D4）：錯誤態只活在本面，chooser 重開即清空。 */
+  /** 最近打开列（design D4）：错误态只活在本面，chooser 重开即清空。 */
   const recent = useRecentOpener({
     workspace,
     connections,
@@ -315,8 +315,8 @@ export function WorkspaceChooser({
     }
   }
 
-  // 既有 marker 缺工具選集的入口：載入 scopes、依 key 預選 scope、直達 checkout
-  // 步驟並以預填 path inspect（顯示既有選集），讓使用者明示選擇 Claude／Codex／Copilot／Pi／Cursor。
+  // 既有 marker 缺工具选集的入口：加载 scopes、依 key 预选 scope、直达 checkout
+  // 步骤并以预填 path inspect（显示既有选集），让用户明示选择 Claude／Codex／Copilot／Pi／Cursor。
   async function startAtCheckout(
     selected: ConnectionView,
     scopeKeys: { projectKey: string; repoKey: string },
@@ -354,7 +354,7 @@ export function WorkspaceChooser({
     }
   }
 
-  /** 伺服器頁「預設」卡的連線：存在且已登入才預選，否則不預選。 */
+  /** 服务器页「缺省」卡的连接：存在且已登录才预选，否则不预选。 */
   const preferredConnection = () => defaultConnectionOf(connections, defaultConnectionId);
 
   useEffect(() => {
@@ -383,11 +383,11 @@ export function WorkspaceChooser({
       void selectConnection(selected);
     } else {
       const nextStep = initialStep ?? (initialConnectionId || initialServerUrl ? "server" : "source");
-      // 入口意圖（指定連線、marker 指向的伺服器）優先：此時預選預設連線會把專案綁到別台伺服器。
+      // 入口意图（指定连接、marker 指向的服务器）优先：此时预选缺省连接会把项目绑到别台服务器。
       if (nextStep === "server" && !initialConnectionId && !initialServerUrl) setConnection(preferredConnection());
       setStep(nextStep);
     }
-    // 開啟時只消費當次入口意圖；連線清單更新不得把進行中的 chooser 重設。
+    // 打开时只消费当次入口意图；连接清单更新不得把进行中的 chooser 重设。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, initialConnectionId, initialServerUrl, initialStep]);
 
@@ -435,7 +435,7 @@ export function WorkspaceChooser({
     }
   }
 
-  /** 剛發起登入的連線互動狀態；等待授權／PAT／錯誤據此就地渲染。 */
+  /** 刚发起登录的连接交互状态；等待授权／PAT／错误据此就地渲染。 */
   const pendingPhase = pendingOrigin ? phases[pendingOrigin] : undefined;
 
   async function addServer() {
@@ -457,8 +457,8 @@ export function WorkspaceChooser({
     }
   }
 
-  // 先檢查階段（零寫入）：選好資料夾後 inspect 驗證 marker 一致性，成功才顯示
-  // 工具 checkbox 並以既有選集預選。失敗保留在 checkout 步驟顯示錯誤、不寫入。
+  // 先检查阶段（零写入）：选好文件夹后 inspect 验证 marker 一致性，成功才显示
+  // 工具 checkbox 并以既有选集预选。失败保留在 checkout 步骤显示错误、不写入。
   async function chooseCheckoutFolder() {
     if (!connection || !scope) return;
     const picked = await workspace.pickFolder();
@@ -491,8 +491,8 @@ export function WorkspaceChooser({
     );
   }
 
-  // 開啟：skip 直接 handshake；folder mode 先同步受管產物（bind），全部成功才
-  // openRemote 帶 checkoutRoot——同步任一步失敗保留步驟與選集供重試，不開分頁。
+  // 打开：skip 直接 handshake；folder mode 先同步受管产物（bind），全部成功才
+  // openRemote 带 checkoutRoot——同步任一步失败保留步骤与选集供重试，不开分页。
   async function openRemote() {
     if (!connection || !scope || checkoutMode === null) return;
     if (checkoutMode === "folder" && (checkoutTools.length === 0 || !checkoutRoot)) return;
@@ -652,8 +652,8 @@ export function WorkspaceChooser({
                 </Button>
               </div>
             )}
-            {/* 登入回饋跟著發起登入的介面走（design 決策三）：等待授權面／PAT
-                輸入／錯誤就地渲染，不要求使用者切到設定頁才看得到狀態。 */}
+            {/* 登录回馈跟着发起登录的接口走（design 决策三）：等待授权面／PAT
+                输入／错误就地渲染，不要求用户切到设置页才看得到状态。 */}
             {pendingOrigin &&
               (pendingPhase?.kind === "awaitingApproval" || pendingPhase?.kind === "awaitingBrowser") && (
                 <div className="rounded-lg border border-border bg-muted/30 p-3">
@@ -791,7 +791,7 @@ export function WorkspaceChooser({
                 )}
               </Button>
             )}
-            {/* 預選的連線（伺服器頁「預設」卡）可直接前進；點其他列即改選並前進。 */}
+            {/* 预选的连接（服务器页「缺省」卡）可直接前进；点其他列即改选并前进。 */}
             {step === "server" && connection && (
               <Button type="button" size="sm" disabled={busy} onClick={() => void selectConnection(connection)}>
                 {t("chooser.next")}

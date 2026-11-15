@@ -1,5 +1,5 @@
-// shadcn Checkbox（Radix 原語，design D1）：Root 為 button 元素——checkbox 角色、
-// aria-checked、空白鍵切換原生支援；Indicator 內放勾選圖示。主題化樣式取代 OS chrome。
+// shadcn Checkbox（Radix 原语，design D1）：Root 为 button 元素——checkbox 角色、
+// aria-checked、空白键切换原生支持；Indicator 内放勾选图标。主题化样式取代 OS chrome。
 import * as React from "react";
 import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import { Check } from "lucide-react";

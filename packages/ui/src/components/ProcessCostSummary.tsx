@@ -7,11 +7,11 @@ import { DocTiles, type DocTile } from "./DetailShell";
 import { Card } from "./ui/card";
 
 /**
- * 已封存頁的流程成本摘要（spec desktop-app「已封存頁的流程成本摘要」）：唯讀，沿用數字磚
- * DocTiles，最多四格——大字是中位數（標題註明），小字是項目名與每個數字的樣本數（文件行數
- * 另附 P90）。DocTiles 的小字會截斷，所以小字保持精簡，樣本數才不會被截掉。
- * 沒有任何封存變更帶流程成本欄位時不渲染（遠端清單只帶任務數）。`items` 是全部封存
- * 變更——頁內搜尋不影響摘要。
+ * 已封存页的流程成本摘要（spec desktop-app「已封存页的流程成本摘要」）：唯读，沿用数字砖
+ * DocTiles，最多四格——大字是中位数（标题注明），小字是项目名与每个数字的样本数（文档行数
+ * 另附 P90）。DocTiles 的小字会截断，所以小字保持精简，样本数才不会被截掉。
+ * 没有任何封存变更带流程成本字段时不渲染（远程清单只带任务数）。`items` 是全部封存
+ * 变更——页内搜索不影响摘要。
  */
 export function ProcessCostSummary({ items }: { items: ArchivedItem[] }) {
   const { t, tn } = useI18n();
@@ -19,7 +19,7 @@ export function ProcessCostSummary({ items }: { items: ArchivedItem[] }) {
   if (Object.keys(summary).length === 0) return null;
   const { docLines, tasks, leadDays, leadHours, reviewRounds, verifyRounds } = summary;
 
-  /** 小字：`<項目>（N 筆）`；一格兩個數字時為 `<項目>（N／M 筆）`，依大字裡數字的順序。 */
+  /** 小字：`<项目>（N 笔）`；一格两个数字时为 `<项目>（N／M 笔）`，依大字里数字的顺序。 */
   const label = (itemKey: string, ...stats: (CostStat | undefined)[]) => {
     const counts = stats.filter((s): s is CostStat => s != null).map((s) => s.samples);
     const samples =

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { useI18n } from "../i18n";
 import { cn } from "../lib/utils";
 
-/** 錨點列的一筆：內文 h2／h3 的 DOM id、純文字與層級。 */
+/** 锚点列的一笔：内文 h2／h3 的 DOM id、纯文本与层级。 */
 interface TocEntry {
   id: string;
   text: string;
@@ -11,35 +11,35 @@ interface TocEntry {
 }
 
 export interface ManualTocProps {
-  /** 內文容器——錨點由它渲染後的 DOM 推導，點擊也捲動它所在的捲動容器。 */
+  /** 内文容器——锚点由它渲染后的 DOM 推导，点击也卷动它所在的卷动容器。 */
   bodyRef: RefObject<HTMLElement | null>;
-  /** 目前渲染的內文（或任何隨內文 DOM 變化的鍵）；換了就重掃標題。 */
+  /** 目前渲染的内文（或任何随内文 DOM 变化的键）；换了就重扫标题。 */
   markdownBody: string | null;
-  /** 列入目錄的標題選擇器（預設：內文 Markdown 的 h2／h3）。 */
+  /** 列入目录的标题选择器（缺省：内文 Markdown 的 h2／h3）。 */
   headings?: string;
   className?: string;
 }
 
-/** 手冊頁右側錨點列（spec「內頁渲染與出處跳規格」），規格詳情頁的需求目錄亦用：由渲染後的
- * DOM 掃標題（與畫面一致，不另解析 Markdown）、給 id；點擊捲至該標題；捲動時以捲動容器頂緣
- * 下方 12px 內最後一個標題為目前段。捲動容器可能是內文本身（手冊頁）或其祖先（規格詳情頁的
- * 頁層），故以 capture 收任一元素的捲動、只理會包住內文者。沒有標題時不渲染。 */
+/** 手册页右侧锚点列（spec「内页渲染与出处跳规格」），规格详情页的需求目录亦用：由渲染后的
+ * DOM 扫标题（与画面一致，不另解析 Markdown）、给 id；点击卷至该标题；卷动时以卷动容器顶缘
+ * 下方 12px 内最后一个标题为目前段。卷动容器可能是内文本身（手册页）或其祖先（规格详情页的
+ * 页层），故以 capture 收任一元素的卷动、只理会包住内文者。没有标题时不渲染。 */
 export function ManualToc({ bodyRef, markdownBody, headings = ".markdown h2, .markdown h3", className }: ManualTocProps) {
   const { t } = useI18n();
   const [toc, setToc] = useState<TocEntry[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  // 目前段的標題元素：重掃（規格詳情頁展開／收合需求段）時它若仍在，高亮留在它身上——展開不捲動，
-  // 不會有捲動事件把高亮帶回來；換文件、搜尋換掉標題時才回第一項。
+  // 目前段的标题元素：重扫（规格详情页展开／收合需求段）时它若仍在，高亮留在它身上——展开不卷动，
+  // 不会有卷动事件把高亮带回来；换文档、搜索换掉标题时才回第一项。
   const activeEl = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     const root = bodyRef.current;
-    // null＝還沒掃過，第一次一定更新（沒有標題也要把目錄清空）。
+    // null＝还没扫过，第一次一定更新（没有标题也要把目录清空）。
     let heads: HTMLElement[] | null = null;
     const scan = () => {
       const next = root ? Array.from(root.querySelectorAll<HTMLElement>(headings)) : [];
-      // 節點增減沒換到標題（如展開收合輪卡）就不動目錄。只比標題元素、不比文字：同一標題元素換字不會增減節點，
-      // 要靠呼叫端把內文放進重掃鍵（markdownBody），讓整段重跑。
+      // 节点增减没换到标题（如展开收合轮卡）就不动目录。只比标题元素、不比文本：同一标题元素换字不会增减节点，
+      // 要靠调用端把内文放进重扫键（markdownBody），让整段重跑。
       const prev = heads;
       if (prev && next.length === prev.length && next.every((el, i) => el === prev[i])) return;
       heads = next;
@@ -53,8 +53,8 @@ export function ManualToc({ bodyRef, markdownBody, headings = ".markdown h2, .ma
     };
     scan();
     if (!root) return;
-    // 詳情頁以分頁換文件時，新文件的內容晚一次畫面更新才掛上，重掃鍵變動那次掃到的還是前一份：
-    // 內文節點一增減就重掃。
+    // 详情页以分页换文档时，新文档的内容晚一次画面更新才挂上，重扫键变动那次扫到的还是前一份：
+    // 内文节点一增减就重扫。
     const observer = new MutationObserver(scan);
     observer.observe(root, { childList: true, subtree: true });
     const onScroll = (e: Event) => {

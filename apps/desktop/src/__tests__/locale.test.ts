@@ -1,5 +1,5 @@
-// design D8：UI 語言偏好存 localStorage 單鍵、null 表跟隨系統；
-// 系統語言以 zh 開頭判 zh-TW 否則 en。
+// design D8：UI 语言偏好存 localStorage 单键、null 表跟随系统；
+// 系统语言以 zh 开头判 zh-CN 否则 en。
 import { describe, it, expect } from "vitest";
 
 import {
@@ -9,23 +9,23 @@ import {
   resolveUiLocale,
 } from "../i18n/locale";
 
-describe("detectSystemLocale（spec Example「系統語言判定」）", () => {
-  // | 系統語言 | UI 語言 |
+describe("detectSystemLocale（spec Example「系统语言判定」）", () => {
+  // | 系统语言 | UI 语言 |
   it.each([
-    ["zh-TW", "zh-TW"],
-    ["zh-CN", "zh-TW"],
+    ["zh-CN", "zh-CN"],
+    ["zh-CN", "zh-CN"],
     ["en-US", "en"],
     ["ja-JP", "en"],
   ] as const)("%s → %s", (system, ui) => {
     expect(detectSystemLocale(system)).toBe(ui);
   });
 
-  it("undefined 系統語言退回 en", () => {
+  it("undefined 系统语言退回 en", () => {
     expect(detectSystemLocale(undefined)).toBe("en");
   });
 });
 
-describe("locale preference（localStorage 單鍵）", () => {
+describe("locale preference（localStorage 单键）", () => {
   function memStorage(): Storage {
     const map = new Map<string, string>();
     return {
@@ -44,8 +44,8 @@ describe("locale preference（localStorage 單鍵）", () => {
     const st = memStorage();
     writeLocalePreference("en", st);
     expect(readLocalePreference(st)).toBe("en");
-    writeLocalePreference("zh-TW", st);
-    expect(readLocalePreference(st)).toBe("zh-TW");
+    writeLocalePreference("zh-CN", st);
+    expect(readLocalePreference(st)).toBe("zh-CN");
   });
 
   it("null preference removes the key (follow system)", () => {
@@ -58,19 +58,19 @@ describe("locale preference（localStorage 單鍵）", () => {
 
   it("garbage stored values read as null instead of crashing", () => {
     const st = memStorage();
-    st.setItem("speclink.uiLocale", "fr");
+    st.setItem("specseal.uiLocale", "fr");
     expect(readLocalePreference(st)).toBeNull();
   });
 });
 
 describe("resolveUiLocale", () => {
   it("explicit preference wins over the system language", () => {
-    expect(resolveUiLocale("en", "zh-TW")).toBe("en");
-    expect(resolveUiLocale("zh-TW", "en-US")).toBe("zh-TW");
+    expect(resolveUiLocale("en", "zh-CN")).toBe("en");
+    expect(resolveUiLocale("zh-CN", "en-US")).toBe("zh-CN");
   });
 
   it("null preference follows the system language", () => {
-    expect(resolveUiLocale(null, "zh-TW")).toBe("zh-TW");
+    expect(resolveUiLocale(null, "zh-CN")).toBe("zh-CN");
     expect(resolveUiLocale(null, "en-US")).toBe("en");
   });
 });

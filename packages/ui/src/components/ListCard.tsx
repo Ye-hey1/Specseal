@@ -3,19 +3,19 @@ import type { ReactNode, Ref } from "react";
 import { Card } from "./ui/card";
 
 export interface ListCardProps {
-  /** 卡頂槽（已封存頁的卡片標頭式分頁列）；有它時內容卡以 Card 的 attached="top" 接在其下。 */
+  /** 卡顶槽（已封存页的卡片标头式分页列）；有它时内容卡以 Card 的 attached="top" 接在其下。 */
   header?: ReactNode;
-  /** 卡底固定槽（換頁工具列）；槽本身不畫分隔線——分隔線屬工具列，工具列不渲染時卡底不留空線。 */
+  /** 卡底固定槽（换页工具列）；槽本身不画分隔线——分隔线属工具列，工具列不渲染时卡底不留空线。 */
   footer?: ReactNode;
   children: ReactNode;
-  /** 內容捲動容器（data-list-scroll）——換頁後捲回頂部、聚焦列捲入視窗的目標。 */
+  /** 内容卷动容器（data-list-scroll）——换页后卷回顶部、聚焦列卷入窗口的目标。 */
   scrollRef?: Ref<HTMLDivElement>;
 }
 
 /**
- * 列表卡（spec desktop-app「清單最新在前與換頁瀏覽」；design D1）：白底細框容器填滿
- * 主區剩餘高度，列在卡內縱向捲動，header／footer 固定不隨列捲動。header 為
- * Tabs card variant 的分頁列時，內容卡依該原語的既定接法去掉上圓角與上框線。
+ * 列表卡（spec desktop-app「清单最新在前与换页浏览」；design D1）：白底细框容器填满
+ * 主区剩余高度，列在卡内纵向卷动，header／footer 固定不随列卷动。header 为
+ * Tabs card variant 的分页列时，内容卡依该原语的既定接法去掉上圆角与上框线。
  */
 export function ListCard({ header, footer, children, scrollRef }: ListCardProps) {
   return (

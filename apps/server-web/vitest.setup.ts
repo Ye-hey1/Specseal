@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 
-// vitest 3.2 的 jsdom 環境未把 Web Storage 掛到 window 或全域（與 apps/desktop 同一個
-// 問題）。導覽的「看過了」狀態存 localStorage，沒有它連測試的初始狀態都無從設定。
+// vitest 3.2 的 jsdom 环境未把 Web Storage 挂到 window 或全域（与 apps/desktop 同一个
+// 问题）。导览的「看过了」状态存 localStorage，没有它连测试的初始状态都无从设置。
 const { window: storageWindow } = new JSDOM("", { url: "http://localhost:3000/" });
 for (const key of ["localStorage", "sessionStorage"] as const) {
   const storage = storageWindow[key];
@@ -9,26 +9,26 @@ for (const key of ["localStorage", "sessionStorage"] as const) {
   Object.defineProperty(globalThis, key, { configurable: true, value: storage });
 }
 
-// jsdom 的 navigator.language 預設是 en-US，而既有測試斷言的是中文介面。把測試環境的
-// 瀏覽器語言釘成 zh-TW——這是環境預設值，不是 app 狀態；要驗語言偵測的測試自己覆寫它。
+// jsdom 的 navigator.language 缺省是 en-US，而既有测试断言的是中文接口。把测试环境的
+// 浏览器语言钉成 zh-CN——这是环境默认值，不是 app 状态；要验语言侦测的测试自己覆写它。
 if (typeof navigator !== "undefined") {
-  Object.defineProperty(navigator, "language", { value: "zh-TW", configurable: true });
+  Object.defineProperty(navigator, "language", { value: "zh-CN", configurable: true });
 }
 
-// jsdom 未實作 matchMedia，Radix Sheet 與 responsive／reduced-motion 判斷都依賴它。
-// 預設所有 media query 不匹配；個別測試可覆寫（例如窄螢幕或 prefers-reduced-motion）。
-// node 環境的測試（如 build.test.ts）沒有 window，跳過。
+// jsdom 未实作 matchMedia，Radix Sheet 与 responsive／reduced-motion 判断都依赖它。
+// 缺省所有 media query 不匹配；个别测试可覆写（例如窄屏幕或 prefers-reduced-motion）。
+// node 环境的测试（如 build.test.ts）没有 window，跳过。
 if (typeof window !== "undefined") {
-  // jsdom 未實作 Pointer Capture 與 scrollIntoView，Radix Select 開關與捲到選中項時
-  // 會直接呼叫。缺一即拋 TypeError——環境缺口，補 no-op stub。
+  // jsdom 未实作 Pointer Capture 与 scrollIntoView，Radix Select 开关与卷到选中项时
+  // 会直接调用。缺一即抛 TypeError——环境缺口，补 no-op stub。
   const proto = window.Element.prototype as unknown as Record<string, unknown>;
   if (!proto.hasPointerCapture) proto.hasPointerCapture = () => false;
   if (!proto.setPointerCapture) proto.setPointerCapture = () => {};
   if (!proto.releasePointerCapture) proto.releasePointerCapture = () => {};
   if (!proto.scrollIntoView) proto.scrollIntoView = () => {};
 
-  // jsdom 未實作 ResizeObserver；Radix Checkbox 等原語內部依賴它。no-op stub 即可
-  //（測試不斷言尺寸觀察行為）。
+  // jsdom 未实作 ResizeObserver；Radix Checkbox 等原语内部依赖它。no-op stub 即可
+  //（测试不断言尺寸观察行为）。
   if (!window.ResizeObserver) {
     window.ResizeObserver = class {
       observe() {}

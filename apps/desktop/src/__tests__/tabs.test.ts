@@ -1,9 +1,9 @@
-// 專案分頁列的純函式面（design D8/D10）：localStorage 持久化（路徑＋顯示名＋
-// 順序＋最後活躍）、上限 10、去重、關閉移除；徽章派生為待收尾數
-//（spec-archive-drawer design D6：已就緒變更＋已結論未轉出討論）。分頁列只管
-// 目前開著的專案；曾開啟過的「最近開啟」記憶另見 recents.test.ts。
+// 项目分页列的纯函数面（design D8/D10）：localStorage 持久化（路径＋显示名＋
+// 顺序＋最后活跃）、上限 10、去重、关闭移除；徽章派生为待收尾数
+//（spec-archive-drawer design D6：已就绪变更＋已结论未转出讨论）。分页列只管
+// 目前开着的项目；曾打开过的「最近打开」记忆另见 recents.test.ts。
 import { describe, it, expect } from "vitest";
-import { dictionaryProblems } from "@speclink/ui";
+import { dictionaryProblems } from "@specseal/ui";
 
 import {
   MAX_TABS,
@@ -42,7 +42,7 @@ function memStorage(): Storage {
   } as Storage;
 }
 
-describe("upsertTab（spec「成功開啟後記入分頁並去重上移」的清單面）", () => {
+describe("upsertTab（spec「成功打开后记入分页并去重上移」的清单面）", () => {
   it("appends a new project at the end", () => {
     const tabs = upsertTab([tab("A")], { locator: local("B"), name: "B" });
     expect(keys(tabs)).toEqual(["local:A", "local:B"]);
@@ -77,7 +77,7 @@ describe("removeTab", () => {
   });
 });
 
-describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與 v1 靜默遷移」）", () => {
+describe("分页持久化 v2 与 v1 静默迁移（spec「分页持久化 v2 与 v1 静默迁移」）", () => {
   it("empty storage restores to zero tabs", () => {
     const restored = readPersistedTabs(memStorage());
     expect(restored.tabs).toEqual([]);
@@ -91,7 +91,7 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
       { locator: local("A"), name: "alpha" },
     ];
     persistTabs(tabs, "local:A", st);
-    const raw = JSON.parse(st.getItem("speclink.projectTabs") ?? "{}");
+    const raw = JSON.parse(st.getItem("specseal.projectTabs") ?? "{}");
     expect(raw.version).toBe(2);
     const restored = readPersistedTabs(st);
     expect(restored.tabs.map((t) => t.locator)).toEqual([local("B"), local("A")]);
@@ -115,10 +115,10 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
   });
 
   it("v1 payload (root＋name＋activeRoot) silently migrates to local locators and activeKey", () => {
-    // 契約範例（spec Scenario「舊版使用者升級後分頁完整保留」）：兩個專案分頁＋activeRoot。
+    // 契约范例（spec Scenario「旧版用户升级后分页完整保留」）：两个项目分页＋activeRoot。
     const st = memStorage();
     st.setItem(
-      "speclink.projectTabs",
+      "specseal.projectTabs",
       JSON.stringify({
         tabs: [
           { root: "A", name: "alpha" },
@@ -138,7 +138,7 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
   it("the next persist after a v1 read writes v2", () => {
     const st = memStorage();
     st.setItem(
-      "speclink.projectTabs",
+      "specseal.projectTabs",
       JSON.stringify({ tabs: [{ root: "A", name: "alpha" }], activeRoot: "A" }),
     );
     const restored = readPersistedTabs(st);
@@ -147,7 +147,7 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
       restored.activeKey,
       st,
     );
-    const raw = JSON.parse(st.getItem("speclink.projectTabs") ?? "{}");
+    const raw = JSON.parse(st.getItem("specseal.projectTabs") ?? "{}");
     expect(raw.version).toBe(2);
     expect(raw.tabs).toEqual([{ locator: local("A"), name: "alpha" }]);
     expect(raw.activeKey).toBe("local:A");
@@ -156,7 +156,7 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
   it("v1 entries with a non-string root are dropped", () => {
     const st = memStorage();
     st.setItem(
-      "speclink.projectTabs",
+      "specseal.projectTabs",
       JSON.stringify({
         tabs: [
           { root: 7, name: "bogus" },
@@ -168,9 +168,9 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
     expect(readPersistedTabs(st).tabs).toEqual([{ locator: local("A"), name: "alpha" }]);
   });
 
-  it("garbage JSON restores to zero tabs and no active key（spec「壞 JSON 歸零」）", () => {
+  it("garbage JSON restores to zero tabs and no active key（spec「坏 JSON 归零」）", () => {
     const st = memStorage();
-    st.setItem("speclink.projectTabs", "{not json");
+    st.setItem("specseal.projectTabs", "{not json");
     const restored = readPersistedTabs(st);
     expect(restored.tabs).toEqual([]);
     expect(restored.activeKey).toBeNull();
@@ -178,20 +178,20 @@ describe("分頁持久化 v2 與 v1 靜默遷移（spec「分頁持久化 v2 與
 
   it("unrecognized shapes restore to zero tabs", () => {
     const st = memStorage();
-    st.setItem("speclink.projectTabs", JSON.stringify({ version: 99, tabs: "x" }));
+    st.setItem("specseal.projectTabs", JSON.stringify({ version: 99, tabs: "x" }));
     const restored = readPersistedTabs(st);
     expect(restored.tabs).toEqual([]);
     expect(restored.activeKey).toBeNull();
   });
 });
 
-describe("分頁徽章已移除（分頁不顯示計數）", () => {
+describe("分页徽章已移除（分页不显示计数）", () => {
   it("app 字典不再含 tabBadgeTooltip", () => {
-    expect("app.tabBadgeTooltip" in APP_MESSAGES["zh-TW"]).toBe(false);
+    expect("app.tabBadgeTooltip" in APP_MESSAGES["zh-CN"]).toBe(false);
     expect("app.tabBadgeTooltip" in APP_MESSAGES.en).toBe(false);
   });
 
-  it("zh-TW and en app dictionaries pass the shared dictionary check (same key set, .one forms aside)", () => {
+  it("zh-CN and en app dictionaries pass the shared dictionary check (same key set, .one forms aside)", () => {
     expect(dictionaryProblems(APP_MESSAGES)).toEqual([]);
   });
 });

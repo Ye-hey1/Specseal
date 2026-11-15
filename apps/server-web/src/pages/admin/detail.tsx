@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
-import { Button, Card, EmptyState, Tabs, TabsList, type EmptyStateProps } from "@speclink/ui";
+import { Button, Card, EmptyState, Tabs, TabsList, type EmptyStateProps } from "@specseal/ui";
 import { AdminError, AdminLoading } from "./states";
 
-// 使用者與專案兩個區段共用的詳情頁骨架（server-web-detail-pages design D1、D5、D6）：區段的內層路由、
-// 對不到資料時的說明，以及卡片標頭分頁接內容卡。
+// 用户与项目两个区段共用的详情页骨架（server-web-detail-pages design D1、D5、D6）：区段的内层路由、
+// 对不到数据时的说明，以及卡片标头分页接内容卡。
 
-/** 區段的內層路由：index 是列表、`:<param>` 是詳情頁（資料未到時為載入中或可重試的錯誤），其他路徑導回列表。 */
+/** 区段的内层路由：index 是列表、`:<param>` 是详情页（数据未到时为加载中或可重试的错误），其他路径导回列表。 */
 export function SectionRoutes({
   base,
   param,
@@ -18,7 +18,7 @@ export function SectionRoutes({
   base: string;
   param: string;
   list: ReactNode;
-  /** 資料已載入時的詳情頁；尚未載入時為 null。 */
+  /** 数据已加载时的详情页；尚未加载时为 null。 */
   detail: ReactNode | null;
   error: unknown;
   onRetry: () => void;
@@ -35,7 +35,7 @@ export function SectionRoutes({
   );
 }
 
-/** 網址對不到資料：說明找不到，附回到列表的按鈕。 */
+/** 网址对不到数据：说明找不到，附回到列表的按钮。 */
 export function DetailNotFound({
   icon,
   title,
@@ -64,7 +64,7 @@ export function DetailNotFound({
   );
 }
 
-/** 卡片標頭分頁：分頁列為內容卡的頂部，窄螢幕時在卡內水平捲動；`children` 為各分頁的 TabsContent。 */
+/** 卡片标头分页：分页列为内容卡的顶部，窄屏幕时在卡内水平卷动；`children` 为各分页的 TabsContent。 */
 export function DetailTabs({
   value,
   onValueChange,

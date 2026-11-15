@@ -1,30 +1,30 @@
-//! Speclink 桌面 app 的 Tauri 殼。
+//! Specseal 桌面 app 的 Tauri 壳。
 //!
-//! 每個 #[tauri::command] 是對 speclink-desktop-core 的單行委派（薄包裝）——
-//! 真正的邏輯與測試在 speclink-desktop-core，此層只做 IPC 接線。
-//! Rust 側無 current-root 可變全域（workspace-session 決策 4）：所有讀寫
-//! command 逐呼叫收 root，直通 desktop-core 的帶路徑函式；分頁切換不再改寫
-//! 任何全域，前一分頁 in-flight 呼叫以其原 root 結算。
+//! 每个 #[tauri::command] 是对 specseal-desktop-core 的单行委派（薄包装）——
+//! 真正的逻辑与测试在 specseal-desktop-core，此层只做 IPC 接线。
+//! Rust 侧无 current-root 可变全域（workspace-session 决策 4）：所有读写
+//! command 逐调用收 root，直通 desktop-core 的带路径函数；分页切换不再改写
+//! 任何全域，前一分页 in-flight 调用以其原 root 结算。
 //!
-//! # 執行緒契約
+//! # 线程契约
 //!
-//! 非 async command 在 app 唯一的主執行緒上執行——期間視窗事件、tray 圖示
-//! 點擊、面板開閉全部停擺。因此凡會觸及檔案系統或 spawn 子進程（git 等）的
-//! command，一律 async fn＋`tauri::async_runtime::spawn_blocking` 委派至執行緒
-//! 池（design D2 原只涵蓋寫入側，desktop-async-commands 擴及全部 IO command）。
+//! 非 async command 在 app 唯一的主线程上运行——期间窗口事件、tray 图标
+//! 点击、面板开闭全部停摆。因此凡会触及文件系统或 spawn 子进程（git 等）的
+//! command，一律 async fn＋`tauri::async_runtime::spawn_blocking` 委派至线程
+//! 池（design D2 原只涵盖写入侧，desktop-async-commands 扩及全部 IO command）。
 //!
-//! 維持同步的只有純記憶體或純視窗操作，不觸檔案系統、不 spawn 子進程：
+//! 维持同步的只有纯内存或纯窗口操作，不触文件系统、不 spawn 子进程：
 //!
-//! - `startup_dir`——讀行程環境（啟動時的工作目錄）
-//! - `app_info`——讀編譯期版本常數與平台（關於頁）
-//! - `connection_state`——讀記憶體中的 TokenManager 健康狀態
-//! - `remote_unwatch`——退訂事件中樞，只動記憶體中的訂閱表
-//! - `toggle_tray_panel`、`hide_tray_panel`、`quit_app`——純視窗／行程操作
-//!   （例外：Windows 的 `toggle_tray_panel` 為 async——在同步 command 內建立視窗，
-//!   Windows 會因 WebView2 死結，見 Tauri `WebviewWindowBuilder::new` 的 Known issues）
-//! - tray recovery 動作轉發（[`tray`] 模組）——只釘 action 名稱與聚焦政策
+//! - `startup_dir`——读行程环境（启动时的工作目录）
+//! - `app_info`——读编译期版本常数与平台（关于页）
+//! - `connection_state`——读内存中的 TokenManager 健康状态
+//! - `remote_unwatch`——退订事件中枢，只动内存中的订阅表
+//! - `toggle_tray_panel`、`hide_tray_panel`、`quit_app`——纯窗口／行程操作
+//!   （例外：Windows 的 `toggle_tray_panel` 为 async——在同步 command 内置立窗口，
+//!   Windows 会因 WebView2 死结，见 Tauri `WebviewWindowBuilder::new` 的 Known issues）
+//! - tray recovery 动作转发（[`tray`] 模块）——只钉 action 名称与聚焦政策
 //!
-//! 新增 command 時：只要碰到檔案系統或子進程，就是 async＋spawn_blocking。
+//! 添加 command 时：只要碰到文件系统或子进程，就是 async＋spawn_blocking。
 
 pub mod cli_install;
 pub mod connections;
@@ -42,10 +42,10 @@ use std::path::PathBuf;
 use serde_json::Value;
 use tauri::{Emitter, Manager};
 
-/// 關於頁的版本資訊（desktop-about-page design D1）：app 版號由殼帶入，其餘由 desktop-core 回齊。
+/// 关于页的版本信息（desktop-about-page design D1）：app 版号由壳带入，其余由 desktop-core 回齐。
 #[tauri::command]
-fn app_info(app: tauri::AppHandle) -> speclink_desktop_core::project::AppInfo {
-    speclink_desktop_core::project::app_info(&app.package_info().version.to_string())
+fn app_info(app: tauri::AppHandle) -> specseal_desktop_core::project::AppInfo {
+    specseal_desktop_core::project::app_info(&app.package_info().version.to_string())
 }
 
 #[tauri::command]
@@ -70,13 +70,13 @@ async fn cli_zprofile_append(line: String) -> Result<(), String> {
         .map_err(|e| e.to_string())?
 }
 
-// 讀取型 command 一律回 Result：worker 失敗（JoinError——閉包 panic 或
-// 關閉期取消）轉為 invoke 錯誤回報。留 .expect 會在 tokio task 內 panic 被
-// 吞掉，前端 promise 永不 settle；成功路徑的回傳形狀不變。
+// 读取型 command 一律回 Result：worker 失败（JoinError——闭包 panic 或
+// 关闭期取消）转为 invoke 错误回报。留 .expect 会在 tokio task 内 panic 被
+// 吞掉，前端 promise 永不 settle；成功路径的回传形状不变。
 #[tauri::command]
 async fn list_changes(root: PathBuf) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::list_changes_at(&root)
+        specseal_desktop_core::query::list_changes_at(&root)
     })
     .await
     .map_err(|e| format!("list_changes worker failed: {e}"))
@@ -84,7 +84,7 @@ async fn list_changes(root: PathBuf) -> Result<Value, String> {
 
 #[tauri::command]
 async fn list_specs(root: PathBuf) -> Result<Value, String> {
-    tauri::async_runtime::spawn_blocking(move || speclink_desktop_core::query::list_specs_at(&root))
+    tauri::async_runtime::spawn_blocking(move || specseal_desktop_core::query::list_specs_at(&root))
         .await
         .map_err(|e| format!("list_specs worker failed: {e}"))
 }
@@ -92,7 +92,7 @@ async fn list_specs(root: PathBuf) -> Result<Value, String> {
 #[tauri::command]
 async fn status(root: PathBuf, change: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::status_at(&root, &change)
+        specseal_desktop_core::query::status_at(&root, &change)
     })
     .await
     .map_err(|e| format!("status worker failed: {e}"))?
@@ -101,7 +101,7 @@ async fn status(root: PathBuf, change: String) -> Result<Value, String> {
 #[tauri::command]
 async fn document(root: PathBuf, change: String, artifact: String) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::document_at(&root, &change, &artifact)
+        specseal_desktop_core::query::document_at(&root, &change, &artifact)
     })
     .await
     .map_err(|e| format!("document worker failed: {e}"))
@@ -110,7 +110,7 @@ async fn document(root: PathBuf, change: String, artifact: String) -> Result<Opt
 #[tauri::command]
 async fn spec_document(root: PathBuf, capability: String) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::spec_document_at(&root, &capability)
+        specseal_desktop_core::query::spec_document_at(&root, &capability)
     })
     .await
     .map_err(|e| format!("spec_document worker failed: {e}"))
@@ -119,7 +119,7 @@ async fn spec_document(root: PathBuf, capability: String) -> Result<Option<Strin
 #[tauri::command]
 async fn list_manual_pages(root: PathBuf) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manual::list_manual_pages_at(&root)
+        specseal_desktop_core::manual::list_manual_pages_at(&root)
     })
     .await
     .map_err(|e| format!("list_manual_pages worker failed: {e}"))
@@ -128,7 +128,7 @@ async fn list_manual_pages(root: PathBuf) -> Result<Value, String> {
 #[tauri::command]
 async fn get_manual_page(root: PathBuf, slug: String) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manual::manual_page_at(&root, &slug)
+        specseal_desktop_core::manual::manual_page_at(&root, &slug)
     })
     .await
     .map_err(|e| format!("get_manual_page worker failed: {e}"))
@@ -137,7 +137,7 @@ async fn get_manual_page(root: PathBuf, slug: String) -> Result<Option<String>, 
 #[tauri::command]
 async fn search_workspace(root: PathBuf, query: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::search::search_workspace_at(&root, &query)
+        specseal_desktop_core::search::search_workspace_at(&root, &query)
     })
     .await
     .map_err(|e| format!("search_workspace worker failed: {e}"))
@@ -146,7 +146,7 @@ async fn search_workspace(root: PathBuf, query: String) -> Result<Value, String>
 #[tauri::command]
 async fn change_capabilities(root: PathBuf, change: String) -> Result<Vec<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::change_capabilities_at(&root, &change)
+        specseal_desktop_core::query::change_capabilities_at(&root, &change)
     })
     .await
     .map_err(|e| format!("change_capabilities worker failed: {e}"))
@@ -155,7 +155,7 @@ async fn change_capabilities(root: PathBuf, change: String) -> Result<Vec<String
 #[tauri::command]
 async fn change_meta(root: PathBuf, change: String) -> Result<Option<Value>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::change_meta_at(&root, &change)
+        specseal_desktop_core::manage::change_meta_at(&root, &change)
     })
     .await
     .map_err(|e| format!("change_meta worker failed: {e}"))
@@ -164,7 +164,7 @@ async fn change_meta(root: PathBuf, change: String) -> Result<Option<Value>, Str
 #[tauri::command]
 async fn delete_change(root: PathBuf, change: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::delete_change_at(&root, &change)
+        specseal_desktop_core::manage::delete_change_at(&root, &change)
     })
     .await
     .map_err(|e| format!("delete_change worker failed: {e}"))?
@@ -173,16 +173,16 @@ async fn delete_change(root: PathBuf, change: String) -> Result<(), String> {
 #[tauri::command]
 async fn revert_change_to_proposed(root: PathBuf, change: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::revert_change_to_proposed_at(&root, &change)
+        specseal_desktop_core::manage::revert_change_to_proposed_at(&root, &change)
     })
     .await
     .map_err(|e| format!("revert worker failed: {e}"))?
 }
 
 #[tauri::command]
-// 寫入型 command 一律 async＋spawn_blocking（design D2）：完成路徑可能秒級
-// （git spawn 在部分環境極慢），非 async command 會佔用主執行緒凍結整窗。
-// 委派移至執行緒池；並發寫回由 desktop-core 的全域寫鎖序列化。
+// 写入型 command 一律 async＋spawn_blocking（design D2）：完成路径可能秒级
+// （git spawn 在部分环境极慢），非 async command 会占用主线程冻结整窗。
+// 委派移至线程池；并发写回由 desktop-core 的全域写锁串行化。
 async fn set_task_done(
     root: PathBuf,
     change: String,
@@ -190,7 +190,7 @@ async fn set_task_done(
     done: bool,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::set_task_done_at(&root, &change, &task, done)
+        specseal_desktop_core::manage::set_task_done_at(&root, &change, &task, done)
     })
     .await
     .map_err(|e| format!("task write worker failed: {e}"))?
@@ -199,7 +199,7 @@ async fn set_task_done(
 #[tauri::command]
 async fn set_all_tasks(root: PathBuf, change: String, done: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::set_all_tasks_at(&root, &change, done)
+        specseal_desktop_core::manage::set_all_tasks_at(&root, &change, done)
     })
     .await
     .map_err(|e| format!("task write worker failed: {e}"))?
@@ -214,7 +214,7 @@ async fn move_task(
     before: Option<bool>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::move_task_at(&root, &change, from, to, before)
+        specseal_desktop_core::manage::move_task_at(&root, &change, from, to, before)
     })
     .await
     .map_err(|e| format!("task write worker failed: {e}"))?
@@ -229,7 +229,7 @@ async fn reorder_card(
     next_id: Option<String>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::reorder_card_at(
+        specseal_desktop_core::manage::reorder_card_at(
             &root,
             &kind,
             &id,
@@ -242,8 +242,8 @@ async fn reorder_card(
 }
 
 #[tauri::command]
-// 前置的新增與移除（add-change-plan-desktop design D6）：單行委派到桌面 core，
-// 守門與錯誤文字都是引擎的。
+// 前置的添加与移除（add-change-plan-desktop design D6）：单行委派到桌面 core，
+// 守门与错误文本都是引擎的。
 async fn set_change_depends(
     root: PathBuf,
     change: String,
@@ -251,18 +251,18 @@ async fn set_change_depends(
     remove: bool,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::set_depends_at(&root, &change, &on, remove)
+        specseal_desktop_core::manage::set_depends_at(&root, &change, &on, remove)
     })
     .await
     .map_err(|e| format!("task write worker failed: {e}"))?
 }
 
 #[tauri::command]
-// 排程分頁的前置候選名冊（add-change-plan-remote D9）：單行委派到桌面 core，與
+// 调度分页的前置候选名册（add-change-plan-remote D9）：单行委派到桌面 core，与
 // set_change_depends 同一定根。
 async fn depends_candidates(root: PathBuf, change: String) -> Result<Vec<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manage::depends_candidates_at(&root, &change)
+        specseal_desktop_core::manage::depends_candidates_at(&root, &change)
     })
     .await
     .map_err(|e| format!("depends candidates worker failed: {e}"))?
@@ -271,7 +271,7 @@ async fn depends_candidates(root: PathBuf, change: String) -> Result<Vec<String>
 #[tauri::command]
 async fn validate(root: PathBuf, change: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::verbs::validate_at(&root, &change)
+        specseal_desktop_core::verbs::validate_at(&root, &change)
     })
     .await
     .map_err(|e| format!("validate worker failed: {e}"))?
@@ -280,7 +280,7 @@ async fn validate(root: PathBuf, change: String) -> Result<Value, String> {
 #[tauri::command]
 async fn analyze(root: PathBuf, change: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::verbs::analyze_at(&root, &change)
+        specseal_desktop_core::verbs::analyze_at(&root, &change)
     })
     .await
     .map_err(|e| format!("analyze worker failed: {e}"))?
@@ -289,7 +289,7 @@ async fn analyze(root: PathBuf, change: String) -> Result<Value, String> {
 #[tauri::command]
 async fn archive(root: PathBuf, change: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::verbs::archive_at(&root, &change)
+        specseal_desktop_core::verbs::archive_at(&root, &change)
     })
     .await
     .map_err(|e| format!("archive worker failed: {e}"))?
@@ -303,7 +303,7 @@ async fn archive_carry(
     carry_verify: bool,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::verbs::archive_carry_at(&root, &change, carry_review, carry_verify)
+        specseal_desktop_core::verbs::archive_carry_at(&root, &change, carry_review, carry_verify)
     })
     .await
     .map_err(|e| format!("archive_carry worker failed: {e}"))?
@@ -312,7 +312,7 @@ async fn archive_carry(
 #[tauri::command]
 async fn discard_review(root: PathBuf, change: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::verbs::discard_review_at(&root, &change)
+        specseal_desktop_core::verbs::discard_review_at(&root, &change)
     })
     .await
     .map_err(|e| format!("discard_review worker failed: {e}"))?
@@ -321,7 +321,7 @@ async fn discard_review(root: PathBuf, change: String) -> Result<Value, String> 
 #[tauri::command]
 async fn discard_verify(root: PathBuf, change: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::verbs::discard_verify_at(&root, &change)
+        specseal_desktop_core::verbs::discard_verify_at(&root, &change)
     })
     .await
     .map_err(|e| format!("discard_verify worker failed: {e}"))?
@@ -330,7 +330,7 @@ async fn discard_verify(root: PathBuf, change: String) -> Result<Value, String> 
 #[tauri::command]
 async fn archived_changes(root: PathBuf) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::cache::archived_changes_at(&root)
+        specseal_desktop_core::cache::archived_changes_at(&root)
     })
     .await
     .map_err(|e| format!("archived_changes worker failed: {e}"))
@@ -343,7 +343,7 @@ async fn archived_document(
     artifact: String,
 ) -> Result<Option<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::archived_document_at(&root, &dated_name, &artifact)
+        specseal_desktop_core::query::archived_document_at(&root, &dated_name, &artifact)
     })
     .await
     .map_err(|e| format!("archived_document worker failed: {e}"))
@@ -352,24 +352,24 @@ async fn archived_document(
 #[tauri::command]
 async fn archived_capabilities(root: PathBuf, dated_name: String) -> Result<Vec<String>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::archived_capabilities_at(&root, &dated_name)
+        specseal_desktop_core::query::archived_capabilities_at(&root, &dated_name)
     })
     .await
     .map_err(|e| format!("archived_capabilities worker failed: {e}"))
 }
 
-/// 一站的活工單（drawer-quality-ticket-tab D1／D2）：`{ "rounds": [ … ] }`，無工單、
-/// 未知站別或格式壞掉皆回 null。
+/// 一站的活工单（drawer-quality-ticket-tab D1／D2）：`{ "rounds": [ … ] }`，无工单、
+/// 未知站别或格式坏掉皆回 null。
 #[tauri::command]
 async fn station_ticket(root: PathBuf, change: String, station: String) -> Result<Option<Value>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::station_ticket_at(&root, &change, &station)
+        specseal_desktop_core::query::station_ticket_at(&root, &change, &station)
     })
     .await
     .map_err(|e| format!("station_ticket worker failed: {e}"))
 }
 
-/// 已封存 change 帶走的工單，形狀與 null 語意同 `station_ticket`。
+/// 已封存 change 带走的工单，形状与 null 语意同 `station_ticket`。
 #[tauri::command]
 async fn archived_station_ticket(
     root: PathBuf,
@@ -377,74 +377,74 @@ async fn archived_station_ticket(
     station: String,
 ) -> Result<Option<Value>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::archived_station_ticket_at(&root, &dated_name, &station)
+        specseal_desktop_core::query::archived_station_ticket_at(&root, &dated_name, &station)
     })
     .await
     .map_err(|e| format!("archived_station_ticket worker failed: {e}"))
 }
 
-/// change artifact 的磁碟位置（詳情頁「開啟 ▾」）：與 `document` 同一套解析（worktree 副本）。
+/// change artifact 的磁盘位置（详情页「打开 ▾」）：与 `document` 同一套解析（worktree 副本）。
 #[tauri::command]
 async fn document_location(
     root: PathBuf,
     change: String,
     artifact: String,
-) -> Result<Option<speclink_desktop_core::query::DocumentLocation>, String> {
+) -> Result<Option<specseal_desktop_core::query::DocumentLocation>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::document_location_at(&root, &change, &artifact)
+        specseal_desktop_core::query::document_location_at(&root, &change, &artifact)
     })
     .await
     .map_err(|e| format!("document_location worker failed: {e}"))
 }
 
-/// 討論記錄的磁碟位置（詳情頁「開啟 ▾」）：與 `discussion_document` 同一套解析（封存後備）。
+/// 讨论记录的磁盘位置（详情页「打开 ▾」）：与 `discussion_document` 同一套解析（封存后备）。
 #[tauri::command]
 async fn discussion_location(
     root: PathBuf,
     slug: String,
-) -> Result<Option<speclink_desktop_core::query::DocumentLocation>, String> {
+) -> Result<Option<specseal_desktop_core::query::DocumentLocation>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::discussions::discussion_location_at(&root, &slug)
+        specseal_desktop_core::discussions::discussion_location_at(&root, &slug)
     })
     .await
     .map_err(|e| format!("discussion_location worker failed: {e}"))
 }
 
-/// 正式規格的磁碟位置（規格詳情頁「開啟 ▾」）：與 `spec_document` 同一個 store。
+/// 正式规格的磁盘位置（规格详情页「打开 ▾」）：与 `spec_document` 同一个 store。
 #[tauri::command]
 async fn spec_location(
     root: PathBuf,
     capability: String,
-) -> Result<Option<speclink_desktop_core::query::DocumentLocation>, String> {
+) -> Result<Option<specseal_desktop_core::query::DocumentLocation>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::spec_location_at(&root, &capability)
+        specseal_desktop_core::query::spec_location_at(&root, &capability)
     })
     .await
     .map_err(|e| format!("spec_location worker failed: {e}"))
 }
 
-/// 手冊頁的磁碟位置（手冊頁「開啟 ▾」）：與 `get_manual_page` 同一條 slug 守門與路徑解析。
+/// 手册页的磁盘位置（手册页「打开 ▾」）：与 `get_manual_page` 同一条 slug 守门与路径解析。
 #[tauri::command]
 async fn manual_location(
     root: PathBuf,
     slug: String,
-) -> Result<Option<speclink_desktop_core::query::DocumentLocation>, String> {
+) -> Result<Option<specseal_desktop_core::query::DocumentLocation>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::manual::manual_location_at(&root, &slug)
+        specseal_desktop_core::manual::manual_location_at(&root, &slug)
     })
     .await
     .map_err(|e| format!("manual_location worker failed: {e}"))
 }
 
-/// 已封存 change 的 artifact 磁碟位置（已封存詳情頁「開啟 ▾」）：與 `archived_document` 同一個 store。
+/// 已封存 change 的 artifact 磁盘位置（已封存详情页「打开 ▾」）：与 `archived_document` 同一个 store。
 #[tauri::command]
 async fn archived_document_location(
     root: PathBuf,
     dated_name: String,
     artifact: String,
-) -> Result<Option<speclink_desktop_core::query::DocumentLocation>, String> {
+) -> Result<Option<specseal_desktop_core::query::DocumentLocation>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::query::archived_document_location_at(&root, &dated_name, &artifact)
+        specseal_desktop_core::query::archived_document_location_at(&root, &dated_name, &artifact)
     })
     .await
     .map_err(|e| format!("archived_document_location worker failed: {e}"))
@@ -453,7 +453,7 @@ async fn archived_document_location(
 #[tauri::command]
 async fn list_discussions(root: PathBuf) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::discussions::list_discussions_at(&root)
+        specseal_desktop_core::discussions::list_discussions_at(&root)
     })
     .await
     .map_err(|e| format!("list_discussions worker failed: {e}"))
@@ -463,9 +463,9 @@ async fn list_discussions(root: PathBuf) -> Result<Value, String> {
 async fn discussion_document(
     root: PathBuf,
     slug: String,
-) -> Result<Option<speclink_desktop_core::discussions::DiscussionDocument>, String> {
+) -> Result<Option<specseal_desktop_core::discussions::DiscussionDocument>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::discussions::discussion_document_at(&root, &slug)
+        specseal_desktop_core::discussions::discussion_document_at(&root, &slug)
     })
     .await
     .map_err(|e| format!("discussion_document worker failed: {e}"))
@@ -478,7 +478,7 @@ async fn promote_discussion(
     name: Option<String>,
 ) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::discussions::promote_discussion_at(&root, &slug, name.as_deref())
+        specseal_desktop_core::discussions::promote_discussion_at(&root, &slug, name.as_deref())
     })
     .await
     .map_err(|e| format!("promote_discussion worker failed: {e}"))?
@@ -487,22 +487,22 @@ async fn promote_discussion(
 #[tauri::command]
 async fn archive_discussion(root: PathBuf, slug: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::discussions::archive_discussion_at(&root, &slug)
+        specseal_desktop_core::discussions::archive_discussion_at(&root, &slug)
     })
     .await
     .map_err(|e| format!("archive_discussion worker failed: {e}"))?
 }
 
-/// 監看器槽位：目標集合不變時沿用原監看，改變時整顆替換（drop 舊監看即停止）。
-/// `tickets` 於 command 進 pool 前取號——兩條重掛鏈（activation 與
-/// workspace-changed 驅動）交錯時，槽位以序號拒絕陳舊的慢工反超。
+/// 监看器槽位：目标集合不变时沿用原监看，改变时整颗替换（drop 旧监看即停止）。
+/// `tickets` 于 command 进 pool 前取号——两条重挂链（activation 与
+/// workspace-changed 驱动）交错时，槽位以序号拒绝陈旧的慢工反超。
 struct WatcherState {
     tickets: std::sync::atomic::AtomicU64,
     slot: std::sync::Mutex<watch::WatchSlot>,
 }
 
 impl WatcherState {
-    /// 取號是純記憶體操作，於 command 進 pool 前呼叫。
+    /// 取号是纯内存操作，于 command 进 pool 前调用。
     fn next_ticket(&self) -> u64 {
         self.tickets.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
     }
@@ -511,7 +511,7 @@ impl WatcherState {
         self.slot.lock().expect("watcher lock poisoned")
     }
 
-    /// 暫停監看期間執行 `f`（desktop-spec-dir-migration D2）；`f` 結束（含 panic）即恢復。
+    /// 暂停监看期间运行 `f`（desktop-spec-dir-migration D2）；`f` 结束（含 panic）即恢复。
     fn while_paused<T>(&self, ticket: u64, f: impl FnOnce() -> T) -> T {
         struct Resume<'a>(&'a WatcherState);
         impl Drop for Resume<'_> {
@@ -527,22 +527,22 @@ impl WatcherState {
     }
 }
 
-/// git 身分預熱（design D1）：首抓可能秒級（GUI 進程 spawn git 極慢的環境），
-/// 掛監看（＝專案成為活躍）時背景執行緒先填快取——首次勾選不再付這筆成本。
-/// 失敗靜默，完成路徑的 cached_git_identity 會自行補抓。
+/// git 身分预热（design D1）：首抓可能秒级（GUI 进程 spawn git 极慢的环境），
+/// 挂监看（＝项目成为活跃）时背景线程先填缓存——首次勾选不再付这笔成本。
+/// 失败静默，完成路径的 cached_git_identity 会自行补抓。
 fn prewarm_identity(root: PathBuf) {
     std::thread::spawn(move || {
-        let _ = speclink_desktop_core::manage::cached_git_identity(&root);
+        let _ = specseal_desktop_core::manage::cached_git_identity(&root);
     });
 }
 
-/// 開啟專案＝純探測：只回報本機 project／remoteBinding／uninitialized payload，
-/// 錯誤走 Result；不改寫任何全域、不重掛
-/// 監看——同一路徑重複呼叫冪等無副作用。監看跟隨由前端顯式 watch_workspace。
+/// 打开项目＝纯探测：只回报本机 project／remoteBinding／uninitialized payload，
+/// 错误走 Result；不改写任何全域、不重挂
+/// 监看——同一路径重复调用幂等无副作用。监看跟随由前端显式 watch_workspace。
 #[tauri::command]
 async fn open_project(path: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let probe = speclink_desktop_core::project::open_project_at(std::path::Path::new(&path))?;
+        let probe = specseal_desktop_core::project::open_project_at(std::path::Path::new(&path))?;
         serde_json::to_value(&probe).map_err(|e| e.to_string())
     })
     .await
@@ -553,29 +553,29 @@ async fn open_project(path: String) -> Result<Value, String> {
 async fn init_project(path: String, tools: Vec<String>) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let probe =
-            speclink_desktop_core::project::init_project_at(std::path::Path::new(&path), &tools)?;
+            specseal_desktop_core::project::init_project_at(std::path::Path::new(&path), &tools)?;
         serde_json::to_value(&probe).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("init_project worker failed: {e}"))?
 }
 
-/// 對未啟用資料夾補齊工作區檔（desktop-enable-speclink-prompt 決策 4：獨立
-/// command，不復用 init_project——其引擎路徑對已有 openspec/ 的目錄必然 bail）。
+/// 对未激活文件夹补齐工作区档（desktop-enable-specseal-prompt 决策 4：独立
+/// command，不复用 init_project——其引擎路径对已有 openspec/ 的目录必然 bail）。
 #[tauri::command]
 async fn adopt_project(path: String, tools: Vec<String>) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let probe =
-            speclink_desktop_core::project::adopt_project_at(std::path::Path::new(&path), &tools)?;
+            specseal_desktop_core::project::adopt_project_at(std::path::Path::new(&path), &tools)?;
         serde_json::to_value(&probe).map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| format!("adopt_project worker failed: {e}"))?
 }
 
-/// 啟動語境的預設目錄（決策 4 首啟路徑）：回傳行程啟動時的工作目錄——前端
-/// 首啟無持久化分頁時據此顯式 openProjectAt（自專案目錄啟動的自動開啟語意
-/// 凍結）。純讀、無任何可變全域。
+/// 启动语境的缺省目录（决策 4 首启路径）：回传行程启动时的工作目录——前端
+/// 首启无持久化分页时据此显式 openProjectAt（自项目目录启动的自动打开语意
+/// 冻结）。纯读、无任何可变全域。
 #[tauri::command]
 fn startup_dir() -> String {
     std::env::current_dir()
@@ -584,36 +584,36 @@ fn startup_dir() -> String {
         .to_string()
 }
 
-/// 專案統計（背景分頁徽章快照）：唯讀、收路徑參數。
+/// 项目统计（背景分页徽章快照）：唯读、收路径参数。
 #[tauri::command]
 async fn project_stats(path: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::project::project_stats_at(std::path::Path::new(&path))
+        specseal_desktop_core::project::project_stats_at(std::path::Path::new(&path))
     })
     .await
     .map_err(|e| format!("project_stats worker failed: {e}"))?
 }
 
-/// 技能檔過期探測（desktop-instruction-staleness-prompt 決策 4）：獨立唯讀
-/// command，不掛進 open_project——後者是純探測 probe，不承擔第二職責。
+/// 技能档过期探测（desktop-instruction-staleness-prompt 决策 4）：独立唯读
+/// command，不挂进 open_project——后者是纯探测 probe，不承担第二职责。
 #[tauri::command]
 async fn probe_assets(path: String) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::project::probe_assets_at(std::path::Path::new(&path))
+        specseal_desktop_core::project::probe_assets_at(std::path::Path::new(&path))
     })
     .await
     .map_err(|e| format!("probe_assets worker failed: {e}"))
 }
 
-/// 技能檔整套再生（決策 5）：委派引擎既有 update()。寫入型 command 一律
-/// async＋spawn_blocking（design D2）——再生十餘個檔案，不得凍結主執行緒。
-/// update 可能把 openspec/ 改名為 speclink/：整段更新期間暫停監看（Windows 上活著的
-/// 監看會擋住改名），前端完成後以 watch_workspace 重掛（desktop-spec-dir-migration D2）。
+/// 技能档整套再生（决策 5）：委派引擎既有 update()。写入型 command 一律
+/// async＋spawn_blocking（design D2）——再生十余个文件，不得冻结主线程。
+/// update 可能把 openspec/ 改名为 specseal/：整段更新期间暂停监看（Windows 上活着的
+/// 监看会挡住改名），前端完成后以 watch_workspace 重挂（desktop-spec-dir-migration D2）。
 #[tauri::command]
 async fn update_assets(app: tauri::AppHandle, path: String) -> Result<Value, String> {
     let ticket = app.try_state::<WatcherState>().map(|state| state.next_ticket());
     tauri::async_runtime::spawn_blocking(move || {
-        let update = || speclink_desktop_core::project::update_assets_at(std::path::Path::new(&path));
+        let update = || specseal_desktop_core::project::update_assets_at(std::path::Path::new(&path));
         match (app.try_state::<WatcherState>(), ticket) {
             (Some(state), Some(ticket)) => state.while_paused(ticket, update),
             _ => update(),
@@ -623,15 +623,15 @@ async fn update_assets(app: tauri::AppHandle, path: String) -> Result<Value, Str
     .map_err(|e| format!("asset update worker failed: {e}"))?
 }
 
-/// 監看重掛（決策 5）：顯式跟隨活躍 session。前端於每次 workspace-changed
-/// 後也會重掛（worktree 增減會改變監看拓撲）——槽位比對目標集合，不變即
-/// 沿用原監看，真的重建時才預熱 git 身分。workspace-changed 事件 payload 為
-/// 被監看的 root 字串（session 的事件來源據此過濾）。root 收字串並原樣回送，
-/// 避免 PathBuf 往返改寫字面。
-/// 監看不可用僅記錄、不回錯——app 照常、僅失去自動刷新（既有降級語意）。
-/// 掛載大樹（遞迴走訪）屬 IO，整段重掛移至 spawn_blocking——槽位鎖在背景
-/// 執行緒取得，主執行緒不等待掛載完成。序號在進 pool 前取（取號是純記憶體
-/// 操作）：pool 內完成順序不定，槽位據此拒絕陳舊的慢工反超。
+/// 监看重挂（决策 5）：显式跟随活跃 session。前端于每次 workspace-changed
+/// 后也会重挂（worktree 增减会改变监看拓扑）——槽位比对目标集合，不变即
+/// 沿用原监看，真的重建时才预热 git 身分。workspace-changed 事件 payload 为
+/// 被监看的 root 字符串（session 的事件来源据此过滤）。root 收字符串并原样回送，
+/// 避免 PathBuf 往返改写字面。
+/// 监看不可用仅记录、不回错——app 照常、仅失去自动刷新（既有降级语意）。
+/// 挂载大树（递归走访）属 IO，整段重挂移至 spawn_blocking——槽位锁在背景
+/// 线程取得，主线程不等待挂载完成。序号在进 pool 前取（取号是纯内存
+/// 操作）：pool 内完成顺序不定，槽位据此拒绝陈旧的慢工反超。
 #[tauri::command]
 async fn watch_workspace(app: tauri::AppHandle, root: String) {
     let ticket = match app.try_state::<WatcherState>() {
@@ -655,20 +655,20 @@ async fn watch_workspace(app: tauri::AppHandle, root: String) {
         match rearmed {
             Ok(true) => prewarm_identity(root_path),
             Ok(false) => {}
-            Err(e) => eprintln!("speclink-desktop: file watching unavailable: {e}"),
+            Err(e) => eprintln!("specseal-desktop: file watching unavailable: {e}"),
         }
     })
     .await;
     if let Err(e) = joined {
-        eprintln!("speclink-desktop: watch worker failed: {e}");
+        eprintln!("specseal-desktop: watch worker failed: {e}");
     }
 }
 
-/// 有 checkout 的 remote 專案的技能檔監看（remote-skill-delivery D8）：掛上 checkout 裡
-/// 各工具的技能目錄與 `.speclink.yaml`，變動時以 `checkout-skills-changed` 通知（payload 為
-/// checkout 的路徑，原樣回送）。和本機的 `workspace-changed` 分開：它只讓前端重新探測
-/// 技能檔，不重新載入專案資料。沿用同一個監看槽位——跟著作用中的分頁，同一時間只有一個
-/// 監看。掛不上只記錄、不回錯（既有降級語意）。
+/// 有 checkout 的 remote 项目的技能档监看（remote-skill-delivery D8）：挂上 checkout 里
+/// 各工具的技能目录与 `.specseal.yaml`，变动时以 `checkout-skills-changed` 通知（payload 为
+/// checkout 的路径，原样回送）。和本机的 `workspace-changed` 分开：它只让前端重新探测
+/// 技能档，不重新加载项目数据。沿用同一个监看槽位——跟著作用中的分页，同一时间只有一个
+/// 监看。挂不上只记录、不回错（既有降级语意）。
 #[tauri::command]
 async fn watch_checkout_skills(app: tauri::AppHandle, checkout: String) {
     let ticket = match app.try_state::<WatcherState>() {
@@ -690,19 +690,19 @@ async fn watch_checkout_skills(app: tauri::AppHandle, checkout: String) {
             },
         );
         if let Err(e) = rearmed {
-            eprintln!("speclink-desktop: checkout skill watching unavailable: {e}");
+            eprintln!("specseal-desktop: checkout skill watching unavailable: {e}");
         }
     })
     .await;
     if let Err(e) = joined {
-        eprintln!("speclink-desktop: watch worker failed: {e}");
+        eprintln!("specseal-desktop: watch worker failed: {e}");
     }
 }
 
 #[tauri::command]
 async fn read_settings(root: PathBuf) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let snapshot = speclink_desktop_core::settings::read_settings_at(&root)?;
+        let snapshot = specseal_desktop_core::settings::read_settings_at(&root)?;
         serde_json::to_value(&snapshot).map_err(|e| e.to_string())
     })
     .await
@@ -712,7 +712,7 @@ async fn read_settings(root: PathBuf) -> Result<Value, String> {
 #[tauri::command]
 async fn write_app_tools(root: PathBuf, tools: Vec<String>) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::write_tools_at(&root, &tools)
+        specseal_desktop_core::settings::write_tools_at(&root, &tools)
     })
     .await
     .map_err(|e| format!("write_app_tools worker failed: {e}"))?
@@ -727,7 +727,7 @@ async fn write_workflow_config(
     audit: bool,
     worktree: bool,
 ) -> Result<(), String> {
-    let fields = speclink_desktop_core::settings::WorkflowPolicyFields {
+    let fields = specseal_desktop_core::settings::WorkflowPolicyFields {
         locale,
         spec_locale,
         tdd,
@@ -735,20 +735,20 @@ async fn write_workflow_config(
         worktree,
     };
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::write_workflow_fields_at(&root, &fields)
+        specseal_desktop_core::settings::write_workflow_fields_at(&root, &fields)
     })
     .await
     .map_err(|e| format!("write_workflow_config worker failed: {e}"))?
 }
 
-/// 產出流程快照（desktop-schema-panel design D2）：root 有值＝local 三層組裝；
-/// 缺席＝remote 模式，desktop core 以內嵌內建組裝（不打 server、不讀本機層）。
+/// 产出流程快照（desktop-schema-panel design D2）：root 有值＝local 三层组装；
+/// 缺席＝remote 模式，desktop core 以内嵌内置组装（不打 server、不读本机层）。
 #[tauri::command]
 async fn read_schemas(root: Option<PathBuf>) -> Result<Value, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let snapshot = match root {
-            Some(root) => speclink_desktop_core::settings::read_schemas_at(&root)?,
-            None => speclink_desktop_core::settings::builtin_schemas(),
+            Some(root) => specseal_desktop_core::settings::read_schemas_at(&root)?,
+            None => specseal_desktop_core::settings::builtin_schemas(),
         };
         serde_json::to_value(&snapshot).map_err(|e| e.to_string())
     })
@@ -759,7 +759,7 @@ async fn read_schemas(root: Option<PathBuf>) -> Result<Value, String> {
 #[tauri::command]
 async fn write_workflow_schema(root: PathBuf, name: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::write_workflow_schema_at(&root, &name)
+        specseal_desktop_core::settings::write_workflow_schema_at(&root, &name)
     })
     .await
     .map_err(|e| format!("write_workflow_schema worker failed: {e}"))?
@@ -768,65 +768,65 @@ async fn write_workflow_schema(root: PathBuf, name: String) -> Result<(), String
 #[tauri::command]
 async fn fork_schema(root: PathBuf, source: String) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::fork_schema_at(&root, &source)
+        specseal_desktop_core::settings::fork_schema_at(&root, &source)
     })
     .await
     .map_err(|e| format!("fork_schema worker failed: {e}"))?
 }
 
-/// 建立自訂 schema 骨架（design D5）：佈局用引擎預設，名稱驗證在引擎。
+/// 创建自订 schema 骨架（design D5）：布局用引擎缺省，名称验证在引擎。
 #[tauri::command]
 async fn init_schema(root: PathBuf, name: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::init_schema_at(&root, &name)
+        specseal_desktop_core::settings::init_schema_at(&root, &name)
     })
     .await
     .map_err(|e| format!("init_schema worker failed: {e}"))?
 }
 
-/// 刪除專案層自訂 schema（design D7）：使用中拒刪、目標由 core 固定解析。
+/// 删除项目层自订 schema（design D7）：使用中拒删、目标由 core 固定解析。
 #[tauri::command]
 async fn delete_schema(root: PathBuf, name: String) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::delete_schema_at(&root, &name)
+        specseal_desktop_core::settings::delete_schema_at(&root, &name)
     })
     .await
     .map_err(|e| format!("delete_schema worker failed: {e}"))?
 }
 
-/// 在系統檔案管理器顯示路徑（design D6 編輯入口）：path 來自 read_schemas 快照。
+/// 在系统文件管理器显示路径（design D6 编辑入口）：path 来自 read_schemas 快照。
 #[tauri::command]
 async fn reveal_in_folder(app: tauri::AppHandle, path: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     app.opener().reveal_item_in_dir(&path).map_err(|e| e.to_string())
 }
 
-/// 以系統預設 App 開啟詳情頁目前分頁的文件（design D4「開啟 ▾」）：與
-/// `reveal_in_folder` 同一條 opener 路徑；只收實際目標為 `.md` 的檔案，其餘拒絕
-/// （見 `check_default_open`）。
+/// 以系统缺省 App 打开详情页目前分页的文档（design D4「打开 ▾」）：与
+/// `reveal_in_folder` 同一条 opener 路径；只收实际目标为 `.md` 的文件，其余拒绝
+/// （见 `check_default_open`）。
 #[tauri::command]
 async fn open_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
-    speclink_desktop_core::fs_actions::check_default_open(&path)?;
+    specseal_desktop_core::fs_actions::check_default_open(&path)?;
     app.opener()
         .open_path(&path, None::<&str>)
         .map_err(|e| e.to_string())
 }
 
-/// 寫入 config.yaml 的「專案說明」「產出規則」「審查規則」與「子代理模型」。
-/// `context: None`＝不動、`Some(文字)`＝設值（空白即移除鍵，core 落實）；
-/// `rules: None`＝不動、`Some(節序清單)`＝整份代換；`review`、`subagent_model`
-/// 同理（`Some` 整塊代換）。政策欄位不受本 command 波及。
+/// 写入 config.yaml 的「项目说明」「产出规则」「审查规则」与「子代理模型」。
+/// `context: None`＝不动、`Some(文本)`＝设值（空白即移除键，core 落实）；
+/// `rules: None`＝不动、`Some(节序清单)`＝整份代换；`review`、`subagent_model`
+/// 同理（`Some` 整块代换）。政策字段不受本 command 波及。
 #[tauri::command]
 async fn write_workflow_content(
     root: PathBuf,
     context: Option<String>,
     rules: Option<Vec<(String, Vec<String>)>>,
-    review: Option<speclink_desktop_core::settings::ReviewConfig>,
-    subagent_model: Option<speclink_desktop_core::settings::SubagentModelConfig>,
+    review: Option<specseal_desktop_core::settings::ReviewConfig>,
+    subagent_model: Option<specseal_desktop_core::settings::SubagentModelConfig>,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || {
-        speclink_desktop_core::settings::write_workflow_content_at(
+        specseal_desktop_core::settings::write_workflow_content_at(
             &root,
             &content_edit(context, &rules, &review, &subagent_model),
         )
@@ -835,15 +835,15 @@ async fn write_workflow_content(
     .map_err(|e| format!("write_workflow_content worker failed: {e}"))?
 }
 
-/// 兩個內容寫入指令共用的參數轉換：context 為 null 不動、有值即設值（空白＝移除，
-/// core 落實）；rules、review 與 subagent_model 為 null 不動。
+/// 两个内容写入指令共用的参数转换：context 为 null 不动、有值即设值（空白＝移除，
+/// core 落实）；rules、review 与 subagent_model 为 null 不动。
 fn content_edit<'a>(
     context: Option<String>,
     rules: &'a Option<Vec<(String, Vec<String>)>>,
-    review: &'a Option<speclink_desktop_core::settings::ReviewConfig>,
-    subagent_model: &'a Option<speclink_desktop_core::settings::SubagentModelConfig>,
-) -> speclink_desktop_core::settings::ContentEdit<'a> {
-    use speclink_desktop_core::settings::{ContentEdit, ContextEdit};
+    review: &'a Option<specseal_desktop_core::settings::ReviewConfig>,
+    subagent_model: &'a Option<specseal_desktop_core::settings::SubagentModelConfig>,
+) -> specseal_desktop_core::settings::ContentEdit<'a> {
+    use specseal_desktop_core::settings::{ContentEdit, ContextEdit};
     ContentEdit {
         context: context.map_or(ContextEdit::Keep, ContextEdit::Set),
         rules: rules.as_deref(),
@@ -852,29 +852,29 @@ fn content_edit<'a>(
     }
 }
 
-/// 連線 registry 檔位置：appConfigDir 下 connections.json（design 決策 4）。
+/// 连接 registry 档位置：appConfigDir 下 connections.json（design 决策 4）。
 fn connections_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_config_dir()
         .map(|dir| connections::registry_path(&dir))
-        .map_err(|e| format!("無法取得 app 設定目錄：{e}"))
+        .map_err(|e| format!("无法取得 app 设置目录：{e}"))
 }
 
-/// 連線層狀態：credential 出入口（生產＝OS Keychain）與 per-origin 的
-/// TokenManager（access token 記憶體持有——短效、絕不落盤、絕不過境 TS，
-/// 決策 2；換發與 401 語意見 remote 模組）。
+/// 连接层状态：credential 出入口（生产＝OS Keychain）与 per-origin 的
+/// TokenManager（access token 内存持有——短效、绝不落盘、绝不过境 TS，
+/// 决策 2；换发与 401 语意见 remote 模块）。
 struct ConnectionsState {
-    credentials: Box<dyn speclink_remote::credentials::CredentialStore>,
+    credentials: Box<dyn specseal_remote::credentials::CredentialStore>,
     managers:
         std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<remote::TokenManager>>>,
     state_observer: std::sync::Arc<dyn Fn(remote::ConnectionStateEvent) + Send + Sync>,
-    /// 進行中的登入的取消旗標（connection_login_cancel 設定）。
+    /// 进行中的登录的取消旗标（connection_login_cancel 设置）。
     logins: connections::LoginCancels,
 }
 
 impl ConnectionsState {
-    /// 該 origin 的 TokenManager——惰性建立、跨 command 共用（needs-reauth
-    /// 狀態與 token 快取都掛在同一顆上）。
+    /// 该 origin 的 TokenManager——惰性创建、跨 command 共用（needs-reauth
+    /// 状态与 token 缓存都挂在同一颗上）。
     fn manager_for(&self, origin: &str) -> std::sync::Arc<remote::TokenManager> {
         let observer = self.state_observer.clone();
         self.managers
@@ -902,7 +902,7 @@ impl ConnectionsState {
     }
 }
 
-/// 條目的 TS 檢視：registry 欄位＋由 Keychain 推導的登入狀態。secret 不出現。
+/// 条目的 TS 查看：registry 字段＋由 Keychain 推导的登录状态。secret 不出现。
 fn entry_view(entry: &connections::ConnectionEntry, state: &ConnectionsState) -> Value {
     let logged_in = connections::logged_in(&entry.origin, &*state.credentials);
     let mut view = serde_json::to_value(entry).expect("entry serializes");
@@ -946,8 +946,8 @@ async fn connection_add(
     .map_err(|e| format!("connection_add worker failed: {e}"))?
 }
 
-/// chooser 的 checkout 先檢查階段（零寫入）：驗證資料夾與 marker 一致性，
-/// 回傳 `{ root, tools }` 供 picker 顯示既有 built-in 工具選集。
+/// chooser 的 checkout 先检查阶段（零写入）：验证文件夹与 marker 一致性，
+/// 回传 `{ root, tools }` 供 picker 显示既有 built-in 工具选集。
 #[tauri::command]
 async fn inspect_checkout(
     path: String,
@@ -962,8 +962,8 @@ async fn inspect_checkout(
     .map_err(|e| format!("inspect_checkout worker failed: {e}"))?
 }
 
-/// chooser 的 checkout 提交階段：重做 marker 邊界驗證，無 marker 時寫入與 CLI
-/// init remote 同構的 remote section，再對非空 built-in 選集執行 Core reconciliation。
+/// chooser 的 checkout 提交阶段：重做 marker 边界验证，无 marker 时写入与 CLI
+/// init remote 同构的 remote section，再对非空 built-in 选集运行 Core reconciliation。
 #[tauri::command]
 async fn bind_checkout(
     path: String,
@@ -979,8 +979,8 @@ async fn bind_checkout(
     .map_err(|e| format!("bind_checkout worker failed: {e}"))?
 }
 
-/// 移除連線（決策 6）：登出與刪條目的交易語意在 connections::remove_connection
-/// （鎖內執行）；此處只補 in-memory TokenManager 的清理。
+/// 移除连接（决策 6）：注销与删条目的交易语意在 connections::remove_connection
+/// （锁内运行）；此处只补 in-memory TokenManager 的清理。
 #[tauri::command]
 async fn connection_remove(app: tauri::AppHandle, id: String) -> Result<(), String> {
     let path = connections_path(&app)?;
@@ -989,7 +989,7 @@ async fn connection_remove(app: tauri::AppHandle, id: String) -> Result<(), Stri
         .inner()
         .clone();
     tauri::async_runtime::spawn_blocking(move || {
-        // 條目要消失了：先取消等待中的登入，它才不會在登出之後寫回 credential。
+        // 条目要消失了：先取消等待中的登录，它才不会在注销之后写回 credential。
         if let Some(entry) = connections::read_registry(&path).iter().find(|e| e.id == id) {
             state.logins.cancel(&entry.origin);
         }
@@ -1002,10 +1002,10 @@ async fn connection_remove(app: tauri::AppHandle, id: String) -> Result<(), Stri
     .map_err(|e| format!("connection_remove worker failed: {e}"))?
 }
 
-/// 登入（client-browser-login D7）：在 blocking pool 跑共用的登入程式直到終態；
-/// 途中的等待階段經 `connection-login-phase` 事件送往前端，瀏覽器開啟走
-/// tauri-plugin-opener，取消由 connection_login_cancel 設旗標。回 TS 的只有狀態
-/// 與顯示名——access token 交給記憶體持有、refresh credential 已寫入 Keychain。
+/// 登录（client-browser-login D7）：在 blocking pool 跑共用的登录程序直到终态；
+/// 途中的等待阶段经 `connection-login-phase` 事件送往前端，浏览器打开走
+/// tauri-plugin-opener，取消由 connection_login_cancel 设旗标。回 TS 的只有状态
+/// 与显示名——access token 交给内存持有、refresh credential 已写入 Keychain。
 #[tauri::command]
 async fn connection_login_start(app: tauri::AppHandle, origin: String) -> Result<Value, String> {
     let path = connections_path(&app)?;
@@ -1023,7 +1023,7 @@ async fn connection_login_start(app: tauri::AppHandle, origin: String) -> Result
             use tauri_plugin_opener::OpenerExt;
             app.opener()
                 .open_url(url.to_string(), None::<String>)
-                .map_err(|e| format!("無法開啟系統瀏覽器：{e}"))
+                .map_err(|e| format!("无法打开系统浏览器：{e}"))
         };
         let io = connections::DesktopLoginIo {
             origin: &origin,
@@ -1043,13 +1043,13 @@ async fn connection_login_start(app: tauri::AppHandle, origin: String) -> Result
     .map_err(|e| format!("login worker failed: {e}"))?
 }
 
-/// 取消等待中的登入：設旗標，等待迴圈在下一個切片結束並回 cancelled。
+/// 取消等待中的登录：设旗标，等待循环在下一个切片结束并回 cancelled。
 #[tauri::command]
 fn connection_login_cancel(app: tauri::AppHandle, origin: String) {
     app.state::<std::sync::Arc<ConnectionsState>>().logins.cancel(&origin);
 }
 
-/// PAT 登入：PAT 僅單次過境此參數（不回讀、不入 log、不進 TS 狀態）。
+/// PAT 登录：PAT 仅单次过境此参数（不回读、不入 log、不进 TS 状态）。
 #[tauri::command]
 async fn pat_login(app: tauri::AppHandle, origin: String, pat: String) -> Result<Value, String> {
     let path = connections_path(&app)?;
@@ -1066,8 +1066,8 @@ async fn pat_login(app: tauri::AppHandle, origin: String, pat: String) -> Result
     .map_err(|e| format!("login worker failed: {e}"))?
 }
 
-/// 連線的 runtime 狀態（remote 決策 4）：needs-reauth 布林＋繁中訊息。TS 據此
-/// 呈現需重新認證，token 本身永不出現。
+/// 连接的 runtime 状态（remote 决策 4）：needs-reauth 布尔＋繁中消息。TS 据此
+/// 呈现需重新认证，token 本身永不出现。
 #[tauri::command]
 fn connection_state(app: tauri::AppHandle, origin: String) -> Value {
     let state = app.state::<std::sync::Arc<ConnectionsState>>();
@@ -1075,7 +1075,7 @@ fn connection_state(app: tauri::AppHandle, origin: String) -> Value {
     serde_json::json!({ "needsReauth": message.is_some(), "message": message })
 }
 
-/// 登出（決策 6）：盡力撤銷＋必刪本機，並丟棄記憶體中的 access token。
+/// 注销（决策 6）：尽力撤销＋必删本机，并丢弃内存中的 access token。
 #[tauri::command]
 async fn connection_logout(app: tauri::AppHandle, origin: String) -> Result<Value, String> {
     let path = connections_path(&app)?;
@@ -1095,20 +1095,20 @@ async fn connection_logout(app: tauri::AppHandle, origin: String) -> Result<Valu
     .map_err(|e| format!("logout worker failed: {e}"))?
 }
 
-// --- remote workspace 資料面（remote-data-source 決策 6、7） ---
+// --- remote workspace 数据面（remote-data-source 决策 6、7） ---
 
-/// connectionId → origin（registry 查找）。條目消失＝連線已被移除。
+/// connectionId → origin（registry 查找）。条目消失＝连接已被移除。
 fn connection_origin(app: &tauri::AppHandle, connection_id: &str) -> Result<String, String> {
     let path = connections_path(app)?;
     connections::read_registry(&path)
         .iter()
         .find(|entry| entry.id == connection_id)
         .map(|entry| entry.origin.clone())
-        .ok_or_else(|| "連線不存在——請重新設定 server 連線".to_string())
+        .ok_or_else(|| "连接不存在——请重新设置 server 连接".to_string())
 }
 
-/// 資料面命令的共用骨架：解析 origin、取 TokenManager，於 blocking pool 以
-/// 無狀態重建的 RemoteWorkspace 執行一擊。
+/// 数据面命令的共用骨架：解析 origin、取 TokenManager，于 blocking pool 以
+/// 无状态重建的 RemoteWorkspace 运行一击。
 async fn with_remote<T, F>(
     app: tauri::AppHandle,
     connection_id: String,
@@ -1118,7 +1118,7 @@ async fn with_remote<T, F>(
 ) -> Result<T, String>
 where
     T: Send + 'static,
-    F: FnOnce(&remote::RemoteWorkspace, &dyn speclink_remote::credentials::CredentialStore) -> Result<T, String>
+    F: FnOnce(&remote::RemoteWorkspace, &dyn specseal_remote::credentials::CredentialStore) -> Result<T, String>
         + Send
         + 'static,
 {
@@ -1136,8 +1136,8 @@ where
     .map_err(|e| format!("remote worker failed: {e}"))?
 }
 
-/// remote settings 專用骨架：錯誤保留 reason/status 的結構化形狀，供前端
-/// 辨識 revision_conflict；其他資料面仍沿用既有單行 String 契約。
+/// remote settings 专用骨架：错误保留 reason/status 的结构化形状，供前端
+/// 辨识 revision_conflict；其他数据面仍沿用既有单行 String 契约。
 async fn with_remote_settings<T, F>(
     app: tauri::AppHandle,
     connection_id: String,
@@ -1149,7 +1149,7 @@ where
     T: Send + 'static,
     F: FnOnce(
             &remote::RemoteWorkspace,
-            &dyn speclink_remote::credentials::CredentialStore,
+            &dyn specseal_remote::credentials::CredentialStore,
         ) -> Result<T, remote::RemoteSettingsError>
         + Send
         + 'static,
@@ -1171,9 +1171,9 @@ where
     })?
 }
 
-/// 開啟 remote workspace（決策 6，fail-closed）：以 project[/repo] 識別
-/// handshake，成功回 project/repo 顯示名與 capability 描述；失敗原樣回錯、
-/// 不建立任何 runtime 狀態。
+/// 打开 remote workspace（决策 6，fail-closed）：以 project[/repo] 识别
+/// handshake，成功回 project/repo 显示名与 capability 描述；失败原样回错、
+/// 不创建任何 runtime 状态。
 #[tauri::command]
 async fn remote_open(
     app: tauri::AppHandle,
@@ -1199,8 +1199,8 @@ async fn remote_open(
     })?
 }
 
-/// remote Workflow 設定快照：`/config` 原文經 desktop-core 文字 seam，並帶
-/// 與該原文同一 response 的 revision。
+/// remote Workflow 设置快照：`/config` 原文经 desktop-core 文本 seam，并带
+/// 与该原文同一 response 的 revision。
 #[tauri::command]
 async fn remote_read_settings(
     app: tauri::AppHandle,
@@ -1227,12 +1227,12 @@ async fn remote_write_workflow_config(
     audit: bool,
     expected_revision: u64,
 ) -> Result<u64, remote::RemoteSettingsError> {
-    let fields = speclink_desktop_core::settings::WorkflowPolicyFields {
+    let fields = specseal_desktop_core::settings::WorkflowPolicyFields {
         locale,
         spec_locale,
         tdd,
         audit,
-        // 設定頁沒有 worktree 開關；實際寫入值由 desktop-core 從原檔回填。
+        // 设置页没有 worktree 开关；实际写入值由 desktop-core 从原档回填。
         ..Default::default()
     };
     with_remote_settings(app, connection_id, project, repo, move |ws, credentials| {
@@ -1250,8 +1250,8 @@ async fn remote_write_workflow_content(
     repo: String,
     context: Option<String>,
     rules: Option<Vec<(String, Vec<String>)>>,
-    review: Option<speclink_desktop_core::settings::ReviewConfig>,
-    subagent_model: Option<speclink_desktop_core::settings::SubagentModelConfig>,
+    review: Option<specseal_desktop_core::settings::ReviewConfig>,
+    subagent_model: Option<specseal_desktop_core::settings::SubagentModelConfig>,
     expected_revision: u64,
 ) -> Result<u64, remote::RemoteSettingsError> {
     with_remote_settings(app, connection_id, project, repo, move |ws, credentials| {
@@ -1279,8 +1279,8 @@ async fn remote_write_workflow_schema(
     .await
 }
 
-/// `checkout_root` 是這個 remote 專案綁定的本機工作副本（沒有就不帶）：有的話，已蓋章
-/// 變更的「其後有變動」另以 checkout 裡的檔案判定。
+/// `checkout_root` 是这个 remote 项目绑定的本机工作副本（没有就不带）：有的话，已盖章
+/// 变更的「其后有变动」另以 checkout 里的文件判定。
 #[tauri::command]
 async fn remote_list_changes(
     app: tauri::AppHandle,
@@ -1296,7 +1296,7 @@ async fn remote_list_changes(
     .await
 }
 
-/// chooser 的 identity-scoped `/scopes` 清單；選定 repo 前不建立 remote session。
+/// chooser 的 identity-scoped `/scopes` 清单；选定 repo 前不创建 remote session。
 #[tauri::command]
 async fn remote_scopes(app: tauri::AppHandle, connection_id: String) -> Result<Value, String> {
     let origin = connection_origin(&app, &connection_id)?;
@@ -1372,8 +1372,8 @@ async fn remote_list_specs(
     .await
 }
 
-/// remote 專案的技能檔探測（remote-skill-delivery D6）：基準是 Server 提供的技能。
-/// Server 沒有提供技能時回 null；連不上時為 Err——兩者前端都不提示。
+/// remote 项目的技能档探测（remote-skill-delivery D6）：基准是 Server 提供的技能。
+/// Server 没有提供技能时回 null；连不上时为 Err——两者前端都不提示。
 #[tauri::command]
 async fn probe_remote_assets(
     app: tauri::AppHandle,
@@ -1389,9 +1389,9 @@ async fn probe_remote_assets(
     .await
 }
 
-/// remote 專案的技能檔更新：向 Server 取得全文，再寫進 checkout。和本機的更新相同，
-/// 寫入期間暫停檔案監看；向 Server 取得的那一段不暫停——等網路的時間裡，其他分頁的監看
-/// 照常運作。
+/// remote 项目的技能档更新：向 Server 取得全文，再写进 checkout。和本机的更新相同，
+/// 写入期间暂停文件监看；向 Server 取得的那一段不暂停——等网络的时间里，其他分页的监看
+/// 照常运作。
 #[tauri::command]
 async fn update_remote_assets(
     app: tauri::AppHandle,
@@ -1427,7 +1427,7 @@ async fn remote_list_archived(
     .await
 }
 
-/// 正式規格內文：404 與本地語意一致回 null。
+/// 正式规格内文：404 与本地语意一致回 null。
 #[tauri::command]
 async fn remote_spec_document(
     app: tauri::AppHandle,
@@ -1467,7 +1467,7 @@ async fn remote_search_workspace(
     .await
 }
 
-/// 封存 artifact 內文：404 與本地語意一致回 null。
+/// 封存 artifact 内文：404 与本地语意一致回 null。
 #[tauri::command]
 async fn remote_archived_document(
     app: tauri::AppHandle,
@@ -1523,7 +1523,7 @@ async fn remote_status(
     .await
 }
 
-/// artifact 內文：404（change 或 artifact 不存在）與本地語意一致回 null。
+/// artifact 内文：404（change 或 artifact 不存在）与本地语意一致回 null。
 #[tauri::command]
 async fn remote_document(
     app: tauri::AppHandle,
@@ -1547,9 +1547,9 @@ async fn remote_document(
     .await
 }
 
-/// 遠端活工單：`GET /changes/{name}/{station}` 已是結構化 rounds，經
-/// `remote::station_ticket_payload` 交給與本機同一個組裝函式；404 與本地語意一致回
-/// null，不認得的 rules baseline 同樣 null。未知站別不拼 URL，直接 null。
+/// 远程活工单：`GET /changes/{name}/{station}` 已是结构化 rounds，经
+/// `remote::station_ticket_payload` 交给与本机同一个组装函数；404 与本地语意一致回
+/// null，不认得的 rules baseline 同样 null。未知站别不拼 URL，直接 null。
 #[tauri::command]
 async fn remote_station_ticket(
     app: tauri::AppHandle,
@@ -1560,7 +1560,7 @@ async fn remote_station_ticket(
     station: String,
 ) -> Result<Option<Value>, String> {
     with_remote(app, connection_id, project, repo, move |ws, credentials| {
-        let Some(st) = speclink_desktop_core::query::station_by_noun(&station) else {
+        let Some(st) = specseal_desktop_core::query::station_by_noun(&station) else {
             return Ok(None);
         };
         ws.station_ticket(credentials, &change, st.noun)
@@ -1570,8 +1570,8 @@ async fn remote_station_ticket(
     .await
 }
 
-/// 遠端封存工單：封存文件端點只給原文，取回後交引擎解析（desktop core 的
-/// `ticket_json_from_text`）；404 回 null，格式壞掉同樣 null。
+/// 远程封存工单：封存文档端点只给原文，取回后交引擎解析（desktop core 的
+/// `ticket_json_from_text`）；404 回 null，格式坏掉同样 null。
 #[tauri::command]
 async fn remote_archived_station_ticket(
     app: tauri::AppHandle,
@@ -1582,11 +1582,11 @@ async fn remote_archived_station_ticket(
     station: String,
 ) -> Result<Option<Value>, String> {
     with_remote(app, connection_id, project, repo, move |ws, credentials| {
-        let Some(st) = speclink_desktop_core::query::station_by_noun(&station) else {
+        let Some(st) = specseal_desktop_core::query::station_by_noun(&station) else {
             return Ok(None);
         };
         match ws.archived_document(credentials, &dated_name, st.doc) {
-            Ok(document) => Ok(speclink_desktop_core::query::ticket_json_from_text(
+            Ok(document) => Ok(specseal_desktop_core::query::ticket_json_from_text(
                 st.noun,
                 &document.content,
             )),
@@ -1614,7 +1614,7 @@ async fn remote_set_task_done(
     .await
 }
 
-/// 組合類批次寫回（決策 1 (b)）：中途失敗中止並回報已完成筆數。
+/// 组合类批量写回（决策 1 (b)）：中途失败中止并回报已完成笔数。
 #[tauri::command]
 async fn remote_set_all_tasks(
     app: tauri::AppHandle,
@@ -1629,7 +1629,7 @@ async fn remote_set_all_tasks(
             .map(|_| ())
             .map_err(|failure| {
                 format!(
-                    "批次寫回中止（已完成 {} 筆）：{}",
+                    "批量写回中止（已完成 {} 笔）：{}",
                     failure.completed, failure.error.message
                 )
             })
@@ -1637,7 +1637,7 @@ async fn remote_set_all_tasks(
     .await
 }
 
-/// 兩個 carry 旗標是封存對話框「照樣帶走」的選擇；一般封存不帶（讀作 false）。
+/// 两个 carry 旗标是封存对话框「照样带走」的选择；一般封存不带（读作 false）。
 #[tauri::command]
 async fn remote_archive(
     app: tauri::AppHandle,
@@ -1657,7 +1657,7 @@ async fn remote_archive(
     .await
 }
 
-/// 封存對話框的「放棄審查／放棄驗證」：刪掉 remote 變更該站的工單。未知站別不拼 URL。
+/// 封存对话框的「放弃审查／放弃验证」：删掉 remote 变更该站的工单。未知站别不拼 URL。
 #[tauri::command]
 async fn remote_discard_station(
     app: tauri::AppHandle,
@@ -1668,7 +1668,7 @@ async fn remote_discard_station(
     station: String,
 ) -> Result<(), String> {
     with_remote(app, connection_id, project, repo, move |ws, credentials| {
-        let Some(st) = speclink_desktop_core::query::station_by_noun(&station) else {
+        let Some(st) = specseal_desktop_core::query::station_by_noun(&station) else {
             return Err(format!("unknown station: {station}"));
         };
         ws.discard_station(credentials, &change, st.noun).map_err(|e| e.message)
@@ -1716,8 +1716,8 @@ async fn remote_revert_change_to_proposed(
 ) -> Result<(), String> {
     with_remote(app, connection_id, project, repo, move |ws, credentials| {
         ws.revert_change_to_proposed(credentials, &change).map_err(|e| match e.evidence {
-            // 409 守門證據 → 與本地 bridge 同一轉譯(前端對話框單一消費形狀)。
-            Some(ev) => speclink_desktop_core::manage::revert_blocked_error(
+            // 409 守门证据 → 与本地 bridge 同一转译(前端对话框单一消费形状)。
+            Some(ev) => specseal_desktop_core::manage::revert_blocked_error(
                 ev.checked_tasks,
                 &ev.touched_files,
             ),
@@ -1727,8 +1727,8 @@ async fn remote_revert_change_to_proposed(
     .await
 }
 
-/// 認領一個 change（RemoteOnly）。已被他人持有時 server 回 409 refused，訊息
-/// 帶持有人與建議動作——原樣交前端，沿既有失敗呈現路徑。
+/// 认领一个 change（RemoteOnly）。已被他人持有时 server 回 409 refused，消息
+/// 带持有人与建议动作——原样交前端，沿既有失败呈现路径。
 #[tauri::command]
 async fn remote_claim(
     app: tauri::AppHandle,
@@ -1743,8 +1743,8 @@ async fn remote_claim(
     .await
 }
 
-/// 前置的新增與移除（add-change-plan-remote D7）：單行委派；守門失敗的 409
-/// 訊息是 server 轉發的引擎原文，原樣交前端成單行錯誤。
+/// 前置的添加与移除（add-change-plan-remote D7）：单行委派；守门失败的 409
+/// 消息是 server 转发的引擎原文，原样交前端成单行错误。
 #[tauri::command]
 async fn remote_set_change_depends(
     app: tauri::AppHandle,
@@ -1795,8 +1795,8 @@ async fn remote_move_task(
     .await
 }
 
-/// 看板拖排直達（remote-board-order 決策 5）：鄰居定址與本地 reorder_card
-/// 同形；順序寫入 scope 的 board resource，不觸碰卡片 meta。
+/// 看板拖排直达（remote-board-order 决策 5）：邻居寻址与本地 reorder_card
+/// 同形；顺序写入 scope 的 board resource，不触碰卡片 meta。
 #[tauri::command]
 async fn remote_reorder_card(
     app: tauri::AppHandle,
@@ -1835,7 +1835,7 @@ async fn remote_list_discussions(
     .await
 }
 
-/// 討論記錄全文與其刀（`{ content, cuts }`）：404 與本地語意一致回 null。
+/// 讨论记录全文与其刀（`{ content, cuts }`）：404 与本地语意一致回 null。
 #[tauri::command]
 async fn remote_discussion_document(
     app: tauri::AppHandle,
@@ -1884,7 +1884,7 @@ async fn remote_archive_discussion(
     .await
 }
 
-/// remote 事件訂閱的生產退避序列（決策 5：指數退避、封頂 30s）。
+/// remote 事件订阅的生产退避串行（决策 5：指数退避、封顶 30s）。
 const REMOTE_BACKOFF: [std::time::Duration; 6] = [
     std::time::Duration::from_millis(500),
     std::time::Duration::from_secs(1),
@@ -1894,15 +1894,15 @@ const REMOTE_BACKOFF: [std::time::Duration; 6] = [
     std::time::Duration::from_secs(30),
 ];
 
-/// remote session 的 locator key（與 TS session.ts 的 locatorKey 同構）。
+/// remote session 的 locator key（与 TS session.ts 的 locatorKey 同构）。
 fn remote_locator_key(connection_id: &str, project: &str, repo: &str) -> String {
     format!("remote:{connection_id}/{project}/{repo}")
 }
 
-/// 註冊 remote 分頁的事件訂閱（決策 3）：同 connection 同 scope 的 sessions
-/// 共用單一 SSE 流；invalidate 即 emit remote-workspace-changed（payload＝
-/// locator key），前端據此經 Query 重讀。
-/// connectionId → origin 的查找要讀 connections.json，故整段走 spawn_blocking。
+/// 注册 remote 分页的事件订阅（决策 3）：同 connection 同 scope 的 sessions
+/// 共用单一 SSE 流；invalidate 即 emit remote-workspace-changed（payload＝
+/// locator key），前端据此经 Query 重读。
+/// connectionId → origin 的查找要读 connections.json，故整段走 spawn_blocking。
 #[tauri::command]
 async fn remote_watch(
     app: tauri::AppHandle,
@@ -1916,8 +1916,8 @@ async fn remote_watch(
             .inner()
             .clone();
         let key = remote_locator_key(&connection_id, &project, &repo);
-        // 註冊前的失敗要入帳（register_failed）：前端 unmount 照樣退訂，
-        // 沒入帳的失敗會讓那筆退訂毒害同 key 的下一次訂閱。
+        // 注册前的失败要入帐（register_failed）：前端 unmount 照样退订，
+        // 没入帐的失败会让那笔退订毒害同 key 的下一次订阅。
         let origin = match connection_origin(&app, &connection_id) {
             Ok(origin) => origin,
             Err(e) => {
@@ -1929,7 +1929,7 @@ async fn remote_watch(
             .state::<std::sync::Arc<ConnectionsState>>()
             .inner()
             .clone();
-        let base = format!("{origin}/api/speclink/v1/projects/{project}");
+        let base = format!("{origin}/api/specseal/v1/projects/{project}");
         let manager = state.manager_for_connection(&connection_id, &origin);
         let sub_state = state.clone();
         let sub_manager = manager.clone();
@@ -1940,12 +1940,12 @@ async fn remote_watch(
             &key,
             move |last| {
                 sub_manager.execute(&*sub_state.credentials, |token| {
-                    speclink_remote::events::subscribe(&sub_base, token, Some(&sub_repo), last)
+                    specseal_remote::events::subscribe(&sub_base, token, Some(&sub_repo), last)
                 })
             },
             move || {
                 manager.execute(&*state.credentials, |token| {
-                    speclink_remote::events::sync_state(&base, token, Some(&etag_repo))
+                    specseal_remote::events::sync_state(&base, token, Some(&etag_repo))
                 })
             },
             REMOTE_BACKOFF.to_vec(),
@@ -1956,39 +1956,39 @@ async fn remote_watch(
     .map_err(|e| format!("remote_watch worker failed: {e}"))?
 }
 
-/// 退出 remote 分頁的事件訂閱：最後一個 session 退出即收束該流。
+/// 退出 remote 分页的事件订阅：最后一个 session 退出即收束该流。
 #[tauri::command]
 fn remote_unwatch(app: tauri::AppHandle, connection_id: String, project: String, repo: String) {
     let events = app.state::<std::sync::Arc<event_manager::EventManager>>();
     events.unregister(&remote_locator_key(&connection_id, &project, &repo));
 }
 
-/// 系統匣面板 toggle（tray-status-menu「面板樣式」）：委派 panel 模組（Linux 恆回 Err，
-/// 系統匣樣式恆為原生選單、不可達，此為守門）。macOS 維持同步——NSPanel 操作須在主執行緒。
+/// 系统匣面板 toggle（tray-status-menu「面板样式」）：委派 panel 模块（Linux 恒回 Err，
+/// 系统匣样式恒为原生菜单、不可达，此为守门）。macOS 维持同步——NSPanel 操作须在主线程。
 #[cfg(not(target_os = "windows"))]
 #[tauri::command]
 fn toggle_tray_panel(app: tauri::AppHandle) -> Result<(), String> {
     panel::toggle(&app)
 }
 
-/// Windows 版必須 async：首次開啟會建立面板視窗，在同步 command 內建立視窗 Windows 會因
-/// WebView2 死結（Tauri `WebviewWindowBuilder::new` 的 Known issues；tray-panel-windows design D6）。
+/// Windows 版必须 async：首次打开会创建面板窗口，在同步 command 内置立窗口 Windows 会因
+/// WebView2 死结（Tauri `WebviewWindowBuilder::new` 的 Known issues；tray-panel-windows design D6）。
 #[cfg(target_os = "windows")]
 #[tauri::command]
 async fn toggle_tray_panel(app: tauri::AppHandle) -> Result<(), String> {
     panel::toggle(&app)
 }
 
-/// 面板交接主視窗前先收合（tray-status-menu「面板交接主視窗後滑鼠互動完整」）：
-/// 委派 panel 模組的冪等 hide（Linux 無面板，無事）——喚起主視窗的前端路徑在各平台共用，
-/// 此命令不得成為阻斷點。不會失敗，故無回傳值。
+/// 面板交接主窗口前先收合（tray-status-menu「面板交接主窗口后鼠标交互完整」）：
+/// 委派 panel 模块的幂等 hide（Linux 无面板，无事）——唤起主窗口的前端路径在各平台共用，
+/// 此命令不得成为阻断点。不会失败，故无回传值。
 #[tauri::command]
 fn hide_tray_panel(app: tauri::AppHandle) {
     panel::hide(&app);
 }
 
-/// 結束 app（tray-status-menu「開啟視窗與結束動作」）：webview 無法自行結束
-/// 行程的能力橋接——面板動作區「結束」經此命令結束整個 app。
+/// 结束 app（tray-status-menu「打开窗口与结束动作」）：webview 无法自行结束
+/// 行程的能力桥接——面板动作区「结束」经此命令结束整个 app。
 #[tauri::command]
 fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
@@ -1997,11 +1997,11 @@ fn quit_app(app: tauri::AppHandle) {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let builder = tauri::Builder::default();
-    // speclink 網址（desktop-deep-link）：Windows、Linux 再次啟動（含作業系統帶網址啟動）時交給
-    // 執行中的 app——外掛的 deep-link 功能先把網址轉成前端 onOpenUrl 事件，callback 再把主視窗
-    // 帶到前景。外掛要求排在所有外掛之前。macOS 由系統確保單一實例，網址走 RunEvent::Opened。
-    // 喚起步驟與前端 tray.ts 的 openMainWindow 相同（先收合面板）；不帶網址的再次啟動不會經過前端，
-    // 所以這裡要自己做一次。
+    // specseal 网址（desktop-deep-link）：Windows、Linux 再次启动（含操作系统带网址启动）时交给
+    // 运行中的 app——插件的 deep-link 功能先把网址转成前端 onOpenUrl 事件，callback 再把主窗口
+    // 带到前景。插件要求排在所有插件之前。macOS 由系统确保单一实例，网址走 RunEvent::Opened。
+    // 唤起步骤与前端 tray.ts 的 openMainWindow 相同（先收合面板）；不带网址的再次启动不会经过前端，
+    // 所以这里要自己做一次。
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
         panel::hide(app);
@@ -2018,49 +2018,49 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init());
-    // macOS 面板相依：positioner 供 tray 相對定位、nspanel 供不搶焦點的 NSPanel 容器。
-    // Windows 面板由 panel 模組依圖示位置自行定位（tray-panel-windows design D3），不需外掛。
+    // macOS 面板相依：positioner 供 tray 相对定位、nspanel 供不抢焦点的 NSPanel 容器。
+    // Windows 面板由 panel 模块依图标位置自行定位（tray-panel-windows design D3），不需插件。
     #[cfg(target_os = "macos")]
     let builder = builder
         .plugin(tauri_plugin_positioner::init())
         .plugin(tauri_nspanel::init());
     builder
         .setup(|app| {
-            // 監看槽位（決策 5）：啟動僅註冊空槽——前端還原分頁後以
-            // watch_workspace 顯式掛上活躍專案（監看與資料載入同由前端
-            // session 驅動；建立失敗僅記錄，app 照常、只失去自動刷新）。
+            // 监看槽位（决策 5）：启动仅注册空槽——前端还原分页后以
+            // watch_workspace 显式挂上活跃项目（监看与数据加载同由前端
+            // session 驱动；创建失败仅记录，app 照常、只失去自动刷新）。
             app.manage(WatcherState {
                 tickets: std::sync::atomic::AtomicU64::new(0),
                 slot: std::sync::Mutex::new(watch::WatchSlot::new()),
             });
-            // 連線層：credential 生產出入口＝OS Keychain；access token 記憶體持有。
+            // 连接层：credential 生产出入口＝OS Keychain；access token 内存持有。
             let state_emitter = app.handle().clone();
             app.manage(std::sync::Arc::new(ConnectionsState {
-                credentials: Box::new(speclink_remote::credentials::KeyringCredentialStore),
+                credentials: Box::new(specseal_remote::credentials::KeyringCredentialStore),
                 managers: std::sync::Mutex::new(std::collections::HashMap::new()),
                 state_observer: std::sync::Arc::new(move |event| {
                     let _ = state_emitter.emit(remote::REMOTE_CONNECTION_STATE_EVENT, event);
                 }),
                 logins: connections::LoginCancels::default(),
             }));
-            // remote 事件中樞：invalidate → remote-workspace-changed（payload＝
-            // locator key），前端 session 據此過濾重讀。
+            // remote 事件中枢：invalidate → remote-workspace-changed（payload＝
+            // locator key），前端 session 据此过滤重读。
             let emitter = app.handle().clone();
             app.manage(std::sync::Arc::new(event_manager::EventManager::new(
                 move |key: String| {
                     let _ = emitter.emit("remote-workspace-changed", key);
                 },
             )));
-            // 觸控板滑動返回的手指按下／離開訊號（desktop-swipe-back-finger-lift）：只在 macOS 提供。
+            // 触摸板滑动返回的手指按下／离开信号（desktop-swipe-back-finger-lift）：只在 macOS 提供。
             #[cfg(target_os = "macos")]
             trackpad_gesture::install(app.handle());
-            // Linux 的 AppImage 不經安裝程式，執行期補登 speclink 網址格式（desktop-deep-link）；
-            // 失敗只記錄，app 照常、只是網址開不了。
+            // Linux 的 AppImage 不经安装程序，运行期补登 specseal 网址格式（desktop-deep-link）；
+            // 失败只记录，app 照常、只是网址开不了。
             #[cfg(target_os = "linux")]
             {
                 use tauri_plugin_deep_link::DeepLinkExt;
                 if let Err(e) = app.deep_link().register_all() {
-                    eprintln!("speclink-desktop: speclink:// scheme registration failed: {e}");
+                    eprintln!("specseal-desktop: specseal:// scheme registration failed: {e}");
                 }
             }
             Ok(())
@@ -2184,5 +2184,5 @@ pub fn run() {
             quit_app
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Speclink desktop app");
+        .expect("error while running Specseal desktop app");
 }

@@ -9,30 +9,30 @@ import { SEMANTIC_SURFACE, SEMANTIC_TONE } from "../tone";
 import { InlineMarks, ROW_MD_CLS, RowList } from "./DocParts";
 import { Markdown } from "./Markdown";
 
-/** 節點色點：assumptions 主色、interview 取看板討論欄色相，其他 mode 中性（mode 字串透傳、不設白名單）。 */
+/** 节点色点：assumptions 主色、interview 取看板讨论栏色相，其他 mode 中性（mode 字符串透传、不设白名单）。 */
 const MODE_DOT: Record<string, string> = {
   assumptions: "bg-primary",
   interview: "bg-stage-discussion",
 };
 
-/** 欄位小標。 */
+/** 字段小标。 */
 function FieldLabel({ label }: { label: string }) {
   return <div className="mb-1 text-xs font-medium text-muted-foreground">{label}</div>;
 }
 
 /**
- * 討論過程文件（desktop-discussion-doc-views design D3；spec「討論輪以卡片呈現」）：時間軸上每輪一張卡、由新到舊
- * 排列（只改呈現，記錄檔的輪順序不變），卡頭為輪次（本頁目錄錨點）、焦點、mode 與日期；首末輪（畫面最下與最上）
- * 預設展開、其餘收合，點卡頭切換。任一輪標題不符 scaffold 時整篇 Markdown 退回。討論詳情頁與已封存討論頁共用。
+ * 讨论过程文档（desktop-discussion-doc-views design D3；spec「讨论轮以卡片呈现」）：时间轴上每轮一张卡、由新到旧
+ * 排列（只改呈现，记录档的轮顺序不变），卡头为轮次（本页目录锚点）、焦点、mode 与日期；首末轮（画面最下与最上）
+ * 缺省展开、其余收合，点卡头切换。任一轮标题不符 scaffold 时整篇 Markdown 退回。讨论详情页与已封存讨论页共用。
  */
 export function RoundsDoc({ text, empty }: { text: string; empty?: string }) {
-  // 使用者點過的輪：記錄檔中的位置 → 展開與否；沒點過的依預設（首末輪展開）。以記錄位置而非畫面位置記錄：引擎只往
-  // 檔尾追加，新輪插在最上時不錯位；手改記錄出現重號時兩張卡也各自切換。
+  // 用户点过的轮：记录档中的位置 → 展开与否；没点过的依缺省（首末轮展开）。以记录位置而非画面位置记录：引擎只往
+  // 档尾追加，新轮插在最上时不错位；手改记录出现重号时两张卡也各自切换。
   const [toggled, setToggled] = useState<Record<number, boolean>>({});
   const rounds = splitRounds(text);
   if (rounds === null) return <Markdown content={text} empty={empty} />;
   if (rounds.length === 0) return <Markdown content="" empty={empty} />;
-  // 輪次大者在上；同號（手改記錄）時記錄中較後者在上。
+  // 轮次大者在上；同号（手改记录）时记录中较后者在上。
   const newestFirst = rounds.map((round, at) => ({ round, at })).sort((a, b) => b.round.round - a.round.round || b.at - a.at);
   return (
     <ol
@@ -75,14 +75,14 @@ function RoundCard({ round, open, onToggle }: { round: DiscussionRound; open: bo
             onClick={onToggle}
             className="flex w-full min-w-0 cursor-(--cursor-interaction) items-center gap-2 px-4 py-2.5 text-left transition-colors hover:bg-foreground/5"
           >
-            {/* 輪次籤是靜態編號，與同列 mode／日期同層級——走中性，不佔用主色。 */}
+            {/* 轮次签是静态编号，与同列 mode／日期同层级——走中性，不占用主色。 */}
             <span
               data-doc-heading
               className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground"
             >
               {t("rounds.roundN").replace("{n}", String(round.round))}
             </span>
-            {/* 收合時一行截斷、展開時折行完整顯示（長焦點不被裁掉）。 */}
+            {/* 收合时一行截断、展开时折行完整显示（长焦点不被裁掉）。 */}
             <span data-round-focus className={cn("min-w-0 flex-1 text-sm font-medium", open ? "break-words" : "truncate")}>
               {focus.trim() && <InlineMarks text={focus.trim()} />}
             </span>
@@ -122,7 +122,7 @@ function RoundCard({ round, open, onToggle }: { round: DiscussionRound; open: bo
   );
 }
 
-/** 立場：定論句中等字重、其後列點為細線列。 */
+/** 立场：定论句中等字重、其后列点为细线列。 */
 function PositionField({ md }: { md: string }) {
   const { t } = useI18n();
   const { verdict, details } = splitVerdict(md);
@@ -143,7 +143,7 @@ function PositionField({ md }: { md: string }) {
   );
 }
 
-/** 待決：收斂標記為一行帶勾選圖示的灰字原文，否則每條一顆琥珀籤。 */
+/** 待决：收敛标记为一行带勾选图标的灰字原文，否则每条一颗琥珀签。 */
 function OpenField({ md }: { md: string }) {
   const { t } = useI18n();
   const open = openItems(md);

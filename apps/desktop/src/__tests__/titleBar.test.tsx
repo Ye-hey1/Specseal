@@ -1,8 +1,8 @@
-// 三平台標題列（desktop-app「隱藏原生標題列與三平台視窗殼」，design D1／D6）。
+// 三平台标题列（desktop-app「隐藏原生标题列与三平台窗口壳」，design D1／D6）。
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { LeftTitleBar, MainTitleBar } from "../components/TitleBar";
@@ -15,7 +15,7 @@ import winConfRaw from "../../src-tauri/tauri.windows.conf.json?raw";
 vi.mock("@tauri-apps/api/window", () => ({ getCurrentWindow: vi.fn() }));
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -45,32 +45,32 @@ beforeEach(() => {
 });
 
 describe("LeftTitleBar", () => {
-  it("專案名左緣對齊下方專案欄導覽文字（98px）、可拖曳、純文字標題 hover 顯示路徑", () => {
-    render(<LeftTitleBar title="speclink" path="/Users/a/speclink" menu={<button>⋯</button>} />);
+  it("项目名左缘对齐下方项目栏导览文本（98px）、可拖曳、纯文本标题 hover 显示路径", () => {
+    render(<LeftTitleBar title="specseal" path="/Users/a/specseal" menu={<button>⋯</button>} />);
     const bar = screen.getByTestId("left-titlebar");
-    // 圖示列 56＋專案欄內距 8＋導覽項內距 10＋圖示 16＋間距 8＝導覽文字左緣。
+    // 图标列 56＋项目栏内距 8＋导览项内距 10＋图标 16＋间距 8＝导览文本左缘。
     expect(bar.className).toContain("pl-[98px]");
     expect(bar.getAttribute("data-tauri-drag-region")).toBe("deep");
-    expect(screen.getByText("speclink").getAttribute("title")).toBe("/Users/a/speclink");
+    expect(screen.getByText("specseal").getAttribute("title")).toBe("/Users/a/specseal");
     expect(screen.getByRole("button", { name: "⋯" })).toBeTruthy();
   });
 
-  it("專案設定模式：左端「← 專案設定」返回鈕、右端等寬小字專案名（desktop-settings-mode D2）", () => {
+  it("项目设置模式：左端「← 项目设置」返回钮、右端等宽小字项目名（desktop-settings-mode D2）", () => {
     const onBack = vi.fn();
     render(
       <LeftTitleBar
-        back={{ label: "專案設定", onClick: onBack }}
-        trailing={<span>speclink</span>}
+        back={{ label: "项目设置", onClick: onBack }}
+        trailing={<span>specseal</span>}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: "專案設定" }));
+    fireEvent.click(screen.getByRole("button", { name: "项目设置" }));
     expect(onBack).toHaveBeenCalledTimes(1);
-    const trailing = screen.getByText("speclink").parentElement as HTMLElement;
+    const trailing = screen.getByText("specseal").parentElement as HTMLElement;
     expect(trailing.className).toContain("font-mono");
     expect(trailing.className).toContain("text-[11px]");
   });
 
-  it("下緣與主區頂列同一條細線，頂列橫貫整個視窗", () => {
+  it("下缘与主区顶列同一条细线，顶列横贯整个窗口", () => {
     render(<LeftTitleBar />);
     const left = screen.getByTestId("left-titlebar");
     expect(left.className).toContain("border-b");
@@ -80,75 +80,75 @@ describe("LeftTitleBar", () => {
 });
 
 describe("MainTitleBar", () => {
-  it("麵包屑三段渲染、第一段可點、最後一段深字", () => {
+  it("面包屑三段渲染、第一段可点、最后一段深字", () => {
     const onProject = vi.fn();
     render(
       <MainTitleBar
         platform="macos"
-        crumbs={[{ label: "speclink", onClick: onProject }, { label: "規格" }, { label: "desktop-app" }]}
+        crumbs={[{ label: "specseal", onClick: onProject }, { label: "规格" }, { label: "desktop-app" }]}
       />,
     );
     const bar = screen.getByTestId("main-titlebar");
     expect(bar.getAttribute("data-tauri-drag-region")).toBe("deep");
-    fireEvent.click(screen.getByRole("button", { name: "speclink" }));
+    fireEvent.click(screen.getByRole("button", { name: "specseal" }));
     expect(onProject).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("規格").tagName).not.toBe("BUTTON");
+    expect(screen.getByText("规格").tagName).not.toBe("BUTTON");
     expect(screen.getByText("desktop-app").className).toContain("text-foreground");
-    expect(screen.getByText("規格").className).not.toContain("text-foreground");
+    expect(screen.getByText("规格").className).not.toContain("text-foreground");
   });
 
-  it("trailing 槽渲染在麵包屑右側、視窗鈕之前", () => {
+  it("trailing 槽渲染在面包屑右侧、窗口钮之前", () => {
     mockWindow(false);
     render(
       <MainTitleBar
         platform="windows"
-        crumbs={[{ label: "speclink" }, { label: "變更" }, { label: "add-auth" }]}
+        crumbs={[{ label: "specseal" }, { label: "变更" }, { label: "add-auth" }]}
         trailing={<span data-testid="trail">‹ 1 / 2 ›</span>}
       />,
     );
     const bar = screen.getByTestId("main-titlebar");
     const nav = bar.querySelector("nav")!;
     const trail = screen.getByTestId("trail");
-    const close = screen.getByRole("button", { name: "關閉視窗" });
+    const close = screen.getByRole("button", { name: "关闭窗口" });
     expect(nav.compareDocumentPosition(trail) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(trail.compareDocumentPosition(close) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(nav.contains(trail)).toBe(false);
   });
 
-  it("mono 段以等寬字型呈現（詳情頁的項目名）", () => {
+  it("mono 段以等宽字体呈现（详情页的项目名）", () => {
     render(
       <MainTitleBar
         platform="macos"
-        crumbs={[{ label: "speclink" }, { label: "變更" }, { label: "add-auth", mono: true }]}
+        crumbs={[{ label: "specseal" }, { label: "变更" }, { label: "add-auth", mono: true }]}
       />,
     );
     expect(screen.getByText("add-auth").className).toContain("font-mono");
-    expect(screen.getByText("變更").className).not.toContain("font-mono");
+    expect(screen.getByText("变更").className).not.toContain("font-mono");
   });
 
-  it("macOS 與 Linux 無自繪視窗鈕", () => {
+  it("macOS 与 Linux 无自绘窗口钮", () => {
     const { unmount } = render(<MainTitleBar platform="macos" crumbs={[{ label: "A" }]} />);
-    expect(screen.queryByRole("button", { name: "縮到最小" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "缩到最小" })).toBeNull();
     unmount();
     render(<MainTitleBar platform="linux" crumbs={[]} />);
-    expect(screen.queryByRole("button", { name: "關閉視窗" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "关闭窗口" })).toBeNull();
     expect(getCurrentWindow).not.toHaveBeenCalled();
   });
 
-  it("Windows：三顆視窗鈕各呼叫對應的 window API", async () => {
+  it("Windows：三颗窗口钮各调用对应的 window API", async () => {
     const { win } = mockWindow(false);
     render(<MainTitleBar platform="windows" crumbs={[{ label: "A" }]} />);
     await act(async () => {});
 
-    fireEvent.click(screen.getByRole("button", { name: "縮到最小" }));
+    fireEvent.click(screen.getByRole("button", { name: "缩到最小" }));
     expect(win.minimize).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "最大化" }));
     expect(win.toggleMaximize).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "關閉視窗" }));
+    fireEvent.click(screen.getByRole("button", { name: "关闭窗口" }));
     expect(win.close).toHaveBeenCalledTimes(1);
   });
 
-  it("Windows：最大化後鈕換成「還原」（依 isMaximized 與 onResized）", async () => {
+  it("Windows：最大化后钮换成「还原」（依 isMaximized 与 onResized）", async () => {
     const { win, resize } = mockWindow(false);
     render(<MainTitleBar platform="windows" crumbs={[]} />);
     await act(async () => {});
@@ -158,27 +158,27 @@ describe("MainTitleBar", () => {
     await act(async () => {
       resize();
     });
-    expect(screen.getByRole("button", { name: "還原" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "还原" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "最大化" })).toBeNull();
   });
 
-  it("Windows：API 被拒時按鈕不拋錯、記 console.error", async () => {
+  it("Windows：API 被拒时按钮不抛错、记 console.error", async () => {
     const { win } = mockWindow(false);
     win.minimize.mockRejectedValue(new Error("not allowed"));
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     render(<MainTitleBar platform="windows" crumbs={[]} />);
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "縮到最小" }));
+      fireEvent.click(screen.getByRole("button", { name: "缩到最小" }));
     });
     expect(spy).toHaveBeenCalled();
     spy.mockRestore();
   });
 });
 
-// 設定檔守門：視窗鈕與拖曳所需權限、平台覆蓋檔不得因合併取代掉主視窗尺寸。
-describe("Tauri 視窗設定", () => {
+// 设置档守门：窗口钮与拖曳所需权限、平台覆盖档不得因合并取代掉主窗口尺寸。
+describe("Tauri 窗口设置", () => {
 
-  it("capabilities/default.json 含拖曳與三顆視窗鈕所需的五條權限", () => {
+  it("capabilities/default.json 含拖曳与三颗窗口钮所需的五条权限", () => {
     const { permissions } = JSON.parse(defaultCapsRaw);
     for (const p of [
       "core:window:allow-start-dragging",
@@ -191,7 +191,7 @@ describe("Tauri 視窗設定", () => {
     }
   });
 
-  it("平台覆蓋檔的 main 視窗保留基礎設定的標題與尺寸（陣列整個取代）", () => {
+  it("平台覆盖档的 main 窗口保留基础设置的标题与尺寸（数组整个取代）", () => {
     const base = JSON.parse(baseConfRaw).app.windows[0];
     const mac = JSON.parse(macConfRaw).app.windows[0];
     const win = JSON.parse(winConfRaw).app.windows[0];

@@ -3,9 +3,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 import { IMPROVE_CHIP_TONE, IMPROVE_LABEL_KEY, IMPROVE_TONE, ImproveIcon } from "./improveStyle";
 
 /**
- * 改進討論的行內小章（spec desktop-app「看板討論卡片的改進標示」）：鏡射審查章
- * 樣式——僅圖示＋tooltip 狀態詞，不加文字列維持卡片極簡。tone／icon／詞條的
- * 對照集中在 improveStyle.tsx。
+ * 改进讨论的行内小章（spec desktop-app「看板讨论卡片的改进标示」）：镜射审查章
+ * 样式——仅图标＋tooltip 状态词，不加文本列维持卡片极简。tone／icon／词条的
+ * 对照集中在 improveStyle.tsx。
  */
 export function ImproveStamp() {
   const { t } = useI18n();
@@ -25,8 +25,8 @@ export function ImproveStamp() {
 }
 
 /**
- * 改進討論的章籤（spec「討論抽屜的改進標示」）：抽屜有空間故以圖示＋狀態詞
- * 直出；活討論抽屜與封存抽屜共用同一份。
+ * 改进讨论的章签（spec「讨论抽屉的改进标示」）：抽屉有空间故以图标＋状态词
+ * 直出；活讨论抽屉与封存抽屉共用同一份。
  */
 export function ImproveChip() {
   const { t } = useI18n();

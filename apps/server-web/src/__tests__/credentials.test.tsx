@@ -9,11 +9,11 @@ import {
   setViewport,
 } from "./helpers/adminHarness";
 
-// 管理憑證頁（server-web-console「管理列表提供搜尋、篩選、分頁與具引導的空狀態」「共用設計系統
-// 維持高密度可存取體驗」的撤銷鈕條款；server-web-list-pages design D2、D3、D6、D8）：列表卡頂端
-// 以「存取金鑰｜裝置」兩個分頁區分（各帶總數），頁標題區提供關鍵字搜尋與狀態篩選；列不可點，
-// 列尾是狀態籤與滑過才出現的撤銷鈕，撤銷經 AlertDialog 確認。空清單以說明用途的空狀態呈現，
-// 建立入口常駐頁首。
+// 管理凭证页（server-web-console「管理列表提供搜索、筛选、分页与具引导的空状态」「共用设计系统
+// 维持高密度可访问体验」的撤销钮条款；server-web-list-pages design D2、D3、D6、D8）：列表卡顶端
+// 以「访问密钥｜设备」两个分页区分（各带总数），页标题区提供关键字搜索与状态筛选；列不可点，
+// 列尾是状态签与滑过才出现的撤销钮，撤销经 AlertDialog 确认。空清单以说明用途的空状态呈现，
+// 创建入口常驻页眉。
 
 beforeEach(() => setViewport(false));
 
@@ -21,31 +21,31 @@ const tabCount = (name: RegExp) =>
   screen.getByRole("tab", { name }).querySelector("[data-tab-count]")?.textContent;
 const patRow = (prefix: string) => screen.getByText(prefix).closest("[data-pat]") as HTMLElement;
 
-describe("憑證頁", () => {
-  it("卡頂「存取金鑰」「裝置」兩個分頁帶總數，預設列出存取金鑰的 metadata", async () => {
+describe("凭证页", () => {
+  it("卡顶「访问密钥」「设备」两个分页带总数，缺省列出访问密钥的 metadata", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     expect(await screen.findByText("slk_abc")).toBeTruthy();
-    expect(tabCount(/^存取金鑰/)).toBe("2");
-    expect(tabCount(/^裝置/)).toBe("1");
+    expect(tabCount(/^访问密钥/)).toBe("2");
+    expect(tabCount(/^设备/)).toBe("1");
   });
 
-  it("存取金鑰列不可點：標題為名稱、說明為「前綴 · 使用者 · 建立 · 到期」", async () => {
+  it("访问密钥列不可点：标题为名称、说明为「前缀 · 用户 · 创建 · 到期」", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     await screen.findByText("slk_abc");
     const row = patRow("slk_abc");
     expect(row.getAttribute("role")).toBeNull();
     expect(within(row).getByText("cli")).toBeTruthy();
     expect(row.querySelector("[data-desc]")?.textContent).toBe(
-      "slk_abc · 使用者 m1 · 建立 2026-01-01 · 到期 永久",
+      "slk_abc · 用户 m1 · 创建 2026-01-01 · 到期 永久",
     );
   });
 
-  it("有效列有滑過才出現的撤銷鈕（鍵盤聚焦時也出現），已撤銷列沒有", async () => {
+  it("有效列有滑过才出现的撤销钮（键盘聚焦时也出现），已撤销列没有", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     await screen.findByText("slk_abc");
-    const revoke = within(patRow("slk_abc")).getByRole("button", { name: "撤銷存取金鑰 cli" });
+    const revoke = within(patRow("slk_abc")).getByRole("button", { name: "撤销访问密钥 cli" });
     const classes = revoke.className.split(/\s+/);
-    // 平時隱藏、列滑過或鍵盤聚焦時出現；沒有滑鼠移入能力的裝置恆常顯示。
+    // 平时隐藏、列滑过或键盘聚焦时出现；没有鼠标移入能力的设备恒常显示。
     expect(classes).toEqual(
       expect.arrayContaining([
         "opacity-0",
@@ -58,89 +58,89 @@ describe("憑證頁", () => {
     expect(within(patRow("slk_xyz")).queryByRole("button")).toBeNull();
   });
 
-  it("憑證狀態籤：有效為綠系、已撤銷為中性，兩態可區辨", async () => {
-    // spec「憑證狀態徽章」：撤銷是不可逆的事，得一眼看出哪把還活著。
+  it("凭证状态签：有效为绿系、已撤销为中性，两态可区辨", async () => {
+    // spec「凭证状态徽章」：撤销是不可逆的事，得一眼看出哪把还活着。
     renderAt("/admin/credentials", makeAdminClient());
     await screen.findByText("slk_abc");
     const valid = within(patRow("slk_abc")).getByText("有效");
-    const revoked = within(patRow("slk_xyz")).getByText("已撤銷");
+    const revoked = within(patRow("slk_xyz")).getByText("已撤销");
     expect(valid.className).toContain("status-success");
     expect(revoked.className).not.toContain("status-success");
     expect(revoked.className).toContain("text-muted-foreground");
   });
 
-  it("關鍵字搜尋只留下相符的存取金鑰", async () => {
+  it("关键字搜索只留下相符的访问密钥", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     expect(await screen.findByText("slk_abc")).toBeTruthy();
     const user = userEvent.setup();
-    await user.type(screen.getByRole("textbox", { name: "搜尋" }), "部署");
+    await user.type(screen.getByRole("textbox", { name: "搜索" }), "部署");
     await waitFor(() => expect(screen.queryByText("slk_abc")).toBeNull());
     expect(screen.getByText("slk_xyz")).toBeTruthy();
   });
 
-  it("狀態篩選只留下有效或已撤銷的項目", async () => {
+  it("状态筛选只留下有效或已撤销的项目", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     expect(await screen.findByText("slk_xyz")).toBeTruthy();
-    // 狀態篩選是 Radix Select：點開 trigger 再點選項（Radix 開啟時關閉 body 的
-    // pointer-events，jsdom 沒有真實命中測試，故關掉 userEvent 的檢查）。
+    // 状态筛选是 Radix Select：点开 trigger 再点击项（Radix 打开时关闭 body 的
+    // pointer-events，jsdom 没有真实命中测试，故关掉 userEvent 的检查）。
     const user = userEvent.setup({ pointerEventsCheck: 0 });
-    await user.click(screen.getByRole("combobox", { name: /狀態/ }));
+    await user.click(screen.getByRole("combobox", { name: /状态/ }));
     await user.click(await screen.findByRole("option", { name: "有效" }));
     await waitFor(() => expect(screen.queryByText("slk_xyz")).toBeNull());
     expect(screen.getByText("slk_abc")).toBeTruthy();
   });
 
-  // 空狀態的建立入口不能只在「一個憑證都沒有」時存在——建完第一把之後就再也找不到
-  // 新增的地方了。primary action 常駐頁首。
-  it("已有憑證時仍提供建立存取金鑰的入口", async () => {
+  // 空状态的创建入口不能只在「一个凭证都没有」时存在——建完第一把之后就再也找不到
+  // 添加的地方了。primary action 常驻页眉。
+  it("已有凭证时仍提供创建访问密钥的入口", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     await screen.findByText("slk_abc");
-    const create = screen.getByRole("link", { name: /建立存取金鑰/ });
+    const create = screen.getByRole("link", { name: /创建访问密钥/ });
     expect(create.getAttribute("href")).toBe("/account");
   });
 
-  it("篩選無結果時呈現無符合狀態並保留篩選控制項、沒有換頁列", async () => {
+  it("筛选无结果时呈现无符合状态并保留筛选控制项、没有换页列", async () => {
     renderAt("/admin/credentials", makeAdminClient());
     expect(await screen.findByText("slk_abc")).toBeTruthy();
     const user = userEvent.setup();
-    const search = screen.getByRole("textbox", { name: "搜尋" });
-    await user.type(search, "找不到的東西");
+    const search = screen.getByRole("textbox", { name: "搜索" });
+    await user.type(search, "找不到的东西");
     await waitFor(() => expect(screen.queryByText("slk_abc")).toBeNull());
-    expect(screen.getByText(/沒有符合/)).toBeTruthy();
-    // 篩選控制項仍在，使用者才能改回來。
-    expect(screen.getByRole("textbox", { name: "搜尋" })).toBeTruthy();
-    expect(screen.getByRole("combobox", { name: /狀態/ })).toBeTruthy();
-    expect(screen.queryByText(/^第 .+ 筆，共 .+ 筆$/)).toBeNull();
+    expect(screen.getByText(/没有符合/)).toBeTruthy();
+    // 筛选控制项仍在，用户才能改回来。
+    expect(screen.getByRole("textbox", { name: "搜索" })).toBeTruthy();
+    expect(screen.getByRole("combobox", { name: /状态/ })).toBeTruthy();
+    expect(screen.queryByText(/^第 .+ 笔，共 .+ 笔$/)).toBeNull();
   });
 
-  it("空憑證頁說明用途並提供建立存取金鑰的 primary action，不出現分頁", async () => {
+  it("空凭证页说明用途并提供创建访问密钥的 primary action，不出现分页", async () => {
     renderAt(
       "/admin/credentials",
       makeAdminClient({ getAdminCredentials: vi.fn(async () => EMPTY_CREDENTIALS) }),
     );
-    const empty = await screen.findByText(/遠端工作流程/);
+    const empty = await screen.findByText(/远程工作流程/);
     expect(empty).toBeTruthy();
-    const action = screen.getByRole("link", { name: /建立存取金鑰/ });
+    const action = screen.getByRole("link", { name: /创建访问密钥/ });
     expect(action.getAttribute("href")).toBe("/account");
     expect(screen.queryByRole("tab")).toBeNull();
   });
 
-  // design D2：該類資料完全沒有時是說明用途的空狀態，與「搜尋後沒有符合」可區辨。
-  it("某一類原本就 0 筆時，該分頁呈現說明該類用途的空狀態，而不是無符合結果", async () => {
+  // design D2：该类数据完全没有时是说明用途的空状态，与「搜索后没有符合」可区辨。
+  it("某一类原本就 0 笔时，该分页呈现说明该类用途的空状态，而不是无符合结果", async () => {
     renderAt(
       "/admin/credentials",
       makeAdminClient({
         getAdminCredentials: vi.fn(async () => ({ ...CREDENTIALS, pats: [] })),
       }),
     );
-    expect(await screen.findByText("尚無存取金鑰")).toBeTruthy();
-    expect(screen.queryByText(/沒有符合/)).toBeNull();
+    expect(await screen.findByText("尚无访问密钥")).toBeTruthy();
+    expect(screen.queryByText(/没有符合/)).toBeNull();
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: /^裝置/ }));
+    await user.click(screen.getByRole("tab", { name: /^设备/ }));
     expect(await screen.findByText("desktop")).toBeTruthy();
   });
 
-  it("沒有裝置登入時，裝置分頁呈現說明裝置憑證來源的空狀態", async () => {
+  it("没有设备登录时，设备分页呈现说明设备凭证来源的空状态", async () => {
     renderAt(
       "/admin/credentials",
       makeAdminClient({
@@ -149,52 +149,52 @@ describe("憑證頁", () => {
     );
     await screen.findByText("slk_abc");
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: /^裝置/ }));
-    expect(await screen.findByText("尚無裝置登入")).toBeTruthy();
-    expect(screen.queryByText(/沒有符合/)).toBeNull();
+    await user.click(screen.getByRole("tab", { name: /^设备/ }));
+    expect(await screen.findByText("尚无设备登录")).toBeTruthy();
+    expect(screen.queryByText(/没有符合/)).toBeNull();
   });
 
-  it("撤銷經 AlertDialog 確認後才送出", async () => {
+  it("撤销经 AlertDialog 确认后才送出", async () => {
     const client = makeAdminClient();
     renderAt("/admin/credentials", client);
     await screen.findByText("slk_abc");
     const user = userEvent.setup();
-    await user.click(within(patRow("slk_abc")).getByRole("button", { name: "撤銷存取金鑰 cli" }));
+    await user.click(within(patRow("slk_abc")).getByRole("button", { name: "撤销访问密钥 cli" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(client.adminRevokeToken).not.toHaveBeenCalled();
-    await user.click(within(dialog).getByRole("button", { name: /撤銷|確認/ }));
+    await user.click(within(dialog).getByRole("button", { name: /撤销|确认/ }));
     await waitFor(() => expect(client.adminRevokeToken).toHaveBeenCalledWith("p1"));
   });
 
-  it("裝置分頁的列：標題為來源、說明為「使用者 · 建立 · 最近更新」，可撤銷", async () => {
+  it("设备分页的列：标题为来源、说明为「用户 · 创建 · 最近更新」，可撤销", async () => {
     const client = makeAdminClient();
     renderAt("/admin/credentials", client);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("tab", { name: /^裝置/ }));
+    await user.click(await screen.findByRole("tab", { name: /^设备/ }));
     const row = (await screen.findByText("desktop")).closest("[data-device]") as HTMLElement;
     expect(row.getAttribute("role")).toBeNull();
     expect(row.querySelector("[data-desc]")?.textContent).toBe(
-      "使用者 m1 · 建立 2026-01-01 · 最近更新 2026-01-03",
+      "用户 m1 · 创建 2026-01-01 · 最近更新 2026-01-03",
     );
-    await user.click(within(row).getByRole("button", { name: /撤銷裝置/ }));
+    await user.click(within(row).getByRole("button", { name: /撤销设备/ }));
     const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: /撤銷|確認/ }));
+    await user.click(within(dialog).getByRole("button", { name: /撤销|确认/ }));
     await waitFor(() => expect(client.adminRevokeFamily).toHaveBeenCalledWith("d1"));
   });
 
-  it("窄螢幕：說明只留第一段，撤銷動作仍在", async () => {
+  it("窄屏幕：说明只留第一段，撤销动作仍在", async () => {
     setViewport(true);
     const client = makeAdminClient();
     renderAt("/admin/credentials", client);
     expect(await screen.findByText("slk_abc")).toBeTruthy();
     expect(patRow("slk_abc").querySelector("[data-desc]")?.textContent).toBe("slk_abc");
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "撤銷存取金鑰 cli" }));
+    await user.click(screen.getByRole("button", { name: "撤销访问密钥 cli" }));
     const dialog = await screen.findByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: /撤銷|確認/ }));
+    await user.click(within(dialog).getByRole("button", { name: /撤销|确认/ }));
     await waitFor(() => expect(client.adminRevokeToken).toHaveBeenCalledWith("p1"));
-    await user.click(screen.getByRole("tab", { name: /^裝置/ }));
+    await user.click(screen.getByRole("tab", { name: /^设备/ }));
     const device = (await screen.findByText("desktop")).closest("[data-device]") as HTMLElement;
-    expect(device.querySelector("[data-desc]")?.textContent).toBe("使用者 m1");
+    expect(device.querySelector("[data-desc]")?.textContent).toBe("用户 m1");
   });
 });

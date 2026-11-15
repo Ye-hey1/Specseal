@@ -1,15 +1,15 @@
-//! 系統匣面板（tray-status-menu「面板樣式」）：lazy 建立 tray-panel webview 視窗，
-//! 對外只露出 `toggle` 與 `hide`，各平台的視窗實作分在各自的區塊（tray-panel-windows
-//! design D6）。建立失敗、macOS 定位失敗或 Windows 顯示失敗時回單行 Err——前端據此退回
-//! 原生選單樣式並於設定頁浮出；Windows 的收起與定位失敗不回錯。
+//! 系统匣面板（tray-status-menu「面板样式」）：lazy 创建 tray-panel webview 窗口，
+//! 对外只露出 `toggle` 与 `hide`，各平台的窗口实作分在各自的区块（tray-panel-windows
+//! design D6）。创建失败、macOS 定位失败或 Windows 显示失败时回单行 Err——前端据此退回
+//! 原生菜单样式并于设置页浮出；Windows 的收起与定位失败不回错。
 //!
-//! - macOS（design D5）：轉為 nonactivating NSPanel——開啟不奪前景 app 焦點、失焦
-//!   （resign key）自動收合；window-vibrancy 套 HudWindow 材質、positioner 以 tray
-//!   相對位置貼齊圖示下方（座標由前端 handleIconState 餵入）。
-//! - Windows（tray-panel-windows design D1／D3／D4）：不透明、無外框、帶系統陰影的
-//!   一般視窗；依系統匣圖示位置在其螢幕的 work area 內定位、大小改變就重新定位；
-//!   開啟取得焦點、失焦收起，收起後的短暫窗口內忽略開啟要求。
-//! - Linux：不提供面板（系統匣恆為原生選單樣式），toggle 回 Err 作守門、hide 無事。
+//! - macOS（design D5）：转为 nonactivating NSPanel——打开不夺前景 app 焦点、失焦
+//!   （resign key）自动收合；window-vibrancy 套 HudWindow 材质、positioner 以 tray
+//!   相对位置贴齐图标下方（座标由前端 handleIconState 喂入）。
+//! - Windows（tray-panel-windows design D1／D3／D4）：不透明、无外框、带系统阴影的
+//!   一般窗口；依系统匣图标位置在其屏幕的 work area 内定位、大小改变就重新定位；
+//!   打开取得焦点、失焦收起，收起后的短暂窗口内忽略打开要求。
+//! - Linux：不提供面板（系统匣恒为原生菜单样式），toggle 回 Err 作守门、hide 无事。
 
 #[cfg(target_os = "macos")]
 pub use macos::{hide, toggle};
@@ -18,8 +18,8 @@ pub use unsupported::{hide, toggle};
 #[cfg(target_os = "windows")]
 pub use windows::{hide, toggle};
 
-/// 兩平台共用的面板視窗設定（D6）：標籤與 builder 的共同前段——無外框、不可調整大小、
-/// 不進工作列、置頂、先隱藏；各平台再疊上自己的外觀設定。
+/// 两平台共用的面板窗口设置（D6）：标签与 builder 的共同前段——无外框、不可调整大小、
+/// 不进任务栏、置顶、先隐藏；各平台再叠上自己的外观设置。
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 mod common {
     use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder, Wry};
@@ -30,7 +30,7 @@ mod common {
 
     pub fn builder(app: &AppHandle) -> WebviewWindowBuilder<'_, Wry, AppHandle> {
         WebviewWindowBuilder::new(app, PANEL_LABEL, WebviewUrl::App("panel.html".into()))
-            .title("Speclink")
+            .title("Specseal")
             .inner_size(PANEL_WIDTH, PANEL_HEIGHT)
             .decorations(false)
             .resizable(false)
@@ -50,7 +50,7 @@ mod macos {
     use super::common::{builder, PANEL_LABEL};
 
     tauri_panel! {
-        // 可成 key（面板內可互動、失焦可偵測）但不可成 main、不 activate app。
+        // 可成 key（面板内可交互、失焦可侦测）但不可成 main、不 activate app。
         panel!(TrayStatusPanel {
             config: {
                 can_become_key_window: true,
@@ -64,8 +64,8 @@ mod macos {
         })
     }
 
-    /// 點擊系統匣圖示的開閉入口：不存在則 lazy 建立，存在則 toggle 顯隱。
-    /// 顯示前依 positioner 的 tray 座標貼齊圖示下方。
+    /// 点击系统匣图标的开闭入口：不存在则 lazy 创建，存在则 toggle 显隐。
+    /// 显示前依 positioner 的 tray 座标贴齐图标下方。
     pub fn toggle(app: &AppHandle) -> Result<(), String> {
         if app.get_webview_panel(PANEL_LABEL).is_err() {
             create(app)?;
@@ -82,30 +82,30 @@ mod macos {
                 .move_window(Position::TrayBottomCenter)
                 .map_err(|e| format!("tray panel positioning failed: {e}"))?;
         }
-        // nonactivating panel：不 activate app、不把主視窗拉前景；成為 key 才收得到
-        // resign key（失焦自動收合的觸發源）——Spotlight 式面板的標準姿勢。
+        // nonactivating panel：不 activate app、不把主窗口拉前景；成为 key 才收得到
+        // resign key（失焦自动收合的触发源）——Spotlight 式面板的标准姿势。
         panel.show_and_make_key();
         Ok(())
     }
 
-    /// 面板收合入口——交接主視窗前（tray-status-menu「面板交接主視窗後滑鼠互動完整」；
-    /// design D2）與失焦自動收合共用。冪等且不會失敗：面板尚未建立或已收合皆無事，
-    /// 不像 toggle 會把已收合的面板重新打開；hide 即 orderOut，對已隱藏的視窗本身就是無事。
+    /// 面板收合入口——交接主窗口前（tray-status-menu「面板交接主窗口后鼠标交互完整」；
+    /// design D2）与失焦自动收合共用。幂等且不会失败：面板尚未创建或已收合皆无事，
+    /// 不像 toggle 会把已收合的面板重新打开；hide 即 orderOut，对已隐藏的窗口本身就是无事。
     pub fn hide(app: &AppHandle) {
         if let Ok(panel) = app.get_webview_panel(PANEL_LABEL) {
             panel.hide();
         }
     }
 
-    /// 建立面板視窗：共用前段（無邊框、不進工作列、置頂、先隱藏）加透明；轉 NSPanel 後套
-    /// nonactivating style mask、浮動層級、vibrancy HudWindow 材質與失焦收合。
+    /// 创建面板窗口：共用前段（无边框、不进任务栏、置顶、先隐藏）加透明；转 NSPanel 后套
+    /// nonactivating style mask、浮动层级、vibrancy HudWindow 材质与失焦收合。
     fn create(app: &AppHandle) -> Result<(), String> {
         let window = builder(app)
             .transparent(true)
             .focused(false)
-            // 全透明背景色不可省：wry 僅在明給 background_color 時才清 WKWebView 的
-            // underPageBackgroundColor（macOS 12+ 預設不透明淺灰）——只設 transparent
-            // 會被這層蓋住 vibrancy（實測為面板完全不透的根因）。
+            // 全透明背景色不可省：wry 仅在明给 background_color 时才清 WKWebView 的
+            // underPageBackgroundColor（macOS 12+ 缺省不透明浅灰）——只设 transparent
+            // 会被这层盖住 vibrancy（实测为面板完全不透的根因）。
             .background_color(tauri::utils::config::Color(0, 0, 0, 0))
             .build()
             .map_err(|e| format!("tray panel window creation failed: {e}"))?;
@@ -116,14 +116,14 @@ mod macos {
         panel.set_style_mask(StyleMask::empty().nonactivating_panel().into());
         panel.set_level(PanelLevel::Floating.value());
         panel.set_hides_on_deactivate(false);
-        // vibrancy 前提：NSPanel 本身不透明會蓋掉 NSVisualEffectView——類別交換後
-        // 明確重設（builder 的 transparent 設定不保證存續到 panel 類別）。
+        // vibrancy 前提：NSPanel 本身不透明会盖掉 NSVisualEffectView——类别交换后
+        // 明确重设（builder 的 transparent 设置不保证存续到 panel 类别）。
         panel.set_opaque(false);
         panel.set_transparent(true);
-        // 毛玻璃：於類別交換「之後」明確套用（builder 期套用不保證存續；menubar app
-        // 的實證路徑即 window-vibrancy 顯式呼叫）。材質選 HudWindow——透感最強、
-        // 背後內容經 blur 可辨（design D6：Menu 為真 NSMenu 材質但淺色模式近乎
-        // 不透、不滿足「毛玻璃底可透出」，Popover 更不透——實測裁決換用）。
+        // 毛玻璃：于类别交换「之后」明确套用（builder 期套用不保证存续；menubar app
+        // 的实证路径即 window-vibrancy 显式调用）。材质选 HudWindow——透感最强、
+        // 背后内容经 blur 可辨（design D6：Menu 为真 NSMenu 材质但浅色模式近乎
+        // 不透、不满足「毛玻璃底可透出」，Popover 更不透——实测裁决换用）。
         apply_vibrancy(
             &window,
             NSVisualEffectMaterial::HudWindow,
@@ -132,7 +132,7 @@ mod macos {
         )
         .map_err(|e| format!("tray panel vibrancy failed: {e}"))?;
 
-        // 失焦自動收合（spec：點面板外任意處面板收合）。
+        // 失焦自动收合（spec：点面板外任意处面板收合）。
         let handler = TrayStatusPanelEvents::new();
         let handle = app.clone();
         handler.window_did_resign_key(move |_notification| hide(&handle));
@@ -146,25 +146,25 @@ mod windows {
     use std::sync::Mutex;
     use std::time::Instant;
 
-    use speclink_desktop_core::tray_panel::{panel_position, should_ignore_open, PxRect};
+    use specseal_desktop_core::tray_panel::{panel_position, should_ignore_open, PxRect};
     use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow, WindowEvent};
 
     use super::common::{builder, PANEL_LABEL};
 
-    /// 系統匣圖示的 id——與 apps/desktop/src/tray.ts 建立圖示時的 id 一致。
-    const TRAY_ID: &str = "speclink-tray";
+    /// 系统匣图标的 id——与 apps/desktop/src/tray.ts 创建图标时的 id 一致。
+    const TRAY_ID: &str = "specseal-tray";
 
-    /// 面板狀態（D3／D4），隨面板建立以 app.manage 註冊。icon 是開啟當下的圖示位置，
-    /// 供大小改變時重新定位：圖示在溢出區（^）時，溢出視窗收起後就查不到原本的位置。
+    /// 面板状态（D3／D4），随面板创建以 app.manage 注册。icon 是打开当下的图标位置，
+    /// 供大小改变时重新定位：图标在溢出区（^）时，溢出窗口收起后就查不到原本的位置。
     #[derive(Default)]
     struct PanelState {
         last_hidden: Mutex<Option<Instant>>,
         icon: Mutex<Option<PxRect>>,
     }
 
-    /// 點擊系統匣圖示（左鍵）的開閉入口：不存在則 lazy 建立，存在則 toggle 顯隱。
-    /// 開啟要求落在失焦收起後的抑制窗口內即忽略——那次失焦正是這次點擊圖示造成的。
-    /// 只有建立與顯示失敗回 Err；收起與定位失敗不退回原生選單（面板仍可用）。
+    /// 点击系统匣图标（左键）的开闭入口：不存在则 lazy 创建，存在则 toggle 显隐。
+    /// 打开要求落在失焦收起后的抑制窗口内即忽略——那次失焦正是这次点击图标造成的。
+    /// 只有创建与显示失败回 Err；收起与定位失败不退回原生菜单（面板仍可用）。
     pub fn toggle(app: &AppHandle) -> Result<(), String> {
         let window = match app.get_webview_window(PANEL_LABEL) {
             Some(window) => window,
@@ -184,21 +184,21 @@ mod windows {
         window
             .show()
             .map_err(|e| format!("tray panel show failed: {e}"))?;
-        // 取得焦點才收得到失焦（點面板外收起的觸發源）；取不到時面板仍可經點圖示關閉，
-        // 不為此退回原生選單。
+        // 取得焦点才收得到失焦（点面板外收起的触发源）；取不到时面板仍可经点图标关闭，
+        // 不为此退回原生菜单。
         let _ = window.set_focus();
         Ok(())
     }
 
-    /// 面板收合入口——交接主視窗前呼叫。冪等且不會失敗：面板尚未建立或已收合皆無事。
+    /// 面板收合入口——交接主窗口前调用。幂等且不会失败：面板尚未创建或已收合皆无事。
     pub fn hide(app: &AppHandle) {
         if let Some(window) = app.get_webview_window(PANEL_LABEL) {
             let _ = window.hide();
         }
     }
 
-    /// 建立面板視窗（D1）：共用前段加系統陰影（Windows 11 由系統畫圓角）、不透明
-    /// （builder 預設）；掛上大小改變重新定位與失焦收起，並隨主視窗關閉而關閉。
+    /// 创建面板窗口（D1）：共用前段加系统阴影（Windows 11 由系统画圆角）、不透明
+    /// （builder 缺省）；挂上大小改变重新定位与失焦收起，并随主窗口关闭而关闭。
     fn create(app: &AppHandle) -> Result<WebviewWindow, String> {
         app.manage(PanelState::default());
         let window = builder(app)
@@ -207,7 +207,7 @@ mod windows {
             .map_err(|e| format!("tray panel window creation failed: {e}"))?;
         let handle = window.clone();
         window.on_window_event(move |event| match event {
-            // 前端隨內容 setSize：重做定位，貼齊工作列的那一邊維持貼齊（D3）。
+            // 前端随内容 setSize：重做定位，贴齐任务栏的那一边维持贴齐（D3）。
             WindowEvent::Resized(_) if handle.is_visible().unwrap_or(false) => {
                 place(&handle, *handle.state::<PanelState>().icon.lock().unwrap());
             }
@@ -217,8 +217,8 @@ mod windows {
             }
             _ => {}
         });
-        // Tauri 在所有視窗都關閉後才結束 app：常駐隱藏的面板會讓主視窗關閉後行程不結束，
-        // 故主視窗關閉時一併關閉面板——與加入面板前「關主視窗即結束」一致。
+        // Tauri 在所有窗口都关闭后才结束 app：常驻隐藏的面板会让主窗口关闭后行程不结束，
+        // 故主窗口关闭时一并关闭面板——与加入面板前「关主窗口即结束」一致。
         if let Some(main) = app.get_webview_window("main") {
             let panel = window.clone();
             main.on_window_event(move |event| {
@@ -230,10 +230,10 @@ mod windows {
         Ok(window)
     }
 
-    /// 系統匣圖示的實體像素位置；圖示不存在或系統不提供時為 None。
+    /// 系统匣图标的实体像素位置；图标不存在或系统不提供时为 None。
     fn icon_rect(app: &AppHandle) -> Option<PxRect> {
         let rect = app.tray_by_id(TRAY_ID)?.rect().ok()??;
-        // 系統匣回報的圖示位置即實體像素，縮放倍率不影響換算。
+        // 系统匣回报的图标位置即实体像素，缩放倍率不影响换算。
         let position = rect.position.to_physical::<i32>(1.0);
         let size = rect.size.to_physical::<u32>(1.0);
         Some(PxRect {
@@ -244,9 +244,9 @@ mod windows {
         })
     }
 
-    /// 定位（D3）：取圖示所在螢幕的 work area，交 panel_position 算出位置——水平以圖示
-    /// 為中心並限制在範圍內、垂直貼齊工作列那一側。圖示位置、螢幕或視窗大小取不到時
-    /// 不移動（停在原位），不為定位失敗退回原生選單。
+    /// 定位（D3）：取图标所在屏幕的 work area，交 panel_position 算出位置——水平以图标
+    /// 为中心并限制在范围内、垂直贴齐任务栏那一侧。图标位置、屏幕或窗口大小取不到时
+    /// 不移动（停在原位），不为定位失败退回原生菜单。
     fn place(window: &WebviewWindow, icon: Option<PxRect>) {
         let Some(icon) = icon else { return };
         let center_x = icon.x as f64 + icon.width as f64 / 2.0;

@@ -1,6 +1,6 @@
-// 產出流程頁（desktop-settings-mode design D8；spec「產出流程頁」）：產出政策卡（locale、spec_locale
-// 下拉與 tdd、audit、worktree 開關）與產出流程卡（清單、唯讀詳情、切換、fork、建立、刪除——原樣
-// 自原產出流程頁籤搬入）。
+// 产出流程页（desktop-settings-mode design D8；spec「产出流程页」）：产出政策卡（locale、spec_locale
+// 下拉与 tdd、audit、worktree 开关）与产出流程卡（清单、唯读详情、切换、fork、创建、删除——原样
+// 自原产出流程页签搬入）。
 import { AlertTriangle } from "lucide-react";
 import {
   Button,
@@ -18,7 +18,7 @@ import {
   SettingsRow,
   Switch,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { FieldHelp, InvalidLocaleHint, PageAlerts, PageNote } from "./parts";
 import {
@@ -29,12 +29,12 @@ import {
   type ProjectSettingsState,
 } from "./useProjectSettings";
 
-const LOCALE_LABEL: Record<string, string> = { tw: "tw（繁體中文）", ja: "ja（日本語）", en: "en（English）", auto: "auto" };
+const LOCALE_LABEL: Record<string, string> = { tw: "tw（繁体中文）", ja: "ja（日本语）", en: "en（English）", auto: "auto" };
 
-/** 儲存值落在選項集外（手改 config.yaml）：下拉以停用項顯示原值，列與說明轉警示。 */
+/** 保存值落在选项集外（手改 config.yaml）：下拉以停用项显示原值，列与说明转警示。 */
 const isInvalidLocale = (value: string, codes: readonly string[]) => value !== "" && !codes.includes(value);
 
-/** locale／spec_locale 的選項：未設定＋合法代碼；選項集外的儲存值以停用項顯示原始值（不改寫）。 */
+/** locale／spec_locale 的选项：未设置＋合法代码；选项集外的保存值以停用项显示原始值（不改写）。 */
 function localeOptions(value: string, codes: readonly string[], unsetLabel: string, invalidSuffix: string) {
   return [
     ...(isInvalidLocale(value, codes) ? [{ value, label: `${value}${invalidSuffix}`, disabled: true }] : []),
@@ -128,7 +128,7 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
           </SettingsRow>
           {toggle("tdd", ps.tdd, ps.setTdd)}
           {toggle("audit", ps.audit, ps.setAudit)}
-          {/* worktree 屬本機 checkout 概念：remote 不顯示（spec「產出政策的 worktree 開關」）。 */}
+          {/* worktree 属本机 checkout 概念：remote 不显示（spec「产出政策的 worktree 开关」）。 */}
           {!isRemote && toggle("worktree", ps.worktree, ps.setWorktree)}
           <div className="flex items-center justify-end gap-2 px-4 py-3">
             {ps.wfMsg && <span className="mr-auto text-xs text-muted-foreground">{ps.wfMsg}</span>}
@@ -155,9 +155,9 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
               {t("settings.schemaActiveLabel")}
             </label>
             <Select
-              // 恆受控（review N2）：value 一律等於快照現值，寫入失敗後
-              // 觸發器退回現值、不停在剛點選的名稱。壞檔空字串傳 undefined
-              // 讓 placeholder 顯示「—」。
+              // 恒受控（review N2）：value 一律等于快照现值，写入失败后
+              // 触发器退回现值、不停在刚点击的名称。坏档空字符串传 undefined
+              // 让 placeholder 显示「—」。
               value={snap.workflow.schemaName || undefined}
               disabled={wfDisabled}
               onValueChange={(v) => void switchSchema(v)}
@@ -166,8 +166,8 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
                 <SelectValue placeholder="—" />
               </SelectTrigger>
               <SelectContent>
-                {/* 現值不在選項集（remote 非內建、活躍項解析失敗）→ 沿 locale
-                    未知值模式以停用項顯示原始值（review R6／N2）。 */}
+                {/* 现值不在选项集（remote 非内置、活跃项解析失败）→ 沿 locale
+                    未知值模式以停用项显示原始值（review R6／N2）。 */}
                 {snap.workflow.schemaName !== "" &&
                   !selectableSchemaNames.includes(snap.workflow.schemaName) && (
                     <SelectItem
@@ -229,8 +229,8 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
                           {t("settings.schemaFork")}
                         </Button>
                       )}
-                      {/* 刪除（D7）：僅專案層——內建無檔案、user 層跨專案共用。
-                          按下先開確認對話框，確認後才執行。 */}
+                      {/* 删除（D7）：仅项目层——内置无文件、user 层跨项目共用。
+                          按下先开确认对话框，确认后才运行。 */}
                       {!isRemote && entry.source === "project" && (
                         <Button
                           type="button"
@@ -243,8 +243,8 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
                           {t("settings.schemaDelete")}
                         </Button>
                       )}
-                      {/* 編輯入口（D6）：有磁碟路徑才有資料夾可顯示——內建在
-                          binary 內、remote 無本機檔案，均不渲染。 */}
+                      {/* 编辑入口（D6）：有磁盘路径才有文件夹可显示——内置在
+                          binary 内、remote 无本机文件，均不渲染。 */}
                       {!isRemote && entry.path !== null && (
                         <Button
                           type="button"
@@ -307,8 +307,8 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
               );
             })}
           </div>
-          {/* 建立表單（D5；僅 local）：單一名稱輸入，佈局用引擎預設骨架，
-              kebab-case 與已存在檢查在引擎、錯誤原樣浮出。 */}
+          {/* 创建表单（D5；仅 local）：单一名称输入，布局用引擎缺省骨架，
+              kebab-case 与已存在检查在引擎、错误原样浮出。 */}
           {!isRemote && (
             <div className="flex flex-col gap-1">
               <label htmlFor="schema-create-name" className="text-sm font-medium">
@@ -340,7 +340,7 @@ export function WorkflowPage({ ps }: { ps: ProjectSettingsState }) {
         </SettingsCard>
       </div>
 
-      {/* 刪除確認（D7；沿變更刪除的確認框模式） */}
+      {/* 删除确认（D7；沿变更删除的确认框模式） */}
       <ConfirmDialog
         open={pendingDeleteSchema !== null}
         onOpenChange={(o) => !o && setPendingDeleteSchema(null)}

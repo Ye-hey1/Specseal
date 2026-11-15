@@ -1,13 +1,13 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "speclink",
-  "description": "Speclink add-ons for Claude Code",
+  "name": "specseal",
+  "description": "Specseal add-ons for Claude Code",
   "owner": { "name": "MomoChen" },
   "plugins": [
     {
-      "name": "speclink-skills",
-      "description": "Clickable speclink skills above the prompt, and a side panel with tabs for the active changes, discussions and open quality tickets",
-      "source": "./integrations/claude-code/speclink-skills"
+      "name": "specseal-skills",
+      "description": "Clickable specseal skills above the prompt, and a side panel with tabs for the active changes, discussions and open quality tickets",
+      "source": "./integrations/claude-code/specseal-skills"
     }
   ]
 }

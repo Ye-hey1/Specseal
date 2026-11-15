@@ -22,16 +22,16 @@ import { PageHeader } from "./ui/page-header";
 import { StatusPill } from "./ui/status-pill";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 
-/** 看板頁的兩種檢視（spec desktop-roadmap「看板頁的路線圖檢視」）：卡片看板與路線圖。 */
+/** 看板页的两种查看（spec desktop-roadmap「看板页的路线图查看」）：卡片看板与路线图。 */
 export type BoardMode = "cards" | "roadmap";
 
-/** 切換時焦點在切換鈕上：切換後由新顯示那一頁的切換接回焦點（兩頁各有一個切換）。 */
+/** 切换时焦点在切换钮上：切换后由新显示那一页的切换接回焦点（两页各有一个切换）。 */
 let refocusSwitch = false;
 
-/** 看板頁頁首的「看板｜路線圖」切換：卡片檢視與路線圖的頁首放同一個，都在最右端。外框高度與
- * 搜尋框、篩選鈕同為 32px：路線圖的頁首只有切換，高度一致才不會在切換檢視時上下跳。
- * 切換後原本那顆鈕所在的檢視被藏起來（hidden＋inert），焦點會掉回 body——鍵盤使用者因此由
- * 新顯示那一頁的切換接回焦點。 */
+/** 看板页页眉的「看板｜路线图」切换：卡片查看与路线图的页眉放同一个，都在最右端。外框高度与
+ * 搜索框、筛选钮同为 32px：路线图的页眉只有切换，高度一致才不会在切换查看时上下跳。
+ * 切换后原本那颗钮所在的查看被藏起来（hidden＋inert），焦点会掉回 body——键盘用户因此由
+ * 新显示那一页的切换接回焦点。 */
 export function BoardViewSwitch({ value, onChange }: { value: BoardMode; onChange: (mode: BoardMode) => void }) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
@@ -60,34 +60,34 @@ export function BoardViewSwitch({ value, onChange }: { value: BoardMode; onChang
 }
 
 export interface RoadmapViewProps {
-  /** 頁標題與說明：與卡片檢視同一頁，宿主給同一個標題。 */
+  /** 页标题与说明：与卡片查看同一页，宿主给同一个标题。 */
   title: string;
   description: string;
-  /** 清單項（plan 的配置序）；帶 wave 的成為站。 */
+  /** 清单项（plan 的配置序）；带 wave 的成为站。 */
   changes: ChangeItem[];
-  /** plan 的 next：同名的站帶「下一個」籤。 */
+  /** plan 的 next：同名的站带「下一个」签。 */
   next: string | null;
   unpromotedCuts: UnpromotedCutItem[];
-  /** 非 null（依賴成環）時不畫波次欄、站與線，改顯示成環提示。 */
+  /** 非 null（依赖成环）时不画波次栏、站与线，改显示成环提示。 */
   planError: string | null;
-  /** 目前專案的討論清單：尚未轉出卡的討論 slug 在清單內時可點。 */
+  /** 目前项目的讨论清单：尚未转出卡的讨论 slug 在清单内时可点。 */
   discussions: DiscussionLists;
   onOpenChange: (name: string) => void;
   onOpenDiscussion: (slug: string) => void;
-  /** 頁首右側的「看板｜路線圖」切換（宿主給 BoardViewSwitch）。 */
+  /** 页眉右侧的「看板｜路线图」切换（宿主给 BoardViewSwitch）。 */
   viewSwitch?: ReactNode;
-  /** 與卡片檢視相同的載入狀態：首訪載入中畫佔位卡、首訪失敗畫失敗提示。 */
+  /** 与卡片查看相同的加载状态：首访加载中画占位卡、首访失败画失败提示。 */
   loading?: boolean;
   loadFailed?: boolean;
 }
 
-/** 站的圓點：畫布 32px、圓半徑 11、線寬 3。依賴線接在圓的外緣（圓心 ± NODE_EDGE）。 */
+/** 站的圆点：画布 32px、圆半径 11、线宽 3。依赖线接在圆的外缘（圆心 ± NODE_EDGE）。 */
 const NODE_SIZE = 32;
 const NODE_R = 11;
 const NODE_STROKE = 3;
 const NODE_EDGE = NODE_R + NODE_STROKE / 2;
 
-/** 圓點樣式：已就緒實心打勾、進行中進度圈、提案中外框；被擋的提案中站改虛線圈。 */
+/** 圆点样式：已就绪实心打勾、进行中进度圈、提案中外框；被挡的提案中站改虚线圈。 */
 type NodeKind = "ready" | "in-progress" | "proposed" | "waiting";
 
 function nodeKind(station: RoadmapStation): NodeKind {
@@ -167,20 +167,20 @@ function StationNode({
   );
 }
 
-/** 站與路線高亮之間的接線：量測用的 DOM 登記與滑鼠／焦點進出。 */
+/** 站与路线高亮之间的接线：量测用的 DOM 登记与鼠标／焦点进出。 */
 interface StationWiring {
   register: (name: string, el: Element | null) => void;
   setHovered: (name: string | null) => void;
   setFocused: (name: string | null) => void;
 }
 
-/* 表的欄寬：變更欄至少 200px 並吃掉剩餘寬度，每個波次欄 88px，尚未轉出欄 80px。波次再多也只是
-   往右加窄欄；變更再多只是往下長。 */
+/* 表的栏宽：变更栏至少 200px 并吃掉剩余宽度，每个波次栏 88px，尚未转出栏 80px。波次再多也只是
+   往右加窄栏；变更再多只是往下长。 */
 const NAME_COL_MIN = 200;
 const WAVE_COL = 88;
 const CUT_COL = 80;
 
-/** 表的欄位：各列共用的波次編號、有沒有尚未轉出欄，以及由兩者算出的 grid 欄寬。 */
+/** 表的字段：各列共用的波次编号、有没有尚未转出栏，以及由两者算出的 grid 栏宽。 */
 interface TableLayout {
   waves: number[];
   withCuts: boolean;
@@ -194,8 +194,8 @@ function tableLayout(waves: number[], withCuts: boolean): TableLayout {
   return { waves, withCuts, columns: cols.join(" ") };
 }
 
-/* 波次欄的格子：第 1 波（現在就能開工）帶主色淡底，之後各波為中性底；停在列上時跟著列的 hover
-   底色變透明。格子不定位，依賴線畫在格子之上、圓點之下。 */
+/* 波次栏的格子：第 1 波（现在就能开工）带主色淡底，之后各波为中性底；停在列上时跟着列的 hover
+   底色变透明。格子不定位，依赖线画在格子之上、圆点之下。 */
 function waveCellCls(wave: number): string {
   return cn(
     "flex items-center justify-center border-l border-border group-hover:bg-transparent",
@@ -203,7 +203,7 @@ function waveCellCls(wave: number): string {
   );
 }
 const CUT_CELL_CLS = "flex items-center justify-center border-l border-border bg-status-manual/5";
-/** 尚未轉出的虛線方塊：與討論詳情頁「尚未轉出」的刀卡同一組語意色。 */
+/** 尚未转出的虚线方块：与讨论详情页「尚未转出」的刀卡同一组语意色。 */
 const CUT_MARKER_CLS = `h-[18px] w-[18px] rounded-[5px] border-[1.5px] border-dashed ${SEMANTIC_SURFACE.manual}`;
 const HEAD_CELL_CLS = "border-l border-border px-1 py-2 text-center leading-snug";
 
@@ -238,7 +238,7 @@ function StationRow({
   } else {
     tail = t(`stage.${station.stage}`);
   }
-  // 被擋與路線外的站變淡：只淡圓點與字，格子底色不變。
+  // 被挡与路线外的站变淡：只淡圆点与字，格子底色不变。
   const fade = cn("transition-opacity", blocked && "opacity-55", dimmed && "opacity-25");
   return (
     <button
@@ -302,7 +302,7 @@ function CutRow({
       className={cn("grid border-t", first ? "border-border" : "border-border/60")}
     >
       <span className="flex min-w-0 flex-col gap-0.5 px-3 py-2">
-        {/* 範圍句只在停留時以提示呈現，列上不寫。 */}
+        {/* 范围句只在停留时以提示呈现，列上不写。 */}
         <span
           data-cut-unpromoted
           title={cut.title || undefined}
@@ -324,9 +324,9 @@ function CutRow({
           )}
           {` · ${cut.cut}`}
         </span>
-        {/* 轉出指令與討論詳情頁同一個指令籤；欄窄時指令在籤內折行。 */}
+        {/* 转出指令与讨论详情页同一个指令签；栏窄时指令在签内折行。 */}
         <span className="mt-1 block min-w-0 [overflow-wrap:anywhere]">
-          <CommandChip command={`/speclink-propose --from-discussion ${cut.discussion}`} />
+          <CommandChip command={`/specseal-propose --from-discussion ${cut.discussion}`} />
         </span>
       </span>
       {layout.waves.map((w) => (
@@ -339,23 +339,23 @@ function CutRow({
   );
 }
 
-/** 站的圓點在畫布座標系內的左右外緣與圓心高度。 */
+/** 站的圆点在画布座标系内的左右外缘与圆心高度。 */
 interface StationBox {
   left: number;
   right: number;
   mid: number;
 }
 
-/** 折線的轉角半徑；同一條欄界上的前置站各自的直線段相距 6px，最多偏離欄界 20px（圓點離欄界 31.5px）。 */
+/** 折线的转角半径；同一条栏界上的前置站各自的直线段相距 6px，最多偏离栏界 20px（圆点离栏界 31.5px）。 */
 const ELBOW_R = 8;
 const ELBOW_GAP = 6;
 const ELBOW_MAX_OFFSET = 20;
 
 /**
- * 依賴線疊層：不接收指標事件。每條線自前置站圓點的右外緣水平出發，在依賴者所在波次欄的左邊界
- * 轉成直線往下，再水平接到依賴者圓點的左外緣——圓點都在欄的正中，欄界上沒有圓點，跨過幾波的線
- * 也不會從中間那幾波的圓點底下穿過。同一條欄界上有多個前置站時，各自的直線段錯開，不疊成一條。
- * 疊層畫在格子底色之上、圓點之下（z-[1] 介於兩者之間）。
+ * 依赖线叠层：不接收指针事件。每条线自前置站圆点的右外缘水平出发，在依赖者所在波次栏的左边界
+ * 转成直线往下，再水平接到依赖者圆点的左外缘——圆点都在栏的正中，栏界上没有圆点，跨过几波的线
+ * 也不会从中间那几波的圆点底下穿过。同一条栏界上有多个前置站时，各自的直线段错开，不叠成一条。
+ * 叠层画在格子底色之上、圆点之下（z-[1] 介于两者之间）。
  */
 function EdgeLayer({
   edges,
@@ -407,8 +407,8 @@ function EdgeLayer({
 }
 
 /**
- * 每條線直線段的水平偏移（以線的 key 查）：直線段走在依賴者波次欄的左邊界，同一條欄界上的前置站
- * 依清單順序由左而右排開；同一個前置站連到同一波的幾個依賴者時共用一條直線段。
+ * 每条线直线段的水平偏移（以线的 key 查）：直线段走在依赖者波次栏的左边界，同一条栏界上的前置站
+ * 依清单顺序由左而右排开；同一个前置站连到同一波的几个依赖者时共用一条直线段。
  */
 function elbowOffsets(edges: RoadmapEdge[], waveOf: Map<string, number>): Map<string, number> {
   const sourcesAt = new Map<number, string[]>();
@@ -430,7 +430,7 @@ function elbowOffsets(edges: RoadmapEdge[], waveOf: Map<string, number>): Map<st
 
 const SKELETON_COLUMN_CLS = "flex w-64 shrink-0 flex-col gap-2";
 
-/** 圖例：說明每種圓點、尚未轉出的方塊與線。 */
+/** 图例：说明每种圆点、尚未转出的方块与线。 */
 function RoadmapLegend() {
   const { t } = useI18n();
   const dot = "h-3 w-3 rounded-full";
@@ -460,9 +460,9 @@ function RoadmapLegend() {
 }
 
 /**
- * 看板頁的路線圖檢視（spec desktop-roadmap）：一張表，每個變更一列、每一波一個窄欄，圓點落在所屬
- * 的波次欄；最右一欄與最後幾列是尚未轉出的刀。只看不寫——點站開變更詳情、點討論 slug 開討論詳情，
- * 其餘都在詳情頁。
+ * 看板页的路线图查看（spec desktop-roadmap）：一张表，每个变更一列、每一波一个窄栏，圆点落在所属
+ * 的波次栏；最右一栏与最后几列是尚未转出的刀。只看不写——点站开变更详情、点讨论 slug 开讨论详情，
+ * 其余都在详情页。
  */
 export function RoadmapView({
   title,
@@ -481,19 +481,19 @@ export function RoadmapView({
   const { t, tn } = useI18n();
   const model = roadmapModel(changes, next);
   const { waves } = model;
-  // 成環時引擎不排波次：清單項全部沒有 wave，不是 metadata 壞掉，不另寫無法排程。
+  // 成环时引擎不排波次：清单项全部没有 wave，不是 metadata 坏掉，不另写无法调度。
   const unplaced = planError ? [] : model.unplaced;
 
-  // 路線高亮：滑鼠停留優先、其次鍵盤焦點；兩者都離開才恢復。只改呈現。停留中的站因
-  // 刷新離開路線圖時（另一個 session 封存了它）不再算數，免得整張圖一直變淡。
+  // 路线高亮：鼠标停留优先、其次键盘焦点；两者都离开才恢复。只改呈现。停留中的站因
+  // 刷新离开路线图时（另一个 session 封存了它）不再算数，免得整张图一直变淡。
   const [hovered, setHovered] = useState<string | null>(null);
   const [focused, setFocused] = useState<string | null>(null);
   const waveOf = new Map(waves.flatMap((w) => w.stations.map((s) => [s.name, w.wave] as const)));
   const highlighted = [hovered, focused].find((name) => name !== null && waveOf.has(name));
   const route = highlighted ? roadmapRoute(model, highlighted) : null;
 
-  // 依賴線的座標：量測每個圓點相對於畫布的位置。畫布隨捲動一起移動，捲動不需重算；
-  // 資料變動與畫布尺寸改變（ResizeObserver）時重算。
+  // 依赖线的座标：量测每个圆点相对于画布的位置。画布随卷动一起移动，卷动不需重算；
+  // 数据变动与画布尺寸改变（ResizeObserver）时重算。
   const canvasRef = useRef<HTMLDivElement>(null);
   const stationEls = useRef(new Map<string, Element>());
   const [boxes, setBoxes] = useState(() => new Map<string, StationBox>());
@@ -524,17 +524,17 @@ export function RoadmapView({
       setBoxes(measured);
     };
     measure();
-    // 尺寸改變時同步畫出新座標：路線圖是隱藏著掛上的（量到全是 0），切過來那一刻若等下一輪
-    // 排程才更新，第一格畫面會在左上角閃出幾條短線。
+    // 尺寸改变时同步画出新座标：路线图是隐藏着挂上的（量到全是 0），切过来那一刻若等下一轮
+    // 调度才更新，第一格画面会在左上角闪出几条短线。
     const observer = new ResizeObserver(() => flushSync(measure));
     observer.observe(canvas);
     return () => observer.disconnect();
-    // 畫布只在載入結束後掛上：載入狀態一變就重新接上量測。
+    // 画布只在加载结束后挂上：加载状态一变就重新接上量测。
   }, [layoutKey, loading, loadFailed]);
   const openable = new Set(discussions.active.map((d) => d.slug));
   const failed = !loading && !!loadFailed;
-  // 有站或有刀才有表；成環時沒有站，引擎也不給刀。全部變更都無法排程時只留頁首下方那一行說明，
-  // 不算「沒有進行中的變更」。
+  // 有站或有刀才有表；成环时没有站，引擎也不给刀。全部变更都无法调度时只留页眉下方那一行说明，
+  // 不算「没有进行中的变更」。
   const hasTable = waves.length > 0 || unpromotedCuts.length > 0;
   const empty = !planError && !hasTable && unplaced.length === 0;
 
@@ -632,7 +632,7 @@ export function RoadmapView({
       </div>
     );
   }
-  // 圖例說明表上的記號：有表才有圖例。
+  // 图例说明表上的记号：有表才有图例。
   const showLegend = !loading && !failed && hasTable;
 
   return (

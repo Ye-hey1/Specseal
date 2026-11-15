@@ -93,74 +93,74 @@ import { setTaskMark } from "../tasks";
 
 export interface ChangeDetailPageProps {
   change: ChangeItem | null;
-  /** 刷新世代——遞增即重載已載入的文件內容（未傳＝0，行為等同僅開啟時載入）。 */
+  /** 刷新世代——递增即重载已加载的文档内容（未传＝0，行为等同仅打开时加载）。 */
   refreshGen?: number;
   loadDocument: (change: string, artifact: string) => Promise<string | null>;
   loadCapabilities: (change: string) => Promise<string[]>;
   loadMeta: (change: string) => Promise<ChangeMetaInfo | null>;
-  /** 一站的活工單（spec desktop-app「詳情頁的工單分頁」）：分頁出現時載入、隨
-   * refreshGen 重載；回 null 或 reject 皆為分頁空態。未提供時分頁仍依清單狀態出現、
-   * 內容為空態。 */
+  /** 一站的活工单（spec desktop-app「详情页的工单分页」）：分页出现时加载、随
+   * refreshGen 重载；回 null 或 reject 皆为分页空态。未提供时分页仍依清单状态出现、
+   * 内容为空态。 */
   loadStationTicket?: (change: string, station: TicketStation) => Promise<StationTicket | null>;
   onRunVerb?: (verb: Verb, change: string) => void;
-  /** 頁內呈現的分析結構化結果（validate＋analyze 合併；僅當 change 相符時呈現；archive 不走此結果面）。 */
+  /** 页内呈现的分析结构化结果（validate＋analyze 合并；仅当 change 相符时呈现；archive 不走此结果面）。 */
   detailVerb?: VerbDrawerResult | null;
-  /** 收合分析結果（分析鈕再點、面板關閉鈕共用此路徑）。 */
+  /** 收合分析结果（分析钮再点、面板关闭钮共用此路径）。 */
   onClearVerb?: () => void;
   onDelete?: (change: string) => void;
-  /** 認領請求（RemoteOnly——本地後端不提供，未提供時不渲染認領面）。 */
+  /** 认领请求（RemoteOnly——本地后端不提供，未提供时不渲染认领面）。 */
   onClaim?: (change: string) => void;
-  /** 退回提案中請求（僅派生進行中呈現；app 端接確認流程；未提供時不渲染）。 */
+  /** 退回提案中请求（仅派生进行中呈现；app 端接确认流程；未提供时不渲染）。 */
   onRevert?: (change: string) => void;
-  /** 勾選/取消任務並回寫 tasks.md；task 為 tsk_ stable ID（帶 ID 任務）或
-   * ordinal 字串（無 ID 相容路徑）。重載由宿主 refresh 後的刷新世代遞增驅動（單一資料流）。 */
+  /** 勾选/取消任务并回写 tasks.md；task 为 tsk_ stable ID（带 ID 任务）或
+   * ordinal 字符串（无 ID 兼容路径）。重载由宿主 refresh 后的刷新世代递增驱动（单一数据流）。 */
   onToggleTask?: (change: string, task: string, done: boolean) => Promise<void>;
-  /** 移動任務順序並回寫 tasks.md（before 為可選側別）；重載由宿主 refresh 後的刷新世代遞增驅動。 */
+  /** 移动任务顺序并回写 tasks.md（before 为可选侧别）；重载由宿主 refresh 后的刷新世代递增驱动。 */
   onMoveTask?: (change: string, from: number, to: number, before?: boolean) => Promise<void>;
-  /** 批次設定全部任務完成狀態（工具列「全部已完成」／「重置任務」），單次寫回。 */
+  /** 批量设置全部任务完成状态（工具列「全部已完成」／「重置任务」），单次写回。 */
   onSetAllTasks?: (change: string, done: boolean) => Promise<void>;
-  /** 來源討論清單（change.fromDiscussions 解析出的 slug＋topic，出身討論在前）；空/缺席＝非討論而來。 */
+  /** 来源讨论清单（change.fromDiscussions 解析出的 slug＋topic，出身讨论在前）；空/缺席＝非讨论而来。 */
   sourceDiscussions?: { slug: string; topic: string }[];
-  /** 同源 change 名（與此 change 共享至少一份來源討論，不含自己）。 */
+  /** 同源 change 名（与此 change 共享至少一份来源讨论，不含自己）。 */
   siblingChanges?: string[];
-  /** 點來源討論開討論詳情頁。 */
+  /** 点来源讨论开讨论详情页。 */
   onOpenDiscussion?: (slug: string) => void;
-  /** 點同源 change 互跳。 */
+  /** 点同源 change 互跳。 */
   onOpenSibling?: (name: string) => void;
-  /** 作用中變更清單（排程分頁：同波夥伴與前置候選自此派生）；缺席＝空清單。 */
+  /** 作用中变更清单（调度分页：同波伙伴与前置候选自此派生）；缺席＝空清单。 */
   changes?: ChangeItem[];
-  /** 排程分頁的前置新增／移除（add-change-plan-desktop design D6）。未提供
-   * （capability `setDepends` 為假）時分頁唯讀：不渲染移除鈕與新增下拉。 */
+  /** 调度分页的前置添加／移除（add-change-plan-desktop design D6）。未提供
+   * （capability `setDepends` 为假）时分页唯读：不渲染移除钮与添加下拉。 */
   onSetDepends?: (change: string, on: string[], remove: boolean) => void;
-  /** 排程分頁新增前置的候選名冊（add-change-plan-remote D9）：提供時以其結果為準
-   * （載入完成前不長新增下拉），未提供或載入失敗時候選自 `changes` 派生。 */
+  /** 调度分页添加前置的候选名册（add-change-plan-remote D9）：提供时以其结果为准
+   * （加载完成前不长添加下拉），未提供或加载失败时候选自 `changes` 派生。 */
   loadDependsCandidates?: (change: string) => Promise<string[]>;
-  /** capability 缺口的停用說明（remote session）：欄位存在＝該 affordance
-   * disabled 並以其文字說明。缺席＝全功能（本地不受影響）。 */
+  /** capability 缺口的停用说明（remote session）：字段存在＝该 affordance
+   * disabled 并以其文本说明。缺席＝全功能（本地不受影响）。 */
   unavailable?: {
-    /** 分析（validate＋analyze 合併鈕）。 */
+    /** 分析（validate＋analyze 合并钮）。 */
     analyze?: string;
-    /** 封存變更。 */
+    /** 封存变更。 */
     archive?: string;
-    /** 刪除變更。 */
+    /** 删除变更。 */
     delete?: string;
-    /** 任務勾選、批次與拖排。 */
+    /** 任务勾选、批量与拖排。 */
     tasks?: string;
-    /** 認領變更。 */
+    /** 认领变更。 */
     claim?: string;
   };
-  /** 內容卡標頭右端的文件動作（design D4「開啟 ▾」）：頁依作用中分頁回報對應的文件與
-   * 已載入原文；沒有對應檔案的分頁（排程）為 null。 */
+  /** 内容卡标头右端的文档动作（design D4「打开 ▾」）：页依作用中分页回报对应的文档与
+   * 已加载原文；没有对应文件的分页（调度）为 null。 */
   renderDocumentActions?: (target: DocumentTarget | null) => ReactNode;
-  /** 開該能力的規格詳情頁（規格文件能力頭的「看正式規格」）；未提供時不渲染該鈕。 */
+  /** 开该能力的规格详情页（规格文档能力头的「看正式规格」）；未提供时不渲染该钮。 */
   onOpenSpec?: (capability: string) => void;
-  /** 提案影響段路徑籤的本機路徑動作（文案依平台）；未提供（無本機目錄）時只有複製鈕。 */
+  /** 提案影响段路径签的本机路径动作（文案依平台）；未提供（无本机目录）时只有拷贝钮。 */
   pathReveal?: PathReveal;
 }
 
 type Doc = string | null | undefined;
 
-/** disabled 元素不可靠地接收 hover；用可互動 wrapper 承接 tooltip trigger。 */
+/** disabled 元素不可靠地接收 hover；用可交互 wrapper 承接 tooltip trigger。 */
 function UnavailableAction({ reason, children }: { reason?: string; children: ReactElement }) {
   if (!reason) return children;
   return (
@@ -175,22 +175,22 @@ function UnavailableAction({ reason, children }: { reason?: string; children: Re
   );
 }
 
-/** 一站的章籤資料：狀態非 none 才有。 */
+/** 一站的章签数据：状态非 none 才有。 */
 interface Stamp {
   station: "review" | "verify";
   tone: StatusPillTone;
   icon: ReactElement;
   label: string;
-  /** 蓋章日期與蓋章者——進行中（inReview／inVerify）不帶。 */
+  /** 盖章日期与盖章者——进行中（inReview／inVerify）不带。 */
   at?: string | null;
   by?: string | null;
 }
 
-/** 「品質關卡」列的站章籤：圖示＋狀態詞，已蓋章時旁接蓋章日期；蓋章日期與蓋章者完整
-    識別（含 email）收進提示，整枚章籤（含日期）為觸發點，可用鍵盤聚焦叫出。兩站同構，
-    只換站別——資料缺席（進行中、無戳記）時整個提示缺席，章籤也不進 Tab 序。 */
+/** 「品质关卡」列的站章签：图标＋状态词，已盖章时旁接盖章日期；盖章日期与盖章者完整
+    识别（含 email）收进提示，整枚章签（含日期）为触发点，可用键盘聚焦叫出。两站同构，
+    只换站别——数据缺席（进行中、无戳记）时整个提示缺席，章签也不进 Tab 序。 */
 function QualityStamp({ stamp }: { stamp: Stamp }) {
-  // 既有 data 標記維持站別各一份（回歸對照沿用 data-review-row／data-verify-row）。
+  // 既有 data 标记维持站别各一份（回归对照沿用 data-review-row／data-verify-row）。
   const rowMark = stamp.station === "review" ? { "data-review-row": "" } : { "data-verify-row": "" };
   const toneMark = stamp.station === "review" ? { "data-review-tone": "" } : { "data-verify-tone": "" };
   const detail = [stamp.at, stamp.by].filter(Boolean).join(" · ");
@@ -211,7 +211,7 @@ function QualityStamp({ stamp }: { stamp: Stamp }) {
   );
 }
 
-/** 「⋯」選單項：圖示＋標籤，停用時項目下方以灰字列出原因（選單項不接 hover 提示）。 */
+/** 「⋯」菜单项：图标＋标签，停用时项目下方以灰字列出原因（菜单项不接 hover 提示）。 */
 function MenuAction({ icon, label, reason }: { icon: ReactElement; label: string; reason?: string }) {
   return (
     <span className="flex min-w-0 flex-col gap-0.5">
@@ -228,15 +228,15 @@ function MenuAction({ icon, label, reason }: { icon: ReactElement; label: string
   );
 }
 
-/** 分頁 → 該分頁對應的變更目錄內檔案（排程沒有檔案；規格另依 capability 組路徑）。 */
+/** 分页 → 该分页对应的变更目录内文件（调度没有文件；规格另依 capability 组路径）。 */
 const TAB_FILES: Record<string, string> = {
   proposal: "proposal.md",
   design: "design.md",
   tasks: "tasks.md",
 };
 
-/** 「開啟 ▾」的對象（design D4）：目前文件對應的 artifact 與其已載入原文。規格文件取
- * 選定的 capability（未選定或已不在清單時取第一份）；排程沒有檔案；工單只載解析後的回合、不帶原文。 */
+/** 「打开 ▾」的对象（design D4）：目前文档对应的 artifact 与其已加载原文。规格文档取
+ * 选定的 capability（未选定或已不在清单时取第一份）；调度没有文件；工单只载解析后的回合、不带原文。 */
 function documentTarget(
   name: string,
   tab: string,
@@ -255,10 +255,10 @@ function documentTarget(
 }
 
 /**
- * 變更詳情頁（design D5；spec「詳情頁的文件樹、閱讀卡與本頁目錄」）：三欄骨架——左欄身分區
- * （名稱、籤、出身、來自／同源／規格列）、「文件」節點（提案／設計／互動任務／彩色規格／排程／
- * 條件式工單）、「狀態」列；中欄分析結果卡（有結果時）與閱讀卡；右欄本頁目錄。變更層動作經
- * `DetailActions` 進宿主標題列。宿主只在有選定變更時掛載本頁。
+ * 变更详情页（design D5；spec「详情页的文档树、阅读卡与本页目录」）：三栏骨架——左栏身分区
+ * （名称、签、出身、来自／同源／规格列）、「文档」节点（提案／设计／交互任务／彩色规格／调度／
+ * 条件式工单）、「状态」列；中栏分析结果卡（有结果时）与阅读卡；右栏本页目录。变更层动作经
+ * `DetailActions` 进宿主标题列。宿主只在有选定变更时挂载本页。
  */
 export function ChangeDetailPage({
   change,
@@ -290,32 +290,32 @@ export function ChangeDetailPage({
 }: ChangeDetailPageProps) {
   const { t, tn } = useI18n();
   const [meta, setMeta] = useState<ChangeMetaInfo | null>(null);
-  // 前置候選名冊：陣列＝查詢結果、null＝自清單派生（無查詢或查詢失敗）、undefined＝查詢中。
+  // 前置候选名册：数组＝查找结果、null＝自清单派生（无查找或查找失败）、undefined＝查找中。
   const [roster, setRoster] = useState<string[] | null | undefined>(null);
   const [proposal, setProposal] = useState<Doc>();
   const [design, setDesign] = useState<Doc>();
   const [tasksMd, setTasksMd] = useState<Doc>();
-  // undefined＝capability 清單與其規格文件尚未載完（與「無 delta 規格」的空物件分流）。
+  // undefined＝capability 清单与其规格文档尚未载完（与「无 delta 规格」的空对象分流）。
   const [specDocs, setSpecDocs] = useState<Record<string, string | null> | undefined>();
-  // 受控分頁：工單分頁退場時要能把當前分頁切回「提案」（design D3）。
+  // 受控分页：工单分页退场时要能把当前分页切回「提案」（design D3）。
   const [tab, setTab] = useState("proposal");
-  // 能力籤→規格段、D 籤→決策卡、「前往」→任務列的跳轉請求（與已封存頁同一套）。
+  // 能力签→规格段、D 签→决策卡、「前往」→任务列的跳转请求（与已封存页同一套）。
   const nav = useDocNav(setTab);
   const bodyRef = useRef<HTMLDivElement>(null);
-  // 批次操作／拖放寫回進行中——鎖工具列與清單（design D4 例外）。單發勾選不設此旗標。
+  // 批量操作／拖放写回进行中——锁工具列与清单（design D4 例外）。单发勾选不设此旗标。
   const [taskBusy, setTaskBusy] = useState(false);
-  // 在途單發寫回計數——僅作為世代重載的讓路條件，不鎖清單（勾選樂觀更新）。
+  // 在途单发写回计数——仅作为世代重载的让路条件，不锁清单（勾选乐观更新）。
   const [pendingWrites, setPendingWrites] = useState(0);
-  // 最近一次勾選寫回失敗的單行錯誤（null＝無）。
+  // 最近一次勾选写回失败的单行错误（null＝无）。
   const [taskError, setTaskError] = useState<string | null>(null);
-  // 拖曳手勢進行中（按住～放開，TaskList 回報）——與 taskBusy 同為讓路條件。
+  // 拖曳手势进行中（按住～放开，TaskList 回报）——与 taskBusy 同为让路条件。
   const [dragActive, setDragActive] = useState(false);
 
   const name = change?.name ?? null;
   const gen = refreshGen ?? 0;
-  // latest-wins：每次載入取遞增序號，回應到達時序號已過期即丟棄（涵蓋世代與換 change 的交錯）。
+  // latest-wins：每次加载取递增序号，回应到达时序号已过期即丢弃（涵盖世代与换 change 的交错）。
   const requestSeq = useRef(0);
-  // 已發起載入的世代——判斷外部世代是否落後需補載。
+  // 已发起加载的世代——判断外部世代是否落后需补载。
   const loadedGen = useRef(-1);
 
   const loadAll = (g: number, target: string, clear: boolean) => {
@@ -332,14 +332,14 @@ export function ChangeDetailPage({
     const fresh = <T,>(apply: (v: T) => void) => (v: T) => {
       if (requestSeq.current === seq) apply(v);
     };
-    // 失敗收斂：還沒有東西可顯示才落終態空文案（undefined 停著＝永久骨架）；
-    // 已有內容維持前值——重載的短暫失敗不得抹成假空態。
+    // 失败收敛：还没有东西可显示才落终态空文案（undefined 停着＝永久骨架）；
+    // 已有内容维持前值——重载的短暂失败不得抹成假空态。
     const settled = <T,>(apply: Dispatch<SetStateAction<T | null | undefined>>) => () => {
       if (requestSeq.current === seq) apply((prev) => (prev === undefined ? null : prev));
     };
     void loadMeta(target).then(fresh(setMeta)).catch(() => undefined);
     if (loadDependsCandidates) {
-      // 失敗：首載退回自清單派生（null），重載維持前一次的名冊。
+      // 失败：首载退回自清单派生（null），重载维持前一次的名册。
       void loadDependsCandidates(target).then(fresh(setRoster)).catch(settled(setRoster));
     }
     void loadDocument(target, "proposal.md").then(fresh(setProposal)).catch(settled(setProposal));
@@ -354,7 +354,7 @@ export function ChangeDetailPage({
         );
         if (requestSeq.current === seq) setSpecDocs(Object.fromEntries(entries));
       })
-      // 首載失敗收斂為空集（undefined 停著＝永久骨架）；重載失敗維持前值，不抹成假空態。
+      // 首载失败收敛为空集（undefined 停着＝永久骨架）；重载失败维持前值，不抹成假空态。
       .catch(() => {
         if (requestSeq.current === seq) {
           setSpecDocs((prev) => (prev === undefined ? {} : prev));
@@ -362,16 +362,16 @@ export function ChangeDetailPage({
       });
   };
 
-  // 開啟／換 change：清空後全量載入（載入中狀態屬新內容的正確呈現）。
+  // 打开／换 change：清空后全量加载（加载中状态属新内容的正确呈现）。
   useEffect(() => {
     if (!name) return;
     loadAll(gen, name, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name]);
 
-  // 外部世代重載：不清空、回應到達後單次替換（不重置分頁與捲動）。
-  // 互動進行中（拖曳手勢 dragActive、批次寫回 taskBusy、在途單發寫回 pendingWrites）
-  // 讓路——皆為依賴，互動結束時本 effect 重跑補載一次。
+  // 外部世代重载：不清空、回应到达后单次替换（不重置分页与卷动）。
+  // 交互进行中（拖曳手势 dragActive、批量写回 taskBusy、在途单发写回 pendingWrites）
+  // 让路——皆为依赖，交互结束时本 effect 重跑补载一次。
   useEffect(() => {
     if (!name || taskBusy || dragActive || pendingWrites > 0) return;
     if (gen <= loadedGen.current) return;
@@ -381,35 +381,35 @@ export function ChangeDetailPage({
 
   const inReview = change?.reviewStatus === "inReview";
   const inVerify = change?.verifyStatus === "inVerify";
-  // 兩站工單（design D3）：分頁出現時載入、隨世代重載、分頁消失時清回未載入。
+  // 两站工单（design D3）：分页出现时加载、随世代重载、分页消失时清回未加载。
   const tickets = useStationTickets(name, { review: inReview, verify: inVerify }, gen, loadStationTicket);
-  // 開啟／換 change 從「提案」起。
+  // 打开／换 change 从「提案」起。
   useEffect(() => {
     setTab("proposal");
     nav.reset();
   }, [name]);
-  // 停在工單分頁而該站翻為非進行中（工單已蓋章或放棄刪除）：分頁消失，退回「提案」。
+  // 停在工单分页而该站翻为非进行中（工单已盖章或放弃删除）：分页消失，退回「提案」。
   useEffect(() => {
     if ((tab === "review" && !inReview) || (tab === "verify" && !inVerify)) setTab("proposal");
   }, [tab, inReview, inVerify]);
 
   if (!change) return null;
 
-  // 分析結果是否對本 change 開啟——分析鈕切換態與面板呈現共用同一判定（design D2）。
+  // 分析结果是否对本 change 打开——分析钮切换态与面板呈现共用同一判定（design D2）。
   const verbOpen = !!(detailVerb && detailVerb.change === change.name);
   const pct = change.totalTasks > 0 ? Math.round((change.completedTasks / change.totalTasks) * 100) : 0;
   const taskBadge = `${change.completedTasks}/${change.totalTasks}`;
   const delta = sumDeltaCounts(Object.values(specDocs ?? {}).map(specDeltaCounts));
   const rel = relativeDays(meta?.created, { t, tn });
 
-  // 勾選走樂觀更新（design D3）：本地先翻轉 tasksMd 立即反映，再發寫回；失敗
-  // 還原快照並顯示單行錯誤。不鎖清單——僅以 pendingWrites 讓世代重載讓路，
-  // 寫回成功後的重載仍統一由宿主 refresh 的世代遞增驅動（單一資料流）。
+  // 勾选走乐观更新（design D3）：本地先翻转 tasksMd 立即反映，再发写回；失败
+  // 还原快照并显示单行错误。不锁清单——仅以 pendingWrites 让世代重载让路，
+  // 写回成功后的重载仍统一由宿主 refresh 的世代递增驱动（单一数据流）。
   const handleToggle = async (ordinal: number, done: boolean, stableId?: string) => {
     if (!name || !onToggleTask) return;
     setTaskError(null);
-    // 作廢在途載入（design D4）：更早發起、較晚到達的舊回應不得覆蓋樂觀狀態；
-    // 寫回後的磁碟現況仍由宿主 refresh 的世代遞增補載收斂。
+    // 作废在途加载（design D4）：更早发起、较晚到达的旧回应不得覆盖乐观状态；
+    // 写回后的磁盘现况仍由宿主 refresh 的世代递增补载收敛。
     requestSeq.current += 1;
     let snapshot: Doc;
     setTasksMd((cur) => {
@@ -419,7 +419,7 @@ export function ChangeDetailPage({
     });
     setPendingWrites((n) => n + 1);
     try {
-      // 帶 ID 任務以 stable ID 定址；無 ID 舊檔走 ordinal 相容路徑。
+      // 带 ID 任务以 stable ID 寻址；无 ID 旧档走 ordinal 兼容路径。
       await onToggleTask(name, stableId ?? String(ordinal), done);
     } catch (e) {
       setTasksMd(snapshot ?? null);
@@ -439,7 +439,7 @@ export function ChangeDetailPage({
     }
   };
 
-  // 批次操作（design D4 例外）：執行期間工具列與清單短暫 disabled，完成後由世代重載收斂。
+  // 批量操作（design D4 例外）：运行期间工具列与清单短暂 disabled，完成后由世代重载收敛。
   const handleSetAll = async (done: boolean) => {
     if (!name || !onSetAllTasks) return;
     setTaskBusy(true);
@@ -450,8 +450,8 @@ export function ChangeDetailPage({
     }
   };
 
-  // 兩站章籤：圖示＋狀態詞依四態上色（stamp／progress／warning／destructive），
-  // 只在「狀態」區的「品質關卡」列渲染——身分區只放階段籤。
+  // 两站章签：图标＋状态词依四态上色（stamp／progress／warning／destructive），
+  // 只在「状态」区的「品质关卡」列渲染——身分区只放阶段签。
   const reviewStatus: ReviewBadgeStatus | null =
     !change.reviewStatus || change.reviewStatus === "none" ? null : change.reviewStatus;
   const verifyStatus: VerifyBadgeStatus | null =
@@ -478,9 +478,9 @@ export function ChangeDetailPage({
     });
   }
 
-  // 階段守門原因（archive-readiness-gating D4）：封存非已就緒、刪除非提案中時停用；
-  // unavailable（remote 能力缺失）原因優先於階段原因——「這條通道做不到」比「現在還
-  // 不能」更硬。守門為呈現層過濾，引擎拒絕是最終裁決。
+  // 阶段守门原因（archive-readiness-gating D4）：封存非已就绪、删除非提案中时停用；
+  // unavailable（remote 能力缺失）原因优先于阶段原因——「这条信道做不到」比「现在还
+  // 不能」更硬。守门为呈现层过滤，引擎拒绝是最终裁决。
   const stage = changeStage(change);
   const archiveReason =
     unavailable?.archive ??
@@ -497,12 +497,12 @@ export function ChangeDetailPage({
 
   const docTarget = documentTarget(change.name, tab, { proposal, design, tasks: tasksMd }, specDocs, nav.specCap);
   const docPath = documentArtifact(docTarget);
-  // 排程沒有檔案，內容即變更的排程欄位。
+  // 调度没有文件，内容即变更的调度字段。
   const tocKey = changeDocTocKey(tab, { content: tab === "plan" ? change : docTarget?.content, specs: specDocs, tickets });
   const specCaps = Object.keys(specDocs ?? {});
-  // 提案列為新能力的能力在封存前沒有正式規格：其規格段不給「看正式規格」。
+  // 提案列为新能力的能力在封存前没有正式规格：其规格段不给「看正式规格」。
   const newCaps = proposal ? newCapabilities(proposal) : [];
-  // 閱讀卡標題區的籤槽、數字磚與提示框（design D9）：提案的提示框接在能力段尾，其餘在磚與內文之間。
+  // 阅读卡标题区的签槽、数字砖与提示框（design D9）：提案的提示框接在能力段尾，其余在砖与内文之间。
   const summary = changeDocSummary(
     tab,
     {
@@ -517,7 +517,7 @@ export function ChangeDetailPage({
     { t, tn },
   );
   const calloutSlot = summary.callout && <div data-doc-callout>{summary.callout}</div>;
-  // 工單節點的徽章：末輪序號（載入完成且有輪次時）。
+  // 工单节点的徽章：末轮序号（加载完成且有轮次时）。
   const lastRound = (station: TicketStation) => {
     const rounds = tickets[station]?.rounds ?? [];
     return rounds.length > 0 ? Math.max(...rounds.map((r) => r.index)) : null;
@@ -538,8 +538,8 @@ export function ChangeDetailPage({
           <Sparkles className="h-3.5 w-3.5" /> {t("common.analyze")}
         </Button>
       </UnavailableAction>
-      {/* 認領（remote-claim-ownership D4）：僅未認領的 change 提供入口——已有持有人時
-          出身列已寫明是誰。onClaim 缺席＝本地分頁，整段不渲染。 */}
+      {/* 认领（remote-claim-ownership D4）：仅未认领的 change 提供入口——已有持有人时
+          出身列已写明是谁。onClaim 缺席＝本地分页，整段不渲染。 */}
       {onClaim && !change.claimedBy && (
         <UnavailableAction reason={unavailable?.claim}>
           <Button
@@ -552,13 +552,13 @@ export function ChangeDetailPage({
           </Button>
         </UnavailableAction>
       )}
-      {/* 依階段的主要鈕（實心主色）：退回提案中（僅派生進行中）點擊交宿主先確認，UI 不預判守門。 */}
+      {/* 依阶段的主要钮（实心主色）：退回提案中（仅派生进行中）点击交宿主先确认，UI 不预判守门。 */}
       {stage === "in-progress" && onRevert && (
         <Button size="sm" onClick={() => onRevert(change.name)}>
           <Undo2 className="h-3.5 w-3.5" /> {t("common.revert")}
         </Button>
       )}
-      {/* 已就緒才有「封存」主要鈕，與「⋯」選單項同一守門。 */}
+      {/* 已就绪才有「封存」主要钮，与「⋯」菜单项同一守门。 */}
       {stage === "ready" && (
         <UnavailableAction reason={unavailable?.archive}>
           <Button
@@ -720,8 +720,8 @@ export function ChangeDetailPage({
             </Badge>
           )}
         </TabsTrigger>
-        {/* 條件式工單節點（spec desktop-app「詳情頁的工單分頁」）：排程之後、審查在前，
-            與「品質關卡」列章籤同序；節點名即站名，徽章為末輪序號。 */}
+        {/* 条件式工单节点（spec desktop-app「详情页的工单分页」）：调度之后、审查在前，
+            与「品质关卡」列章签同序；节点名即站名，徽章为末轮序号。 */}
         {inReview && (
           <TabsTrigger value="review">
             {REVIEW_ICON.inReview} {t("drawer.tab.review")}
@@ -777,9 +777,9 @@ export function ChangeDetailPage({
 
   return (
     <TooltipProvider>
-      {/* 直向節點、Enter／Space 才切換（design D2）：方向鍵掃過節點不逐一載文件。 */}
+      {/* 直向节点、Enter／Space 才切换（design D2）：方向键扫过节点不逐一载文档。 */}
       <Tabs value={tab} onValueChange={setTab} orientation="vertical" activationMode="manual" className="h-full">
-        {/* 換文件或換變更（‹ ›）都讓閱讀區自頂端呈現：頁不因換變更重掛。 */}
+        {/* 换文档或换变更（‹ ›）都让阅读区自顶端呈现：页不因换变更重挂。 */}
         <DetailShell
           data-change-detail
           tree={tree}
@@ -789,7 +789,7 @@ export function ChangeDetailPage({
         >
           <DetailActions>{actions}</DetailActions>
 
-          {/* 分析結果（validate＋analyze 合併）於閱讀卡之上呈現——僅當前 change 相符時。 */}
+          {/* 分析结果（validate＋analyze 合并）于阅读卡之上呈现——仅当前 change 相符时。 */}
           {verbOpen && detailVerb && (
             <Card data-verb-result className="p-4">
               {detailVerb.error ? (
@@ -812,8 +812,8 @@ export function ChangeDetailPage({
             <DocTiles tiles={summary.tiles} />
             {tab !== "proposal" && calloutSlot}
             <DocBody ref={bodyRef}>
-              {/* undefined＝載入在途、null＝文件不存在（空殼 change）——載入中畫骨架，
-                  空態文案只在載入完成後出。 */}
+              {/* undefined＝加载在途、null＝文档不存在（空壳 change）——加载中画骨架，
+                  空态文案只在加载完成后出。 */}
               <TabsContent value="proposal">
                 {proposal === undefined ? (
                   <DocSkeleton />
@@ -855,7 +855,7 @@ export function ChangeDetailPage({
                     readOnly={unavailable?.tasks !== undefined}
                     onDragActiveChange={setDragActive}
                     onToggle={(ordinal, done, stableId) => void handleToggle(ordinal, done, stableId)}
-                    // 拖排寫回未提供（remote capability 缺口）即整段停用——把手不渲染。
+                    // 拖排写回未提供（remote capability 缺口）即整段停用——把手不渲染。
                     onReorder={
                       onMoveTask ? (from, to, before) => void handleReorder(from, to, before) : undefined
                     }

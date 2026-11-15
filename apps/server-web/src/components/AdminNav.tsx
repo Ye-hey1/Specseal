@@ -9,12 +9,12 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { NavItem, useI18n } from "@speclink/ui";
+import { NavItem, useI18n } from "@specseal/ui";
 
-// 管理導覽的六個固定目的地，分為日常與維運兩組。帳號不是管理員的側欄目的地——入口在
-// 側欄底部的帳號選單（AccountMenu）；一般成員的導覽只有帳號一項（MemberNav）。導覽項是
-// 共用 NavItem（design D4），與 Desktop 專案欄同一份。tour 是首次導覽的目標標記
-// （components/Tour.tsx）；每個管理目的地一步。
+// 管理导览的六个固定目的地，分为日常与维运两组。帐号不是管理员的侧栏目的地——入口在
+// 侧栏底部的帐号菜单（AccountMenu）；一般成员的导览只有帐号一项（MemberNav）。导览项是
+// 共用 NavItem（design D4），与 Desktop 项目栏同一份。tour 是首次导览的目标标记
+// （components/Tour.tsx）；每个管理目的地一步。
 type Destination = { to: string; labelKey: string; icon: LucideIcon; tour?: string; end?: boolean };
 
 const PRIMARY: Destination[] = [
@@ -29,12 +29,12 @@ const OPERATIONS: Destination[] = [
   { to: "/admin/audit", labelKey: "nav.audit", icon: ScrollText, tour: "nav-audit" },
 ];
 
-/** 管理目的地（麵包屑依路徑取名稱用，與側欄同一份表）。 */
+/** 管理目的地（面包屑依路径取名称用，与侧栏同一份表）。 */
 export const ADMIN_DESTINATIONS = [...PRIMARY, ...OPERATIONS];
 
 const MEMBER: Destination[] = [{ to: "/account", labelKey: "account.title", icon: UserRound }];
 
-/** 作用中與否以 NavLink 同一套比對（含 end）決定，交給 NavItem 套樣式。 */
+/** 作用中与否以 NavLink 同一套比对（含 end）决定，交给 NavItem 套样式。 */
 function Item({
   to,
   labelKey,
@@ -69,7 +69,7 @@ export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
       <Group items={PRIMARY} onNavigate={onNavigate} />
-      {/* 分組標籤而非可點目的地：維運三項與日常三項視覺分離（proposal 版面藍圖）。 */}
+      {/* 分组标签而非可点目的地：维运三项与日常三项视觉分离（proposal 版面蓝图）。 */}
       <p className="mt-3 border-t border-border px-3 pb-1 pt-3 text-xs font-medium tracking-wide text-muted-foreground">
         {t("shell.operations")}
       </p>

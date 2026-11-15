@@ -8,14 +8,14 @@ import { fileURLToPath } from 'node:url';
 import { NO_BUILT_CLI, builtCli } from './built-cli.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const zhPath = path.join(root, 'docs/remote-getting-started.zh-TW.md');
+const zhPath = path.join(root, 'docs/remote-getting-started.zh-CN.md');
 const enPath = path.join(root, 'docs/remote-getting-started.md');
 
 function read(relativePath) {
   return readFileSync(path.join(root, relativePath), 'utf8');
 }
 
-/// H2 行首帶 `<a id="..."></a>`：兩語言標題文字不同，靠 id 對齊章節。
+/// H2 行首带 `<a id="..."></a>`：两语言标题文本不同，靠 id 对齐章节。
 const ANCHOR = /^<a id="([^"]+)"><\/a>/;
 
 function h2s(markdown) {
@@ -23,7 +23,7 @@ function h2s(markdown) {
 }
 
 function h2Anchors(markdown) {
-  return h2s(markdown).map((heading) => ANCHOR.exec(heading)?.[1] ?? `（缺錨點）${heading}`);
+  return h2s(markdown).map((heading) => ANCHOR.exec(heading)?.[1] ?? `（缺锚点）${heading}`);
 }
 
 function localMarkdownLinks(markdown) {
@@ -36,18 +36,18 @@ function literal(text) {
   return new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 }
 
-/// 取出錨點為 id 的 h2 章節內文，讓斷言綁在該章節而不是整份文件。
+/// 取出锚点为 id 的 h2 章节内文，让断言绑在该章节而不是整份文档。
 function section(markdown, id, relativePath) {
   const body = markdown
     .split(/^## /m)
     .slice(1)
     .find((chunk) => ANCHOR.exec(chunk)?.[1] === id);
-  assert.ok(body, `${relativePath}: 找不到錨點為「${id}」的章節`);
+  assert.ok(body, `${relativePath}: 找不到锚点为「${id}」的章节`);
   return body;
 }
 
 const remoteGuides = [
-  'docs/remote-getting-started.zh-TW.md',
+  'docs/remote-getting-started.zh-CN.md',
   'docs/remote-getting-started.md',
 ];
 
@@ -55,17 +55,17 @@ test('remote getting-started guides exist with matching section order', () => {
   assert.equal(existsSync(zhPath), true, 'missing Traditional Chinese remote guide');
   assert.equal(existsSync(enPath), true, 'missing English remote guide');
 
-  const zh = read('docs/remote-getting-started.zh-TW.md');
+  const zh = read('docs/remote-getting-started.zh-CN.md');
   const en = read('docs/remote-getting-started.md');
   assert.deepEqual(h2Anchors(zh), h2Anchors(en));
 });
 
 test('development guides exist with matching section order', () => {
-  const zh = read('docs/development.zh-TW.md');
+  const zh = read('docs/development.zh-CN.md');
   const en = read('docs/development.md');
   assert.deepEqual(h2Anchors(zh), h2Anchors(en));
 
-  // 五個一鍵入口各有一節（規格「開發者入口文件雙語對」）。
+  // 五个一键入口各有一节（规格「开发者入口文档双语对」）。
   for (const entry of [
     'npm run dev`',
     'npm run dev:server`',
@@ -76,7 +76,7 @@ test('development guides exist with matching section order', () => {
     assert.equal(
       h2s(zh).some((heading) => heading.includes(entry)),
       true,
-      `development 文件缺少 ${entry} 章節`,
+      `development 文档缺少 ${entry} 章节`,
     );
   }
 });
@@ -86,7 +86,7 @@ test('both guides cover the remote setup, authorization, and recovery contract',
     const guide = read(relativePath);
     for (const required of [
       '/account',
-      'POST `/api/speclink/v1/web/account/tokens`',
+      'POST `/api/specseal/v1/web/account/tokens`',
       '/admin/users',
       '403',
       'permission_denied',
@@ -103,28 +103,28 @@ test('both guides cover the remote setup, authorization, and recovery contract',
 });
 
 test('existing user entry points link to the matching remote guide', () => {
-  assert.match(read('README.zh-TW.md'), /docs\/remote-getting-started\.zh-TW\.md/);
+  assert.match(read('README.zh-CN.md'), /docs\/remote-getting-started\.zh-CN\.md/);
   assert.match(read('README.md'), /docs\/remote-getting-started\.md/);
-  assert.match(read('docs/product-status.zh-TW.md'), /remote-getting-started\.zh-TW\.md/);
+  assert.match(read('docs/product-status.zh-CN.md'), /remote-getting-started\.zh-CN\.md/);
   assert.match(read('docs/product-status.md'), /remote-getting-started\.md/);
-  assert.match(read('docs/server-deployment.zh-TW.md'), /remote-getting-started\.zh-TW\.md/);
+  assert.match(read('docs/server-deployment.zh-CN.md'), /remote-getting-started\.zh-CN\.md/);
 });
 
 test('documented browser routes reflect the SPA + browser-API surface', () => {
-  const routes = read('crates/host/speclink-server/src/app.rs');
+  const routes = read('crates/host/specseal-server/src/app.rs');
   // After the SPA migration the server-rendered /account and /admin/users HTML
   // pages are gone; every browser route is served by the SPA shell fallback.
   assert.match(routes, /\.fallback\(assets::spa_fallback\)/);
   assert.doesNotMatch(routes, /web::account_page/);
   assert.doesNotMatch(routes, /admin::users_page/);
   // PAT creation is a same-origin browser-API POST, never a browsable GET page.
-  const webApi = read('crates/host/speclink-server/src/web.rs');
+  const webApi = read('crates/host/specseal-server/src/web.rs');
   assert.match(webApi, /\.route\("\/account\/tokens", post\(api_create_pat\)\)/);
 
   for (const relativePath of remoteGuides) {
     const guide = read(relativePath);
     // The guides create a PAT through the account SPA page's browser API.
-    assert.match(guide, /\/api\/speclink\/v1\/web\/account\/tokens/);
+    assert.match(guide, /\/api\/specseal\/v1\/web\/account\/tokens/);
     assert.equal(
       localMarkdownLinks(guide).some((target) => target.endsWith('/account/tokens')),
       false,
@@ -133,12 +133,12 @@ test('documented browser routes reflect the SPA + browser-API surface', () => {
   }
 });
 
-// checkout 內的開發入口（先建 CLI、wrapper 核對）屬開發環境文件；Remote 入門只連過去。
-const devGuides = ['docs/development.zh-TW.md', 'docs/development.md'];
+// checkout 内的开发入口（先建 CLI、wrapper 核对）属开发环境文档；Remote 入门只连过去。
+const devGuides = ['docs/development.zh-CN.md', 'docs/development.md'];
 
 test('development guides tie the dev startup step to the checkout CLI build', () => {
   for (const relativePath of devGuides) {
-    assert.match(section(read(relativePath), 'dev', relativePath), literal('speclink-cli'));
+    assert.match(section(read(relativePath), 'dev', relativePath), literal('specseal-cli'));
   }
 });
 
@@ -155,13 +155,13 @@ test('no guide teaches the absolute path of the checkout binary', () => {
   for (const relativePath of [...remoteGuides, ...devGuides]) {
     assert.doesNotMatch(
       read(relativePath),
-      /path\/to\/speclink\/target\/debug\/speclink/,
-      `${relativePath}: 不應再教使用者手打 binary 絕對路徑`,
+      /path\/to\/specseal\/target\/debug\/specseal/,
+      `${relativePath}: 不应再教用户手打 binary 绝对路径`,
     );
   }
 });
 
-test('both guides troubleshoot a stale speclink on PATH', () => {
+test('both guides troubleshoot a stale specseal on PATH', () => {
   for (const relativePath of remoteGuides) {
     const troubleshooting = section(read(relativePath), 'troubleshooting', relativePath);
     assert.match(troubleshooting, literal('PATH'));
@@ -175,12 +175,12 @@ test(
   'documented CLI commands are present in the current help surface',
   { skip: !cli && NO_BUILT_CLI },
   () => {
-    // clap 的 Usage 行用的是執行檔名——Windows 上是 speclink.exe，故程式名後
-    // 容許 .exe 尾碼；文件教的指令寫法不受影響。
+    // clap 的 Usage 行用的是运行文档名——Windows 上是 specseal.exe，故进程名后
+    // 容许 .exe 尾码；文档教的指令写法不受影响。
     const cases = [
       [[], /Commands:[\s\S]*\blink\b[\s\S]*\bauth\b/],
-      [['link', '--help'], /Usage: speclink(?:\.exe)? link \[OPTIONS\] <URL>[\s\S]*--repo <REPO>/],
-      [['auth', 'login', '--help'], /Usage: speclink(?:\.exe)? auth login \[OPTIONS\][\s\S]*--token-stdin/],
+      [['link', '--help'], /Usage: specseal(?:\.exe)? link \[OPTIONS\] <URL>[\s\S]*--repo <REPO>/],
+      [['auth', 'login', '--help'], /Usage: specseal(?:\.exe)? auth login \[OPTIONS\][\s\S]*--token-stdin/],
     ];
 
     for (const [args, expected] of cases) {
@@ -197,13 +197,13 @@ test(
 test('relative Markdown links in the changed documentation resolve', () => {
   const documents = [
     'README.md',
-    'README.zh-TW.md',
-    'docs/remote-getting-started.zh-TW.md',
+    'README.zh-CN.md',
+    'docs/remote-getting-started.zh-CN.md',
     'docs/remote-getting-started.md',
-    'docs/product-status.zh-TW.md',
+    'docs/product-status.zh-CN.md',
     'docs/product-status.md',
-    'docs/server-deployment.zh-TW.md',
-    'docs/development.zh-TW.md',
+    'docs/server-deployment.zh-CN.md',
+    'docs/development.zh-CN.md',
     'docs/development.md',
   ];
 

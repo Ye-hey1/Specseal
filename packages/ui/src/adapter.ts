@@ -1,64 +1,64 @@
-// 資料源 adapter 介面——以領域語彙（change/spec/document/verb）定義，與後端解耦。
+// 数据源 adapter 接口——以领域语汇（change/spec/document/verb）定义，与后端解耦。
 //
-// 桌面 app 注入以 Tauri invoke 為後端的實作；未來 web 端可注入 HTTP 後端。
-// 元件本身不引用任何 Tauri 專屬全域，一律經此介面取資料。
+// 桌面 app 注入以 Tauri invoke 为后端的实作；未来 web 端可注入 HTTP 后端。
+// 组件本身不引用任何 Tauri 专属全域，一律经此接口取数据。
 
 import type { DeltaCounts } from "./delta";
 
-/** 一個 active change 的清單項（CLI 同形欄位＋桌面疊加的生命週期標記）。 */
+/** 一个 active change 的清单项（CLI 同形字段＋桌面叠加的生命周期标记）。 */
 export interface ChangeItem {
   name: string;
   status: string;
   totalTasks: number;
   completedTasks: number;
-  /** 寫碼任務的總數／完成數／剩餘數（`[M]` 手動任務不計；spec client-protocol
-   * 「變更清單的寫碼進度欄位」）——「待手動」章的資料源。remote 變更摘要不帶此
-   * 三欄，缺席時章缺席。 */
+  /** 写码任务的总数／完成数／剩余数（`[M]` 手动任务不计；spec client-protocol
+   * 「变更清单的写码进度字段」）——「待手动」章的数据源。remote 变更摘要不带此
+   * 三栏，缺席时章缺席。 */
   codeTotal?: number;
   codeComplete?: number;
   codeRemaining?: number;
   summary?: string;
-  /** 開工站標記（in-progress add 蓋章）；null/缺席＝未開工。 */
+  /** 开工站标记（in-progress add 盖章）；null/缺席＝未开工。 */
   startedAt?: string | null;
   startedBy?: string | null;
   startedWith?: string | null;
-  /** 認領人（"Name <email>"）——RemoteOnly 的認領標記；null/缺席＝未認領。 */
+  /** 认领人（"Name <email>"）——RemoteOnly 的认领标记；null/缺席＝未认领。 */
   claimedBy?: string | null;
-  /** 建立者（"Name <email>"）——卡片首字母圓標頭像的資料源；缺席時省略。 */
+  /** 创建者（"Name <email>"）——卡片首字母圆标头像的数据源；缺席时省略。 */
   createdBy?: string | null;
-  /** 建立日期（.openspec.yaml 的 created，YYYY-MM-DD）——建立時間篩選的資料源；缺席時省略。 */
+  /** 创建日期（.openspec.yaml 的 created，YYYY-MM-DD）——创建时间筛选的数据源；缺席时省略。 */
   created?: string | null;
-  /** 來源討論 slug 清單（由討論轉出／併入的 change，第一個為出身討論）；空/缺席＝非討論而來。 */
+  /** 来源讨论 slug 清单（由讨论转出／并入的 change，第一个为出身讨论）；空/缺席＝非讨论而来。 */
   fromDiscussions?: string[];
-  /** 待重新反映的討論 slug 清單：本 change 曾 seal 這些討論、其後被重新結論，內容過期待 re-ingest；空/缺席＝無旗標。 */
+  /** 待重新反映的讨论 slug 清单：本 change 曾 seal 这些讨论、其后被重新结论，内容过期待 re-ingest；空/缺席＝无旗标。 */
   restaleFrom?: string[];
-  /** proposal Why 首句（呈現層輔助欄位）——變更卡描述列的資料源；null/缺席＝描述列缺席。 */
+  /** proposal Why 首句（呈现层辅助字段）——变更卡描述列的数据源；null/缺席＝描述列缺席。 */
   whyExcerpt?: string | null;
-  /** `.openspec.yaml` 存在但解析失敗的原因（fail-closed 診斷）——卡片顯示最小
-   * invalid 標記、變更操作由引擎錯誤拒絕；缺席＝metadata 有效或不存在。 */
+  /** `.openspec.yaml` 存在但解析失败的原因（fail-closed 诊断）——卡片显示最小
+   * invalid 标记、变更操作由引擎错误拒绝；缺席＝metadata 有效或不存在。 */
   metaError?: string | null;
-  /** 審查狀態（spec client-protocol「變更清單的審查狀態欄位」）：工單存在＝
-   * inReview；章存在依雙錨凍結度分 reviewed／reviewedStale；缺席＝none。 */
+  /** 审查状态（spec client-protocol「变更清单的审查状态字段」）：工单存在＝
+   * inReview；章存在依双锚冻结度分 reviewed／reviewedStale；缺席＝none。 */
   reviewStatus?: "none" | "inReview" | "reviewed" | "reviewedStale";
-  /** 蓋章時間與審查者——章存在（reviewed／reviewedStale）時才附。 */
+  /** 盖章时间与审查者——章存在（reviewed／reviewedStale）时才附。 */
   reviewedAt?: string | null;
   reviewedBy?: string | null;
-  /** 驗證狀態（spec client-protocol「變更清單的驗證狀態欄位」）：工單存在＝
-   * inVerify；章存在依雙錨凍結度分 verified／verifiedStale；缺席＝none。
-   * 與 reviewStatus 各自獨立——兩站互不遮蔽。 */
+  /** 验证状态（spec client-protocol「变更清单的验证状态字段」）：工单存在＝
+   * inVerify；章存在依双锚冻结度分 verified／verifiedStale；缺席＝none。
+   * 与 reviewStatus 各自独立——两站互不屏蔽。 */
   verifyStatus?: "none" | "inVerify" | "verified" | "verifiedStale";
-  /** 蓋章時間與驗證者——章存在（verified／verifiedStale）時才附。 */
+  /** 盖章时间与验证者——章存在（verified／verifiedStale）时才附。 */
   verifiedAt?: string | null;
   verifiedBy?: string | null;
-  /** 這個 change 正在其中實作的 linked worktree（僅本機主 checkout、政策開啟時
-   * 才有）；缺席＝在主資料夾裡做。 */
+  /** 这个 change 正在其中实作的 linked worktree（仅本机主 checkout、政策打开时
+   * 才有）；缺席＝在主文件夹里做。 */
   worktree?: { branch: string; path: string } | null;
-  /** 排程欄位（spec client-protocol「變更清單的排程欄位」）：值取自引擎 plan 的
-   * 同一入口。wave 為波次（同波同號＝可並行）；blockedBy 為作用中的宣告前置；
-   * dependsOn 為 meta 宣告的前置原文；overlaps 為共用 delta 能力的其他變更（目錄級）；
-   * requirementOverlap 為同動一個 requirement 的其他變更；archiveAfter 為本變更該排在
-   * 其後封存的變更。remote 摘要、plan 成環或壞 meta 時整組缺席——章與排程分頁據缺席
-   * 隱藏；舊 server 只缺 requirementOverlap 與 archiveAfter，讀取入口補成空陣列。 */
+  /** 调度字段（spec client-protocol「变更清单的调度字段」）：值取自引擎 plan 的
+   * 同一入口。wave 为波次（同波同号＝可并行）；blockedBy 为作用中的声明前置；
+   * dependsOn 为 meta 声明的前置原文；overlaps 为共用 delta 能力的其他变更（目录级）；
+   * requirementOverlap 为同动一个 requirement 的其他变更；archiveAfter 为本变更该排在
+   * 其后封存的变更。remote 摘要、plan 成环或坏 meta 时整组缺席——章与调度分页据缺席
+   * 隐藏；旧 server 只缺 requirementOverlap 与 archiveAfter，读取入口补成空数组。 */
   wave?: number;
   blockedBy?: string[];
   dependsOn?: string[];
@@ -67,43 +67,43 @@ export interface ChangeItem {
   archiveAfter?: string[];
 }
 
-/** 與另一個變更的 delta 能力重疊。 */
+/** 与另一个变更的 delta 能力重叠。 */
 export interface ChangeOverlap {
   change: string;
-  /** 共用的 capability 名，升冪。 */
+  /** 共用的 capability 名，升幂。 */
   capabilities: string[];
 }
 
-/** 與另一個變更同動的一個 requirement：同一 capability 下同名，雙方各以一種 delta 操作動到。 */
+/** 与另一个变更同动的一个 requirement：同一 capability 下同名，双方各以一种 delta 操作动到。 */
 export interface ChangeRequirementOverlap {
   change: string;
   capability: string;
   requirement: string;
   ownOperation: DeltaOperation;
   otherOperation: DeltaOperation;
-  /** 雙方都帶進（ADDED、改名的新名）或都拿走（REMOVED、改名的舊名）這個名稱——
-   * 封存先後救不了，得改掉其中一邊。 */
+  /** 双方都带进（ADDED、改名的新名）或都拿走（REMOVED、改名的旧名）这个名称——
+   * 封存先后救不了，得改掉其中一边。 */
   conflict: boolean;
 }
 
-/** requirement 的 delta 操作（ADDED／MODIFIED／REMOVED／RENAMED），與 delta 計數的四種操作同源；
- * RENAMED 涵蓋改名的舊名與新名兩端。 */
+/** requirement 的 delta 操作（ADDED／MODIFIED／REMOVED／RENAMED），与 delta 计数的四种操作同源；
+ * RENAMED 涵盖改名的旧名与新名两端。 */
 export type DeltaOperation = Uppercase<keyof DeltaCounts>;
 
-/** 一個 canonical spec 的清單項（CLI 同形欄位＋桌面疊加的呈現層輔助欄位）。
- * 規格卡收合資訊由 Rust 端清單 payload 帶出（spec-archive-drawer design D4）；
- * 不可讀／缺席檔案容錯為 0／null，前端對缺席欄位同樣以 0／null 容錯。 */
+/** 一个 canonical spec 的清单项（CLI 同形字段＋桌面叠加的呈现层辅助字段）。
+ * 规格卡收合信息由 Rust 端清单 payload 带出（spec-archive-drawer design D4）；
+ * 不可读／缺席文件容错为 0／null，前端对缺席字段同样以 0／null 容错。 */
 export interface SpecItem {
   id: string;
-  /** spec.md 最後修改日期（檔案系統 mtime 衍生，YYYY-MM-DD）；mtime 不可得時缺席。 */
+  /** spec.md 最后修改日期（文件系统 mtime 衍生，YYYY-MM-DD）；mtime 不可得时缺席。 */
   modifiedAt?: string | null;
-  /** 正式規格的 `### Requirement:` 標題數。 */
+  /** 正式规格的 `### Requirement:` 标题数。 */
   requirementCount?: number;
-  /** Purpose 區段首個非空行原文；null＝區段缺席或無內容。 */
+  /** Purpose 区段首个非空行原文；null＝区段缺席或无内容。 */
   purposeExcerpt?: string | null;
-  /** Purpose 為封存流程產生的佔位文字（前端改顯「Purpose 待補」警示）。 */
+  /** Purpose 为封存流程产生的占位文本（前端改显「Purpose 待补」警示）。 */
   purposeTbd?: boolean;
-  /** 全文 @trace 標記的 source 去重數（溯源變更數）。 */
+  /** 全文 @trace 标记的 source 去重数（溯源变更数）。 */
   traceCount?: number;
 }
 
@@ -119,66 +119,66 @@ export interface ChangeMetaInfo {
   startedWith?: string | null;
 }
 
-/** 一個歸檔 change 的清單項。任務計數缺席（無 tasks.md）時不顯示徽章。
- * 封存卡收合資訊由快取清單 payload 帶出（spec-archive-drawer design D4/D5）。 */
+/** 一个归档 change 的清单项。任务计数缺席（无 tasks.md）时不显示徽章。
+ * 封存卡收合信息由缓存清单 payload 带出（spec-archive-drawer design D4/D5）。 */
 export interface ArchivedItem {
   datedName: string;
   date: string;
   name: string;
   tasksTotal?: number;
   tasksDone?: number;
-  /** specs/ 下 capability 目錄數（觸及規格數）。 */
+  /** specs/ 下 capability 目录数（触及规格数）。 */
   specCount?: number;
-  /** 建立者（.openspec.yaml 的 created_by）；null/缺席＝不顯示頭像圓點。 */
+  /** 创建者（.openspec.yaml 的 created_by）；null/缺席＝不显示头像圆点。 */
   createdBy?: string | null;
-  /** 來源討論 slug 清單；空/缺席＝來源討論標記缺席。 */
+  /** 来源讨论 slug 清单；空/缺席＝来源讨论标记缺席。 */
   fromDiscussions?: string[];
-  /** 封存時的審查結局（spec client-protocol「已封存清單的審查結局欄位」）：
-   * 含工單＝reviewedNotPassed（章還在也一樣）；否則含章＝reviewed；缺席＝none。 */
+  /** 封存时的审查结局（spec client-protocol「已封存清单的审查结局字段」）：
+   * 含工单＝reviewedNotPassed（章还在也一样）；否则含章＝reviewed；缺席＝none。 */
   reviewStatus?: "none" | "reviewed" | "reviewedNotPassed";
-  /** 封存時的驗證結局（spec client-protocol「已封存清單的驗證結局欄位」）：
-   * 含工單＝verifiedNotPassed（章還在也一樣）；否則含章＝verified；缺席＝none。
-   * 與審查結局並存——同一項可以「審查通過」卻「曾驗證未通過」。 */
+  /** 封存时的验证结局（spec client-protocol「已封存清单的验证结局字段」）：
+   * 含工单＝verifiedNotPassed（章还在也一样）；否则含章＝verified；缺席＝none。
+   * 与审查结局并存——同一项可以「审查通过」却「曾验证未通过」。 */
   verifyStatus?: "none" | "verified" | "verifiedNotPassed";
-  /** 封存 proposal.md 的 Why 區段首個非空行（spec client-protocol「已封存清單的
-   * 呈現輔助欄位」）；缺席＝卡片描述列不顯示、退回單行。 */
+  /** 封存 proposal.md 的 Why 区段首个非空行（spec client-protocol「已封存清单的
+   * 呈现辅助字段」）；缺席＝卡片描述列不显示、退回单行。 */
   whyExcerpt?: string;
-  /** 建立日期 YYYY-MM-DD（封存目錄 metadata 的 created）；缺席＝抽屜出身列的
-   * 建立日期欄位不顯示。 */
+  /** 创建日期 YYYY-MM-DD（封存目录 metadata 的 created）；缺席＝抽屉出身列的
+   * 创建日期字段不显示。 */
   created?: string;
-  /** 流程成本欄位（spec client-protocol「已封存清單的流程成本欄位」），只由桌面 core
-   * 產出、來源缺席時缺席：proposal／design／tasks／delta spec 行數總和。 */
+  /** 流程成本字段（spec client-protocol「已封存清单的流程成本字段」），只由桌面 core
+   * 产出、来源缺席时缺席：proposal／design／tasks／delta spec 行数总和。 */
   docLines?: number;
-  /** 封存目錄日期減建立日期（天）。 */
+  /** 封存目录日期减创建日期（天）。 */
   leadDays?: number;
-  /** 封存時戳減建立時戳（小時、一位小數）；兩端都是時戳時才有。 */
+  /** 封存时戳减创建时戳（小时、一位小数）；两端都是时戳时才有。 */
   leadHours?: number;
-  /** 歷次蓋章累加的審查回合數。 */
+  /** 历次盖章累加的审查回合数。 */
   reviewRounds?: number;
-  /** 歷次蓋章累加的驗證回合數。 */
+  /** 历次盖章累加的验证回合数。 */
   verifyRounds?: number;
 }
 
-/** 品質站站別——工單分頁的資料定址（`review.md`／`verify.md`）。 */
+/** 品质站站别——工单分页的数据寻址（`review.md`／`verify.md`）。 */
 export type TicketStation = "review" | "verify";
 
-/** 一條分級 finding（工單行 `- [severity] path — 描述`）；欄位與 CLI `--json` 同名，
- * 描述為原文（`(accepted)` 結構 token 的辨識是呈現規則，不在資料層）。 */
+/** 一条分级 finding（工单行 `- [severity] path — 描述`）；字段与 CLI `--json` 同名，
+ * 描述为原文（`(accepted)` 结构 token 的辨识是呈现规则，不在数据层）。 */
 export interface TicketFinding {
   severity: "CRITICAL" | "WARNING" | "SUGGESTION";
   path: string;
   text: string;
 }
 
-/** 審查規則的預設清單模式：extend＝預設 12 條加上專案規則；replace＝只用專案規則。 */
+/** 审查规则的缺省清单模式：extend＝缺省 12 条加上项目规则；replace＝只用项目规则。 */
 export type ReviewBaseline = "extend" | "replace";
 
-/** 三個專案規則清單，依 critical、warning、suggestion 順序（設定頁與工單套用規則列共用）。 */
+/** 三个项目规则清单，依 critical、warning、suggestion 顺序（设置页与工单套用规则列共用）。 */
 export const REVIEW_LISTS = ["critical", "warning", "suggestion"] as const;
 export type ReviewList = (typeof REVIEW_LISTS)[number];
 
-/** 依嚴重度分組的審查規則：config.yaml 的 review 區塊（未寫時為 extend 與三個空清單），也是
- * 工單 discovery 輪記錄的套用規則（`**Rules**:`／`**Rule**:` 行，與 CLI `rounds[].rules` 同形）。 */
+/** 依严重度分组的审查规则：config.yaml 的 review 区块（未写时为 extend 与三个空清单），也是
+ * 工单 discovery 轮记录的套用规则（`**Rules**:`／`**Rule**:` 行，与 CLI `rounds[].rules` 同形）。 */
 export interface ReviewRules {
   baseline: ReviewBaseline;
   critical: string[];
@@ -186,56 +186,56 @@ export interface ReviewRules {
   suggestion: string[];
 }
 
-/** 工單的一輪。phase／patchHash 在結構化輪為成對值、legacy 輪皆為 null。 */
+/** 工单的一轮。phase／patchHash 在结构化轮为成对值、legacy 轮皆为 null。 */
 export interface TicketRound {
   index: number;
   phase: "discovery" | "validation" | null;
   patchHash: string | null;
-  /** 套用規則記錄，沒有記錄時為 null。引擎一定會帶；宣告為選填只為相容沒有此欄的
-   * 手寫字面值，缺席與 null 同義。 */
+  /** 套用规则记录，没有记录时为 null。引擎一定会带；声明为选填只为兼容没有此栏的
+   * 手写字面值，缺席与 null 同义。 */
   rules?: ReviewRules | null;
   scope: string[];
   findings: TicketFinding[];
 }
 
-/** 一站的結構化工單（drawer-quality-ticket-tab D1）：與 CLI `speclink review show --json`
- * 的 `rounds` 同構、camelCase；至少一輪，末輪即目前輪。本機（含 worktree 覆蓋層）
- * 與遠端、活變更與已封存四條路回同一形狀。 */
+/** 一站的结构化工单（drawer-quality-ticket-tab D1）：与 CLI `specseal review show --json`
+ * 的 `rounds` 同构、camelCase；至少一轮，末轮即目前轮。本机（含 worktree 覆盖层）
+ * 与远程、活变更与已封存四条路回同一形状。 */
 export interface StationTicket {
   rounds: TicketRound[];
-  /** 引擎提供的預設 smell 名稱（依審查技能範本順序），套用規則列的展開清單；選填理由同 `rules`。 */
+  /** 引擎提供的缺省 smell 名称（依审查技能范本顺序），套用规则列的展开清单；选填理由同 `rules`。 */
   reviewBaselineSmells?: string[];
 }
 
-/** 一筆討論的清單項（camelCase；status: open | concluded | promoted）。 */
+/** 一笔讨论的清单项（camelCase；status: open | concluded | promoted）。 */
 export interface DiscussionItem {
   slug: string;
   topic: string;
   status: string;
   rounds: number;
   created: string;
-  /** 建立者（"Name <email>"）——discuss new 由 git 身分蓋章；缺席時省略。 */
+  /** 创建者（"Name <email>"）——discuss new 由 git 身分盖章；缺席时省略。 */
   createdBy?: string | null;
-  /** 討論型別（目前唯一值 "improve"）——一般討論缺席；標示隨此欄恆定。 */
+  /** 讨论类型（目前唯一值 "improve"）——一般讨论缺席；标示随此栏恒定。 */
   kind?: string | null;
-  /** 轉出（扇出）的 change 名累積清單；未轉出為空陣列。 */
+  /** 转出（扇出）的 change 名累积清单；未转出为空数组。 */
   promotedTo: string[];
   /**
-   * Conclusion 段是否已寫入內文（佔位註解不算）。缺席＝未知（舊 server），
-   * 分區判準退回「promoted 一律收合」的既有行為，不得補成 false。
+   * Conclusion 段是否已写入内文（占位注解不算）。缺席＝未知（旧 server），
+   * 分区判准退回「promoted 一律收合」的既有行为，不得补成 false。
    */
   concluded?: boolean;
   /**
-   * frontmatter 是否帶 `hold: true`（結論保留在途、還欠尚未建立的變更）。
-   * 缺席＝未知（舊 server），視同未保留、沿既有分區，不得補成 true。
+   * frontmatter 是否带 `hold: true`（结论保留在途、还欠尚未创建的变更）。
+   * 缺席＝未知（旧 server），视同未保留、沿既有分区，不得补成 true。
    */
   hold?: boolean;
 }
 
 /**
- * 討論結論的一把刀——引擎（speclink-core discuss::record_cuts）自記錄的結論與 `promoted_to` 解析，local 經
- * 桌面的討論記錄查詢、remote 經 GET /discussions/{slug} 的 `cuts`；前端不另做判定。`line` 為該刀列點去掉
- * `- ` 的首行原文，`unpromoted` 為 `changes` 中不在 `promoted_to` 的名稱（`changesInBold` 為 false 時恆空）。
+ * 讨论结论的一把刀——引擎（specseal-core discuss::record_cuts）自记录的结论与 `promoted_to` 解析，local 经
+ * 桌面的讨论记录查找、remote 经 GET /discussions/{slug} 的 `cuts`；前端不另做判定。`line` 为该刀列点去掉
+ * `- ` 的首行原文，`unpromoted` 为 `changes` 中不在 `promoted_to` 的名称（`changesInBold` 为 false 时恒空）。
  */
 export interface DiscussionCut {
   cut: string;
@@ -247,67 +247,67 @@ export interface DiscussionCut {
   unpromoted: string[];
 }
 
-/** 討論記錄全文與其刀；`cuts` 為空陣列＝結論沒有刀，或舊 server 沒有分刀資料。 */
+/** 讨论记录全文与其刀；`cuts` 为空数组＝结论没有刀，或旧 server 没有分刀数据。 */
 export interface DiscussionDocument {
   content: string;
   cuts: DiscussionCut[];
 }
 
-/** 預設規格資料夾（資料來源沒帶出時用它組路徑；desktop-spec-dir-migration D4）。 */
-export const DEFAULT_SPEC_DIR = "speclink";
+/** 缺省规格文件夹（数据源没带出时用它组路径；desktop-spec-dir-migration D4）。 */
+export const DEFAULT_SPEC_DIR = "specseal";
 
-/** 討論清單兩節：看板討論欄（active）與已封存頁討論節（archived）。 */
+/** 讨论清单两节：看板讨论栏（active）与已封存页讨论节（archived）。 */
 export interface DiscussionLists {
   active: DiscussionItem[];
   archived: DiscussionItem[];
-  /** 規格資料夾的專案根相對路徑——詳情頁的記錄路徑由它組成；缺席（遠端）時用 speclink。 */
+  /** 规格文件夹的项目根相对路径——详情页的记录路径由它组成；缺席（远程）时用 specseal。 */
   specDir?: string;
 }
 
-/** 手冊索引的一頁（desktop-manual-page design D2；欄位 camelCase，由 desktop core
- * 自 `openspec/manual/*.md` 的 frontmatter 推導）。缺欄位寬容降級：缺 title 用檔名、
- * 缺 section 為 null（前端歸「其他」）、缺或非整數 order 為 null 且已置分區末。 */
+/** 手册索引的一页（desktop-manual-page design D2；字段 camelCase，由 desktop core
+ * 自 `openspec/manual/*.md` 的 frontmatter 推导）。缺字段宽容降级：缺 title 用文件名、
+ * 缺 section 为 null（前端归「其他」）、缺或非整数 order 为 null 且已置分区末。 */
 export interface ManualPageItem {
-  /** 檔名去副檔名（kebab-case）。 */
+  /** 文件名去扩展名（kebab-case）。 */
   slug: string;
   title: string;
   section: string | null;
   order: number | null;
   keywords: string[];
-  /** 本頁取材的正典 capability 名（出處行的資料源）。 */
+  /** 本页取材的正典 capability 名（出处行的数据源）。 */
   sources: string[];
-  /** 最近一次生成時戳的 frontmatter 原字串（RFC 3339 帶偏移量，舊頁為 YYYY-MM-DD）；
-   * 缺席或無法解析為 null。 */
+  /** 最近一次生成时戳的 frontmatter 原字符串（RFC 3339 带偏移量，旧页为 YYYY-MM-DD）；
+   * 缺席或无法解析为 null。 */
   generated: string | null;
-  /** 依 manual-pages 契約「過期判定基準」判定的「可能過期」：sources 任一規格內存在任一
-   * @trace updated 在 generated 之後（兩邊帶時間時嚴格晚於；任一邊純日期時同日也算）。 */
+  /** 依 manual-pages 契约「过期判定基准」判定的「可能过期」：sources 任一规格内存在任一
+   * @trace updated 在 generated 之后（两边带时间时严格晚于；任一边纯日期时同日也算）。 */
   stale: boolean;
 }
 
-/** 手冊索引（`listManualPages` 的回傳）。pages 已依閱讀序排好（分區依分區內最小
- * order、分區內依 order、同值以檔名決斷）。 */
+/** 手册索引（`listManualPages` 的回传）。pages 已依阅读序排好（分区依分区内最小
+ * order、分区内依 order、同值以文件名决断）。 */
 export interface ManualIndex {
-  /** `openspec/manual/` 存在且至少一個 .md。false 時 pages 為空、畫面呈空狀態。 */
+  /** `openspec/manual/` 存在且至少一个 .md。false 时 pages 为空、画面呈空状态。 */
   present: boolean;
-  /** present 為 false 的原因：remote 資料源回 "remote"（尚不支援），本地缺目錄為 null。 */
+  /** present 为 false 的原因：remote 数据源回 "remote"（尚不支持），本地缺目录为 null。 */
   reason: "remote" | null;
   pages: ManualPageItem[];
-  /** 手冊生成後新增且未入冊的正典 capability 名（每一個 @trace updated 都在每一頁
-   * generated 之後、且不在任何頁的 sources；判定基準同 stale）。 */
+  /** 手册生成后添加且未入册的正典 capability 名（每一个 @trace updated 都在每一页
+   * generated 之后、且不在任何页的 sources；判定基准同 stale）。 */
   uncoveredNew: string[];
-  /** frontmatter 無法解析的頁 slug（仍列於 pages、以檔名為標題）。 */
+  /** frontmatter 无法解析的页 slug（仍列于 pages、以文件名为标题）。 */
   malformed: string[];
 }
 
-/** 空索引（無手冊／remote 尚不支援）：store 的讀取失敗回退與 remote 資料源共用同一形狀。 */
+/** 空索引（无手册／remote 尚不支持）：store 的读取失败回退与 remote 数据源共用同一形状。 */
 export function emptyManualIndex(reason: "remote" | null): ManualIndex {
   return { present: false, reason, pages: [], uncoveredNew: [], malformed: [] };
 }
 
-/** 可對選定 change 執行的動詞。park/unpark 已從 speclink 移除，不在此列。 */
+/** 可对选定 change 运行的动词。park/unpark 已从 specseal 移除，不在此列。 */
 export type Verb = "validate" | "analyze" | "archive";
 
-/** analyze 報告的一條發現項（對應 core AnalyzeReport.findings，snake_case 直出）。 */
+/** analyze 报告的一条发现项（对应 core AnalyzeReport.findings，snake_case 直出）。 */
 export interface AnalyzeFinding {
   id: string;
   dimension: string;
@@ -317,14 +317,14 @@ export interface AnalyzeFinding {
   recommendation: string;
 }
 
-/** analyze 報告的一個維度狀態（Coverage/Consistency/Ambiguity/Gaps 之一）。 */
+/** analyze 报告的一个维度状态（Coverage/Consistency/Ambiguity/Gaps 之一）。 */
 export interface AnalyzeDimension {
   dimension: string;
   status: string;
   finding_count: number;
 }
 
-/** `speclink analyze --json` 的報告形狀（桌面 analyze 動詞回傳同形）。 */
+/** `specseal analyze --json` 的报告形状（桌面 analyze 动词回传同形）。 */
 export interface AnalyzeReport {
   change_id: string;
   dimensions: AnalyzeDimension[];
@@ -334,36 +334,36 @@ export interface AnalyzeReport {
 }
 
 /**
- * 「分析」於詳情抽屜內呈現的結構化結果（validate＋analyze 一鍵合併；archive 仍走視窗頂列）。
- * change 供抽屜比對——僅當前開啟的 change 相符時才呈現。
+ * 「分析」于详情抽屉内呈现的结构化结果（validate＋analyze 一键合并；archive 仍走窗口顶列）。
+ * change 供抽屉比对——仅当前打开的 change 相符时才呈现。
  */
 export interface VerbDrawerResult {
   change: string;
-  /** 結構驗證結果（speclink validate 同形）。 */
+  /** 结构验证结果（specseal validate 同形）。 */
   validate?: { valid: boolean; errors: string[] };
-  /** analyze 報告。 */
+  /** analyze 报告。 */
   analyze?: AnalyzeReport;
-  /** 執行失敗的單行錯誤（任一動詞）。 */
+  /** 运行失败的单行错误（任一动词）。 */
   error?: string;
 }
 
-/** 清單檢視模式（作用中／已封存）——桌面 store 的檢視狀態沿用此型別。 */
+/** 清单查看模式（作用中／已封存）——桌面 store 的查看状态沿用此类型。 */
 export type ListView = "active" | "archived";
 
-/** 看板卡片種類（拖排寫回的目標）：變更卡或討論卡。 */
+/** 看板卡片种类（拖排写回的目标）：变更卡或讨论卡。 */
 export type CardKind = "change" | "discussion";
 
-/** workspace 全文查詢的一筆命中（design D6）：卡片識別＋命中 artifact＋snippet。 */
+/** workspace 全文查找的一笔命中（design D6）：卡片识别＋命中 artifact＋snippet。 */
 export interface SearchHit {
   kind: CardKind;
   id: string;
-  /** 命中的 artifact 檔名（如 design.md、specs/foo/spec.md、討論記錄檔名）。 */
+  /** 命中的 artifact 文件名（如 design.md、specs/foo/spec.md、讨论记录文件名）。 */
   artifact: string;
-  /** 命中前後文裁切（含命中原文；截斷端補 …）。 */
+  /** 命中前后文裁切（含命中原文；截断端补 …）。 */
   snippet: string;
 }
 
-/** 一個 artifact 的狀態（對應 core status 的 artifacts 項）。 */
+/** 一个 artifact 的状态（对应 core status 的 artifacts 项）。 */
 export interface ArtifactStatus {
   id: string;
   outputPath: string;
@@ -371,7 +371,7 @@ export interface ArtifactStatus {
   missingDeps?: string[];
 }
 
-/** change 的 artifact DAG 狀態（對應 `speclink status --json`）。 */
+/** change 的 artifact DAG 状态（对应 `specseal status --json`）。 */
 export interface StatusReport {
   changeName: string;
   schemaName: string;
@@ -380,15 +380,15 @@ export interface StatusReport {
   artifacts: ArtifactStatus[];
 }
 
-/** 退回提案中被守門擋下:引擎回傳的工作痕跡證據(守門對話框的資料源)。 */
+/** 退回提案中被守门挡下:引擎回传的工作痕迹证据(守门对话框的数据源)。 */
 export interface RevertBlockedEvidence {
-  /** tasks.md 的已勾任務數。 */
+  /** tasks.md 的已勾任务数。 */
   checkedTasks: number;
-  /** touched 記錄 v1 與 v2 兩清單的檔案聯集(去重)。 */
+  /** touched 记录 v1 与 v2 两清单的文件联集(去重)。 */
   touchedFiles: string[];
 }
 
-/** revertChangeToProposed 的守門拒絕:證據隨錯誤走,App 據此開守門對話框。 */
+/** revertChangeToProposed 的守门拒绝:证据随错误走,App 据此开守门对话框。 */
 export class RevertBlockedError extends Error {
   checkedTasks: number;
   touchedFiles: string[];
@@ -401,8 +401,8 @@ export class RevertBlockedError extends Error {
 }
 
 /**
- * 兩個 desktop adapter 共用的錯誤轉譯:bridge 以 JSON 字串回守門證據
- *(kind: "revertBlocked")——解析成功回 RevertBlockedError,否則原樣轉單行 Error。
+ * 两个 desktop adapter 共用的错误转译:bridge 以 JSON 字符串回守门证据
+ *(kind: "revertBlocked")——解析成功回 RevertBlockedError,否则原样转单行 Error。
  */
 export function toRevertError(raw: unknown): Error {
   const text = raw instanceof Error ? raw.message : String(raw);
@@ -419,26 +419,26 @@ export function toRevertError(raw: unknown): Error {
       });
     }
   } catch {
-    // 非 JSON——一般錯誤訊息。
+    // 非 JSON——一般错误消息。
   }
   return raw instanceof Error ? raw : new Error(text);
 }
 
-/** 變更清單的完整回應（spec client-protocol「變更清單的排程欄位」與「remote 變更清單的
- * 排程欄位」）：清單項之外還有頂層 planError——依賴成環時為引擎訊息（此時各項無排程
- * 四欄），否則 null。 */
+/** 变更清单的完整回应（spec client-protocol「变更清单的调度字段」与「remote 变更清单的
+ * 调度字段」）：清单项之外还有顶层 planError——依赖成环时为引擎消息（此时各项无调度
+ * 四栏），否则 null。 */
 export interface ChangeListPayload {
   changes: ChangeItem[];
   planError: string | null;
-  /** 引擎 plan 的 next（第一個沒被擋的提案中變更）；成環或 plan 不可得時為 null。 */
+  /** 引擎 plan 的 next（第一个没被挡的提案中变更）；成环或 plan 不可得时为 null。 */
   next: string | null;
-  /** 討論結論中尚未轉出的刀（與 plan 的 unpromotedCuts 同形同序）；成環或 plan 不可得時為空陣列
-   * （舊 server 的 plan 回應缺這個鍵時，Tauri 殼已讀作空陣列）。 */
+  /** 讨论结论中尚未转出的刀（与 plan 的 unpromotedCuts 同形同序）；成环或 plan 不可得时为空数组
+   * （旧 server 的 plan 回应缺这个键时，Tauri 壳已读作空数组）。 */
   unpromotedCuts: UnpromotedCutItem[];
 }
 
-/** 討論結論中尚未全部轉出的一刀：`changes` 為刀粗體內的全部變更名，`unpromoted` 為其中
- * 尚未轉出的（spec client-protocol「變更清單的排程欄位」）。 */
+/** 讨论结论中尚未全部转出的一刀：`changes` 为刀粗体内的全部变更名，`unpromoted` 为其中
+ * 尚未转出的（spec client-protocol「变更清单的调度字段」）。 */
 export interface UnpromotedCutItem {
   discussion: string;
   cut: string;
@@ -447,95 +447,95 @@ export interface UnpromotedCutItem {
   unpromoted: string[];
 }
 
-/** 元件透過此介面取得資料與觸發動詞——不知道背後是 Tauri 還是 HTTP。 */
-export interface SpeclinkDataSource {
-  /** 清單項連頂層 planError 同一次 IO 回來（add-change-plan-desktop design D1）。 */
+/** 组件通过此接口取得数据与触发动词——不知道背后是 Tauri 还是 HTTP。 */
+export interface SpecsealDataSource {
+  /** 清单项连顶层 planError 同一次 IO 回来（add-change-plan-desktop design D1）。 */
   listChanges(): Promise<ChangeListPayload>;
   listSpecs(): Promise<SpecItem[]>;
   listArchived(): Promise<ArchivedItem[]>;
-  /** 取得一個 change 的 artifact DAG 狀態。 */
+  /** 取得一个 change 的 artifact DAG 状态。 */
   status(change: string): Promise<StatusReport>;
-  /** 讀取一個 change 的 artifact（artifact 為 output path，如 `proposal.md`）。 */
+  /** 读取一个 change 的 artifact（artifact 为 output path，如 `proposal.md`）。 */
   getDocument(change: string, artifact: string): Promise<string | null>;
-  /** 讀取一個 capability 的正式規格 spec.md。 */
+  /** 读取一个 capability 的正式规格 spec.md。 */
   getSpecDocument(capability: string): Promise<string | null>;
-  /** 手冊索引（desktop-manual-page）：讀 `openspec/manual/` 的 frontmatter 推導閱讀序
-   * 與過期標示。無手冊時 present 為 false；remote 資料源回 reason "remote" 且不發請求。 */
+  /** 手册索引（desktop-manual-page）：读 `openspec/manual/` 的 frontmatter 推导阅读序
+   * 与过期标示。无手册时 present 为 false；remote 数据源回 reason "remote" 且不发请求。 */
   listManualPages(): Promise<ManualIndex>;
-  /** 讀取一頁手冊去掉 frontmatter 的內文（slug 定址）；不存在回 null。 */
+  /** 读取一页手册去掉 frontmatter 的内文（slug 寻址）；不存在回 null。 */
   getManualPage(slug: string): Promise<string | null>;
   /**
-   * workspace 全文查詢（design D6）：以不分大小寫子字串比對 active 變更的
-   * artifacts 與 active 討論記錄全文，每卡回傳首個命中。空 query 回空陣列。
+   * workspace 全文查找（design D6）：以不分大小写子字符串比对 active 变更的
+   * artifacts 与 active 讨论记录全文，每卡回传首个命中。空 query 回空数组。
    */
   searchWorkspace(query: string): Promise<SearchHit[]>;
-  /** 列出一個 change 的 delta capability 名。 */
+  /** 列出一个 change 的 delta capability 名。 */
   changeCapabilities(change: string): Promise<string[]>;
-  /** 取得 change 的 metadata（createdBy/createdWith/created）。無此 change 回 null。 */
+  /** 取得 change 的 metadata（createdBy/createdWith/created）。无此 change 回 null。 */
   changeMeta(change: string): Promise<ChangeMetaInfo | null>;
-  /** 認領一個 change 防止撞工（RemoteOnly——本地後端不提供此方法，UI 因此
-   * 不長出認領面）。已被他人持有時 reject 附持有人與建議動作的單行訊息。 */
+  /** 认领一个 change 防止撞工（RemoteOnly——本地后端不提供此方法，UI 因此
+   * 不长出认领面）。已被他人持有时 reject 附持有人与建议动作的单行消息。 */
   claim?(change: string): Promise<void>;
-  /** 刪除一個 active change（破壞性；UI 需先確認）。 */
+  /** 删除一个 active change（破坏性；UI 需先确认）。 */
   deleteChange(change: string): Promise<void>;
-  /** 把誤開工的變更退回提案中(移除 in-progress 標記;僅零工作痕跡可行;
-   * UI 需先確認)。守門擋下時 reject RevertBlockedError(證據隨錯誤);
-   * 其餘失敗 reject 單行訊息。 */
+  /** 把误开工的变更退回提案中(移除 in-progress 标记;仅零工作痕迹可行;
+   * UI 需先确认)。守门挡下时 reject RevertBlockedError(证据随错误);
+   * 其余失败 reject 单行消息。 */
   revertChangeToProposed(change: string): Promise<void>;
-  /** 勾選/取消任務：task 為 tsk_ stable ID 或 ordinal 字串（無 ID 相容路徑）。 */
+  /** 勾选/取消任务：task 为 tsk_ stable ID 或 ordinal 字符串（无 ID 兼容路径）。 */
   setTaskDone(change: string, task: string, done: boolean): Promise<void>;
-  /** 批次設定全部任務完成狀態（true＝全部已完成、false＝重置任務），單次寫回。 */
+  /** 批量设置全部任务完成状态（true＝全部已完成、false＝重置任务），单次写回。 */
   setAllTasks(change: string, done: boolean): Promise<void>;
   /**
-   * 把第 from 個任務移到以第 to 個任務為錨的位置（皆 1-based）。
-   * before 省略時依方向推斷（向上插錨前、向下插錨後）；true＝明確插錨前
-   * （跨群組標題即成為該群組組首）、false＝明確插錨後。
+   * 把第 from 个任务移到以第 to 个任务为锚的位置（皆 1-based）。
+   * before 省略时依方向推断（向上插锚前、向下插锚后）；true＝明确插锚前
+   * （跨群组标题即成为该群组组首）、false＝明确插锚后。
    */
   moveTask(change: string, from: number, to: number, before?: boolean): Promise<void>;
-  /** 對選定 change 執行動詞，回傳 core 的結果 payload；失敗時 reject 附訊息。 */
+  /** 对选定 change 运行动词，回传 core 的结果 payload；失败时 reject 附消息。 */
   runVerb(verb: Verb, change: string): Promise<unknown>;
-  /** 放棄審查（刪工單、不蓋章）——封存入口三選項的資料面。本機與 remote 的資料
-   * 來源都實作；未實作的後端在使用者選這一項時顯示「不支援」。 */
+  /** 放弃审查（删工单、不盖章）——封存入口三选项的数据面。本机与 remote 的数据
+   * 来源都实作；未实作的后端在用户选这一项时显示「不支持」。 */
   discardReview?(change: string): Promise<void>;
-  /** 放棄驗證（刪工單、不蓋章）——驗證站的同一面。 */
+  /** 放弃验证（删工单、不盖章）——验证站的同一面。 */
   discardVerify?(change: string): Promise<void>;
-  /** 帶著未結工單封存（`--carry-review`／`--carry-verify`）：該站封存側永久顯示
-   * 「曾審查／曾驗證未通過」。兩個旗標各自獨立，雙工單並存時可同時帶。 */
+  /** 带着未结工单封存（`--carry-review`／`--carry-verify`）：该站封存侧永久显示
+   * 「曾审查／曾验证未通过」。两个旗标各自独立，双工单并存时可同时带。 */
   archiveCarry?(change: string, carryReview: boolean, carryVerify: boolean): Promise<unknown>;
-  /** 一站的活工單（spec desktop-app「詳情抽屜的工單分頁」）：無工單、遠端 404、
-   * 讀取或解析失敗皆回 null（分頁顯示空態而非錯誤）。 */
+  /** 一站的活工单（spec desktop-app「详情抽屉的工单分页」）：无工单、远程 404、
+   * 读取或解析失败皆回 null（分页显示空态而非错误）。 */
   getStationTicket(change: string, station: TicketStation): Promise<StationTicket | null>;
-  /** 讀取一個已封存 change 的 artifact 原文（dated name 定址）。缺件回 null。 */
+  /** 读取一个已封存 change 的 artifact 原文（dated name 寻址）。缺件回 null。 */
   getArchivedDocument(datedName: string, artifact: string): Promise<string | null>;
-  /** 已封存 change 帶走的工單（spec desktop-app「已封存抽屜的工單分頁」）；null 語意同
+  /** 已封存 change 带走的工单（spec desktop-app「已封存抽屉的工单分页」）；null 语意同
    * getStationTicket。 */
   getArchivedStationTicket(datedName: string, station: TicketStation): Promise<StationTicket | null>;
-  /** 列出一個已封存 change 的 delta capability 名。 */
+  /** 列出一个已封存 change 的 delta capability 名。 */
   archivedCapabilities(datedName: string): Promise<string[]>;
-  /** 討論清單（active＋archived）。非 speclink 專案回兩個空清單。 */
+  /** 讨论清单（active＋archived）。非 specseal 项目回两个空清单。 */
   listDiscussions(): Promise<DiscussionLists>;
-  /** 讀取討論記錄全文與引擎解析的刀（slug 定址；live 優先、封存後備）。無則 null。 */
+  /** 读取讨论记录全文与引擎解析的刀（slug 寻址；live 优先、封存后备）。无则 null。 */
   getDiscussionDocument(slug: string): Promise<DiscussionDocument | null>;
-  /** 把討論轉為新 change（可選 change 名，省略時由 slug 衍生）。失敗 reject 單行訊息。 */
+  /** 把讨论转为新 change（可选 change 名，省略时由 slug 衍生）。失败 reject 单行消息。 */
   promoteDiscussion(slug: string, name?: string): Promise<{ change: string }>;
-  /** 歸檔一筆 live 討論（UI 需先確認）；失敗 reject 附訊息。 */
+  /** 归档一笔 live 讨论（UI 需先确认）；失败 reject 附消息。 */
   archiveDiscussion(slug: string): Promise<void>;
   /**
-   * 看板欄內拖排寫回（design D5）：把卡片排到 prevId 與 nextId 兩鄰居之間
-   * （null＝欄頂／欄底）。id 為變更名或討論 slug；失敗 reject 附訊息。
+   * 看板栏内拖排写回（design D5）：把卡片排到 prevId 与 nextId 两邻居之间
+   * （null＝栏顶／栏底）。id 为变更名或讨论 slug；失败 reject 附消息。
    */
   reorderCard(kind: CardKind, id: string, prevId: string | null, nextId: string | null): Promise<void>;
   /**
-   * 宣告（remove 為 true 時撤銷）`on` 為 `change` 的前置，寫回其 meta 的
-   * depends_on（add-change-plan-desktop design D6）。引擎拒絕（自依賴、不存在、
-   * 已封存、成環）時 reject 單行訊息；不可寫的 membership（remote reader）的
-   * capability `setDepends` 為假，UI 不會呼叫。
+   * 声明（remove 为 true 时撤销）`on` 为 `change` 的前置，写回其 meta 的
+   * depends_on（add-change-plan-desktop design D6）。引擎拒绝（自依赖、不存在、
+   * 已封存、成环）时 reject 单行消息；不可写的 membership（remote reader）的
+   * capability `setDepends` 为假，UI 不会调用。
    */
   setDepends(change: string, on: string[], remove: boolean): Promise<void>;
   /**
-   * 排程分頁新增前置的候選名冊（add-change-plan-remote D9）：該變更所在名冊的其他
-   * 作用中變更——有 worktree 映射時為其副本，與 setDepends 寫入作用的 store 相同。
-   * 只有一份名冊的後端（remote）不提供，候選自清單派生。
+   * 调度分页添加前置的候选名册（add-change-plan-remote D9）：该变更所在名册的其他
+   * 作用中变更——有 worktree 映射时为其副本，与 setDepends 写入作用的 store 相同。
+   * 只有一份名册的后端（remote）不提供，候选自清单派生。
    */
   dependsCandidates?(change: string): Promise<string[]>;
 }

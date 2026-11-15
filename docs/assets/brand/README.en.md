@@ -1,4 +1,4 @@
-# Speclink brand assets
+# Specseal brand assets
 
 [繁体中文](README.md) · **English**
 
@@ -19,23 +19,23 @@ Brand colors are fixed artwork values. UI tokens remain in `packages/ui/src/them
 
 `svg/` contains editable vector masters with outlined lettering, requiring no installed font. `transparent/` contains transparent PNG exports. Top-level PNGs have white backgrounds (dark backgrounds for `-dark` files). The system sheet is a presentation board with a background.
 
-- `speclink-app-icon`: rounded app tile and white S.
-- `speclink-logo-mark`: standalone teal S, no tile or text.
-- `speclink-wordmark`: text only; charcoal Spec and teal link.
-- `speclink-wordmark-dark`: text-only variant for dark backgrounds.
-- `speclink-logo-horizontal`: symbol and wordmark.
-- `speclink-logo-horizontal-dark`: horizontal dark-background variant.
-- `speclink-logo-vertical`: symbol above wordmark.
-- `speclink-logo-system-sheet`: lockups and small-size previews.
+- `specseal-app-icon`: rounded app tile and white S.
+- `specseal-logo-mark`: standalone teal S, no tile or text.
+- `specseal-wordmark`: text only; charcoal Spec and teal link.
+- `specseal-wordmark-dark`: text-only variant for dark backgrounds.
+- `specseal-logo-horizontal`: symbol and wordmark.
+- `specseal-logo-horizontal-dark`: horizontal dark-background variant.
+- `specseal-logo-vertical`: symbol above wordmark.
+- `specseal-logo-system-sheet`: lockups and small-size previews.
 
 ## App integration
 
-Desktop and Server Web share three SVGs in `packages/ui/src/assets/`: `logo-mark.svg` (the bare mark, copied from `speclink-logo-mark.svg` with its fill changed to `currentColor`), `logo-horizontal.svg` and `logo-horizontal-dark.svg` (copied verbatim). `packages/ui/src/components/Brand.tsx` renders them as `BrandMark` (the mark follows the primary color) and `Wordmark` (the horizontal lockup, switching to the dark version under a dark system preference). To change the logo, replace those three files. The desktop favicon stays at `apps/desktop/public/logo-mark.png` (referenced by `index.html`). Native desktop icons live in `apps/desktop/src-tauri/icons/`, including ICO, ICNS and sized PNGs. The tray uses separate monochrome 18/36 px symbols; the 36 px PNG is also embedded in `apps/desktop/src/trayIcon.ts`.
+Desktop and Server Web share three SVGs in `packages/ui/src/assets/`: `logo-mark.svg` (the bare mark, copied from `specseal-logo-mark.svg` with its fill changed to `currentColor`), `logo-horizontal.svg` and `logo-horizontal-dark.svg` (copied verbatim). `packages/ui/src/components/Brand.tsx` renders them as `BrandMark` (the mark follows the primary color) and `Wordmark` (the horizontal lockup, switching to the dark version under a dark system preference). To change the logo, replace those three files. The desktop favicon stays at `apps/desktop/public/logo-mark.png` (referenced by `index.html`). Native desktop icons live in `apps/desktop/src-tauri/icons/`, including ICO, ICNS and sized PNGs. The tray uses separate monochrome 18/36 px symbols; the 36 px PNG is also embedded in `apps/desktop/src/trayIcon.ts`.
 
 To regenerate native icons:
 
 ```sh
-npx tauri icon docs/assets/brand/transparent/speclink-app-icon.png -o /tmp/speclink-icons
+npx tauri icon docs/assets/brand/transparent/specseal-app-icon.png -o /tmp/specseal-icons
 ```
 
 Copy only the top-level desktop outputs into `apps/desktop/src-tauri/icons/`; exclude generated mobile assets. Regenerate the tray PNGs separately and synchronize their embedded base64 constant.

@@ -10,35 +10,35 @@ import { DELTA_BORDER } from "./DeltaBadges";
 import { MoreToggle, SECTION_HEADING_CLS } from "./DocParts";
 import { Markdown } from "./Markdown";
 
-/** 收合列的 hover 提示：滑過淡底（與文件樹節點同一濃度）；游標由呼叫端取共用游標變數。 */
+/** 收合列的 hover 提示：滑过淡底（与文档树节点同一浓度）；光标由调用端取共用光标变量。 */
 const TOGGLE_HOVER_CLS = "rounded-lg transition-colors hover:bg-foreground/5";
 
-/** 「Requirement」小標：與需求文的 SHALL／MUST 關鍵字同款等寬灰底。 */
+/** 「Requirement」小标：与需求文的 SHALL／MUST 关键字同款等宽灰底。 */
 const KW_LABEL_CLS = "shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground";
 
-/** delta 檢視的需求段設定；缺席＝規格詳情頁的畫法（不收合、無色條、無移除提示）。 */
+/** delta 查看的需求段设置；缺席＝规格详情页的画法（不收合、无色条、无移除提示）。 */
 export interface RequirementDelta {
-  /** 左色條取該操作色。 */
+  /** 左色条取该操作色。 */
   op: keyof DeltaCounts;
-  /** 本需求以 REMOVED-SCENARIO 宣告移除的 scenario 名稱。 */
+  /** 本需求以 REMOVED-SCENARIO 声明移除的 scenario 名称。 */
   removedScenarios: string[];
   defaultOpen: boolean;
 }
 
 export interface RequirementBlockProps {
   req: SpecRequirement;
-  /** 標題列右端（規格詳情頁的溯源錨點）；放在收合鈕之外，點它不切換收合。 */
+  /** 标题列右端（规格详情页的溯源锚点）；放在收合钮之外，点它不切换收合。 */
   anchor?: ReactNode;
   delta?: RequirementDelta;
-  /** 非 delta 畫法的收合模式（規格詳情頁）；缺席＝恆展開、無收合鈕。`onToggle` 在每次展開／收合後
-   * 呼叫（頁據以重掃本頁目錄：收起的內文不在 DOM 裡）。 */
+  /** 非 delta 画法的收合模式（规格详情页）；缺席＝恒展开、无收合钮。`onToggle` 在每次展开／收合后
+   * 调用（页据以重扫本页目录：收起的内文不在 DOM 里）。 */
   collapse?: { defaultOpen: boolean; onToggle?: () => void };
 }
 
-/** 超過這個數量的需求文段落與 Scenario 先收起來。 */
+/** 超过这个数量的需求文段落与 Scenario 先收起来。 */
 const VISIBLE = 3;
 
-/** 以空行切段（圍欄內的空行不切）。 */
+/** 以空行切段（围栏内的空行不切）。 */
 function paragraphs(md: string): string[] {
   const lines = md.split(/\r?\n/);
   const inFence = fenceFlags(lines);
@@ -51,10 +51,10 @@ function paragraphs(md: string): string[] {
 }
 
 /**
- * 一條需求段（design D6）：「Requirement」小標＋標題＋右端錨點、需求文、左線縮排的 Scenario。
- * 規格詳情頁照原畫法，帶 `collapse` 時整段可收合為一列（desktop-spec-manual-pages design D3）；
- * delta 檢視另加操作色左色條、REMOVED-SCENARIO 提示框、WHEN／THEN 兩欄、超過三段需求文與三個
- * Scenario 時收合，且整段可收合為一列。兩種畫法的標題常駐、皆為本頁目錄錨點。
+ * 一条需求段（design D6）：「Requirement」小标＋标题＋右端锚点、需求文、左线缩进的 Scenario。
+ * 规格详情页照原画法，带 `collapse` 时整段可收合为一列（desktop-spec-manual-pages design D3）；
+ * delta 查看另加操作色左色条、REMOVED-SCENARIO 提示框、WHEN／THEN 两栏、超过三段需求文与三个
+ * Scenario 时收合，且整段可收合为一列。两种画法的标题常驻、皆为本页目录锚点。
  */
 export function RequirementBlock({ req, anchor, delta, collapse }: RequirementBlockProps) {
   const { t, tn } = useI18n();
@@ -74,7 +74,7 @@ export function RequirementBlock({ req, anchor, delta, collapse }: RequirementBl
     );
     return (
       <section data-requirement className="border-t border-border/70 pt-4">
-        {/* 收合列的淡底蓋整列（含錨點）；左右各外推 8px，文字與未收合的段落對齊不變。 */}
+        {/* 收合列的淡底盖整列（含锚点）；左右各外推 8px，文本与未收合的段落对齐不变。 */}
         <div className={`flex min-w-0 items-start gap-2 ${collapse ? `-mx-2 ${TOGGLE_HOVER_CLS}` : ""}`}>
           {collapse ? (
             <button
@@ -121,7 +121,7 @@ export function RequirementBlock({ req, anchor, delta, collapse }: RequirementBl
   const shownScenarios = allScenarios ? req.scenarios : req.scenarios.slice(0, VISIBLE);
   return (
     <section data-requirement className={`border-l-4 ${DELTA_BORDER[delta.op]} py-1 pl-4`}>
-      {/* 左側外推 8px 進色條內距，淡底不貼字、文字位置不變。 */}
+      {/* 左侧外推 8px 进色条内距，淡底不贴字、文本位置不变。 */}
       <button
         type="button"
         aria-expanded={open}
@@ -190,7 +190,7 @@ export function RequirementBlock({ req, anchor, delta, collapse }: RequirementBl
   );
 }
 
-/** delta 檢視的一個 Scenario：開頭的 WHEN／THEN 等列點成「標籤／內容」兩欄，其餘照 Markdown 接在下方。 */
+/** delta 查看的一个 Scenario：开头的 WHEN／THEN 等列点成「标签／内容」两栏，其余照 Markdown 接在下方。 */
 function DeltaScenario({ title, body }: { title: string; body: string }) {
   const { t } = useI18n();
   const split = splitScenarioSteps(body);

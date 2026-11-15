@@ -1,0 +1,117 @@
+Establish the baseline for an existing codebase: generate the initial canonical specs from current behavior, so later changes have a spec baseline to build on.
+
+**The baseline documents what the system does TODAY — not what it should do.** Specs written here describe observed behavior with evidence. Aspirations, fixes, and improvements belong in a change (`/specseal:propose`) after the baseline is written. Because nothing is changing, baseline writes directly to `{{SPEC_DIR}}specs/` — no change folder is involved, and no code is changed: do not refactor while writing the baseline.
+
+**Input**: Optionally a scope hint after `/specseal:baseline` (e.g., "auth and billing only"). If omitted, baseline the whole codebase.
+
+---
+
+{{^SPEC_IN_CHECKOUT}}
+## Step 0: Refuse — the spec folder is not in this checkout
+
+This skill file was generated for a project that keeps its specs on a Server — a remote project, or a host that embeds the engine. Baseline writes spec files straight into the spec folder, so here they would stay in this checkout and never reach the Server. Tell the user that baseline is not supported for this project yet, and end the run. Write no file, and do not continue with the steps below.
+
+{{/SPEC_IN_CHECKOUT}}
+## Step 1: Check the current state and load the workflow config
+
+```bash
+specseal list --specs
+specseal workflow-config show --json
+```
+
+- **No specs yet** → full baseline pass; continue below.
+- **Some specs exist** → gap-filling mode: inventory what is not yet covered and scope the rest of this flow to those areas. Never rewrite an existing spec here — modifications go through a change (`/specseal:propose`).
+
+The `workflow-config show --json` payload is the canonical workflow config for this workspace — the values `{{SPEC_DIR}}config.yaml` holds (the store's config document in remote mode), in the same shape either way. Environment overrides (`SPECSEAL_*`) are not applied; that is the same reading the file itself gives. Read these fields from it:
+
+- `context` — the project context; carry it as background for the inventory and for every spec you write.
+- `specLocale` — the JSON name of `spec_locale`: the language for spec prose. `null` means English, `auto` means use the payload's `locale`, any other value is the locale code to write in. Structural markers and SHALL/MUST keywords stay in English regardless.
+- `rules.specs` — the project's specs rules, a list of strings (absent when the project sets none). They bind every spec you write in Step 4 — see the last rule there. When the list is absent or empty, nothing changes.
+
+If `specseal workflow-config show --json` exits non-zero (a config that does not parse fails closed; a remote store that is offline or rejects the credentials does the same), report the error and STOP — never fall back to reading `{{SPEC_DIR}}config.yaml` by hand, and never parse the YAML yourself.
+
+## Step 2: Inventory the codebase
+
+Build a behavioral map before writing anything:
+
+1. Read the README, package manifests, and entry points (main/CLI/server routes).
+2. Scan the source tree for domains: commands, modules, services, UI surfaces.
+3. Read the test suite — tests are the best source of observable behavior with concrete values.
+4. Note behaviors you can VERIFY (code + tests) versus behaviors you can only INFER.
+
+Spend effort proportional to repo size; for large repos, sample entry points and tests first.
+
+## Step 3: Propose the capability map — and wait
+
+Draft a capability list (kebab-case names, one behavior area each — the same granularity a change's delta specs would use). For each: one-line purpose + the evidence files behind it. Keep capabilities small — a capability that needs 15 requirements is probably two capabilities.
+
+Present the map with the **AskUserQuestion tool** — or, if that tool is unavailable, as plain text — and let the user confirm, merge, split, or drop capabilities. Then wait for the answer. Do NOT write any spec before the map is confirmed — wrong boundaries here are expensive to undo later.
+
+The confirmation also shows which specs rules this run applies, so no rule shapes the output silently. Append this block to the map, quoting each entry of `rules.specs` verbatim:
+
+```
+Specs rules applied this run (from rules.specs, N entries):
+1. <first entry, verbatim>
+2. <second entry, verbatim>
+```
+
+When `rules.specs` is absent or empty, the block is a single line:
+
+```
+Specs rules applied this run: none (no rules.specs configured)
+```
+
+## Step 4: Write the specs
+
+For each confirmed capability, create `{{SPEC_DIR}}specs/<capability>/spec.md`:
+
+```markdown
+# <capability> Specification
+
+## Purpose
+
+<1-3 sentences: what this capability does for whom>
+
+## Requirements
+
+### Requirement: <Name>
+<Observed behavior in SHALL form.>
+
+#### Scenario: <name>
+- **WHEN** <trigger observed in code/tests>
+- **THEN** <outcome observed in code/tests>
+```
+
+Rules:
+
+- **Evidence or flag it.** Every requirement traces to code or tests you actually read. If a behavior is inferred but unverified, ask the user or leave it out — do not guess it into the record.
+- Concrete scenarios: real values from tests make the best WHEN/THEN data; add `##### Example:` blocks where tests provide exact input→output pairs.
+- Behavior only — no implementation details (module names, algorithms) in requirement text.
+- 4 hashes for `#### Scenario:`, SHALL/MUST keywords in English, prose in the `specLocale` language.
+- **Honour every `rules.specs` entry.** Every spec you write MUST honour every entry, verbatim, without filtering by whether it applies to a baseline. These rules are instructions for what you write: `specseal validate` checks structure only and does not verify free-text rules.
+
+## Step 5: Validate and report
+
+```bash
+specseal validate --specs --all --strict
+```
+
+Fix structural findings, then report: capabilities created (with requirement/scenario counts), behaviors flagged as unverified, areas deliberately left out, and the specs rules applied this run — the same `Specs rules applied this run` block as in Step 3 (the numbered list, or the `none` line). Then state that specs now describe the current system and that future work goes through changes — the exits are in **Next steps** below.
+
+## Guardrails
+
+Check these before you report:
+
+- [ ] Every requirement traces to code or tests you read; unverified inferences are flagged or omitted (Step 4).
+- [ ] No code was changed and no change folder was created — only `{{SPEC_DIR}}specs/` was written.
+- [ ] No existing spec was rewritten (Step 1).
+- [ ] The capability map was confirmed before any spec was written (Step 3).
+- [ ] The `Specs rules applied this run` block appeared in the map confirmation and in the final report (Steps 3 and 5).
+- [ ] The workflow config came from `specseal workflow-config show --json`, never from reading `{{SPEC_DIR}}config.yaml` (Step 1).
+
+## Next steps
+
+{{NEXT_STEPS_LEAD}}
+
+- The requirements for the next piece of work are clear → `/specseal:propose <idea>`
+- They are still fuzzy or worth debating → `/specseal:discuss <topic>`

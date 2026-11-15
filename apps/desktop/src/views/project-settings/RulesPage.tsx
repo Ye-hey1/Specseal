@@ -1,8 +1,8 @@
-// 產出規則頁（desktop-settings-mode design D8；desktop-settings-editors design D3；spec「設定頁編輯
-// 專案說明與產出規則」）：頁標題右側編輯／取消／儲存 ⌘S；唯讀只列有條目的固定鍵（等寬鍵名＋條數），
-// 編輯為每個固定鍵一張小卡（等寬鍵名＋即時「N 條」＋純文字 CodeEditor）。
+// 产出规则页（desktop-settings-mode design D8；desktop-settings-editors design D3；spec「设置页编辑
+// 项目说明与产出规则」）：页标题右侧编辑／取消／保存 ⌘S；唯读只列有条目的固定键（等宽键名＋条数），
+// 编辑为每个固定键一张小卡（等宽键名＋即时「N 条」＋纯文本 CodeEditor）。
 import { FileText } from "lucide-react";
-import { Card, SettingsPageHeader, useI18n } from "@speclink/ui";
+import { Card, SettingsPageHeader, useI18n } from "@specseal/ui";
 
 import { CodeEditor } from "../../components/CodeEditor";
 import { CardEditControls, FieldHelp, PageAlerts, PageNote, useSaveShortcut } from "./parts";
@@ -36,7 +36,7 @@ export function RulesPage({ ps }: { ps: ProjectSettingsState }) {
       <Card className="flex flex-col gap-3 p-4">
         {ps.rulesEditing ? (
           <>
-            {/* 編輯面以凍結鍵集渲染（review N4），不跟 snap 的固定鍵換集。 */}
+            {/* 编辑面以冻结键集渲染（review N4），不跟 snap 的固定键换集。 */}
             {ps.editingRuleKeys.map((id) => (
               <section key={id} data-testid={`rules-input-${id}`} aria-label={id} className="flex flex-col gap-2">
                 <div className="flex items-center gap-1.5 px-1 text-sm font-medium">

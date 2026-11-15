@@ -1,4 +1,4 @@
-// Sheet 滑出方向（server-web-shell-alignment design D6）：窄螢幕導覽從左側滑出，抽屜照舊貼右。
+// Sheet 滑出方向（server-web-shell-alignment design D6）：窄屏幕导览从左侧滑出，抽屉照旧贴右。
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 
@@ -17,7 +17,7 @@ function Fixture({ side }: { side?: "left" | "right" }) {
 }
 
 describe("SheetContent side", () => {
-  it("side=left 貼左、右側細線", () => {
+  it("side=left 贴左、右侧细线", () => {
     render(<Fixture side="left" />);
     const cls = classes(screen.getByRole("dialog"));
     expect(cls).toEqual(expect.arrayContaining(["left-0", "border-r", "data-[state=open]:slide-in-from-left"]));
@@ -25,7 +25,7 @@ describe("SheetContent side", () => {
     expect(cls).not.toContain("border-l");
   });
 
-  it("未給 side 時維持貼右、左側細線", () => {
+  it("未给 side 时维持贴右、左侧细线", () => {
     render(<Fixture />);
     const cls = classes(screen.getByRole("dialog"));
     expect(cls).toEqual(expect.arrayContaining(["right-0", "border-l", "data-[state=open]:slide-in-from-right"]));

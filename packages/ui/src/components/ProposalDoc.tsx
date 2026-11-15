@@ -30,16 +30,16 @@ import { Markdown } from "./Markdown";
 export interface ProposalDocProps {
   content: string | null;
   empty?: string;
-  /** 本變更已載入 delta 規格的能力名：在其中的能力籤才可點。 */
+  /** 本变更已加载 delta 规格的能力名：在其中的能力签才可点。 */
   deltaCaps: string[];
   onOpenCapability?: (capability: string) => void;
-  /** 宿主的本機路徑動作（文案依平台）；缺席時路徑籤只有複製鈕。 */
+  /** 宿主的本机路径动作（文案依平台）；缺席时路径签只有拷贝钮。 */
   pathReveal?: PathReveal;
-  /** 接在能力段尾的內容（頁推導的改寫提示框）。 */
+  /** 接在能力段尾的内容（页推导的改写提示框）。 */
   afterCapabilities?: ReactNode;
 }
 
-/** 列式章節：列點成細線列，prose 照排。 */
+/** 列式章节：列点成细线列，prose 照排。 */
 const ROW_SECTIONS = new Set([
   "sections.why",
   "sections.motivation",
@@ -52,8 +52,8 @@ const STEP_SECTIONS = new Set(["sections.whatChanges", "sections.proposedSolutio
 const CODE_GROUP_KEYS = { new: "doc.codeNew", modified: "doc.codeModified", removed: "doc.codeRemoved" } as const;
 
 /**
- * 提案渲染器（spec「提案與設計章節以中文標籤呈現」；design D3）：每個二級標題一段——白名單命中
- * 翻譯並換專屬畫法，白名單外以原文為標題照 Markdown 排；整份沒有二級標題才整篇退回 Markdown。
+ * 提案渲染器（spec「提案与设计章节以中文标签呈现」；design D3）：每个二级标题一段——白名单命中
+ * 翻译并换专属画法，白名单外以原文为标题照 Markdown 排；整份没有二级标题才整篇退回 Markdown。
  */
 export function ProposalDoc({ content, empty, deltaCaps, onOpenCapability, pathReveal, afterCapabilities }: ProposalDocProps) {
   const doc = content ? splitH2Sections(content) : null;
@@ -164,7 +164,7 @@ function ProposalSection({
   );
 }
 
-/** 影響段的路徑總數（數字磚「影響的檔案」同一個數）。 */
+/** 影响段的路径总数（数字砖「影响的文件」同一个数）。 */
 export function impactFileCount(impact: ImpactData): number {
   return impact.code.new.length + impact.code.modified.length + impact.code.removed.length;
 }
@@ -203,7 +203,7 @@ function ImpactBody({
           <div key={group} data-impact-group={group} className="flex items-start gap-3">
             <span className={label}>{t(CODE_GROUP_KEYS[group]).replace("{n}", n)}</span>
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-              {/* 「移除」組的檔案在 apply 後已不存在，不給顯示鈕。 */}
+              {/* 「移除」组的文件在 apply 后已不存在，不给显示钮。 */}
               {paths.map((p) => (
                 <PathChip key={p.path} path={p.path} note={p.note} reveal={group === "removed" ? undefined : pathReveal} />
               ))}

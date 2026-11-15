@@ -1,4 +1,4 @@
-// 右鍵選單原語（Radix，design D5）：Content／Item／Separator 共用 dropdown-menu.tsx 的 class 常數。
+// 右键菜单原语（Radix，design D5）：Content／Item／Separator 共用 dropdown-menu.tsx 的 class 常数。
 import * as React from "react";
 import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 

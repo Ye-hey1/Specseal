@@ -1,14 +1,14 @@
 import { Fragment, useRef, type ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { TriangleAlert } from "lucide-react";
-import { Card, cn, SEMANTIC_SURFACE, SEMANTIC_TONE, StepProgress, useI18n, Wordmark } from "@speclink/ui";
+import { Card, cn, SEMANTIC_SURFACE, SEMANTIC_TONE, StepProgress, useI18n, Wordmark } from "@specseal/ui";
 import { SkipLink } from "../components/SkipLink";
 import { UI_LOCALES, useLocalePreference } from "../i18n/LocaleContext";
 import { useFocusMain } from "../lib/useFocusMain";
 
-// 專注流程殼（登入／setup／邀請／啟用；design D7）：畫面正中一個大字標，下方一張與 Desktop
-// 對話框同款的卡片（12px 圓角、15px 標題加灰字說明、頁尾細線上方右側為主要動作），卡片下方
-// 是語言切換。卡片內的標題區、頁尾與提示卡由下方三個小元件提供，四頁共用。
+// 专注流程壳（登录／setup／邀请／激活；design D7）：画面正中一个大字标，下方一张与 Desktop
+// 对话框同款的卡片（12px 圆角、15px 标题加灰字说明、页脚细在线方右侧为主要动作），卡片下方
+// 是语言切换。卡片内的标题区、页脚与提示卡由下方三个小组件提供，四页共用。
 export function FocusLayout({ children }: { children: ReactNode }) {
   const mainRef = useRef<HTMLElement>(null);
   const location = useLocation();
@@ -28,8 +28,8 @@ export function FocusLayout({ children }: { children: ReactNode }) {
   );
 }
 
-// 登入前的語言切換：每種語言一個鈕（跟隨系統在登入後的帳號選單裡），與帳號選單寫入同一個
-// 偏好。點目前已標示的語言不寫入——跟隨系統的人點了「中文」，偏好不該被悄悄固定下來。
+// 登录前的语言切换：每种语言一个钮（跟随系统在登录后的帐号菜单里），与帐号菜单写入同一个
+// 偏好。点目前已标示的语言不写入——跟随系统的人点了「中文」，偏好不该被悄悄固定下来。
 function LocaleToggle() {
   const { t, locale } = useI18n();
   const { setPref } = useLocalePreference();
@@ -57,7 +57,7 @@ function LocaleToggle() {
   );
 }
 
-/** 卡片標題區：15px 標題＋灰字說明；多步驟流程在上方加共用的步驟列（與 Desktop WorkspaceChooser 同一個元件）。 */
+/** 卡片标题区：15px 标题＋灰字说明；多步骤流程在上方加共用的步骤列（与 Desktop WorkspaceChooser 同一个组件）。 */
 export function FocusHeader({
   title,
   description,
@@ -76,7 +76,7 @@ export function FocusHeader({
   );
 }
 
-/** 卡片頁尾：上緣細線、右對齊的按鈕列。 */
+/** 卡片页脚：上缘细线、右对齐的按钮列。 */
 export function FocusFooter({ children }: { children: ReactNode }) {
   return (
     <div data-focus-footer className="flex justify-end gap-2 border-t border-border pt-3.5">
@@ -85,7 +85,7 @@ export function FocusFooter({ children }: { children: ReactNode }) {
   );
 }
 
-/** 連結無效與無權限的提示卡：警示色圓形圖示、標題與說明，整塊以 role=alert 宣告。 */
+/** 链接无效与无权限的提示卡：警示色圆形图标、标题与说明，整块以 role=alert 声明。 */
 export function FocusNotice({ title, body }: { title: string; body: string }) {
   return (
     <div role="alert" className="flex gap-3">

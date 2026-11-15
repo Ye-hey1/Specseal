@@ -1,14 +1,14 @@
-// 守門測試共用的原始碼掃描（theme.test.ts 原生色階守門、uiSingleSource.test.ts 同名定義守門）。
-// 以 import.meta.url 定位 repo 根：呼叫端須以 node 環境執行（jsdom 會把它換成 http location）。
+// 守门测试共用的原代码扫描（theme.test.ts 原生色阶守门、uiSingleSource.test.ts 同名定义守门）。
+// 以 import.meta.url 定位 repo 根：调用端须以 node 环境运行（jsdom 会把它换成 http location）。
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-/** repo 根目錄（結尾帶 /）。 */
+/** repo 根目录（结尾带 /）。 */
 export const REPO_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
 
 const SKIPPED_DIRS = new Set(["__tests__", "dist", "node_modules"]);
 
-/** 掃描根（相對 repo 根）下副檔名符合的原始碼，回傳 [repo 相對路徑, 內容]；略過測試、建置產物與相依。 */
+/** 扫描根（相对 repo 根）下扩展名符合的原代码，回传 [repo 相对路径, 内容]；略过测试、建置产物与相依。 */
 export function scanSources(roots: readonly string[], extensions: readonly string[]): [string, string][] {
   const files: string[] = [];
   const walk = (path: string) => {

@@ -1,6 +1,6 @@
-// WorkspaceLocator／locatorKey（workspace-session design 決策 1）：分頁去重、
-// 持久化 activeKey 與 tray 選單識別的唯一身分函式。remote 變體本刀僅型別、
-// 無任何建構路徑——key 規則先釘死，使持久化 schema 跨後續刀穩定。
+// WorkspaceLocator／locatorKey（workspace-session design 决策 1）：分页去重、
+// 持久化 activeKey 与 tray 菜单识别的唯一身分函数。remote 变体本刀仅类型、
+// 无任何建构路径——key 规则先钉死，使持久化 schema 跨后续刀稳定。
 import { describe, it, expect } from "vitest";
 
 import {
@@ -15,7 +15,7 @@ import {
 import { upsertTab, type ProjectTab } from "../tabs";
 import { REMOTE_CAPS } from "./helpers/remoteFixtures";
 
-/** 假 invoke：記錄每筆 (cmd, args) 並依 cmd 回覆最小合法 payload。 */
+/** 假 invoke：记录每笔 (cmd, args) 并依 cmd 回复最小合法 payload。 */
 function fakeInvoke() {
   const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
   const results: Record<string, unknown> = {
@@ -36,7 +36,7 @@ function fakeInvoke() {
   return { calls, invoke };
 }
 
-describe("locatorKey（spec「分頁身分為 WorkspaceLocator 而非 root 路徑」）", () => {
+describe("locatorKey（spec「分页身分为 WorkspaceLocator 而非 root 路径」）", () => {
   it("local locator maps to local:{root}", () => {
     expect(locatorKey({ kind: "local", root: "/proj/alpha" })).toBe("local:/proj/alpha");
   });
@@ -71,7 +71,7 @@ describe("locatorKey（spec「分頁身分為 WorkspaceLocator 而非 root 路�
   });
 });
 
-describe("createLocalSession（spec「每個 session 自帶 dataSource 且 Rust 側無 current-root 全域」）", () => {
+describe("createLocalSession（spec「每个 session 自带 dataSource 且 Rust 侧无 current-root 全域」）", () => {
   const ROOT = "/proj/a";
 
   it("derives id from locatorKey and binds the local locator", () => {
@@ -130,7 +130,7 @@ describe("createLocalSession（spec「每個 session 自帶 dataSource 且 Rust 
     expect(missingRoot).toEqual([]);
   });
 
-  it("審查規則寫入只帶 review：context 與 rules 為 null（review-rules-config）", async () => {
+  it("审查规则写入只带 review：context 与 rules 为 null（review-rules-config）", async () => {
     const { calls, invoke } = fakeInvoke();
     const settings = createLocalSession(ROOT, { invoke }).settings;
     const review = { baseline: "replace" as const, critical: ["c"], warning: [], suggestion: [] };
@@ -140,7 +140,7 @@ describe("createLocalSession（spec「每個 session 自帶 dataSource 且 Rust 
     ]);
   });
 
-  it("子代理模型寫入只帶 subagentModel：context、rules、review 為 null（desktop-subagent-model-page）", async () => {
+  it("子代理模型写入只带 subagentModel：context、rules、review 为 null（desktop-subagent-model-page）", async () => {
     const { calls, invoke } = fakeInvoke();
     const settings = createLocalSession(ROOT, { invoke }).settings;
     const subagentModel = { review: { claude: "opus" }, verify: {}, choices: { codex: ["gpt-6.1-sol"] } };
@@ -153,14 +153,14 @@ describe("createLocalSession（spec「每個 session 自帶 dataSource 且 Rust 
     ]);
   });
 
-  it("產出流程五方法各自呼叫對應 command（desktop-schema-panel D2/D5/D6）", async () => {
+  it("产出流程五方法各自调用对应 command（desktop-schema-panel D2/D5/D6）", async () => {
     const { calls, invoke } = fakeInvoke();
     const settings = createLocalSession(ROOT, { invoke }).settings;
     await settings.readSchemas();
     await settings.writeWorkflowSchema("my-flow");
     await settings.forkSchema("spec-driven");
     await settings.createSchema("my-flow");
-    await settings.revealSchema("/proj/a/speclink/schemas/my-flow");
+    await settings.revealSchema("/proj/a/specseal/schemas/my-flow");
     await settings.deleteSchema("my-flow");
     expect(calls.map((c) => c.cmd)).toEqual([
       "read_schemas",
@@ -174,9 +174,9 @@ describe("createLocalSession（spec「每個 session 自帶 dataSource 且 Rust 
     expect(calls[1]?.args).toEqual({ root: ROOT, name: "my-flow" });
     expect(calls[2]?.args).toEqual({ root: ROOT, source: "spec-driven" });
     expect(calls[3]?.args).toEqual({ root: ROOT, name: "my-flow" });
-    // reveal 以快照給的絕對路徑為準，不帶 root、不自行拼路徑（D6）。
-    expect(calls[4]?.args).toEqual({ path: "/proj/a/speclink/schemas/my-flow" });
-    // 刪除收名稱、目標由 core 固定解析為專案層目錄（D7）。
+    // reveal 以快照给的绝对路径为准，不带 root、不自行拼路径（D6）。
+    expect(calls[4]?.args).toEqual({ path: "/proj/a/specseal/schemas/my-flow" });
+    // 删除收名称、目标由 core 固定解析为项目层目录（D7）。
     expect(calls[5]?.args).toEqual({ root: ROOT, name: "my-flow" });
   });
 
@@ -195,19 +195,19 @@ describe("createLocalSession（spec「每個 session 自帶 dataSource 且 Rust 
     const unsubscribe = session.events.subscribe(() => {
       fired += 1;
     });
-    await Promise.resolve(); // listen 為非同步掛載
+    await Promise.resolve(); // listen 为异步挂载
     handler?.({ payload: "/proj/b" });
     expect(fired).toBe(0);
     handler?.({ payload: ROOT });
     expect(fired).toBe(1);
     unsubscribe();
-    await Promise.resolve(); // 解除訂閱經 listen promise 傳遞
+    await Promise.resolve(); // 解除订阅经 listen promise 传递
     handler?.({ payload: ROOT });
     expect(fired).toBe(1);
   });
 });
 
-describe("createRemoteSession checkoutRoot 落地邊界", () => {
+describe("createRemoteSession checkoutRoot 落地边界", () => {
   const info: RemoteOpenInfo = {
     projectKey: "demo",
     projectName: "Demo",
@@ -216,7 +216,7 @@ describe("createRemoteSession checkoutRoot 落地邊界", () => {
     capabilities: REMOTE_CAPS,
   };
 
-  it("把 checkoutRoot 寫入 locator，但 locator key 維持 scope 身分", () => {
+  it("把 checkoutRoot 写入 locator，但 locator key 维持 scope 身分", () => {
     const session = createRemoteSession("c1", info, "/work/backend", {
       invoke: fakeInvoke().invoke,
     });
@@ -230,14 +230,14 @@ describe("createRemoteSession checkoutRoot 落地邊界", () => {
     expect(session.id).toBe("remote:c1/demo/backend");
   });
 
-  it("checkoutRoot 不改變 capability 描述", () => {
+  it("checkoutRoot 不改变 capability 描述", () => {
     const invoke = fakeInvoke().invoke;
     expect(createRemoteSession("c1", info, "/work/backend", { invoke }).capabilities).toEqual(
       createRemoteSession("c1", info, undefined, { invoke }).capabilities,
     );
   });
 
-  it("共用狀態投影依序裁決 recovery、connection state 與 ready", () => {
+  it("共用状态投影依序裁决 recovery、connection state 与 ready", () => {
     const session = createRemoteSession("c1", info, undefined, { invoke: fakeInvoke().invoke });
     const restoring: RemoteWorkspaceRecoveryState = { status: "restoring", failure: null };
     const error: RemoteWorkspaceRecoveryState = {
@@ -266,7 +266,7 @@ describe("createRemoteSession checkoutRoot 落地邊界", () => {
   });
 });
 
-describe("upsertTab 以 locator key 去重（spec「同一專案重複開啟仍去重」）", () => {
+describe("upsertTab 以 locator key 去重（spec「同一项目重复打开仍去重」）", () => {
   const local = (root: string): WorkspaceLocator => ({ kind: "local", root });
   const tab = (root: string, name = root): ProjectTab => ({
     locator: local(root),
@@ -289,7 +289,7 @@ describe("upsertTab 以 locator key 去重（spec「同一專案重複開啟仍�
     expect(tabs[1].name).toBe("beta");
   });
 
-  it("同一 remote scope 重綁 checkout 會原地覆寫 locator，不分裂分頁", () => {
+  it("同一 remote scope 重绑 checkout 会原地覆写 locator，不分裂分页", () => {
     const oldLocator: WorkspaceLocator = {
       kind: "remote",
       connectionId: "c1",
@@ -307,8 +307,8 @@ describe("upsertTab 以 locator key 去重（spec「同一專案重複開啟仍�
   });
 });
 
-describe("createRemoteSession 子代理模型寫入（desktop-subagent-model-page）", () => {
-  it("送 remote_write_workflow_content、只帶 subagentModel，並附讀得的 expectedRevision；成功回新 revision", async () => {
+describe("createRemoteSession 子代理模型写入（desktop-subagent-model-page）", () => {
+  it("送 remote_write_workflow_content、只带 subagentModel，并附读得的 expectedRevision；成功回新 revision", async () => {
     const calls: Array<{ cmd: string; args?: Record<string, unknown> }> = [];
     const invoke = async <T,>(cmd: string, args?: Record<string, unknown>): Promise<T> => {
       calls.push({ cmd, args });

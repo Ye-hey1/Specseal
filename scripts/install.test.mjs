@@ -1,10 +1,10 @@
-// CLI 安裝腳本的單元測試（cli-distribution spec「安裝腳本一行安裝對應平台 CLI」，
-// design D3／release-assets-trim D6：binary 來源改為 npm registry 的平台子套件 tgz）。
-// 以子行程執行 scripts/install.sh。
+// CLI 安装脚本的单元测试（cli-distribution spec「安装脚本一行安装对应平台 CLI」，
+// design D3／release-assets-trim D6：binary 来源改为 npm registry 的平台子套件 tgz）。
+// 以子行程运行 scripts/install.sh。
 //
-// 平台偵測與下載都靠外部指令，因此測試在 PATH 前置假的 uname 與 curl——腳本本身
-// 不必為了可測而開任何測試專用旗標，被驗的就是正式路徑。integrity 用真的 openssl
-// 對 fixture 實算，驗的是真正的比對行為而非樁。
+// 平台侦测与下载都靠外部指令，因此测试在 PATH 前置假的 uname 与 curl——脚本本身
+// 不必为了可测而开任何测试专用旗标，被验的就是正式路径。integrity 用真的 openssl
+// 对 fixture 实算，验的是真正的比对行为而非桩。
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
@@ -20,9 +20,9 @@ const script = path.join(root, 'scripts/install.sh');
 const VERSION = '0.5.0';
 const REGISTRY = 'https://registry.npmjs.org';
 const tgzUrl = (platform, version, registry = REGISTRY) =>
-  `${registry}/@speclink/cli-${platform}/-/cli-${platform}-${version}.tgz`;
+  `${registry}/@specseal/cli-${platform}/-/cli-${platform}-${version}.tgz`;
 
-/// 假 uname：依環境變數回答 -s／-m，讓五組平台矩陣都能在單一機器上驗。
+/// 假 uname：依环境变量回答 -s／-m，让五组平台矩阵都能在单一机器上验。
 const FAKE_UNAME = `#!/bin/sh
 case "$1" in
   -s) echo "$FAKE_UNAME_S" ;;
@@ -31,9 +31,9 @@ case "$1" in
 esac
 `;
 
-/// 假 curl：記錄每次呼叫，並以 fixture 目錄中與 URL 最後一段同名的檔案作為回應
-/// （registry 的三種請求：.../cli/latest、.../cli-<平台>/<版本>、.../-/<tgz>）。
-/// 找不到對應 fixture 時以 22 結束（curl 對 HTTP 錯誤的慣用碼），讓腳本的失敗路徑也走得到。
+/// 假 curl：记录每次调用，并以 fixture 目录中与 URL 最后一段同名的文件作为回应
+/// （registry 的三种请求：.../cli/latest、.../cli-<平台>/<版本>、.../-/<tgz>）。
+/// 找不到对应 fixture 时以 22 结束（curl 对 HTTP 错误的惯用码），让脚本的失败路径也走得到。
 const FAKE_CURL = `#!/bin/sh
 echo "$@" >> "$FAKE_CURL_LOG"
 out=""
@@ -55,9 +55,9 @@ function integrityOf(buffer) {
   return `sha512-${createHash('sha512').update(buffer).digest('base64')}`;
 }
 
-/// 佈置一次執行所需的沙盒：假指令目錄、fixture 目錄、安裝目錄與 curl 呼叫紀錄。
+/// 布置一次运行所需的沙盒：假指令目录、fixture 目录、安装目录与 curl 调用纪录。
 function sandbox(t) {
-  const dir = mkdtempSync(path.join(os.tmpdir(), 'speclink-install-'));
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'specseal-install-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
 
   const binDir = path.join(dir, 'fakebin');
@@ -76,33 +76,33 @@ function sandbox(t) {
   return { dir, binDir, fixtures, installDir, curlLog: path.join(dir, 'curl.log') };
 }
 
-/// 造出 registry 的三份回應：主套件 latest、平台子套件的版本清單（含 dist.integrity）、
-/// 平台子套件的 tgz（npm 佈局：package/speclink）。badIntegrity 時故意寫錯 integrity，
-/// noIntegrity 時版本清單缺 dist.integrity。
+/// 造出 registry 的三份回应：主套件 latest、平台子套件的版本清单（含 dist.integrity）、
+/// 平台子套件的 tgz（npm 布局：package/specseal）。badIntegrity 时故意写错 integrity，
+/// noIntegrity 时版本清单缺 dist.integrity。
 function stageRegistry(box, { platform, version = VERSION, badIntegrity = false, noIntegrity = false } = {}) {
   const payloadDir = path.join(box.dir, 'payload', 'package');
   mkdirSync(payloadDir, { recursive: true });
-  // 內容可辨識——安裝後以此斷言確實是解出來的那一份；--version 回該版，對齊 spec
-  // 「安裝完成後版本可驗」的 THEN（真 binary 的版本比對留給發版後的手動驗證）。
+  // 内容可辨识——安装后以此断言确实是解出来的那一份；--version 回该版，对齐 spec
+  // 「安装完成后版本可验」的 THEN（真 binary 的版本比对留给发版后的手动验证）。
   writeFileSync(
-    path.join(payloadDir, 'speclink'),
-    `#!/bin/sh\ncase "$1" in --version) echo "speclink ${version}" ;; *) echo speclink-fixture ;; esac\n`,
+    path.join(payloadDir, 'specseal'),
+    `#!/bin/sh\ncase "$1" in --version) echo "specseal ${version}" ;; *) echo specseal-fixture ;; esac\n`,
   );
-  chmodSync(path.join(payloadDir, 'speclink'), 0o755);
+  chmodSync(path.join(payloadDir, 'specseal'), 0o755);
 
   const tgzName = `cli-${platform}-${version}.tgz`;
   const archive = path.join(box.fixtures, tgzName);
   const tarResult = spawnSync('tar', ['czf', archive, '-C', path.dirname(payloadDir), 'package'], { encoding: 'utf8' });
-  assert.equal(tarResult.status, 0, `建立 fixture tgz 失敗：${tarResult.stderr}`);
+  assert.equal(tarResult.status, 0, `创建 fixture tgz 失败：${tarResult.stderr}`);
 
   const integrity = badIntegrity ? `sha512-${'A'.repeat(86)}==` : integrityOf(readFileSync(archive));
   const manifest = {
-    name: `@speclink/cli-${platform}`,
+    name: `@specseal/cli-${platform}`,
     version,
     dist: noIntegrity ? { tarball: tgzUrl(platform, version) } : { integrity, tarball: tgzUrl(platform, version) },
   };
   writeFileSync(path.join(box.fixtures, version), JSON.stringify(manifest));
-  writeFileSync(path.join(box.fixtures, 'latest'), JSON.stringify({ name: '@speclink/cli', version }));
+  writeFileSync(path.join(box.fixtures, 'latest'), JSON.stringify({ name: '@specseal/cli', version }));
 
   return { tgzName };
 }
@@ -127,13 +127,13 @@ function runInstall(box, { unameS, unameM, args = [], env = {} } = {}) {
   return { ...result, curlCalls };
 }
 
-// install.sh 只出貨給 macOS 與 Linux；Windows 走 npm 或桌面安裝器。Git Bash 下以假的
-// curl／uname 驗 sh 版並不對應任何出貨路徑（Windows 不會解析無副檔名的假指令），
-// 故 Windows 上整組跳過。
+// install.sh 只出货给 macOS 与 Linux；Windows 走 npm 或桌面安装器。Git Bash 下以假的
+// curl／uname 验 sh 版并不对应任何出货路径（Windows 不会解析无扩展名的假指令），
+// 故 Windows 上整组跳过。
 const isWindows = process.platform === 'win32';
 const shTest = isWindows ? test.skip : test;
 
-// --- 平台對映矩陣（dry-run，不碰網路） ---
+// --- 平台映射矩阵（dry-run，不碰网络） ---
 
 const MATRIX = [
   { unameS: 'Darwin', unameM: 'arm64', platform: 'darwin-arm64' },
@@ -143,278 +143,278 @@ const MATRIX = [
 ];
 
 for (const { unameS, unameM, platform } of MATRIX) {
-  shTest(`dry-run 對映 ${unameS}/${unameM} 為 ${platform} 並組出 registry 的 tgz URL`, (t) => {
+  shTest(`dry-run 映射 ${unameS}/${unameM} 为 ${platform} 并组出 registry 的 tgz URL`, (t) => {
     const box = sandbox(t);
 
     const result = runInstall(box, {
       unameS,
       unameM,
       args: ['--dry-run'],
-      env: { SPECLINK_INSTALL_VERSION: VERSION },
+      env: { SPECSEAL_INSTALL_VERSION: VERSION },
     });
 
-    assert.equal(result.status, 0, `dry-run 應成功結束\nstderr: ${result.stderr}`);
-    assert.match(result.stdout, new RegExp(platform), `輸出應含平台 ${platform}`);
-    assert.ok(result.stdout.includes(tgzUrl(platform, VERSION)), '輸出應含指向該平台子套件 tgz 的 registry URL');
-    assert.deepEqual(result.curlCalls, [], 'dry-run 不得呼叫 curl');
+    assert.equal(result.status, 0, `dry-run 应成功结束\nstderr: ${result.stderr}`);
+    assert.match(result.stdout, new RegExp(platform), `输出应含平台 ${platform}`);
+    assert.ok(result.stdout.includes(tgzUrl(platform, VERSION)), '输出应含指向该平台子套件 tgz 的 registry URL');
+    assert.deepEqual(result.curlCalls, [], 'dry-run 不得调用 curl');
   });
 }
 
-shTest('不支援的平台以非零結束並說明', (t) => {
+shTest('不支持的平台以非零结束并说明', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, { unameS: 'Linux', unameM: 'i686', args: ['--dry-run'] });
 
-  assert.notEqual(result.status, 0, '不支援的架構應以非零結束');
-  assert.match(result.stderr, /i686/, '錯誤訊息應點名偵測到的架構');
+  assert.notEqual(result.status, 0, '不支持的架构应以非零结束');
+  assert.match(result.stderr, /i686/, '错误消息应点名侦测到的架构');
 });
 
-shTest('Windows 上以非零結束並導向 npm 與桌面安裝器，不再提 PowerShell 腳本', (t) => {
+shTest('Windows 上以非零结束并导向 npm 与桌面安装器，不再提 PowerShell 脚本', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, { unameS: 'MINGW64_NT-10.0', unameM: 'x86_64', args: ['--dry-run'] });
 
-  assert.notEqual(result.status, 0, 'Windows 應以非零結束');
-  assert.match(result.stderr, /npm i -g @speclink\/cli/, '錯誤訊息應導向 npm 全域安裝');
-  assert.match(result.stderr, /setup\.exe/, '錯誤訊息應導向桌面安裝器');
-  assert.doesNotMatch(result.stderr, /install\.ps1/, 'PowerShell 腳本已退役，不得再導向它');
+  assert.notEqual(result.status, 0, 'Windows 应以非零结束');
+  assert.match(result.stderr, /npm i -g @specseal\/cli/, '错误消息应导向 npm 全域安装');
+  assert.match(result.stderr, /setup\.exe/, '错误消息应导向桌面安装器');
+  assert.doesNotMatch(result.stderr, /install\.ps1/, 'PowerShell 脚本已退役，不得再导向它');
 });
 
-// --- dry-run 的兩條保證 ---
+// --- dry-run 的两条保证 ---
 
-shTest('dry-run 不發出任何網路請求也不寫入檔案', (t) => {
+shTest('dry-run 不发出任何网络请求也不写入文件', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, {
     unameS: 'Darwin',
     unameM: 'arm64',
     args: ['--dry-run'],
-    env: { SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.equal(result.status, 0, `dry-run 應成功結束\nstderr: ${result.stderr}`);
-  assert.deepEqual(result.curlCalls, [], 'dry-run 不得呼叫 curl');
-  assert.deepEqual(readdirSync(box.installDir), [], 'dry-run 不得寫入安裝目錄');
+  assert.equal(result.status, 0, `dry-run 应成功结束\nstderr: ${result.stderr}`);
+  assert.deepEqual(result.curlCalls, [], 'dry-run 不得调用 curl');
+  assert.deepEqual(readdirSync(box.installDir), [], 'dry-run 不得写入安装目录');
 });
 
-shTest('dry-run 未釘選版本時標示將於安裝時查詢 registry，仍不呼叫 curl', (t) => {
+shTest('dry-run 未钉选版本时标示将于安装时查找 registry，仍不调用 curl', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, { unameS: 'Linux', unameM: 'x86_64', args: ['--dry-run'] });
 
-  assert.equal(result.status, 0, `dry-run 應成功結束\nstderr: ${result.stderr}`);
-  assert.deepEqual(result.curlCalls, [], 'dry-run 不得呼叫 curl');
-  assert.match(result.stdout, /latest/, '未釘選版本時輸出應標示為 latest');
+  assert.equal(result.status, 0, `dry-run 应成功结束\nstderr: ${result.stderr}`);
+  assert.deepEqual(result.curlCalls, [], 'dry-run 不得调用 curl');
+  assert.match(result.stdout, /latest/, '未钉选版本时输出应标示为 latest');
 });
 
-// --- 環境變數覆寫 ---
+// --- 环境变量覆写 ---
 
-shTest('SPECLINK_INSTALL_VERSION 帶或不帶 v 前綴都對映到同一個 tgz URL', (t) => {
+shTest('SPECSEAL_INSTALL_VERSION 带或不带 v 前缀都映射到同一个 tgz URL', (t) => {
   const box = sandbox(t);
   const outputs = ['v0.5.0', '0.5.0'].map((pin) => {
     const result = runInstall(box, {
       unameS: 'Darwin',
       unameM: 'arm64',
       args: ['--dry-run'],
-      env: { SPECLINK_INSTALL_VERSION: pin },
+      env: { SPECSEAL_INSTALL_VERSION: pin },
     });
-    assert.equal(result.status, 0, `dry-run 應成功結束（${pin}）\nstderr: ${result.stderr}`);
+    assert.equal(result.status, 0, `dry-run 应成功结束（${pin}）\nstderr: ${result.stderr}`);
     return result.stdout;
   });
-  assert.equal(outputs[0], outputs[1], '兩種寫法的 dry-run 輸出應完全相同');
-  assert.ok(outputs[0].includes(tgzUrl('darwin-arm64', VERSION)), 'URL 的版本段應為去 v 前綴的 0.5.0');
+  assert.equal(outputs[0], outputs[1], '两种写法的 dry-run 输出应完全相同');
+  assert.ok(outputs[0].includes(tgzUrl('darwin-arm64', VERSION)), 'URL 的版本段应为去 v 前缀的 0.5.0');
 });
 
-shTest('SPECLINK_INSTALL_REGISTRY 覆寫 registry 位址', (t) => {
+shTest('SPECSEAL_INSTALL_REGISTRY 覆写 registry 地址', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'aarch64',
     args: ['--dry-run'],
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_REGISTRY: 'https://npm.example.test' },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_REGISTRY: 'https://npm.example.test' },
   });
 
-  assert.equal(result.status, 0, `dry-run 應成功結束\nstderr: ${result.stderr}`);
-  assert.ok(result.stdout.includes(tgzUrl('linux-arm64', VERSION, 'https://npm.example.test')), 'URL 應以覆寫的 registry 為底');
-  assert.ok(!result.stdout.includes('registry.npmjs.org'), '覆寫後不得殘留預設 registry');
+  assert.equal(result.status, 0, `dry-run 应成功结束\nstderr: ${result.stderr}`);
+  assert.ok(result.stdout.includes(tgzUrl('linux-arm64', VERSION, 'https://npm.example.test')), 'URL 应以覆写的 registry 为底');
+  assert.ok(!result.stdout.includes('registry.npmjs.org'), '覆写后不得残留缺省 registry');
 });
 
-shTest('SPECLINK_INSTALL_DIR 覆寫安裝目錄', (t) => {
+shTest('SPECSEAL_INSTALL_DIR 覆写安装目录', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, {
     unameS: 'Darwin',
     unameM: 'arm64',
     args: ['--dry-run'],
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
   assert.equal(result.status, 0);
   assert.match(result.stdout, new RegExp(box.installDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
 });
 
-shTest('未覆寫時安裝目錄預設為 ~/.local/bin', (t) => {
+shTest('未覆写时安装目录缺省为 ~/.local/bin', (t) => {
   const box = sandbox(t);
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
     args: ['--dry-run'],
-    env: { SPECLINK_INSTALL_VERSION: VERSION },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION },
   });
 
   assert.equal(result.status, 0);
-  assert.match(result.stdout, /\.local\/bin/, '預設安裝目錄應為 ~/.local/bin');
+  assert.match(result.stdout, /\.local\/bin/, '缺省安装目录应为 ~/.local/bin');
 });
 
-shTest('釘選版本時不查詢 latest', (t) => {
+shTest('钉选版本时不查找 latest', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'darwin-arm64' });
 
   const result = runInstall(box, {
     unameS: 'Darwin',
     unameM: 'arm64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.equal(result.status, 0, `安裝應成功\nstderr: ${result.stderr}`);
+  assert.equal(result.status, 0, `安装应成功\nstderr: ${result.stderr}`);
   assert.equal(
-    result.curlCalls.some((call) => call.includes('/@speclink/cli/latest')),
+    result.curlCalls.some((call) => call.includes('/@specseal/cli/latest')),
     false,
-    '版本已釘選時不應查詢 latest',
+    '版本已钉选时不应查找 latest',
   );
 });
 
-// --- 實際安裝路徑 ---
+// --- 实际安装路径 ---
 
-shTest('安裝完成後 binary 落在安裝目錄且可執行', (t) => {
+shTest('安装完成后 binary 落在安装目录且可运行', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64' });
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.equal(result.status, 0, `安裝應成功\nstderr: ${result.stderr}`);
-  const installed = path.join(box.installDir, 'speclink');
-  assert.ok(existsSync(installed), 'speclink 應存在於安裝目錄');
-  assert.deepEqual(readdirSync(box.installDir), ['speclink'], '安裝目錄只該多出 speclink 一個檔');
+  assert.equal(result.status, 0, `安装应成功\nstderr: ${result.stderr}`);
+  const installed = path.join(box.installDir, 'specseal');
+  assert.ok(existsSync(installed), 'specseal 应存在于安装目录');
+  assert.deepEqual(readdirSync(box.installDir), ['specseal'], '安装目录只该多出 specseal 一个档');
   const run = spawnSync(installed, { encoding: 'utf8' });
-  assert.match(run.stdout, /speclink-fixture/, '安裝的應是 tgz 中 package/speclink 解出的那一份');
+  assert.match(run.stdout, /specseal-fixture/, '安装的应是 tgz 中 package/specseal 解出的那一份');
   const version = spawnSync(installed, ['--version'], { encoding: 'utf8' });
-  assert.match(version.stdout, new RegExp(VERSION.replace(/\./g, '\\.')), 'speclink --version 應印出安裝的版本');
+  assert.match(version.stdout, new RegExp(VERSION.replace(/\./g, '\\.')), 'specseal --version 应印出安装的版本');
 });
 
-shTest('未釘選版本時經 registry 的 latest 解析出版本再下載', (t) => {
+shTest('未钉选版本时经 registry 的 latest 解析出版本再下载', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'darwin-arm64' });
 
   const result = runInstall(box, {
     unameS: 'Darwin',
     unameM: 'arm64',
-    env: { SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.equal(result.status, 0, `安裝應成功\nstderr: ${result.stderr}`);
+  assert.equal(result.status, 0, `安装应成功\nstderr: ${result.stderr}`);
   assert.ok(
-    result.curlCalls.some((call) => call.includes('/@speclink/cli/latest')),
-    '未釘選版本時應查詢 registry 的 latest',
+    result.curlCalls.some((call) => call.includes('/@specseal/cli/latest')),
+    '未钉选版本时应查找 registry 的 latest',
   );
-  assert.ok(result.curlCalls.some((call) => call.includes(tgzUrl('darwin-arm64', VERSION))), '應下載解析出版本的 tgz');
-  assert.ok(existsSync(path.join(box.installDir, 'speclink')));
+  assert.ok(result.curlCalls.some((call) => call.includes(tgzUrl('darwin-arm64', VERSION))), '应下载解析出版本的 tgz');
+  assert.ok(existsSync(path.join(box.installDir, 'specseal')));
 });
 
-// --- integrity 驗證 ---
+// --- integrity 验证 ---
 
-shTest('integrity 不符時以非零結束且安裝目錄不留任何檔案', (t) => {
+shTest('integrity 不符时以非零结束且安装目录不留任何文件', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64', badIntegrity: true });
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.notEqual(result.status, 0, 'integrity 不符應以非零結束');
-  assert.match(result.stderr, /integrity|校驗/i, '錯誤訊息應指出 integrity 不符');
-  assert.deepEqual(readdirSync(box.installDir), [], 'integrity 不符時安裝目錄不得留下任何檔案');
+  assert.notEqual(result.status, 0, 'integrity 不符应以非零结束');
+  assert.match(result.stderr, /integrity|校验/i, '错误消息应指出 integrity 不符');
+  assert.deepEqual(readdirSync(box.installDir), [], 'integrity 不符时安装目录不得留下任何文件');
 });
 
-shTest('registry 的版本清單缺 integrity 時以非零結束', (t) => {
+shTest('registry 的版本清单缺 integrity 时以非零结束', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64', noIntegrity: true });
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.notEqual(result.status, 0, '缺 integrity 應以非零結束');
-  assert.match(result.stderr, /integrity/i, '錯誤訊息應指出缺少 integrity');
-  assert.deepEqual(readdirSync(box.installDir), [], '缺 integrity 時安裝目錄不得留下任何檔案');
+  assert.notEqual(result.status, 0, '缺 integrity 应以非零结束');
+  assert.match(result.stderr, /integrity/i, '错误消息应指出缺少 integrity');
+  assert.deepEqual(readdirSync(box.installDir), [], '缺 integrity 时安装目录不得留下任何文件');
 });
 
-// --- 參數面的尖角（sharp-edges 稽核） ---
+// --- 参数面的尖角（sharp-edges 稽核） ---
 
-shTest('SPECLINK_INSTALL_VERSION 不合 X.Y.Z 形即非零結束，不組 URL 也不連網', (t) => {
+shTest('SPECSEAL_INSTALL_VERSION 不合 X.Y.Z 形即非零结束，不组 URL 也不连网', (t) => {
   const box = sandbox(t);
   for (const bad of ['latest', '1.2', '../../etc', 'v0.5.0/../x', '0.5.0;rm -rf /']) {
     const result = runInstall(box, {
       unameS: 'Linux',
       unameM: 'x86_64',
-      env: { SPECLINK_INSTALL_VERSION: bad, SPECLINK_INSTALL_DIR: box.installDir },
+      env: { SPECSEAL_INSTALL_VERSION: bad, SPECSEAL_INSTALL_DIR: box.installDir },
     });
-    assert.notEqual(result.status, 0, `版本「${bad}」不應被接受`);
-    assert.match(result.stderr, /X\.Y\.Z/, `錯誤訊息應說明版本格式（${bad}）`);
-    assert.deepEqual(result.curlCalls, [], `不合形的版本不得連網（${bad}）`);
+    assert.notEqual(result.status, 0, `版本「${bad}」不应被接受`);
+    assert.match(result.stderr, /X\.Y\.Z/, `错误消息应说明版本格式（${bad}）`);
+    assert.deepEqual(result.curlCalls, [], `不合形的版本不得连网（${bad}）`);
   }
 });
 
-shTest('SPECLINK_INSTALL_REGISTRY 非 https 即非零結束（integrity 也來自同一個 registry，明文等於沒驗）', (t) => {
+shTest('SPECSEAL_INSTALL_REGISTRY 非 https 即非零结束（integrity 也来自同一个 registry，明文等于没验）', (t) => {
   const box = sandbox(t);
   for (const bad of ['http://registry.npmjs.org', 'ftp://x', 'registry.npmjs.org']) {
     const result = runInstall(box, {
       unameS: 'Darwin',
       unameM: 'arm64',
       args: ['--dry-run'],
-      env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_REGISTRY: bad },
+      env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_REGISTRY: bad },
     });
-    assert.notEqual(result.status, 0, `registry「${bad}」不應被接受`);
-    assert.match(result.stderr, /https/, '錯誤訊息應說明只接受 https');
+    assert.notEqual(result.status, 0, `registry「${bad}」不应被接受`);
+    assert.match(result.stderr, /https/, '错误消息应说明只接受 https');
   }
 });
 
-shTest('安裝目錄已有指向別處的 symlink 時，換掉連結本身而不寫穿到目標', (t) => {
+shTest('安装目录已有指向别处的 symlink 时，换掉链接本身而不写穿到目标', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64' });
-  // 模擬桌面 app 留下的 symlink：~/.local/bin/speclink → app bundle 內的 CLI。
+  // 仿真桌面 app 留下的 symlink：~/.local/bin/specseal → app bundle 内的 CLI。
   const bundled = path.join(box.dir, 'bundle-cli');
   writeFileSync(bundled, '#!/bin/sh\necho bundled\n');
   chmodSync(bundled, 0o755);
-  symlinkSync(bundled, path.join(box.installDir, 'speclink'));
+  symlinkSync(bundled, path.join(box.installDir, 'specseal'));
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.equal(result.status, 0, `安裝應成功\nstderr: ${result.stderr}`);
-  const installed = path.join(box.installDir, 'speclink');
-  assert.equal(lstatSync(installed).isSymbolicLink(), false, '安裝後應是一般檔，不再是 symlink');
-  assert.match(spawnSync(installed, { encoding: 'utf8' }).stdout, /speclink-fixture/);
-  assert.equal(readFileSync(bundled, 'utf8'), '#!/bin/sh\necho bundled\n', 'symlink 原本指到的檔不得被改寫');
-  assert.deepEqual(readdirSync(box.installDir), ['speclink'], '不得留下暫存檔');
+  assert.equal(result.status, 0, `安装应成功\nstderr: ${result.stderr}`);
+  const installed = path.join(box.installDir, 'specseal');
+  assert.equal(lstatSync(installed).isSymbolicLink(), false, '安装后应是一般档，不再是 symlink');
+  assert.match(spawnSync(installed, { encoding: 'utf8' }).stdout, /specseal-fixture/);
+  assert.equal(readFileSync(bundled, 'utf8'), '#!/bin/sh\necho bundled\n', 'symlink 原本指到的档不得被改写');
+  assert.deepEqual(readdirSync(box.installDir), ['specseal'], '不得留下暂存盘');
 });
 
-// --- musl（Alpine 等）不在支援範圍 ---
+// --- musl（Alpine 等）不在支持范围 ---
 
-shTest('Linux 上偵測到 musl 時以非零結束並說明只支援 glibc，不下載', (t) => {
+shTest('Linux 上侦测到 musl 时以非零结束并说明只支持 glibc，不下载', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64' });
   // musl 的 ldd --version 印 "musl libc (x86_64)"；glibc 印 "ldd (GNU libc) 2.39"。
@@ -425,33 +425,33 @@ shTest('Linux 上偵測到 musl 時以非零結束並說明只支援 glibc，不
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.notEqual(result.status, 0, 'musl 應以非零結束');
-  assert.match(result.stderr, /musl/, '錯誤訊息應點名 musl');
-  assert.match(result.stderr, /glibc/, '錯誤訊息應說明只支援 glibc');
-  assert.deepEqual(result.curlCalls, [], 'musl 上不該下載');
-  assert.deepEqual(readdirSync(box.installDir), [], 'musl 上安裝目錄不得留下任何檔案');
+  assert.notEqual(result.status, 0, 'musl 应以非零结束');
+  assert.match(result.stderr, /musl/, '错误消息应点名 musl');
+  assert.match(result.stderr, /glibc/, '错误消息应说明只支持 glibc');
+  assert.deepEqual(result.curlCalls, [], 'musl 上不该下载');
+  assert.deepEqual(readdirSync(box.installDir), [], 'musl 上安装目录不得留下任何文件');
 });
 
-// --- 失敗路徑不留殘檔 ---
+// --- 失败路径不留残档 ---
 
-/// 只含指定工具的 PATH 目錄：把當前 PATH 找得到的工具以 symlink 收進來，漏掉的那個
-/// 就是要模擬「機器上沒裝」的工具。
+/// 只含指定工具的 PATH 目录：把当前 PATH 找得到的工具以 symlink 收进来，漏掉的那个
+/// 就是要仿真「机器上没装」的工具。
 function toolboxWithout(box, missing) {
   const toolbox = path.join(box.dir, 'toolbox');
   mkdirSync(toolbox);
   const tools = ['sh', 'grep', 'head', 'sed', 'mktemp', 'rm', 'tar', 'mkdir', 'cp', 'chmod', 'mv', 'basename', 'cat'];
   for (const tool of tools.filter((name) => name !== missing)) {
     const found = spawnSync('sh', ['-c', `command -v ${tool}`], { encoding: 'utf8' }).stdout.trim();
-    assert.ok(found, `測試機缺 ${tool}`);
+    assert.ok(found, `测试机缺 ${tool}`);
     symlinkSync(found, path.join(toolbox, tool));
   }
   return toolbox;
 }
 
-shTest('找不到 openssl 時以非零結束、不下載也不寫入安裝目錄（integrity 無法驗就不裝）', (t) => {
+shTest('找不到 openssl 时以非零结束、不下载也不写入安装目录（integrity 无法验就不装）', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64' });
   const toolbox = toolboxWithout(box, 'openssl');
@@ -459,19 +459,19 @@ shTest('找不到 openssl 時以非零結束、不下載也不寫入安裝目錄
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir, PATH: `${box.binDir}:${toolbox}` },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir, PATH: `${box.binDir}:${toolbox}` },
   });
 
-  assert.notEqual(result.status, 0, '缺 openssl 應以非零結束');
-  assert.match(result.stderr, /openssl/, '錯誤訊息應點名 openssl');
-  assert.deepEqual(result.curlCalls, [], '缺 openssl 時不該先下載');
-  assert.deepEqual(readdirSync(box.installDir), [], '缺 openssl 時安裝目錄不得留下任何檔案');
+  assert.notEqual(result.status, 0, '缺 openssl 应以非零结束');
+  assert.match(result.stderr, /openssl/, '错误消息应点名 openssl');
+  assert.deepEqual(result.curlCalls, [], '缺 openssl 时不该先下载');
+  assert.deepEqual(readdirSync(box.installDir), [], '缺 openssl 时安装目录不得留下任何文件');
 });
 
-shTest('落檔途中失敗（chmod 非零）時暫存名的檔一併清掉，安裝目錄不留隱藏檔', (t) => {
+shTest('落档途中失败（chmod 非零）时暂存名的档一并清掉，安装目录不留隐藏档', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64' });
-  // 假 chmod 一律失敗：cp 到暫存名之後、mv 換名之前的那一步。
+  // 假 chmod 一律失败：cp 到暂存名之后、mv 换名之前的那一步。
   const fakeChmod = path.join(box.binDir, 'chmod');
   writeFileSync(fakeChmod, '#!/bin/sh\nexit 1\n');
   chmodSync(fakeChmod, 0o755);
@@ -479,29 +479,29 @@ shTest('落檔途中失敗（chmod 非零）時暫存名的檔一併清掉，安
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_VERSION: VERSION, SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_VERSION: VERSION, SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.notEqual(result.status, 0, 'chmod 失敗應以非零結束');
-  assert.deepEqual(readdirSync(box.installDir), [], '失敗後安裝目錄不得留下 .speclink.tmp.* 暫存檔');
+  assert.notEqual(result.status, 0, 'chmod 失败应以非零结束');
+  assert.deepEqual(readdirSync(box.installDir), [], '失败后安装目录不得留下 .specseal.tmp.* 暂存盘');
 });
 
 // --- PATH 提示 ---
 
-shTest('安裝目錄不在 PATH 時提示使用者', (t) => {
+shTest('安装目录不在 PATH 时提示用户', (t) => {
   const box = sandbox(t);
   stageRegistry(box, { platform: 'linux-x64' });
 
   const result = runInstall(box, {
     unameS: 'Linux',
     unameM: 'x86_64',
-    env: { SPECLINK_INSTALL_DIR: box.installDir },
+    env: { SPECSEAL_INSTALL_DIR: box.installDir },
   });
 
-  assert.equal(result.status, 0, `安裝應成功\nstderr: ${result.stderr}`);
+  assert.equal(result.status, 0, `安装应成功\nstderr: ${result.stderr}`);
   assert.match(
     `${result.stdout}${result.stderr}`,
     new RegExp('PATH'),
-    '安裝目錄不在 PATH 時應提示',
+    '安装目录不在 PATH 时应提示',
   );
 });

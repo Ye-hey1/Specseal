@@ -1,22 +1,22 @@
-//! connection registry（design 決策 4）與登入／登出編排（決策 3、5、6）。
+//! connection registry（design 决策 4）与登录／注销编排（决策 3、5、6）。
 //!
-//! registry：saved servers 的無 secret profile 清單，存 app 設定目錄
-//! （appConfigDir）下的 connections.json。條目＝{id、origin（baseUrl 正規化）、
-//! name、lastActorDisplay?}——絕不含任何 token 欄位（規格「connection registry
-//! 不含 secret 且跨重啟保留」）。一 origin 一條目，重複新增即更新顯示名。
-//! 壞 JSON 歸零清單（與分頁持久化同一寬容哲學）。
+//! registry：saved servers 的无 secret profile 清单，存 app 设置目录
+//! （appConfigDir）下的 connections.json。条目＝{id、origin（baseUrl 范式）、
+//! name、lastActorDisplay?}——绝不含任何 token 字段（规格「connection registry
+//! 不含 secret 且跨重启保留」）。一 origin 一条目，重复添加即更新显示名。
+//! 坏 JSON 归零清单（与分页持久化同一宽容哲学）。
 //!
-//! 編排：connection_login／pat_login／logout／refresh_connection 收注入的
-//! CredentialStore 與 [`DesktopLoginIo`]、無 tauri 型別——tauri 接線在 lib.rs。
-//! 探索、選擇、三種登入與登出都委派給 speclink-remote 的同一份登入程式
-//! （client-browser-login D7），和 CLI 共用；等待瀏覽器或裝置核准的迴圈也在那邊，
-//! 這裡只把階段轉成送往前端的事件、把取消接到旗標。secret 只在此層與
-//! CredentialStore 之間流動，錯誤訊息與事件不夾帶 secret。
+//! 编排：connection_login／pat_login／logout／refresh_connection 收注入的
+//! CredentialStore 与 [`DesktopLoginIo`]、无 tauri 类型——tauri 接线在 lib.rs。
+//! 探索、选择、三种登录与注销都委派给 specseal-remote 的同一份登录程序
+//! （client-browser-login D7），和 CLI 共用；等待浏览器或设备核准的循环也在那边，
+//! 这里只把阶段转成送往前端的事件、把取消接到旗标。secret 只在此层与
+//! CredentialStore 之间流动，错误消息与事件不夹带 secret。
 
 use serde::{Deserialize, Serialize};
-use speclink_remote::credentials::{CredentialKind, CredentialStore};
-use speclink_remote::device;
-use speclink_remote::login::{
+use specseal_remote::credentials::{CredentialKind, CredentialStore};
+use specseal_remote::device;
+use specseal_remote::login::{
     self as remote_login, LoginOutcome, LoginPhase, LoginTarget, PatLoginOutcome, Plan,
 };
 use std::collections::HashMap;
@@ -24,27 +24,27 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-pub use speclink_remote::login::normalize_origin;
+pub use specseal_remote::login::normalize_origin;
 
-/// registry 的一個 saved server 條目。欄位全集即此——序列化測試釘死。
+/// registry 的一个 saved server 条目。字段全集即此——串行化测试钉死。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionEntry {
     pub id: String,
-    /// 正規化後的 server origin（scheme://host[:port]，小寫、無路徑）。
+    /// 范式后的 server origin（scheme://host[:port]，小写、无路径）。
     pub origin: String,
     pub name: String,
-    /// 最後登入身分的顯示名；未登入過即省略。
+    /// 最后登录身分的显示名；未登录过即省略。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_actor_display: Option<String>,
 }
 
-/// registry 檔在 app 設定目錄下的固定位置。
+/// registry 档在 app 设置目录下的固定位置。
 pub fn registry_path(config_dir: &Path) -> PathBuf {
     config_dir.join("connections.json")
 }
 
-/// 讀 registry：檔案不存在或壞 JSON 一律歸零清單、不崩潰。
+/// 读 registry：文件不存在或坏 JSON 一律归零清单、不崩溃。
 pub fn read_registry(path: &Path) -> Vec<ConnectionEntry> {
     std::fs::read_to_string(path)
         .ok()
@@ -52,21 +52,21 @@ pub fn read_registry(path: &Path) -> Vec<ConnectionEntry> {
         .unwrap_or_default()
 }
 
-/// registry 檔的行程內互斥：command async 化後 add／remove 的
-/// read→modify→write 不再由主執行緒天然序列化，跨執行緒併行的整檔覆寫會
-/// 互相蓋掉——所有 mutation 先取這把鎖（跨行程仍無鎖，屬既有邊界）。
+/// registry 档的行程内互斥：command async 化后 add／remove 的
+/// read→modify→write 不再由主线程天然串行化，跨线程并行的整档覆写会
+/// 互相盖掉——所有 mutation 先取这把锁（跨行程仍无锁，属既有边界）。
 static REGISTRY_MUTATION: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// 取得 registry mutation 鎖；poisoned（前一持有者 panic）照常放行——
-/// registry 操作間無跨呼叫的記憶體不變量，鎖只管檔案序列化。
+/// 取得 registry mutation 锁；poisoned（前一持有者 panic）照常放行——
+/// registry 操作间无跨调用的内存不变量，锁只管文件串行化。
 pub fn registry_guard() -> std::sync::MutexGuard<'static, ()> {
     REGISTRY_MUTATION
         .lock()
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-/// 新增連線的完整交易（鎖內 read→upsert→write）：併行呼叫不互相蓋寫。
-/// 回傳剛落地的條目。
+/// 添加连接的完整交易（锁内 read→upsert→write）：并行调用不互相盖写。
+/// 回传刚落地的条目。
 pub fn add_connection(
     path: &Path,
     base_url: &str,
@@ -79,12 +79,12 @@ pub fn add_connection(
     Ok(entries
         .into_iter()
         .find(|e| e.id == id)
-        .expect("剛 upsert 的條目存在"))
+        .expect("刚 upsert 的条目存在"))
 }
 
-/// 移除連線的完整交易（鎖內 read→logout→write）：先走登出語意（撤銷＋刪
-/// Keychain entry）再刪條目；登出的本機刪除失敗上拋、不刪條目——避免留下
-/// 孤兒 credential。回傳被移除條目的 origin（無此 id＝`Ok(None)`，冪等）。
+/// 移除连接的完整交易（锁内 read→logout→write）：先走注销语意（撤销＋删
+/// Keychain entry）再删条目；注销的本机删除失败上抛、不删条目——避免留下
+/// 孤儿 credential。回传被移除条目的 origin（无此 id＝`Ok(None)`，幂等）。
 pub fn remove_connection(
     path: &Path,
     id: &str,
@@ -97,24 +97,24 @@ pub fn remove_connection(
     };
     let origin = entry.origin.clone();
     logout(&origin, credentials, path)?;
-    entries = read_registry(path); // logout 剛清了身分欄位
+    entries = read_registry(path); // logout 刚清了身分字段
     entries.retain(|e| e.id != id);
     write_registry(path, &entries)?;
     Ok(Some(origin))
 }
 
-/// 寫 registry：建父目錄後整檔覆寫。
+/// 写 registry：建父目录后整档覆写。
 pub fn write_registry(path: &Path, entries: &[ConnectionEntry]) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("無法建立設定目錄：{e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("无法创建设置目录：{e}"))?;
     }
     let text =
-        serde_json::to_string_pretty(entries).map_err(|e| format!("無法序列化連線清單：{e}"))?;
-    std::fs::write(path, text).map_err(|e| format!("無法寫入連線清單：{e}"))
+        serde_json::to_string_pretty(entries).map_err(|e| format!("无法串行化连接清单：{e}"))?;
+    std::fs::write(path, text).map_err(|e| format!("无法写入连接清单：{e}"))
 }
 
-/// 新增或更新連線：同 origin 已存在即更新顯示名（id 穩定），否則新增條目。
-/// 回傳該條目的 id。
+/// 添加或更新连接：同 origin 已存在即更新显示名（id 稳定），否则添加条目。
+/// 回传该条目的 id。
 pub fn upsert_connection(
     entries: &mut Vec<ConnectionEntry>,
     base_url: &str,
@@ -138,9 +138,9 @@ pub fn upsert_connection(
     Ok(id)
 }
 
-/// `inspect_checkout` 的零寫入結果：確認過的 checkout 根路徑，以及要在 picker
-/// 中預選的既有 built-in 工具選集（claude／codex／copilot／pi／cursor，順序穩定）。IPC 序列化為
-/// camelCase `{ root, tools }`——不攜帶任何 credential 或 Server 資料。
+/// `inspect_checkout` 的零写入结果：确认过的 checkout 根路径，以及要在 picker
+/// 中预选的既有 built-in 工具选集（claude／codex／copilot／pi／cursor，顺序稳定）。IPC 串行化为
+/// camelCase `{ root, tools }`——不携带任何 credential 或 Server 数据。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckoutInspection {
@@ -148,9 +148,9 @@ pub struct CheckoutInspection {
     pub tools: Vec<String>,
 }
 
-/// 一次驗證資料夾與 marker 一致性，回傳確認過的 checkout 根路徑（display 字串）。
-/// 零寫入：`inspect_checkout` 與 `bind_checkout` 共用此邊界，因此提交時重做的是
-/// 同一組檢查。相符 marker 只接受相同 origin/repo；無 marker 時要求 `.git` 存在。
+/// 一次验证文件夹与 marker 一致性，回传确认过的 checkout 根路径（display 字符串）。
+/// 零写入：`inspect_checkout` 与 `bind_checkout` 共用此边界，因此提交时重做的是
+/// 同一组检查。相符 marker 只接受相同 origin/repo；无 marker 时要求 `.git` 存在。
 fn validate_checkout(
     root: &Path,
     selected_origin: &str,
@@ -158,56 +158,56 @@ fn validate_checkout(
 ) -> Result<String, String> {
     if !root.is_dir() {
         return Err(format!(
-            "無法連接 checkout：{} 不是現有資料夾",
+            "无法连接 checkout：{} 不是现有文件夹",
             root.display()
         ));
     }
     let selected_origin = normalize_origin(selected_origin)?;
     let app =
-        speclink_core::config::AppConfig::load(&root.join(".speclink.yaml")).map_err(|e| e.to_string())?;
+        specseal_core::config::AppConfig::load(&root.join(".specseal.yaml")).map_err(|e| e.to_string())?;
 
     if let Some(remote) = app.remote {
         let marker_url = remote
             .url
             .filter(|url| !url.trim().is_empty())
-            .ok_or_else(|| "remote marker 缺少 remote.url，無法確認 checkout 綁定".to_string())?;
+            .ok_or_else(|| "remote marker 缺少 remote.url，无法确认 checkout 绑定".to_string())?;
         let marker_origin = normalize_origin(&marker_url)
-            .map_err(|e| format!("remote marker 的 url「{marker_url}」無效：{e}"))?;
+            .map_err(|e| format!("remote marker 的 url「{marker_url}」无效：{e}"))?;
         let marker_repo = remote
             .repo
             .filter(|repo| !repo.trim().is_empty())
             .unwrap_or_else(|| "（未指定 repo）".to_string());
         if marker_origin != selected_origin || marker_repo != selected_repo {
             return Err(format!(
-                "此資料夾的 remote marker 指向 {marker_origin} / {marker_repo}，與所選 {selected_origin} / {selected_repo} 不一致"
+                "此文件夹的 remote marker 指向 {marker_origin} / {marker_repo}，与所选 {selected_origin} / {selected_repo} 不一致"
             ));
         }
     } else if !root.join(".git").exists() {
-        return Err("選擇的資料夾不是 Git repository，無法連接 checkout".to_string());
+        return Err("选择的文件夹不是 Git repository，无法连接 checkout".to_string());
     }
     Ok(root.display().to_string())
 }
 
-/// 決定 picker 的預選：`.speclink.yaml` 記錄了 built-in 選集就用它（claude／codex／copilot／
-/// pi／cursor，去重、順序穩定）；缺清單、或清單裡沒有任何可解析的內建名（只有描述子／未知名）
-/// 時，只依實際 Claude／Codex footprint 預選（`.github/`、`.pi/`、`.cursor/` 不算 Copilot、Pi、
-/// Cursor 的 footprint），絕不補 Claude fallback。
+/// 决定 picker 的预选：`.specseal.yaml` 记录了 built-in 选集就用它（claude／codex／copilot／
+/// pi／cursor，去重、顺序稳定）；缺清单、或清单里没有任何可解析的内置名（只有描述子／未知名）
+/// 时，只依实际 Claude／Codex footprint 预选（`.github/`、`.pi/`、`.cursor/` 不算 Copilot、Pi、
+/// Cursor 的 footprint），绝不补 Claude fallback。
 fn preselected_tools(root: &Path) -> Vec<String> {
-    let app = match speclink_core::config::AppConfig::load(&root.join(".speclink.yaml")) {
+    let app = match specseal_core::config::AppConfig::load(&root.join(".specseal.yaml")) {
         Ok(app) => app,
         Err(_) => return Vec::new(),
     };
-    // 工具選集的解析只有 core 一份（ToolSelection）：這裡不再自寫 tools 迴圈。
-    let selection = speclink_core::init::ToolSelection::resolve(root, &app);
+    // 工具选集的解析只有 core 一份（ToolSelection）：这里不再自写 tools 循环。
+    let selection = specseal_core::init::ToolSelection::resolve(root, &app);
     let picked = if selection.legacy_fallback || selection.builtins.is_empty() {
-        speclink_core::init::detect_footprint_tools(root)
+        specseal_core::init::detect_footprint_tools(root)
     } else {
         selection.builtins
     };
     picked.iter().map(|t| t.name().to_string()).collect()
 }
 
-/// 先檢查階段（零寫入）：驗證資料夾與 marker，回傳確認過的根路徑與要預選的工具選集。
+/// 先检查阶段（零写入）：验证文件夹与 marker，回传确认过的根路径与要预选的工具选集。
 pub fn inspect_checkout(
     root: &Path,
     selected_origin: &str,
@@ -222,10 +222,10 @@ pub fn inspect_checkout(
     })
 }
 
-/// 提交階段：重做 marker 邊界驗證，無 marker 時寫入與 CLI init remote 同構的
-/// remote section，再對非空 built-in 選集執行 Core reconciliation（生成所選、
-/// 清理未選、保留自訂描述子與使用者內容）。全部成功才回傳 checkout 根路徑供
-/// remote locator 的 checkoutRoot 使用；任一步失敗回傳單行 Err、不回傳 root。
+/// 提交阶段：重做 marker 边界验证，无 marker 时写入与 CLI init remote 同构的
+/// remote section，再对非空 built-in 选集运行 Core reconciliation（生成所选、
+/// 清理未选、保留自订描述子与用户内容）。全部成功才回传 checkout 根路径供
+/// remote locator 的 checkoutRoot 使用；任一步失败回传单行 Err、不回传 root。
 pub fn bind_checkout(
     root: &Path,
     selected_origin: &str,
@@ -233,45 +233,45 @@ pub fn bind_checkout(
     selected_repo: &str,
     tools: &[String],
 ) -> Result<String, String> {
-    // 空選集／未知工具在任何寫入之前被拒（fail loud）。
+    // 空选集／未知工具在任何写入之前被拒（fail loud）。
     let selected =
-        speclink_core::init::parse_tool_names(tools).map_err(|e| single_line(&e.to_string()))?;
+        specseal_core::init::parse_tool_names(tools).map_err(|e| single_line(&e.to_string()))?;
     if selected.is_empty() {
-        return Err("請至少選擇一個內建工具：claude、codex、copilot、pi、cursor".to_string());
+        return Err("请至少选择一个内置工具：claude、codex、copilot、pi、cursor".to_string());
     }
     let root_str = validate_checkout(root, selected_origin, selected_repo)?;
 
-    // 無 marker 時先寫入同構 remote section，讓後續 reconciliation 認得 remote 模式。
-    if speclink_core::config::AppConfig::load(&root.join(".speclink.yaml"))
+    // 无 marker 时先写入同构 remote section，让后续 reconciliation 认得 remote 模式。
+    if specseal_core::config::AppConfig::load(&root.join(".specseal.yaml"))
         .map_err(|e| e.to_string())?
         .remote
         .is_none()
     {
         let normalized = normalize_origin(selected_origin)?;
-        let project_url = format!("{normalized}/api/speclink/v1/projects/{selected_project}");
-        speclink_core::config::write_remote_section(root, &project_url, Some(selected_repo))
-            .map_err(|e| format!("無法寫入 remote marker：{e}"))?;
+        let project_url = format!("{normalized}/api/specseal/v1/projects/{selected_project}");
+        specseal_core::config::write_remote_section(root, &project_url, Some(selected_repo))
+            .map_err(|e| format!("无法写入 remote marker：{e}"))?;
     }
 
-    speclink_core::init::reconcile_builtin_tools(root, &selected)
+    specseal_core::init::reconcile_builtin_tools(root, &selected)
         .map_err(|e| single_line(&e.to_string()))?;
     Ok(root_str)
 }
 
-/// 把多行錯誤壓成單行（IPC 錯誤在 UI 只呈現一行）。
+/// 把多行错误压成单行（IPC 错误在 UI 只呈现一行）。
 fn single_line(message: &str) -> String {
     message.split('\n').next().unwrap_or(message).trim().to_string()
 }
 
-// --- 登入／登出編排（client-browser-login D7、D9） ---
+// --- 登录／注销编排（client-browser-login D7、D9） ---
 
-/// 送往前端的登入階段事件名稱。
+/// 送往前端的登录阶段事件名称。
 pub const LOGIN_PHASE_EVENT: &str = "connection-login-phase";
 
-/// 送往前端的登入階段（事件 [`LOGIN_PHASE_EVENT`] 的內容）。`kind` 與欄位名和
-/// 前端的 `ConnectionPhase` 一致，前端收到即可直接顯示。只帶使用者要看的東西：
-/// 授權網址，或裝置碼與驗證網址，以及截止時刻（epoch 毫秒）——授權網址含
-/// state 與 PKCE challenge，不含授權碼、PKCE verifier 或任何 token。
+/// 送往前端的登录阶段（事件 [`LOGIN_PHASE_EVENT`] 的内容）。`kind` 与字段名和
+/// 前端的 `ConnectionPhase` 一致，前端收到即可直接显示。只带用户要看的东西：
+/// 授权网址，或设备码与验证网址，以及截止时刻（epoch 毫秒）——授权网址含
+/// state 与 PKCE challenge，不含授权码、PKCE verifier 或任何 token。
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct LoginPhaseEvent {
     pub origin: String,
@@ -292,8 +292,8 @@ pub enum PhaseView {
     },
 }
 
-/// Desktop 的登入 IO：階段經 `emit` 送往前端、瀏覽器經 opener 外掛開啟、
-/// 取消讀 `cancel` 旗標（由 connection_login_cancel 設定）。
+/// Desktop 的登录 IO：阶段经 `emit` 送往前端、浏览器经 opener 插件打开、
+/// 取消读 `cancel` 旗标（由 connection_login_cancel 设置）。
 pub struct DesktopLoginIo<'a> {
     pub origin: &'a str,
     pub emit: &'a (dyn Fn(LoginPhaseEvent) + Sync),
@@ -301,7 +301,7 @@ pub struct DesktopLoginIo<'a> {
     pub cancel: &'a AtomicBool,
 }
 
-/// 取消的反應時間：等待被切成這麼長的片段，每段之間看一次旗標。
+/// 取消的反应时间：等待被切成这么长的片段，每段之间看一次旗标。
 const CANCEL_POLL: std::time::Duration = std::time::Duration::from_millis(100);
 
 fn expires_at_ms(expires_in: u64) -> u64 {
@@ -330,7 +330,7 @@ impl remote_login::LoginIo for DesktopLoginIo<'_> {
         (self.emit)(LoginPhaseEvent { origin: self.origin.to_string(), phase });
     }
 
-    /// 開不了也繼續等：等待面有可複製的網址。
+    /// 开不了也继续等：等待面有可拷贝的网址。
     fn open_browser(&self, url: &str) -> bool {
         (self.open_browser)(url).is_ok()
     }
@@ -347,7 +347,7 @@ impl remote_login::LoginIo for DesktopLoginIo<'_> {
     }
 }
 
-/// 被拒或逾時的那一輪用的是哪一種登入：兩種的說法不同，前端照它選文案。
+/// 被拒或逾时的那一轮用的是哪一种登录：两种的说法不同，前端照它选文案。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum LoginMethod {
@@ -355,15 +355,15 @@ pub enum LoginMethod {
     Device,
 }
 
-/// 一次登入的可讀結果。連線錯誤走 Err、絕不進 PAT fallback。
+/// 一次登录的可读结果。连接错误走 Err、绝不进 PAT fallback。
 pub enum ConnectionLogin {
-    /// 已登入。`access_token` 是登入當下快取的短效 token，交給 TokenManager
-    /// 在記憶體持有；不落盤、不過境 TS。
+    /// 已登录。`access_token` 是登录当下缓存的短效 token，交给 TokenManager
+    /// 在内存持有；不落盘、不过境 TS。
     LoggedIn {
         display: String,
         access_token: Option<String>,
     },
-    /// server 沒有 device flow（沒有宣告時）或只收存取金鑰：就地改收 PAT。
+    /// server 没有 device flow（没有声明时）或只收访问密钥：就地改收 PAT。
     PatRequired,
     Denied(LoginMethod),
     Expired(LoginMethod),
@@ -371,8 +371,8 @@ pub enum ConnectionLogin {
 }
 
 impl ConnectionLogin {
-    /// 回給前端的內容：狀態，加上顯示名（已登入）或登入方式（被拒、逾時）。
-    /// access token 不在裡面。
+    /// 回给前端的内容：状态，加上显示名（已登录）或登录方式（被拒、逾时）。
+    /// access token 不在里面。
     pub fn view(&self) -> serde_json::Value {
         match self {
             ConnectionLogin::LoggedIn { display, .. } => {
@@ -386,7 +386,7 @@ impl ConnectionLogin {
     }
 }
 
-/// 印出時不帶 access token，`{:?}` 進了 log 也不會洩漏。
+/// 印出时不带 access token，`{:?}` 进了 log 也不会泄漏。
 impl std::fmt::Debug for ConnectionLogin {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -403,9 +403,9 @@ impl std::fmt::Debug for ConnectionLogin {
     }
 }
 
-/// 登入（D7）：先以 Keychain 既有 refresh credential 靜默換新（規格「rotation 後
-/// 舊 credential 失效仍可用」——重啟後無需重新登入）；沒有或已失效才探索
-/// server 宣告的方式、依固定順序選擇並跑到終態。Desktop 不指定方式。
+/// 登录（D7）：先以 Keychain 既有 refresh credential 静默换新（规格「rotation 后
+/// 旧 credential 失效仍可用」——重启后无需重新登录）；没有或已失效才探索
+/// server 声明的方式、依固定顺序选择并跑到终态。Desktop 不指定方式。
 pub fn connection_login(
     origin: &str,
     credentials: &dyn CredentialStore,
@@ -418,12 +418,12 @@ pub fn connection_login(
                 let display = record_identity_from_server(origin, &access, registry_path)?;
                 return Ok(ConnectionLogin::LoggedIn { display, access_token: Some(access) });
             }
-            // 明確被拒＝credential 已死：清掉殘骸、走完整登入。
+            // 明确被拒＝credential 已死：清掉残骸、走完整登录。
             Err(RefreshFailure::Rejected(_)) => {
-                speclink_remote::auth::clear_keychain_login(origin, credentials);
+                specseal_remote::auth::clear_keychain_login(origin, credentials);
             }
-            // 生死未卜（5xx／不可達／Keychain 故障）：credential 原封不動，
-            // 回報連線錯誤——暫時性失敗不是語意訊號。
+            // 生死未卜（5xx／不可达／Keychain 故障）：credential 原封不动，
+            // 回报连接错误——暂时性失败不是语意信号。
             Err(RefreshFailure::Unavailable(message)) => return Err(message),
         }
     }
@@ -431,47 +431,47 @@ pub fn connection_login(
     let discovery = remote_login::discover(origin).map_err(|e| e.message)?;
     let plan = remote_login::choose(&discovery, None).map_err(|e| e.to_string())?;
     let method = if matches!(plan, Plan::Browser(_)) { LoginMethod::Browser } else { LoginMethod::Device };
-    let lock_dir = speclink_remote::auth::speclink_config_dir();
+    let lock_dir = specseal_remote::auth::specseal_config_dir();
     let target = LoginTarget { origin, credentials, lock_dir: &lock_dir };
     Ok(match remote_login::login(&target, &plan, io) {
         LoginOutcome::LoggedIn { display, .. } => {
             record_identity(registry_path, origin, Some(&display))?;
             ConnectionLogin::LoggedIn {
                 display,
-                access_token: speclink_remote::refresh::cached_bearer(origin, credentials),
+                access_token: specseal_remote::refresh::cached_bearer(origin, credentials),
             }
         }
-        // credential 已存好、只是查不到身分：照樣是已登入，身分欄留空。
+        // credential 已存好、只是查不到身分：照样是已登录，身分栏留空。
         LoginOutcome::LoggedInWithoutIdentity { .. } => ConnectionLogin::LoggedIn {
             display: String::new(),
-            access_token: speclink_remote::refresh::cached_bearer(origin, credentials),
+            access_token: specseal_remote::refresh::cached_bearer(origin, credentials),
         },
         LoginOutcome::Denied => ConnectionLogin::Denied(method),
         LoginOutcome::Expired => ConnectionLogin::Expired(method),
         LoginOutcome::Cancelled => ConnectionLogin::Cancelled,
         LoginOutcome::Unsupported | LoginOutcome::TokenRequired => ConnectionLogin::PatRequired,
         LoginOutcome::KeychainUnavailable => {
-            return Err("無法安全儲存登入憑證：系統 Keychain 無法使用".to_string())
+            return Err("无法安全保存登录凭证：系统 Keychain 无法使用".to_string())
         }
         LoginOutcome::Failed(message) => return Err(message),
     })
 }
 
-/// 這個 origin 在 Keychain 有沒有登入：瀏覽器或裝置登入的 refresh 條目，或
-/// 存取金鑰的條目。CLI 寫的是同一組條目，所以在 CLI 以存取金鑰登入後，這裡
-/// 也算已登入，反過來也一樣。
+/// 这个 origin 在 Keychain 有没有登录：浏览器或设备登录的 refresh 条目，或
+/// 访问密钥的条目。CLI 写的是同一组条目，所以在 CLI 以访问密钥登录后，这里
+/// 也算已登录，反过来也一样。
 pub fn logged_in(origin: &str, credentials: &dyn CredentialStore) -> bool {
     [CredentialKind::Refresh, CredentialKind::Pat]
         .into_iter()
         .any(|kind| matches!(credentials.get(origin, kind), Ok(Some(_))))
 }
 
-/// 進行中的登入的取消旗標（keyed by origin）。同一 origin 再按登入＝取消前一輪。
+/// 进行中的登录的取消旗标（keyed by origin）。同一 origin 再按登录＝取消前一轮。
 #[derive(Default)]
 pub struct LoginCancels(Mutex<HashMap<String, Arc<AtomicBool>>>);
 
 impl LoginCancels {
-    /// 開始一輪登入，回傳它的取消旗標；同 origin 前一輪仍在跑就先取消它。
+    /// 开始一轮登录，回传它的取消旗标；同 origin 前一轮仍在跑就先取消它。
     pub fn begin(&self, origin: &str) -> Arc<AtomicBool> {
         let flag = Arc::new(AtomicBool::new(false));
         let previous = self
@@ -485,14 +485,14 @@ impl LoginCancels {
         flag
     }
 
-    /// 取消該 origin 正在跑的那一輪（沒有就什麼都不做）。
+    /// 取消该 origin 正在跑的那一轮（没有就什么都不做）。
     pub fn cancel(&self, origin: &str) {
         if let Some(flag) = self.0.lock().expect("login cancel lock").get(origin) {
             flag.store(true, Ordering::SeqCst);
         }
     }
 
-    /// 一輪結束：只移除自己的旗標，不動之後開始的那一輪。
+    /// 一轮结束：只移除自己的旗标，不动之后开始的那一轮。
     pub fn end(&self, origin: &str, flag: &Arc<AtomicBool>) {
         let mut map = self.0.lock().expect("login cancel lock");
         if map.get(origin).is_some_and(|current| Arc::ptr_eq(current, flag)) {
@@ -501,38 +501,38 @@ impl LoginCancels {
     }
 }
 
-/// PAT 登入（規格「PAT 登入 SHALL 以身分查詢驗證有效後才存入 Keychain」）：
-/// 委派共用的 pat_login，Desktop 不退到憑證檔（credential 只在 Keychain）。
-/// PAT 僅單次過境此參數，不回讀、不入 log。
+/// PAT 登录（规格「PAT 登录 SHALL 以身分查找验证有效后才存入 Keychain」）：
+/// 委派共用的 pat_login，Desktop 不退到凭证档（credential 只在 Keychain）。
+/// PAT 仅单次过境此参数，不回读、不入 log。
 pub fn pat_login(
     origin: &str,
     pat: &str,
     credentials: &dyn CredentialStore,
     registry_path: &Path,
 ) -> Result<String, String> {
-    let lock_dir = speclink_remote::auth::speclink_config_dir();
+    let lock_dir = specseal_remote::auth::specseal_config_dir();
     let target = LoginTarget { origin, credentials, lock_dir: &lock_dir };
     match remote_login::pat_login(&target, pat, None) {
         PatLoginOutcome::LoggedIn { display, .. } => {
             record_identity(registry_path, origin, Some(&display))?;
             Ok(display)
         }
-        PatLoginOutcome::Denied => Err("PAT 無效或已被撤銷".to_string()),
-        PatLoginOutcome::KeychainUnavailable => Err("無法存入系統 Keychain".to_string()),
+        PatLoginOutcome::Denied => Err("PAT 无效或已被撤销".to_string()),
+        PatLoginOutcome::KeychainUnavailable => Err("无法存入系统 Keychain".to_string()),
         PatLoginOutcome::Failed(message) => Err(message),
     }
 }
 
-/// 登出結果：撤銷是盡力語意（server 不可達不阻擋本機刪除）；PAT 無自助撤銷
-/// 端點，回報提示請使用者至 server 帳號頁撤銷。
+/// 注销结果：撤销是尽力语意（server 不可达不阻挡本机删除）；PAT 无自助撤销
+/// 端点，回报提示请用户至 server 帐号页撤销。
 #[derive(Debug)]
 pub struct LogoutOutcome {
     pub revoked_on_server: bool,
     pub pat_notice: bool,
 }
 
-/// 登出：委派共用的 logout（清掉的 Keychain 範圍與 CLI 相同：refresh、access
-/// token 快取、PAT），再清 registry 身分。
+/// 注销：委派共用的 logout（清掉的 Keychain 范围与 CLI 相同：refresh、access
+/// token 缓存、PAT），再清 registry 身分。
 pub fn logout(
     origin: &str,
     credentials: &dyn CredentialStore,
@@ -546,27 +546,27 @@ pub fn logout(
     })
 }
 
-/// rotation 失敗的兩種語意（實作下沉至 speclink-remote，與 CLI 共用）——
-/// 呼叫端據此決定「清掉 credential 要求重登入」還是「原封保留、稍後再試」。
-/// 決策 3 的原則不只適用於登入前探測：任何暫時性失敗都不得被讀成
+/// rotation 失败的两种语意（实作下沉至 specseal-remote，与 CLI 共用）——
+/// 调用端据此决定「清掉 credential 要求重登录」还是「原封保留、稍后再试」。
+/// 决策 3 的原则不只适用于登录前探测：任何暂时性失败都不得被读成
 /// 「credential 已失效」。
-pub use speclink_remote::refresh::RefreshFailure;
+pub use specseal_remote::refresh::RefreshFailure;
 
-/// 換發全程持跨行程檔案鎖（cli-desktop-credential-sharing）：CLI 與 desktop
-/// 共用同一個 credential family，兩邊同時換發會撞上 server 的 reuse 偵測而
-/// 整族撤銷。新 refresh credential 與 access token 快取由下沉層一併回寫。
+/// 换发全程持跨行程文件锁（cli-desktop-credential-sharing）：CLI 与 desktop
+/// 共用同一个 credential family，两边同时换发会撞上 server 的 reuse 侦测而
+/// 整族撤销。新 refresh credential 与 access token 缓存由下沉层一并回写。
 pub fn refresh_connection(
     origin: &str,
     credentials: &dyn CredentialStore,
 ) -> Result<String, RefreshFailure> {
-    speclink_remote::refresh::rotate(
+    specseal_remote::refresh::rotate(
         origin,
         credentials,
-        &speclink_remote::auth::speclink_config_dir(),
+        &specseal_remote::auth::specseal_config_dir(),
     )
 }
 
-/// 查身分（API 根的 whoami，沒有時退回 /auth/whoami）並把顯示名寫回 registry。
+/// 查身分（API 根的 whoami，没有时退回 /auth/whoami）并把显示名写回 registry。
 fn record_identity_from_server(
     origin: &str,
     bearer: &str,
@@ -577,8 +577,8 @@ fn record_identity_from_server(
     Ok(who.user.name)
 }
 
-/// 更新 registry 中該 origin 條目的身分顯示名（None＝清除）。條目不存在時
-/// 靜默略過——登入流程由 connection_add 先建條目。
+/// 更新 registry 中该 origin 条目的身分显示名（None＝清除）。条目不存在时
+/// 静默略过——登录流程由 connection_add 先建条目。
 fn record_identity(
     registry_path: &Path,
     origin: &str,
@@ -594,8 +594,8 @@ fn record_identity(
 
 #[cfg(test)]
 mod checkout_tests {
-    //! spec「checkout 綁定驗證與 marker 寫入」、design「Desktop checkout 採先檢查、
-    //! 後同步的兩階段 IPC」與 Implementation Contract 的「Desktop IPC and UI contract」。
+    //! spec「checkout 绑定验证与 marker 写入」、design「Desktop checkout 采先检查、
+    //! 后同步的两阶段 IPC」与 Implementation Contract 的「Desktop IPC and UI contract」。
     use super::*;
 
     const ORIGIN: &str = "https://spec.example.test";
@@ -617,17 +617,17 @@ mod checkout_tests {
     }
 
     fn write_marker(root: &Path, url: &str, repo: &str) {
-        write(root, ".speclink.yaml", &format!("remote:\n  url: {url}\n  repo: {repo}\n"));
+        write(root, ".specseal.yaml", &format!("remote:\n  url: {url}\n  repo: {repo}\n"));
     }
 
-    /// 帶 built-in 選集、custom descriptor 與未知頂層鍵的相符 marker。
+    /// 带 built-in 选集、custom descriptor 与未知顶层键的相符 marker。
     fn write_full_marker(root: &Path, builtins: &[&str]) {
         let listed: String = builtins.iter().map(|t| format!("  - {t}\n")).collect();
         write(
             root,
-            ".speclink.yaml",
+            ".specseal.yaml",
             &format!(
-                "tools:\n{listed}  - name: wad-harness\n    skills_dir: .wad/skills\n    instructions_file: WAD.md\nremote:\n  url: {ORIGIN}/api/speclink/v1/projects/{PROJECT}\n  repo: {REPO}\nfuture_top_level: keep me\n"
+                "tools:\n{listed}  - name: wad-harness\n    skills_dir: .wad/skills\n    instructions_file: WAD.md\nremote:\n  url: {ORIGIN}/api/specseal/v1/projects/{PROJECT}\n  repo: {REPO}\nfuture_top_level: keep me\n"
             ),
         );
     }
@@ -640,7 +640,7 @@ mod checkout_tests {
         std::fs::read_to_string(root.join(rel.split('/').collect::<PathBuf>())).expect("read file")
     }
 
-    /// 目錄快照，供「零寫入」逐位元組比對。
+    /// 目录快照，供「零写入」逐字节比对。
     fn snapshot(root: &Path) -> Vec<(String, Vec<u8>)> {
         fn walk(dir: &Path, prefix: &str, out: &mut Vec<(String, Vec<u8>)>) {
             let mut entries: Vec<_> = std::fs::read_dir(dir).unwrap().flatten().collect();
@@ -670,7 +670,7 @@ mod checkout_tests {
         bind_checkout(root, ORIGIN, PROJECT, REPO, &owned)
     }
 
-    // --- inspect_checkout：零寫入的先檢查階段 ---
+    // --- inspect_checkout：零写入的先检查阶段 ---
 
     #[test]
     fn inspect_matching_marker_reports_root_and_recorded_tools_without_writing() {
@@ -681,8 +681,8 @@ mod checkout_tests {
         let seen = inspect(dir.path()).expect("matching origin and repo");
 
         assert_eq!(seen.root, dir.path().display().to_string());
-        assert_eq!(seen.tools, vec!["codex".to_string()], "只回報既有 built-in 選集");
-        assert_eq!(snapshot(dir.path()), before, "檢查階段必須零寫入");
+        assert_eq!(seen.tools, vec!["codex".to_string()], "只回报既有 built-in 选集");
+        assert_eq!(snapshot(dir.path()), before, "检查阶段必须零写入");
     }
 
     #[test]
@@ -695,7 +695,7 @@ mod checkout_tests {
 
         assert!(err.contains("https://other.example.test"), "{err}");
         assert!(err.contains(REPO), "{err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
     #[test]
@@ -708,7 +708,7 @@ mod checkout_tests {
 
         assert!(err.contains(ORIGIN), "{err}");
         assert!(err.contains("api"), "{err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
     #[test]
@@ -719,34 +719,34 @@ mod checkout_tests {
         let err = inspect(dir.path()).expect_err("not a git checkout");
 
         assert!(err.contains("Git"), "{err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
     #[test]
     fn inspect_unparseable_config_is_rejected_fail_closed() {
         let dir = git_checkout();
-        write(dir.path(), ".speclink.yaml", "tools: [unclosed\n");
+        write(dir.path(), ".specseal.yaml", "tools: [unclosed\n");
         let before = snapshot(dir.path());
 
         let err = inspect(dir.path()).expect_err("bad yaml");
 
-        assert!(err.contains(".speclink.yaml"), "錯誤須指名檔案：{err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert!(err.contains(".specseal.yaml"), "错误须指名文件：{err}");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
     #[test]
     fn inspect_without_a_tools_list_preselects_only_actual_footprints() {
-        // marker 缺 tools 清單時只依實際 footprint 預選——不再補 Claude fallback。
+        // marker 缺 tools 清单时只依实际 footprint 预选——不再补 Claude fallback。
         let bare = git_checkout();
         write_marker(bare.path(), ORIGIN, REPO);
         assert!(
             inspect(bare.path()).expect("bare checkout").tools.is_empty(),
-            "沒有任何 footprint 時不得預選 Claude"
+            "没有任何 footprint 时不得预选 Claude"
         );
 
         let codex = git_checkout();
         write_marker(codex.path(), ORIGIN, REPO);
-        write(codex.path(), "AGENTS.md", "使用者文字\n");
+        write(codex.path(), "AGENTS.md", "用户文本\n");
         assert_eq!(
             inspect(codex.path()).expect("codex footprint").tools,
             vec!["codex".to_string()]
@@ -755,7 +755,7 @@ mod checkout_tests {
 
     #[test]
     fn inspect_without_a_tools_list_never_preselects_copilot() {
-        // spec Scenario「勾選 Copilot 綁定 checkout」：.github/ 的存在不預選 Copilot。
+        // spec Scenario「勾选 Copilot 绑定 checkout」：.github/ 的存在不预选 Copilot。
         let dir = git_checkout();
         write_marker(dir.path(), ORIGIN, REPO);
         write(dir.path(), ".github/workflows/ci.yml", "on: push\n");
@@ -773,8 +773,8 @@ mod checkout_tests {
 
     #[test]
     fn inspect_reports_a_copilot_only_marker() {
-        // spec Scenario「只選 Copilot 的 checkout 直達 remote tab」的判定面：
-        // [copilot] 是有效的 built-in 選集。
+        // spec Scenario「只选 Copilot 的 checkout 直达 remote tab」的判定面：
+        // [copilot] 是有效的 built-in 选集。
         let dir = git_checkout();
         write_full_marker(dir.path(), &["copilot"]);
 
@@ -793,11 +793,11 @@ mod checkout_tests {
 
         assert!(exists(
             dir.path(),
-            ".claude/skills/speclink-propose/SKILL.md"
+            ".claude/skills/specseal-propose/SKILL.md"
         ));
         assert!(exists(
             dir.path(),
-            ".github/skills/speclink-propose/SKILL.md"
+            ".github/skills/specseal-propose/SKILL.md"
         ));
         for absent in [".github/copilot-instructions.md", "AGENTS.md", "CLAUDE.md"] {
             assert!(!exists(dir.path(), absent), "{absent} 不得生成");
@@ -811,8 +811,8 @@ mod checkout_tests {
 
     #[test]
     fn inspect_reports_a_pi_only_marker() {
-        // spec Scenario「只選 Pi 的 checkout 直達 remote tab」的判定面：
-        // [pi] 是有效的 built-in 選集。
+        // spec Scenario「只选 Pi 的 checkout 直达 remote tab」的判定面：
+        // [pi] 是有效的 built-in 选集。
         let dir = git_checkout();
         write_full_marker(dir.path(), &["pi"]);
 
@@ -821,12 +821,12 @@ mod checkout_tests {
 
     #[test]
     fn inspect_without_a_tools_list_never_preselects_pi_or_cursor() {
-        // spec「checkout 綁定驗證與 marker 寫入」：`.pi/`、`.cursor/` 的存在不預選 Pi、Cursor。
+        // spec「checkout 绑定验证与 marker 写入」：`.pi/`、`.cursor/` 的存在不预选 Pi、Cursor。
         let dir = git_checkout();
         write_marker(dir.path(), ORIGIN, REPO);
         write(dir.path(), ".cursor/rules/style.mdc", "---\nalwaysApply: true\n---\n");
         write(dir.path(), ".pi/settings.json", "{}\n");
-        // 兩個工具的 skills 目錄本身存在（放著使用者自己的技能）也不預選。
+        // 两个工具的 skills 目录本身存在（放着用户自己的技能）也不预选。
         for skills in [".cursor/skills", ".pi/skills"] {
             write(dir.path(), &format!("{skills}/my-skill/SKILL.md"), "---\nname: my-skill\n---\n");
         }
@@ -836,17 +836,17 @@ mod checkout_tests {
 
     #[test]
     fn bind_claude_and_cursor_generates_both_skill_sets() {
-        // spec Scenario「勾選 Cursor 綁定 checkout」。
+        // spec Scenario「勾选 Cursor 绑定 checkout」。
         let dir = git_checkout();
         write(dir.path(), ".cursor/rules/style.mdc", "---\nalwaysApply: true\n---\n");
 
         bind(dir.path(), &["claude", "cursor"]).expect("new binding");
 
         for skill in [
-            ".claude/skills/speclink-propose/SKILL.md",
-            ".cursor/skills/speclink-propose/SKILL.md",
+            ".claude/skills/specseal-propose/SKILL.md",
+            ".cursor/skills/specseal-propose/SKILL.md",
         ] {
-            assert!(exists(dir.path(), skill), "{skill} 須生成");
+            assert!(exists(dir.path(), skill), "{skill} 须生成");
         }
         for absent in [".cursor/agents", "AGENTS.md", "CLAUDE.md"] {
             assert!(!exists(dir.path(), absent), "{absent} 不得生成");
@@ -863,10 +863,10 @@ mod checkout_tests {
 
     #[test]
     fn inspect_with_a_descriptor_only_tools_list_falls_back_to_footprints() {
-        // 清單存在但沒有任何可解析的內建名：與缺清單同樣只依實際 footprint 預選。
+        // 清单存在但没有任何可解析的内置名：与缺清单同样只依实际 footprint 预选。
         let dir = git_checkout();
         write_full_marker(dir.path(), &[]);
-        write(dir.path(), "AGENTS.md", "使用者文字\n");
+        write(dir.path(), "AGENTS.md", "用户文本\n");
 
         assert_eq!(
             inspect(dir.path()).expect("descriptor-only list").tools,
@@ -881,21 +881,21 @@ mod checkout_tests {
 
         let seen = inspect(dir.path()).expect("mixed tools list");
 
-        assert_eq!(seen.tools, vec!["codex".to_string()], "自訂描述子不進入 picker");
+        assert_eq!(seen.tools, vec!["codex".to_string()], "自订描述子不进入 picker");
     }
 
-    // --- bind_checkout：提交階段 ---
+    // --- bind_checkout：提交阶段 ---
 
     #[test]
     fn bind_rejects_an_empty_tool_selection_without_writing() {
         let dir = git_checkout();
         let before = snapshot(dir.path());
 
-        let err = bind(dir.path(), &[]).expect_err("空選集必須被拒");
+        let err = bind(dir.path(), &[]).expect_err("空选集必须被拒");
 
-        // `pi` 是 `copilot` 的子字串：比對完整清單，逐名比對測不到漏列。
+        // `pi` 是 `copilot` 的子字符串：比对完整清单，逐名比对测不到漏列。
         assert!(err.contains("claude、codex、copilot、pi、cursor"), "must list the five tools: {err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
     #[test]
@@ -903,10 +903,10 @@ mod checkout_tests {
         let dir = git_checkout();
         let before = snapshot(dir.path());
 
-        let err = bind(dir.path(), &["claude", "vscode"]).expect_err("未知工具必須被拒");
+        let err = bind(dir.path(), &["claude", "vscode"]).expect_err("未知工具必须被拒");
 
-        assert!(err.contains("vscode"), "須指出違規名稱：{err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert!(err.contains("vscode"), "须指出违规名称：{err}");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
     #[test]
@@ -916,31 +916,31 @@ mod checkout_tests {
         let bound = bind(dir.path(), &["claude", "codex"]).expect("new binding");
         assert_eq!(bound, dir.path().display().to_string());
 
-        let workspace = speclink_core::workspace::Workspace::discover(dir.path())
+        let workspace = specseal_core::workspace::Workspace::discover(dir.path())
             .expect("CLI discovery succeeds")
             .expect("marker creates workspace");
         let resolution = workspace
             .resolve_mode_with(None)
             .expect("CLI mode resolution succeeds");
         match resolution.mode {
-            speclink_core::workspace::StoreMode::Remote(remote) => {
+            specseal_core::workspace::StoreMode::Remote(remote) => {
                 assert_eq!(
                     remote.url,
-                    format!("{ORIGIN}/api/speclink/v1/projects/{PROJECT}")
+                    format!("{ORIGIN}/api/specseal/v1/projects/{PROJECT}")
                 );
                 assert_eq!(remote.repo.as_deref(), Some(REPO));
             }
-            speclink_core::workspace::StoreMode::Fs => panic!("written marker must select remote"),
+            specseal_core::workspace::StoreMode::Fs => panic!("written marker must select remote"),
         }
         for (md, skill) in [
-            ("CLAUDE.md", ".claude/skills/speclink-propose/SKILL.md"),
-            ("AGENTS.md", ".agents/skills/speclink-propose/SKILL.md"),
+            ("CLAUDE.md", ".claude/skills/specseal-propose/SKILL.md"),
+            ("AGENTS.md", ".agents/skills/specseal-propose/SKILL.md"),
         ] {
-            // 指令檔已退出受管（change: remove-marker-injection）：只生成技能檔。
+            // 指令档已退出受管（change: remove-marker-injection）：只生成技能档。
             assert!(!exists(dir.path(), md), "{md} 不得生成");
-            assert!(exists(dir.path(), skill), "{skill} 應生成");
+            assert!(exists(dir.path(), skill), "{skill} 应生成");
         }
-        assert!(!exists(dir.path(), "openspec"), "Remote checkout 不建本機規格樹");
+        assert!(!exists(dir.path(), "openspec"), "Remote checkout 不建本机规格树");
         assert_eq!(inspect(dir.path()).expect("re-inspect").tools, vec!["claude", "codex"]);
     }
 
@@ -948,16 +948,16 @@ mod checkout_tests {
     fn bind_existing_matching_marker_backfills_missing_artifacts() {
         let dir = git_checkout();
         write_full_marker(dir.path(), &["codex"]);
-        write(dir.path(), "AGENTS.md", "只剩使用者文字\n");
+        write(dir.path(), "AGENTS.md", "只剩用户文本\n");
 
-        bind(dir.path(), &["codex"]).expect("既有相符 marker 仍須同步");
+        bind(dir.path(), &["codex"]).expect("既有相符 marker 仍须同步");
 
         let agents = read(dir.path(), "AGENTS.md");
-        assert_eq!(agents, "只剩使用者文字\n", "指令檔須位元級不變:\n{agents}");
-        assert!(exists(dir.path(), ".agents/skills/speclink-propose/SKILL.md"));
-        let config = read(dir.path(), ".speclink.yaml");
-        assert!(config.contains(&format!("projects/{PROJECT}")), "remote 值不變:\n{config}");
-        assert!(config.contains("keep me"), "未知頂層鍵須保留:\n{config}");
+        assert_eq!(agents, "只剩用户文本\n", "指令档须比特级不变:\n{agents}");
+        assert!(exists(dir.path(), ".agents/skills/specseal-propose/SKILL.md"));
+        let config = read(dir.path(), ".specseal.yaml");
+        assert!(config.contains(&format!("projects/{PROJECT}")), "remote 值不变:\n{config}");
+        assert!(config.contains("keep me"), "未知顶层键须保留:\n{config}");
         assert!(!exists(dir.path(), "openspec"));
     }
 
@@ -965,20 +965,20 @@ mod checkout_tests {
     fn bind_switches_claude_to_codex_preserving_user_text_and_descriptors() {
         let dir = git_checkout();
         write_full_marker(dir.path(), &["claude"]);
-        write(dir.path(), "CLAUDE.md", "使用者寫的段落\n");
-        bind(dir.path(), &["claude"]).expect("先收斂到 claude");
-        assert!(exists(dir.path(), ".claude/skills/speclink-propose/SKILL.md"), "precondition");
+        write(dir.path(), "CLAUDE.md", "用户写的段落\n");
+        bind(dir.path(), &["claude"]).expect("先收敛到 claude");
+        assert!(exists(dir.path(), ".claude/skills/specseal-propose/SKILL.md"), "precondition");
 
-        bind(dir.path(), &["codex"]).expect("切換為 codex");
+        bind(dir.path(), &["codex"]).expect("切换为 codex");
 
         assert_eq!(inspect(dir.path()).expect("re-inspect").tools, vec!["codex"]);
         let claude_md = read(dir.path(), "CLAUDE.md");
-        assert!(!claude_md.contains("<!-- SPECLINK:START"), "Claude 區塊須移除:\n{claude_md}");
-        assert!(claude_md.contains("使用者寫的段落"), "使用者文字須保留:\n{claude_md}");
-        assert!(!exists(dir.path(), ".claude/skills/speclink-propose/SKILL.md"));
-        assert!(exists(dir.path(), ".agents/skills/speclink-propose/SKILL.md"));
-        let config = read(dir.path(), ".speclink.yaml");
-        assert!(config.contains("wad-harness"), "custom descriptor 須保留:\n{config}");
+        assert!(!claude_md.contains("<!-- SPECSEAL:START"), "Claude 区块须移除:\n{claude_md}");
+        assert!(claude_md.contains("用户写的段落"), "用户文本须保留:\n{claude_md}");
+        assert!(!exists(dir.path(), ".claude/skills/specseal-propose/SKILL.md"));
+        assert!(exists(dir.path(), ".agents/skills/specseal-propose/SKILL.md"));
+        let config = read(dir.path(), ".specseal.yaml");
+        assert!(config.contains("wad-harness"), "custom descriptor 须保留:\n{config}");
         assert!(!exists(dir.path(), "openspec"));
     }
 
@@ -990,55 +990,55 @@ mod checkout_tests {
         let err = bind(dir.path(), &["claude"]).expect_err("not a git checkout");
 
         assert!(err.contains("Git"), "{err}");
-        assert_eq!(snapshot(dir.path()), before, "失敗不得留下任何寫入");
+        assert_eq!(snapshot(dir.path()), before, "失败不得留下任何写入");
     }
 
-    // --- 3.3 AUDIT：sharp-edges 負向鎖定（無 silent success、無危險預設） ---
+    // --- 3.3 AUDIT：sharp-edges 负向锁定（无 silent success、无危险缺省） ---
 
-    /// Lazy Developer：純空白的工具值不是「有效選集」——收斂為空並被拒，零寫入。
+    /// Lazy Developer：纯空白的工具值不是「有效选集」——收敛为空并被拒，零写入。
     #[test]
     fn bind_whitespace_only_tools_collapse_to_empty_and_are_rejected() {
         let dir = git_checkout();
         let before = snapshot(dir.path());
 
-        let err = bind(dir.path(), &[" ", ""]).expect_err("純空白視為空選集");
+        let err = bind(dir.path(), &[" ", ""]).expect_err("纯空白视为空选集");
 
         assert!(err.contains("claude") && err.contains("codex"), "{err}");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟不變");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘不变");
     }
 
-    /// Confused／Scoundrel：重複工具名去重，不寫出重複的 tools 條目。
+    /// Confused／Scoundrel：重复工具名去重，不写出重复的 tools 条目。
     #[test]
     fn bind_duplicate_tool_names_do_not_duplicate_markers_or_entries() {
         let dir = git_checkout();
 
-        bind(dir.path(), &["codex", "codex", "codex"]).expect("重複名須被吸收");
+        bind(dir.path(), &["codex", "codex", "codex"]).expect("重复名须被吸收");
 
         assert_eq!(inspect(dir.path()).expect("re-inspect").tools, vec!["codex"]);
-        assert!(!exists(dir.path(), "AGENTS.md"), "指令檔不得生成");
-        let config = read(dir.path(), ".speclink.yaml");
-        assert_eq!(config.matches("- codex").count(), 1, "tools 條目不得重複:\n{config}");
+        assert!(!exists(dir.path(), "AGENTS.md"), "指令档不得生成");
+        let config = read(dir.path(), ".specseal.yaml");
+        assert_eq!(config.matches("- codex").count(), 1, "tools 条目不得重复:\n{config}");
     }
 
-    /// Scoundrel：marker 不一致時 bind 必須在任何 reconciliation／marker 寫入之前 fail loud，
-    /// 既有的 Speclink 受管產物與自訂描述子逐位元組不動。
+    /// Scoundrel：marker 不一致时 bind 必须在任何 reconciliation／marker 写入之前 fail loud，
+    /// 既有的 Specseal 受管产物与自订描述子逐字节不动。
     #[test]
     fn bind_mismatched_marker_fails_loud_without_reconciling() {
         let dir = git_checkout();
         write_marker(dir.path(), "https://other.example.test", REPO);
-        write(dir.path(), "CLAUDE.md", "使用者段落\n");
+        write(dir.path(), "CLAUDE.md", "用户段落\n");
         let before = snapshot(dir.path());
 
-        let err = bind(dir.path(), &["claude", "codex"]).expect_err("origin 不符必須被拒");
+        let err = bind(dir.path(), &["claude", "codex"]).expect_err("origin 不符必须被拒");
 
         assert!(err.contains("https://other.example.test"), "{err}");
-        assert!(!exists(dir.path(), ".claude/skills/speclink-propose/SKILL.md"), "不得生成");
+        assert!(!exists(dir.path(), ".claude/skills/specseal-propose/SKILL.md"), "不得生成");
         assert!(!exists(dir.path(), ".agents"), "不得生成");
-        assert_eq!(snapshot(dir.path()), before, "拒絕時磁碟逐位元組不變");
+        assert_eq!(snapshot(dir.path()), before, "拒绝时磁盘逐字节不变");
     }
 
-    /// 可交換字串語意：marker 相符時 `project` 參數不參與驗證（只在寫新 marker 時使用），
-    /// 因此傳入任意 project 仍成功——鎖住「別把 project 誤當一致性檢查的一部分」。
+    /// 可交换字符串语意：marker 相符时 `project` 参数不参与验证（只在写新 marker 时使用），
+    /// 因此传入任意 project 仍成功——锁住「别把 project 误当一致性检查的一部分」。
     #[test]
     fn bind_ignores_project_when_an_existing_marker_matches() {
         let dir = git_checkout();
@@ -1046,69 +1046,69 @@ mod checkout_tests {
 
         let owned = vec!["codex".to_string()];
         let bound = bind_checkout(dir.path(), ORIGIN, "a-totally-different-project", REPO, &owned)
-            .expect("marker 相符時 project 不影響驗證");
+            .expect("marker 相符时 project 不影响验证");
 
         assert_eq!(bound, dir.path().display().to_string());
-        // remote 值仍是 marker 原本的 project，未被傳入的 project 覆寫。
-        let config = read(dir.path(), ".speclink.yaml");
-        assert!(config.contains(&format!("projects/{PROJECT}")), "remote 值不變:\n{config}");
-        assert!(!config.contains("a-totally-different-project"), "不得改寫 remote:\n{config}");
+        // remote 值仍是 marker 原本的 project，未被传入的 project 覆写。
+        let config = read(dir.path(), ".specseal.yaml");
+        assert!(config.contains(&format!("projects/{PROJECT}")), "remote 值不变:\n{config}");
+        assert!(!config.contains("a-totally-different-project"), "不得改写 remote:\n{config}");
     }
 
-    /// 最簡呼叫也不得跳過 custom descriptor 保留——單一工具 bind 後描述子仍在。
+    /// 最简调用也不得跳过 custom descriptor 保留——单一工具 bind 后描述子仍在。
     #[test]
     fn bind_preserves_custom_descriptor_on_the_simplest_call() {
         let dir = git_checkout();
         write_full_marker(dir.path(), &["codex"]);
 
-        bind(dir.path(), &["codex"]).expect("最簡 bind");
+        bind(dir.path(), &["codex"]).expect("最简 bind");
 
-        let config = read(dir.path(), ".speclink.yaml");
-        assert!(config.contains("wad-harness"), "custom descriptor 須保留:\n{config}");
-        assert!(config.contains(".wad/skills"), "descriptor 欄位須保留:\n{config}");
+        let config = read(dir.path(), ".specseal.yaml");
+        assert!(config.contains("wad-harness"), "custom descriptor 须保留:\n{config}");
+        assert!(config.contains(".wad/skills"), "descriptor 字段须保留:\n{config}");
     }
 
     // --- 6.1 跨入口一致性（spec「Remote Workspace bootstrap 跨入口一致性」） ---
 
-    /// Desktop bind 與 CLI Remote init（`speclink_core::init::init_remote`——CLI
-    /// `cmd_init_remote` 呼叫的正是它）對等價的新 Git checkout 選取相同 Codex，
-    /// SHALL 產生同構的 built-in tools、Remote marker 與 Skills，兩者皆不建 `openspec/`
-    /// 也不建任何指令檔。此測試把「一致性」釘在共用 Core 上。
+    /// Desktop bind 与 CLI Remote init（`specseal_core::init::init_remote`——CLI
+    /// `cmd_init_remote` 调用的正是它）对等价的新 Git checkout 选取相同 Codex，
+    /// SHALL 产生同构的 built-in tools、Remote marker 与 Skills，两者皆不建 `openspec/`
+    /// 也不建任何指令档。此测试把「一致性」钉在共用 Core 上。
     #[test]
     fn desktop_bind_and_cli_remote_init_produce_isomorphic_artifacts() {
-        use speclink_core::skills::Tool;
+        use specseal_core::skills::Tool;
 
-        // 兩入口收斂到相同的最終 project URL，remote section 才可能同構。
-        let project_url = format!("{ORIGIN}/api/speclink/v1/projects/{PROJECT}");
+        // 两入口收敛到相同的最终 project URL，remote section 才可能同构。
+        let project_url = format!("{ORIGIN}/api/specseal/v1/projects/{PROJECT}");
 
         let desktop = git_checkout();
         bind(desktop.path(), &["codex"]).expect("Desktop bind");
 
         let cli = git_checkout();
-        speclink_core::init::init_remote(cli.path(), &[Tool::Codex], false, &project_url, Some(REPO))
+        specseal_core::init::init_remote(cli.path(), &[Tool::Codex], false, &project_url, Some(REPO))
             .expect("CLI Remote init");
 
-        // 兩入口都不生成指令檔。
-        assert!(!exists(desktop.path(), "AGENTS.md"), "Desktop bind 不得生成指令檔");
-        assert!(!exists(cli.path(), "AGENTS.md"), "CLI Remote init 不得生成指令檔");
-        // Skills 正典逐位元組同構。
-        for skill in ["speclink-apply", "speclink-archive", "speclink-propose"] {
+        // 两入口都不生成指令档。
+        assert!(!exists(desktop.path(), "AGENTS.md"), "Desktop bind 不得生成指令档");
+        assert!(!exists(cli.path(), "AGENTS.md"), "CLI Remote init 不得生成指令档");
+        // Skills 正典逐字节同构。
+        for skill in ["specseal-apply", "specseal-archive", "specseal-propose"] {
             let rel = format!(".agents/skills/{skill}/SKILL.md");
-            assert_eq!(read(desktop.path(), &rel), read(cli.path(), &rel), "{rel} 須同構");
+            assert_eq!(read(desktop.path(), &rel), read(cli.path(), &rel), "{rel} 须同构");
         }
-        // built-in tools 選集同構。
+        // built-in tools 选集同构。
         assert_eq!(inspect(desktop.path()).unwrap().tools, vec!["codex"]);
         assert_eq!(
             preselected_tools(cli.path()),
             vec!["codex".to_string()],
-            "CLI init 的 tools 同構"
+            "CLI init 的 tools 同构"
         );
-        // 兩者都不建本機規格樹。
+        // 两者都不建本机规格树。
         assert!(!exists(desktop.path(), "openspec"));
         assert!(!exists(cli.path(), "openspec"));
     }
 
-    /// 重試冪等：相同選集再次 bind SHALL 收斂到逐位元組相同的受管產物，不重複 marker。
+    /// 重试幂等：相同选集再次 bind SHALL 收敛到逐字节相同的受管产物，不重复 marker。
     #[test]
     fn bind_retry_with_the_same_selection_is_byte_identical() {
         let dir = git_checkout();
@@ -1117,6 +1117,6 @@ mod checkout_tests {
 
         bind(dir.path(), &["codex"]).expect("retry bind");
 
-        assert_eq!(snapshot(dir.path()), after_first, "相同選集重試須冪等");
+        assert_eq!(snapshot(dir.path()), after_first, "相同选集重试须幂等");
     }
 }

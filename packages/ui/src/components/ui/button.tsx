@@ -14,9 +14,9 @@ const buttonVariants = cva(
         outline:
           "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        /** 圖示鈕：靜態無底，hover 才浮出淡底。 */
+        /** 图标钮：静态无底，hover 才浮出淡底。 */
         subtle: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
-        /** 開關圖示鈕（看板篩選）：8px 圓角、靜態無底；展開態（aria-expanded）淺灰底深字。 */
+        /** 开关图标钮（看板筛选）：8px 圆角、静态无底；展开态（aria-expanded）浅灰底深字。 */
         toggle:
           "rounded-lg text-muted-foreground hover:bg-foreground/5 hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",

@@ -1,9 +1,9 @@
-// CodeMirror 的測試輔助（desktop-settings-editors design D1）：讀寫編輯器內容與按快捷鍵。
-// jsdom 缺的 Range 量測補在 vitest.setup.ts。
+// CodeMirror 的测试辅助（desktop-settings-editors design D1）：读写编辑器内容与按快捷键。
+// jsdom 缺的 Range 量测补在 vitest.setup.ts。
 import { act, fireEvent } from "@testing-library/react";
 import { EditorView } from "@codemirror/view";
 
-/** container 內第一個（或唯一的）編輯器。 */
+/** container 内第一个（或唯一的）编辑器。 */
 export function editorView(container: HTMLElement): EditorView {
   const dom = container.querySelector<HTMLElement>(".cm-editor");
   const view = dom && EditorView.findFromDOM(dom);
@@ -13,7 +13,7 @@ export function editorView(container: HTMLElement): EditorView {
 
 export const editorText = (container: HTMLElement) => editorView(container).state.doc.toString();
 
-/** 使用者輸入事件：預設整份換成 text；`append` 時接在文件尾端。 */
+/** 用户输入事件：缺省整份换成 text；`append` 时接在文档尾端。 */
 export function typeInEditor(container: HTMLElement, text: string, { append = false } = {}) {
   const view = editorView(container);
   const to = view.state.doc.length;
@@ -22,7 +22,7 @@ export function typeInEditor(container: HTMLElement, text: string, { append = fa
   );
 }
 
-/** 在編輯器內按 Mod-s（jsdom 非 macOS，Mod＝Ctrl）；回傳事件供檢查 defaultPrevented。 */
+/** 在编辑器内按 Mod-s（jsdom 非 macOS，Mod＝Ctrl）；回传事件供检查 defaultPrevented。 */
 export function pressSave(container: HTMLElement): KeyboardEvent {
   const event = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
   act(() => {

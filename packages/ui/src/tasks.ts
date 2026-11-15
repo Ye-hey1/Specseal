@@ -1,12 +1,12 @@
-/** 一行任務：是否勾選 + 文字（去掉 checkbox 標記）。 */
+/** 一行任务：是否勾选 + 文本（去掉 checkbox 标记）。 */
 export interface TaskLine {
   done: boolean;
   text: string;
 }
 
-/** 任務文件的一個節點：群組標題或任務（帶 1-based 序數，供寫回 tasks.md 定位；
- * stableId＝行尾 speclink-task 註解的不可變身分，無註解舊檔缺席；manual＝行首
- * `[M]` 標記的手動任務，無標記時缺席）。 */
+/** 任务文档的一个节点：群组标题或任务（带 1-based 序数，供写回 tasks.md 定位；
+ * stableId＝行尾 specseal-task 注解的不可变身分，无注解旧档缺席；manual＝行首
+ * `[M]` 标记的手动任务，无标记时缺席）。 */
 export type TaskDocItem =
   | { kind: "group"; text: string }
   | {
@@ -18,19 +18,19 @@ export type TaskDocItem =
       manual?: true;
     };
 
-/** 行尾 speclink-task ID 註解（spec task-identity）——顯示一律剝離。 */
-const TASK_ID_RE = /\s*<!--\s*speclink-task:\s*(\S+?)\s*-->\s*$/;
+/** 行尾 specseal-task ID 注解（spec task-identity）——显示一律剥离。 */
+const TASK_ID_RE = /\s*<!--\s*specseal-task:\s*(\S+?)\s*-->\s*$/;
 
-/** 剝離行尾 ID 註解：顯示文字與無註解時相同，ID 入獨立欄位。 */
+/** 剥离行尾 ID 注解：显示文本与无注解时相同，ID 入独立字段。 */
 function splitStableId(text: string): { text: string; stableId?: string } {
   const m = text.match(TASK_ID_RE);
   return m ? { text: text.slice(0, m.index).trimEnd(), stableId: m[1] } : { text };
 }
 
-/** 剝離 checkbox 後的行首標記槽（spec manual-task-marker，與引擎
- * crates/engine/speclink-core/src/lifecycle/tasks.rs 的 strip_markers 同構——動標記規則兩處要
- * 一起改，案例表也對齊同一份）：`[M]` 承載手動任務身分，歷史遺留的 `[P]` 只剝
- * 不承載任何旗標；順序不敏感、各至多一次。 */
+/** 剥离 checkbox 后的行首标记槽（spec manual-task-marker，与引擎
+ * crates/engine/specseal-core/src/lifecycle/tasks.rs 的 strip_markers 同构——动标记规则两处要
+ * 一起改，案例表也对齐同一份）：`[M]` 承载手动任务身分，历史遗留的 `[P]` 只剥
+ * 不承载任何旗标；顺序不敏感、各至多一次。 */
 function stripMarkers(text: string): { text: string; manual: boolean } {
   let manual = false;
   let legacyParallel = false;
@@ -50,12 +50,12 @@ function stripMarkers(text: string): { text: string; manual: boolean } {
   }
 }
 
-/** 清單項呈現 key：stable ID 第一、無 ID 舊檔退回 ordinal（spec task-identity）。 */
+/** 清单项呈现 key：stable ID 第一、无 ID 旧档退回 ordinal（spec task-identity）。 */
 export function taskKey(item: Extract<TaskDocItem, { kind: "task" }>): string {
   return item.stableId ?? String(item.ordinal);
 }
 
-/** 解析 tasks.md 為群組標題＋任務序列（序數僅計 checkbox 行，與桌面寫入 command 對齊）。 */
+/** 解析 tasks.md 为群组标题＋任务串行（序数仅计 checkbox 行，与桌面写入 command 对齐）。 */
 export function parseTaskDoc(markdown: string | null | undefined): TaskDocItem[] {
   if (!markdown) return [];
   const items: TaskDocItem[] = [];
@@ -66,16 +66,16 @@ export function parseTaskDoc(markdown: string | null | undefined): TaskDocItem[]
       items.push({ kind: "group", text: g[1] });
       continue;
     }
-    // checkbox 後恰一個空格才進標記槽（`\] ` 非 `\]\s+`）——與引擎的
-    // `&r[4..]` 同構：多餘空白留在描述裡，標記就不成立，UI 與計數/閘門
-    // 才不會對同一行給出相反的 manual 判定。
+    // checkbox 后恰一个空格才进标记槽（`\] ` 非 `\]\s+`）——与引擎的
+    // `&r[4..]` 同构：多余空白留在描述里，标记就不成立，UI 与计数/闸门
+    // 才不会对同一行给出相反的 manual 判定。
     const t = line.match(/^\s*-\s*\[([ xX])\] (.*)$/);
     if (t) {
       ordinal += 1;
       const done = t[1].toLowerCase() === "x";
       const { text: unmarked, manual } = stripMarkers(t[2]);
       const { text: unstamped, stableId } = splitStableId(unmarked);
-      // 前後修剪與引擎 display.trim() 同構。
+      // 前后修剪与引擎 display.trim() 同构。
       const text = unstamped.trim();
       const item: Extract<TaskDocItem, { kind: "task" }> = { kind: "task", ordinal, done, text };
       if (stableId) item.stableId = stableId;
@@ -86,14 +86,14 @@ export function parseTaskDoc(markdown: string | null | undefined): TaskDocItem[]
   return items;
 }
 
-/** 就地改寫第 ordinal（1-based，僅計 checkbox 行）個任務的勾選標記——勾選樂觀
- * 更新用，序數判定與 parseTaskDoc 同一正則對齊。找不到該序數回 null。 */
+/** 就地改写第 ordinal（1-based，仅计 checkbox 行）个任务的勾选标记——勾选乐观
+ * 更新用，序数判定与 parseTaskDoc 同一正则对齐。找不到该序数回 null。 */
 export function setTaskMark(markdown: string, ordinal: number, done: boolean): string | null {
   let n = 0;
   let hit = false;
   const lines = markdown.split(/\r?\n/).map((line) => {
-    // 任務行判定與 parseTaskDoc 同一形狀（`\] ` 恰一個空格）——讀寫兩側的
-    // 序數計數必須同構，否則樂觀改寫會翻錯行。
+    // 任务行判定与 parseTaskDoc 同一形状（`\] ` 恰一个空格）——读写两侧的
+    // 序数计数必须同构，否则乐观改写会翻错行。
     const m = line.match(/^(\s*-\s*\[)[ xX](\] .*)$/);
     if (!m) return line;
     n += 1;
@@ -104,20 +104,20 @@ export function setTaskMark(markdown: string, ordinal: number, done: boolean): s
   return hit ? lines.join("\n") : null;
 }
 
-/** 拖放落點解析結果：以第 to 個任務為錨；before=true＝插錨前（組首落點）。 */
+/** 拖放落点解析结果：以第 to 个任务为锚；before=true＝插锚前（组首落点）。 */
 export interface DropTarget {
   to: number;
   before?: boolean;
 }
 
 /**
- * 把 dnd 的 over id 解析為寫回用的落點（design D6）：
- * - over 為任務 ordinal → `{ to }`（側別留給後端方向推斷）
- * - over 為群組標題 id（`g-<items 索引>`）→ 標題是「組界槽」，依 active 相對
- *   標題的位置雙向解析：上方來＝成為該群組組首（組首任務為錨、before=true）；
- *   下方來＝移到標題之前、成為上一群組末任務（標題前最近任務為錨、before=false）
- *   ——否則組首任務永遠拖不回上一群組末位。
- * - 該側無任務可錨定（空群組、檔首）、錨即自己、落點即自己 → null（不觸發寫回）
+ * 把 dnd 的 over id 解析为写回用的落点（design D6）：
+ * - over 为任务 ordinal → `{ to }`（侧别留给后端方向推断）
+ * - over 为群组标题 id（`g-<items 索引>`）→ 标题是「组界槽」，依 active 相对
+ *   标题的位置双向解析：上方来＝成为该群组组首（组首任务为锚、before=true）；
+ *   下方来＝移到标题之前、成为上一群组末任务（标题前最近任务为锚、before=false）
+ *   ——否则组首任务永远拖不回上一群组末位。
+ * - 该侧无任务可锚定（空群组、档首）、锚即自己、落点即自己 → null（不触发写回）
  */
 export function resolveDropTarget(
   items: TaskDocItem[],
@@ -132,31 +132,31 @@ export function resolveDropTarget(
   const activeIndex = items.findIndex((it) => it.kind === "task" && it.ordinal === activeOrdinal);
   if (activeIndex < 0) return null;
   if (activeIndex < headingIndex) {
-    // 上方來：錨定標題後第一個任務（同群組組首），插其前。
+    // 上方来：锚定标题后第一个任务（同群组组首），插其前。
     for (let i = headingIndex + 1; i < items.length; i++) {
       const item = items[i];
-      if (item.kind === "group") return null; // 標題下無任務（空群組）
+      if (item.kind === "group") return null; // 标题下无任务（空群组）
       return item.ordinal === activeOrdinal ? null : { to: item.ordinal, before: true };
     }
     return null;
   }
-  // 下方來：錨定標題前最近的任務（上一群組末位），插其後。
+  // 下方来：锚定标题前最近的任务（上一群组末位），插其后。
   for (let i = headingIndex - 1; i >= 0; i--) {
     const item = items[i];
     if (item.kind === "task") {
       return item.ordinal === activeOrdinal ? null : { to: item.ordinal, before: false };
     }
   }
-  return null; // 標題之前無任務（檔首）
+  return null; // 标题之前无任务（档首）
 }
 
-/** 解析 tasks.md 的 checkbox 行（`- [ ]` / `- [x]`）為任務清單。非 checkbox 行忽略；
- * 顯示文字剝離行首標記前綴與行尾 ID 註解。 */
+/** 解析 tasks.md 的 checkbox 行（`- [ ]` / `- [x]`）为任务清单。非 checkbox 行忽略；
+ * 显示文本剥离行首标记前缀与行尾 ID 注解。 */
 export function parseTasks(markdown: string | null | undefined): TaskLine[] {
   if (!markdown) return [];
   const out: TaskLine[] = [];
   for (const line of markdown.split(/\r?\n/)) {
-    // 與 parseTaskDoc 同一行判定（checkbox 後恰一個空格）。
+    // 与 parseTaskDoc 同一行判定（checkbox 后恰一个空格）。
     const m = line.match(/^\s*-\s*\[([ xX])\] (.*)$/);
     if (m) {
       const text = splitStableId(stripMarkers(m[2]).text).text.trim();

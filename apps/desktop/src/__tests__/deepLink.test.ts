@@ -1,119 +1,119 @@
-// speclink 網址（desktop-app「以 speclink 網址開啟詳情頁」）：解析表逐列對照 spec 的
-// 「網址解析」Example。
+// specseal 网址（desktop-app「以 specseal 网址打开详情页」）：解析表逐列对照 spec 的
+// 「网址解析」Example。
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import defaultCapsRaw from "../../src-tauri/capabilities/default.json?raw";
 import baseConfRaw from "../../src-tauri/tauri.conf.json?raw";
-import { installDeepLinks, parseSpeclinkUrl } from "../deepLink";
+import { installDeepLinks, parseSpecsealUrl } from "../deepLink";
 import { APP_MESSAGES } from "../i18n/messages";
 
-describe("parseSpeclinkUrl：合法網址", () => {
+describe("parseSpecsealUrl：合法网址", () => {
   it.each([
     {
-      url: "speclink://change/add-search?project=%2FUsers%2Fdev%2Fspeclink",
-      link: { kind: "change", name: "add-search", project: "/Users/dev/speclink" },
+      url: "specseal://change/add-search?project=%2FUsers%2Fdev%2Fspecseal",
+      link: { kind: "change", name: "add-search", project: "/Users/dev/specseal" },
     },
     {
-      url: "speclink://discussion/board-search-bar?project=C%3A%5Cwork%5Capp",
+      url: "specseal://discussion/board-search-bar?project=C%3A%5Cwork%5Capp",
       link: { kind: "discussion", name: "board-search-bar", project: "C:\\work\\app" },
     },
     {
-      url: "speclink://change/add-search?project=C%3A%2Fwork%2Fapp",
+      url: "specseal://change/add-search?project=C%3A%2Fwork%2Fapp",
       link: { kind: "change", name: "add-search", project: "C:/work/app" },
     },
-    // 路線圖網址（desktop-roadmap）：path 為空或單一 /，不帶名稱。
+    // 路线图网址（desktop-roadmap）：path 为空或单一 /，不带名称。
     {
-      url: "speclink://roadmap?project=%2FUsers%2Fdev%2Fspeclink",
-      link: { kind: "roadmap", project: "/Users/dev/speclink" },
+      url: "specseal://roadmap?project=%2FUsers%2Fdev%2Fspecseal",
+      link: { kind: "roadmap", project: "/Users/dev/specseal" },
     },
     {
-      url: "speclink://roadmap/?project=%2Fa",
+      url: "specseal://roadmap/?project=%2Fa",
       link: { kind: "roadmap", project: "/a" },
     },
-    // 專案網址：只切專案並顯示看板，path 為空或單一 /，不帶名稱。
+    // 项目网址：只切项目并显示看板，path 为空或单一 /，不带名称。
     {
-      url: "speclink://project?project=%2FUsers%2Fdev%2Fspeclink",
-      link: { kind: "project", project: "/Users/dev/speclink" },
+      url: "specseal://project?project=%2FUsers%2Fdev%2Fspecseal",
+      link: { kind: "project", project: "/Users/dev/specseal" },
     },
     {
-      url: "speclink://project/?project=%2Fa",
+      url: "specseal://project/?project=%2Fa",
       link: { kind: "project", project: "/a" },
     },
   ])("$url", ({ url, link }) => {
-    expect(parseSpeclinkUrl(url)).toEqual({ ok: true, link });
+    expect(parseSpecsealUrl(url)).toEqual({ ok: true, link });
   });
 });
 
-describe("parseSpeclinkUrl：格式錯誤", () => {
+describe("parseSpecsealUrl：格式错误", () => {
   it.each([
-    { url: "speclink://roadmap/waves?project=%2Fa", reason: "name" }, // 路線圖不帶名稱
-    { url: "speclink://project/board?project=%2Fa", reason: "name" }, // 專案網址不帶名稱
-    { url: "speclink://project", reason: "project" }, // 缺 project
-    { url: "speclink://spec/desktop-app?project=%2Fa", reason: "kind" }, // 未知種類
-    { url: "speclink://change/a/b?project=%2Fa", reason: "name" }, // 名稱多於一段
-    { url: "speclink://change/?project=%2Fa", reason: "name" }, // 名稱為空
-    { url: "speclink://change/add-search", reason: "project" }, // 缺 project
-    { url: "speclink://change/add-search?project=work%2Fapp", reason: "project" }, // 不是絕對路徑
-    { url: "https://change/add-search?project=%2Fa", reason: "scheme" }, // 不是 speclink 網址
+    { url: "specseal://roadmap/waves?project=%2Fa", reason: "name" }, // 路线图不带名称
+    { url: "specseal://project/board?project=%2Fa", reason: "name" }, // 项目网址不带名称
+    { url: "specseal://project", reason: "project" }, // 缺 project
+    { url: "specseal://spec/desktop-app?project=%2Fa", reason: "kind" }, // 未知种类
+    { url: "specseal://change/a/b?project=%2Fa", reason: "name" }, // 名称多于一段
+    { url: "specseal://change/?project=%2Fa", reason: "name" }, // 名称为空
+    { url: "specseal://change/add-search", reason: "project" }, // 缺 project
+    { url: "specseal://change/add-search?project=work%2Fapp", reason: "project" }, // 不是绝对路径
+    { url: "https://change/add-search?project=%2Fa", reason: "scheme" }, // 不是 specseal 网址
   ])("$url → $reason", ({ url, reason }) => {
-    expect(parseSpeclinkUrl(url)).toEqual({ ok: false, reason });
+    expect(parseSpecsealUrl(url)).toEqual({ ok: false, reason });
   });
 });
 
-// sharp-edges 稽核（網址來自任何本機程式或網頁，一律視為不可信）。
-describe("parseSpeclinkUrl：不可信網址", () => {
+// sharp-edges 稽核（网址来自任何本机进程或网页，一律视为不可信）。
+describe("parseSpecsealUrl：不可信网址", () => {
   it.each([
-    { url: "speclink://change/%E0%A4?project=%2Fa", reason: "name" }, // 無效的百分比編碼不得拋例外
-    { url: "speclink://change/x?project=%2Fa%E0%A4", reason: "project" }, // 不得靜默換成替代字元
-    { url: "speclink://change/a%00b?project=%2Fa", reason: "name" }, // 控制字元
-    { url: "speclink://change/x?project=%2Fa%0Ab", reason: "project" }, // 控制字元
-    { url: "speclink://change/x?project=%2Fa&project=%2Fb", reason: "project" }, // 重複 project 有歧義，不挑一個
-    // 判定：host 大小寫不放寬——spec 只收 change／discussion，CHANGE 照未知種類出 toast，不會靜默誤開。
-    { url: "speclink://CHANGE/x?project=%2Fa", reason: "kind" },
-    // 判定：.. 不構成缺口——URL 解析先把它收成空名稱；名稱只拿來比對清單，從不當檔案路徑。
-    { url: "speclink://change/..?project=%2Fa", reason: "name" },
-    // 路線圖網址的稽核（desktop-roadmap 任務 5.3）——五項都沒有缺口：
-    // 判定：host 大小寫不放寬，與 CHANGE 同理——ROADMAP 照未知種類出 toast。
-    { url: "speclink://ROADMAP?project=%2Fa", reason: "kind" },
-    // 判定：path 為 // 時剩下的 / 算一段名稱，照「路線圖不帶名稱」擋下，不當成空 path。
-    { url: "speclink://roadmap//?project=%2Fa", reason: "name" },
-    // 判定：重複的 project 與其他種類同樣有歧義，不挑一個用。
-    { url: "speclink://roadmap?project=%2Fa&project=%2Fb", reason: "project" },
-    // 判定：project 含控制字元走同一個嚴格解碼，擋下。
-    { url: "speclink://roadmap?project=%2Fa%0Ab", reason: "project" },
-    // 專案網址的稽核：與路線圖走同一條解析分支，五項都沒有缺口。
-    // 判定：重複的 project 有歧義，不挑一個用；不是絕對路徑的 project 不開。
-    { url: "speclink://project?project=%2Fa&project=%2Fb", reason: "project" },
-    { url: "speclink://project?project=work%2Fapp", reason: "project" },
-    // 判定：無效編碼與控制字元走同一個嚴格解碼，擋下。
-    { url: "speclink://project?project=%2Fa%E0%A4", reason: "project" },
-    { url: "speclink://project?project=%2Fa%0Ab", reason: "project" },
-    // 判定：host 大小寫不放寬——PROJECT 照未知種類出 toast。
-    { url: "speclink://PROJECT?project=%2Fa", reason: "kind" },
+    { url: "specseal://change/%E0%A4?project=%2Fa", reason: "name" }, // 无效的百分比编码不得抛例外
+    { url: "specseal://change/x?project=%2Fa%E0%A4", reason: "project" }, // 不得静默换成替代字符
+    { url: "specseal://change/a%00b?project=%2Fa", reason: "name" }, // 控制字符
+    { url: "specseal://change/x?project=%2Fa%0Ab", reason: "project" }, // 控制字符
+    { url: "specseal://change/x?project=%2Fa&project=%2Fb", reason: "project" }, // 重复 project 有歧义，不挑一个
+    // 判定：host 大小写不放宽——spec 只收 change／discussion，CHANGE 照未知种类出 toast，不会静默误开。
+    { url: "specseal://CHANGE/x?project=%2Fa", reason: "kind" },
+    // 判定：.. 不构成缺口——URL 解析先把它收成空名称；名称只拿来比对清单，从不当文档路径。
+    { url: "specseal://change/..?project=%2Fa", reason: "name" },
+    // 路线图网址的稽核（desktop-roadmap 任务 5.3）——五项都没有缺口：
+    // 判定：host 大小写不放宽，与 CHANGE 同理——ROADMAP 照未知种类出 toast。
+    { url: "specseal://ROADMAP?project=%2Fa", reason: "kind" },
+    // 判定：path 为 // 时剩下的 / 算一段名称，照「路线图不带名称」挡下，不当成空 path。
+    { url: "specseal://roadmap//?project=%2Fa", reason: "name" },
+    // 判定：重复的 project 与其他种类同样有歧义，不挑一个用。
+    { url: "specseal://roadmap?project=%2Fa&project=%2Fb", reason: "project" },
+    // 判定：project 含控制字符走同一个严格解码，挡下。
+    { url: "specseal://roadmap?project=%2Fa%0Ab", reason: "project" },
+    // 项目网址的稽核：与路线图走同一条解析分支，五项都没有缺口。
+    // 判定：重复的 project 有歧义，不挑一个用；不是绝对路径的 project 不开。
+    { url: "specseal://project?project=%2Fa&project=%2Fb", reason: "project" },
+    { url: "specseal://project?project=work%2Fapp", reason: "project" },
+    // 判定：无效编码与控制字符走同一个严格解码，挡下。
+    { url: "specseal://project?project=%2Fa%E0%A4", reason: "project" },
+    { url: "specseal://project?project=%2Fa%0Ab", reason: "project" },
+    // 判定：host 大小写不放宽——PROJECT 照未知种类出 toast。
+    { url: "specseal://PROJECT?project=%2Fa", reason: "kind" },
   ])("$url → $reason", ({ url, reason }) => {
-    expect(parseSpeclinkUrl(url)).toEqual({ ok: false, reason });
+    expect(parseSpecsealUrl(url)).toEqual({ ok: false, reason });
   });
 
-  // 判定：多餘的 query 參數不構成缺口——只讀 project，其他參數不影響開哪個專案，也不觸發
-  // 任何寫入；與變更、討論網址同一規則。
-  it("路線圖網址帶多餘的 query 參數時只讀 project", () => {
-    expect(parseSpeclinkUrl("speclink://roadmap?view=waves&project=%2Fa&x=1")).toEqual({
+  // 判定：多余的 query 参数不构成缺口——只读 project，其他参数不影响开哪个项目，也不触发
+  // 任何写入；与变更、讨论网址同一规则。
+  it("路线图网址带多余的 query 参数时只读 project", () => {
+    expect(parseSpecsealUrl("specseal://roadmap?view=waves&project=%2Fa&x=1")).toEqual({
       ok: true,
       link: { kind: "roadmap", project: "/a" },
     });
   });
 
-  // + 照字面保留（RFC 3986 的 query 不是表單編碼）：路徑 /a+b 不得被讀成 /a b。
-  it("project 內的 + 不轉成空白", () => {
-    expect(parseSpeclinkUrl("speclink://change/x?project=%2Fa+b")).toEqual({
+  // + 照字面保留（RFC 3986 的 query 不是表单编码）：路径 /a+b 不得被读成 /a b。
+  it("project 内的 + 不转成空白", () => {
+    expect(parseSpecsealUrl("specseal://change/x?project=%2Fa+b")).toEqual({
       ok: true,
       link: { kind: "change", name: "x", project: "/a+b" },
     });
   });
 });
 
-// 派送（design「啟動時的網址排隊到分頁還原之後」「專案一律走 openProjectAt，詳情等載入後再開」）：
-// 外掛、sonner 與 tray.ts 的 openMainWindow 換成假模組，假 store 記下呼叫順序。
+// 派送（design「启动时的网址排队到分页还原之后」「项目一律走 openProjectAt，详情等加载后再开」）：
+// 插件、sonner 与 tray.ts 的 openMainWindow 换成假模块，假 store 记下调用顺序。
 const { plugin, toastError, openMainWindow } = vi.hoisted(() => ({
   plugin: {
     launch: null as string[] | null,
@@ -133,12 +133,12 @@ vi.mock("@tauri-apps/plugin-deep-link", () => ({
 vi.mock("sonner", () => ({ toast: { error: toastError } }));
 vi.mock("../tray", () => ({ openMainWindow }));
 
-const PROJECT = "/Users/dev/speclink";
+const PROJECT = "/Users/dev/specseal";
 const PROJECT_KEY = `local:${PROJECT}`;
-const CHANGE_URL = "speclink://change/add-search?project=%2FUsers%2Fdev%2Fspeclink";
-const DISCUSSION_URL = "speclink://discussion/board-search-bar?project=%2FUsers%2Fdev%2Fspeclink";
-const ROADMAP_URL = "speclink://roadmap?project=%2FUsers%2Fdev%2Fspeclink";
-const PROJECT_URL = "speclink://project?project=%2FUsers%2Fdev%2Fspeclink";
+const CHANGE_URL = "specseal://change/add-search?project=%2FUsers%2Fdev%2Fspecseal";
+const DISCUSSION_URL = "specseal://discussion/board-search-bar?project=%2FUsers%2Fdev%2Fspecseal";
+const ROADMAP_URL = "specseal://roadmap?project=%2FUsers%2Fdev%2Fspecseal";
+const PROJECT_URL = "specseal://project?project=%2FUsers%2Fdev%2Fspecseal";
 
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -175,7 +175,7 @@ function harness(
   const state = {
     changes: [{ name: "add-search" }],
     discussions: { active: [{ slug: "board-search-bar" }], archived: [] },
-    sessions: { [PROJECT_KEY]: { descriptor: { name: over.projectName ?? "speclink" } } },
+    sessions: { [PROJECT_KEY]: { descriptor: { name: over.projectName ?? "specseal" } } },
     migrationRoot: over.migrationRoot ?? null,
     pendingRemoteConflict: null,
     openProjectAt: vi.fn(async (path: string, _options?: { remoteViaChooser?: boolean }) => {
@@ -193,7 +193,7 @@ function harness(
 }
 
 describe("installDeepLinks", () => {
-  it("(a) 就緒前的啟動網址與事件網址都排隊，就緒後依到達順序逐一處理", async () => {
+  it("(a) 就绪前的启动网址与事件网址都排队，就绪后依到达顺序逐一处理", async () => {
     const ready = deferred<void>();
     const h = harness({ ready: ready.promise, launch: [CHANGE_URL] });
     await flush();
@@ -201,7 +201,7 @@ describe("installDeepLinks", () => {
     await flush();
     expect(log).toEqual([]);
 
-    // 第一個網址的開專案卡住時，第二個網址不得開始。
+    // 第一个网址的开项目卡住时，第二个网址不得开始。
     const slow = deferred<string | null>();
     h.state.openProjectAt.mockImplementationOnce(async (path: string) => {
       log.push(`openProjectAt:${path}`);
@@ -223,7 +223,7 @@ describe("installDeepLinks", () => {
     ]);
   });
 
-  it("(b) 變更網址依序喚起主視窗、開專案（remote 標記改走選擇器）、開變更詳情", async () => {
+  it("(b) 变更网址依序唤起主窗口、开项目（remote 标记改走选择器）、开变更详情", async () => {
     const h = harness({ launch: [CHANGE_URL] });
     await flush();
     expect(log).toEqual(["openMainWindow", `openProjectAt:${PROJECT}`, "openDetail:add-search"]);
@@ -231,7 +231,7 @@ describe("installDeepLinks", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("(c) 討論網址開討論詳情", async () => {
+  it("(c) 讨论网址开讨论详情", async () => {
     const h = harness();
     await flush();
     h.emit([DISCUSSION_URL]);
@@ -239,38 +239,38 @@ describe("installDeepLinks", () => {
     expect(log).toEqual(["openMainWindow", `openProjectAt:${PROJECT}`, "openDiscussion:board-search-bar"]);
   });
 
-  it("(d) openProjectAt 回傳 null（對話框或選擇器接手）時不開詳情、不出 toast", async () => {
+  it("(d) openProjectAt 回传 null（对话框或选择器接手）时不开详情、不出 toast", async () => {
     harness({ launch: [CHANGE_URL], openKey: null });
     await flush();
     expect(log).toEqual(["openMainWindow", `openProjectAt:${PROJECT}`]);
   });
 
   it.each([
-    ["變更", "speclink://change/no-such-change?project=%2FUsers%2Fdev%2Fspeclink", "deepLink.changeNotFound", "no-such-change"],
-    ["討論", "speclink://discussion/no-such-topic?project=%2FUsers%2Fdev%2Fspeclink", "deepLink.discussionNotFound", "no-such-topic"],
-  ])("(e) 找不到%s：主區切回看板（關掉詳情頁），toast 含專案名稱與目標名稱", async (_label, url, key, target) => {
+    ["变更", "specseal://change/no-such-change?project=%2FUsers%2Fdev%2Fspecseal", "deepLink.changeNotFound", "no-such-change"],
+    ["讨论", "specseal://discussion/no-such-topic?project=%2FUsers%2Fdev%2Fspecseal", "deepLink.discussionNotFound", "no-such-topic"],
+  ])("(e) 找不到%s：主区切回看板（关掉详情页），toast 含项目名称与目标名称", async (_label, url, key, target) => {
     const h = harness({ launch: [url] });
     await flush();
-    const message = APP_MESSAGES["zh-TW"][key].replace("{project}", "speclink").replace("{name}", target);
+    const message = APP_MESSAGES["zh-CN"][key].replace("{project}", "specseal").replace("{name}", target);
     expect(log).toEqual(["openMainWindow", `openProjectAt:${PROJECT}`, "setBoardView:board", `toast:${message}`]);
     expect(h.state.openDetail).not.toHaveBeenCalled();
     expect(h.state.openDiscussion).not.toHaveBeenCalled();
   });
 
-  it("(e2) 專案名稱含 {name} 字樣時照原字顯示，不被當成佔位符", async () => {
-    harness({ launch: ["speclink://change/x?project=%2FUsers%2Fdev%2Fspeclink"], projectName: "a{name}b" });
+  it("(e2) 项目名称含 {name} 字样时照原字显示，不被当成占位符", async () => {
+    harness({ launch: ["specseal://change/x?project=%2FUsers%2Fdev%2Fspecseal"], projectName: "a{name}b" });
     await flush();
-    expect(toastError).toHaveBeenCalledWith("在 a{name}b 找不到變更 x");
+    expect(toastError).toHaveBeenCalledWith("在 a{name}b 找不到变更 x");
   });
 
-  it("(f) 格式錯誤：只喚起主視窗並出 toast，不開專案", async () => {
-    const h = harness({ launch: ["speclink://spec/desktop-app?project=%2FUsers%2Fdev%2Fspeclink"] });
+  it("(f) 格式错误：只唤起主窗口并出 toast，不开项目", async () => {
+    const h = harness({ launch: ["specseal://spec/desktop-app?project=%2FUsers%2Fdev%2Fspecseal"] });
     await flush();
-    expect(log).toEqual(["openMainWindow", `toast:${APP_MESSAGES["zh-TW"]["deepLink.invalid"]}`]);
+    expect(log).toEqual(["openMainWindow", `toast:${APP_MESSAGES["zh-CN"]["deepLink.invalid"]}`]);
     expect(h.state.openProjectAt).not.toHaveBeenCalled();
   });
 
-  it("(g) 卸載函式解除 onOpenUrl 訂閱，之後排隊的網址也不再處理", async () => {
+  it("(g) 卸载函数解除 onOpenUrl 订阅，之后排队的网址也不再处理", async () => {
     const ready = deferred<void>();
     const h = harness({ ready: ready.promise, launch: [CHANGE_URL] });
     await flush();
@@ -282,20 +282,20 @@ describe("installDeepLinks", () => {
     expect(log).toEqual([]);
   });
 
-  it("(h) 不可取消的浮層開著：喚起主視窗，但不切專案、不開詳情、不出 toast", async () => {
+  it("(h) 不可取消的浮层开着：唤起主窗口，但不切项目、不开详情、不出 toast", async () => {
     const h = harness({ launch: [CHANGE_URL], migrationRoot: "/Users/dev/legacy" });
     await flush();
     expect(log).toEqual(["openMainWindow"]);
     expect(h.state.openProjectAt).not.toHaveBeenCalled();
   });
 
-  // 不帶名稱的網址：開專案後切畫面（store 測試驗 openRoadmap、openBoard 本身）；沒有找不到目標
+  // 不带名称的网址：开项目后切画面（store 测试验 openRoadmap、openBoard 本身）；没有找不到目标
   // 的情形，不出 toast。
   describe.each([
-    { label: "路線圖網址", url: ROADMAP_URL, open: "openRoadmap", other: "openBoard" },
-    { label: "專案網址", url: PROJECT_URL, open: "openBoard", other: "openRoadmap" },
+    { label: "路线图网址", url: ROADMAP_URL, open: "openRoadmap", other: "openBoard" },
+    { label: "项目网址", url: PROJECT_URL, open: "openBoard", other: "openRoadmap" },
   ] as const)("$label", ({ url, open, other }) => {
-    it("依序喚起主視窗、開專案、切畫面，不出 toast", async () => {
+    it("依序唤起主窗口、开项目、切画面，不出 toast", async () => {
       const h = harness({ launch: [url] });
       await flush();
       expect(log).toEqual(["openMainWindow", `openProjectAt:${PROJECT}`, open]);
@@ -305,13 +305,13 @@ describe("installDeepLinks", () => {
       expect(toastError).not.toHaveBeenCalled();
     });
 
-    it("openProjectAt 回傳 null 時不切畫面、不出 toast", async () => {
+    it("openProjectAt 回传 null 时不切画面、不出 toast", async () => {
       harness({ launch: [url], openKey: null });
       await flush();
       expect(log).toEqual(["openMainWindow", `openProjectAt:${PROJECT}`]);
     });
 
-    it("遇到不可取消的浮層：只喚起主視窗", async () => {
+    it("遇到不可取消的浮层：只唤起主窗口", async () => {
       const h = harness({ launch: [url], migrationRoot: "/Users/dev/legacy" });
       await flush();
       expect(log).toEqual(["openMainWindow"]);
@@ -319,7 +319,7 @@ describe("installDeepLinks", () => {
     });
   });
 
-  it("(i) 喚起主視窗失敗時照常處理網址", async () => {
+  it("(i) 唤起主窗口失败时照常处理网址", async () => {
     openMainWindow.mockRejectedValueOnce(new Error("window gone"));
     harness({ launch: [CHANGE_URL] });
     await flush();
@@ -327,15 +327,15 @@ describe("installDeepLinks", () => {
   });
 });
 
-// 網址格式的註冊與權限（design「網址格式的註冊與權限」）：bundler 依 tauri.conf.json 寫進
-// Info.plist／NSIS 登錄；主視窗要有外掛預設權限才能呼叫 getCurrent、onOpenUrl。
-describe("deep-link 外掛設定", () => {
-  it("tauri.conf.json 的 desktop schemes 含 speclink", () => {
+// 网址格式的注册与权限（design「网址格式的注册与权限」）：bundler 依 tauri.conf.json 写进
+// Info.plist／NSIS 登录；主窗口要有插件缺省权限才能调用 getCurrent、onOpenUrl。
+describe("deep-link 插件设置", () => {
+  it("tauri.conf.json 的 desktop schemes 含 specseal", () => {
     const conf = JSON.parse(baseConfRaw);
-    expect(conf.plugins["deep-link"].desktop.schemes).toContain("speclink");
+    expect(conf.plugins["deep-link"].desktop.schemes).toContain("specseal");
   });
 
-  it("主視窗的 capabilities 含 deep-link 預設權限", () => {
+  it("主窗口的 capabilities 含 deep-link 缺省权限", () => {
     const caps = JSON.parse(defaultCapsRaw);
     expect(caps.windows).toContain("main");
     expect(caps.permissions).toContain("deep-link:default");

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { I18nProvider, SEMANTIC_TONE } from "@speclink/ui";
+import { I18nProvider, SEMANTIC_TONE } from "@specseal/ui";
 
 import { MigrationDialog } from "../components/MigrationDialog";
 import type { MigrationAdapter, MigrationResult } from "../adapter/migration";
@@ -11,7 +11,7 @@ import { APP_MESSAGES } from "../i18n/messages";
 const CONNECTION: ConnectionView = {
   id: "conn_1",
   origin: "https://spec.example.test",
-  name: "團隊 Server",
+  name: "团队 Server",
   loggedIn: true,
 };
 
@@ -19,8 +19,8 @@ const SCOPES = {
   projects: [
     {
       id: "prj_1",
-      key: "speclink",
-      name: "Speclink",
+      key: "specseal",
+      name: "Specseal",
       repos: [{ id: "repo_1", key: "desktop", name: "Desktop" }],
     },
   ],
@@ -31,12 +31,12 @@ const RESULT: MigrationResult = {
     projectRevision: 8,
     documents: Array.from({ length: 14 }, (_, index) => ({ index })),
   },
-  backupPath: "/work/local/speclink.migrated-2026-07-21",
+  backupPath: "/work/local/specseal.migrated-2026-07-21",
   checkoutRoot: "/work/local",
 };
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -62,14 +62,14 @@ function renderDialog(migrate: MigrationAdapter["migrate"]) {
 }
 
 async function reachConfirmation() {
-  fireEvent.click(screen.getByRole("button", { name: /團隊 Server/ }));
+  fireEvent.click(screen.getByRole("button", { name: /团队 Server/ }));
   const repo = await screen.findByRole("radio", { name: /Desktop/ });
   fireEvent.click(repo);
-  fireEvent.click(screen.getByRole("button", { name: "檢查遷移" }));
+  fireEvent.click(screen.getByRole("button", { name: "检查迁移" }));
 }
 
 describe("MigrationDialog", () => {
-  it("選空 scope、確認目標與備份、顯示進度，成功後原地轉成 checkout remote 分頁", async () => {
+  it("选空 scope、确认目标与备份、显示进度，成功后原地转成 checkout remote 分页", async () => {
     let resolveMigration: (result: MigrationResult) => void = () => {};
     const migrate = vi.fn(
       () =>
@@ -81,36 +81,36 @@ describe("MigrationDialog", () => {
 
     await reachConfirmation();
 
-    expect(screen.getAllByText("speclink / desktop")).toHaveLength(2);
-    expect(screen.getByText(/本機規格資料夾.*改名備份/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "開始遷移" }));
+    expect(screen.getAllByText("specseal / desktop")).toHaveLength(2);
+    expect(screen.getByText(/本机规格文档夹.*改名备份/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "开始迁移" }));
 
-    expect(screen.getByRole("status").textContent).toContain("正在建立 Bundle 並上傳");
+    expect(screen.getByRole("status").textContent).toContain("正在创建 Bundle 并上传");
     resolveMigration(RESULT);
 
     await waitFor(() =>
       expect(migrate).toHaveBeenCalledWith(
         "/work/local",
         "conn_1",
-        "speclink",
+        "specseal",
         "desktop",
       ),
     );
     await waitFor(() =>
       expect(onMigrated).toHaveBeenCalledWith(
         "conn_1",
-        "speclink/desktop",
+        "specseal/desktop",
         "/work/local",
       ),
     );
     expect(connectionAdapter.scopes).toHaveBeenCalledWith("conn_1");
-    expect(screen.getByText(/已遷移 14 份文件/)).toBeTruthy();
+    expect(screen.getByText(/已迁移 14 份文档/)).toBeTruthy();
     expect(screen.getByText(RESULT.backupPath)).toBeTruthy();
   });
 
-  it("狀態語意色：eyebrow 中性、備份警語琥珀、進行中為藍、成功為綠", async () => {
-    // spec「進行中以藍呈現」「成功以綠呈現」：主色同時當「進行中」與「成功」，
-    // 兩個結局長得一樣，使用者分不出遷移跑完沒。
+  it("状态语意色：eyebrow 中性、备份警语琥珀、进行中为蓝、成功为绿", async () => {
+    // spec「进行中以蓝呈现」「成功以绿呈现」：主色同时当「进行中」与「成功」，
+    // 两个结局长得一样，用户分不出迁移跑完没。
     let resolveMigration: (result: MigrationResult) => void = () => {};
     const migrate = vi.fn(
       () => new Promise<MigrationResult>((resolve) => { resolveMigration = resolve; }),
@@ -121,28 +121,28 @@ describe("MigrationDialog", () => {
     const dialog = screen.getByTestId("migration-dialog");
     const eyebrow = screen.getByText("Local → Remote").closest("div") as HTMLElement;
     expect(eyebrow.className).not.toContain("text-primary");
-    expect(screen.getByText(/本機規格資料夾.*改名備份/).closest("div")!.className).toContain("status-warning");
+    expect(screen.getByText(/本机规格文档夹.*改名备份/).closest("div")!.className).toContain("status-warning");
 
-    fireEvent.click(screen.getByRole("button", { name: "開始遷移" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始迁移" }));
     const running = screen.getByRole("status");
     expect(running.className).toContain("status-progress");
     expect(running.querySelector("svg")?.getAttribute("class")).toContain(SEMANTIC_TONE.inProgress);
 
     resolveMigration(RESULT);
-    await screen.findByText(/已遷移 14 份文件/);
+    await screen.findByText(/已迁移 14 份文档/);
     const check = dialog.querySelector(".rounded-full") as HTMLElement;
     expect(check.className).toContain("status-success");
     expect(check.className).not.toContain("bg-primary");
   });
 
-  it("server 拒絕時原樣呈現錯誤且不轉換分頁", async () => {
+  it("server 拒绝时原样呈现错误且不转换分页", async () => {
     const migrate = vi
       .fn()
       .mockRejectedValue(new Error("409 create-new import requires an empty target scope"));
     const { onMigrated } = renderDialog(migrate);
 
     await reachConfirmation();
-    fireEvent.click(screen.getByRole("button", { name: "開始遷移" }));
+    fireEvent.click(screen.getByRole("button", { name: "开始迁移" }));
 
     expect((await screen.findByRole("alert")).textContent).toContain(
       "409 create-new import requires an empty target scope",

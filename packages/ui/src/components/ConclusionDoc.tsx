@@ -32,7 +32,7 @@ import {
 } from "./DocParts";
 import { Markdown } from "./Markdown";
 
-/** 分刀卡變更籤的階段：名稱在 `promoted_to` 中時有階段籤，`onOpen` 缺席為不可點。 */
+/** 分刀卡变更签的阶段：名称在 `promoted_to` 中时有阶段签，`onOpen` 缺席为不可点。 */
 export interface CutStage {
   label: string;
   tone: StatusPillTone;
@@ -41,20 +41,20 @@ export interface CutStage {
 
 export interface ConclusionDocProps {
   text: string;
-  /** 引擎對該記錄解析的刀；空陣列（沒有刀或舊 server 沒有分刀資料）時沒有分刀段，刀列留在定案細節。 */
+  /** 引擎对该记录解析的刀；空数组（没有刀或旧 server 没有分刀数据）时没有分刀段，刀列留在定案细节。 */
   cuts?: DiscussionCut[];
   empty?: string;
-  /** 分刀卡變更籤的階段與開啟；回 null＝不在 `promoted_to`（不可點、無階段籤）。 */
+  /** 分刀卡变更签的阶段与打开；回 null＝不在 `promoted_to`（不可点、无阶段签）。 */
   stageOf?: (name: string) => CutStage | null;
-  /** 記錄去向的規格籤：名稱在 `specNames` 中才可點。 */
+  /** 记录去向的规格签：名称在 `specNames` 中才可点。 */
   specNames?: string[];
   onOpenSpec?: (capability: string) => void;
-  /** 「前往」請求：把該刀卡捲到閱讀區中央（seq 遞增，同一刀可重複跳）；處理完呼叫 `onJumped` 清除。 */
+  /** 「前往」请求：把该刀卡卷到阅读区中央（seq 递增，同一刀可重复跳）；处理完调用 `onJumped` 清除。 */
   jump?: { id: string; seq: number } | null;
   onJumped?: () => void;
 }
 
-/** 欄位 → 區段標題詞條（也是 `data-section` 的值）。 */
+/** 字段 → 区段标题词条（也是 `data-section` 的值）。 */
 const FIELD_KEYS: Record<ConclusionLabel, string> = {
   Decision: "conclusion.decision",
   Rationale: "conclusion.rationale",
@@ -64,17 +64,17 @@ const FIELD_KEYS: Record<ConclusionLabel, string> = {
   Next: "conclusion.next",
 };
 
-/** 定案細節預設只畫前幾條。 */
+/** 定案细节缺省只画前几条。 */
 const DETAILS_SHOWN = 4;
 
 /**
- * 結論文件（desktop-discussion-doc-views design D2；spec「討論結論以欄位標籤呈現」）：六欄位各一段，決定之後
- * 有分刀時多一段「分刀」；欄位一個都沒有時整篇 Markdown 退回。討論詳情頁與已封存討論頁共用。
+ * 结论文档（desktop-discussion-doc-views design D2；spec「讨论结论以字段标签呈现」）：六字段各一段，决定之后
+ * 有分刀时多一段「分刀」；字段一个都没有时整篇 Markdown 退回。讨论详情页与已封存讨论页共用。
  */
 export function ConclusionDoc({ text, cuts = [], empty, stageOf, specNames, onOpenSpec, jump, onJumped }: ConclusionDocProps) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
-  // 刀卡在這一輪 commit 後才在 DOM 裡，effect 裡捲動才找得到；找不到時只清請求。
+  // 刀卡在这一轮 commit 后才在 DOM 里，effect 里卷动才找得到；找不到时只清请求。
   useEffect(() => {
     if (!jump) return;
     ref.current
@@ -132,7 +132,7 @@ export function ConclusionDoc({ text, cuts = [], empty, stageOf, specNames, onOp
   );
 }
 
-/** 決定：定論句放大、定案細節收合；引擎的刀對回的列抽成其後的「分刀」段。 */
+/** 决定：定论句放大、定案细节收合；引擎的刀对回的列抽成其后的「分刀」段。 */
 function DecisionSections({
   md,
   engineCuts,
@@ -181,9 +181,9 @@ function DecisionSections({
   );
 }
 
-/** 一張分刀卡：識別籤、範圍句、變更數；變更名籤附階段籤；卡內細線列。轉出判定取自引擎（`cutPromotion`）：
- * 整刀未轉出時橄欖色虛線框、卡頭「尚未轉出」籤；部分轉出時 `unpromoted` 內的變更名籤之後接同款籤。
- * `unpromoted` 內的名稱不取 `stageOf`（清單的 promotedTo 可能與文件不同步），同一顆籤只有一種轉出狀態。 */
+/** 一张分刀卡：识别签、范围句、变更数；变更名签附阶段签；卡内细线列。转出判定取自引擎（`cutPromotion`）：
+ * 整刀未转出时橄榄色虚线框、卡头「尚未转出」签；部分转出时 `unpromoted` 内的变更名签之后接同款签。
+ * `unpromoted` 内的名称不取 `stageOf`（清单的 promotedTo 可能与文档不同步），同一颗签只有一种转出状态。 */
 function CutCardView({ cut, stageOf }: { cut: CutCard; stageOf?: ConclusionDocProps["stageOf"] }) {
   const { t, tn } = useI18n();
   const promotion = cutPromotion(cut);
@@ -236,7 +236,7 @@ function CutCardView({ cut, stageOf }: { cut: CutCard; stageOf?: ConclusionDocPr
   );
 }
 
-/** 記錄去向：每項一顆籤；等於規格名時整顆可點，內含規格名時籤內的名稱可點；切不出籤時照 Markdown。 */
+/** 记录去向：每项一颗签；等于规格名时整颗可点，内含规格名时签内的名称可点；切不出签时照 Markdown。 */
 function CaptureChips({
   md,
   specNames,
@@ -260,7 +260,7 @@ function CaptureChips({
         }
         const spans = onOpenSpec ? nameSpans(target, specNames) : [];
         let last = 0;
-        // 籤文字可能是一整句：可折行、寬度不超過容器（不沿用名稱籤的不換行）。
+        // 签文本可能是一整句：可折行、宽度不超过容器（不沿用名称签的不换行）。
         return (
           <span key={i} data-capture-chip className="inline-block max-w-full rounded bg-muted px-1.5 py-0.5 font-mono text-xs break-words">
             {spans.flatMap(({ name, start, end }) => {
@@ -286,7 +286,7 @@ function CaptureChips({
   );
 }
 
-/** 下一步：Markdown 之後列出 `/speclink-*` 指令籤，每顆附複製鈕。 */
+/** 下一步：Markdown 之后列出 `/specseal-*` 指令签，每颗附拷贝钮。 */
 function NextCommands({ md }: { md: string }) {
   const commands = commandChips(md);
   return (

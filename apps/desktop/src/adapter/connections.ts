@@ -1,27 +1,27 @@
-// server 連線的桌面 adapter（desktop-connections；client-browser-login D7、D9）：
-// 清單/新增/登入/登出/移除的 invoke 包裝。型別面無任何 secret 欄位——
-// credential 唯一落點是 Rust 側的 OS Keychain，TS 只見連線狀態與身分顯示名；
-// PAT 僅作 pat_login 的參數單次過境，不回讀、不入狀態。登入的等待迴圈在 Rust：
-// 這裡只轉送它送來的階段事件，並把終態交回呼叫端。
+// server 连接的桌面 adapter（desktop-connections；client-browser-login D7、D9）：
+// 清单/添加/登录/注销/移除的 invoke 包装。类型面无任何 secret 字段——
+// credential 唯一落点是 Rust 侧的 OS Keychain，TS 只见连接状态与身分显示名；
+// PAT 仅作 pat_login 的参数单次过境，不回读、不入状态。登录的等待循环在 Rust：
+// 这里只转送它送来的阶段事件，并把终态交回调用端。
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen as tauriListen } from "@tauri-apps/api/event";
 
 import type { InvokeFn, ListenFn } from "../session";
 
-/** Rust 送來登入階段事件的名稱。 */
+/** Rust 送来登录阶段事件的名称。 */
 const LOGIN_PHASE_EVENT = "connection-login-phase";
 
-/** 連線條目的 TS 檢視：registry 欄位＋由 Keychain 推導的登入狀態。 */
+/** 连接条目的 TS 查看：registry 字段＋由 Keychain 推导的登录状态。 */
 export interface ConnectionView {
   id: string;
   origin: string;
   name: string;
-  /** 最後登入身分的顯示名；未登入過即缺席。 */
+  /** 最后登录身分的显示名；未登录过即缺席。 */
   lastActorDisplay?: string | null;
   loggedIn: boolean;
 }
 
-/** 伺服器頁「預設」卡的有效預設連線：存在且已登入才算，否則等同不預選（null）。 */
+/** 服务器页「缺省」卡的有效缺省连接：存在且已登录才算，否则等同不预选（null）。 */
 export function defaultConnectionOf(
   connections: readonly ConnectionView[],
   defaultConnectionId: string | null | undefined,
@@ -29,16 +29,16 @@ export function defaultConnectionOf(
   return connections.find((entry) => entry.id === defaultConnectionId && entry.loggedIn) ?? null;
 }
 
-/** 登入等待中的階段（Rust 經事件送來）；store 的 `ConnectionPhase` 直接收它。
- * expiresAt＝截止時刻（epoch 毫秒），倒數依它計算。
- * 授權網址只帶 state 與 PKCE challenge，不含授權碼、verifier 或任何 token。 */
+/** 登录等待中的阶段（Rust 经事件送来）；store 的 `ConnectionPhase` 直接收它。
+ * expiresAt＝截止时刻（epoch 毫秒），倒数依它计算。
+ * 授权网址只带 state 与 PKCE challenge，不含授权码、verifier 或任何 token。 */
 export type LoginPhase =
   | { kind: "awaitingBrowser"; url: string; expiresAt: number }
   | { kind: "awaitingApproval"; userCode: string; verificationUri: string; expiresAt: number };
 
-/** 一次登入的終態（規格「device login 預設與 PAT fallback」）：patRequired＝server
- * 只收存取金鑰或沒有 device flow，就地改收 PAT；被拒與逾時帶出這一輪的登入方式
- * （兩種的說法不同）；連線錯誤走 reject。 */
+/** 一次登录的终态（规格「device login 缺省与 PAT fallback」）：patRequired＝server
+ * 只收访问密钥或没有 device flow，就地改收 PAT；被拒与逾时带出这一轮的登录方式
+ * （两种的说法不同）；连接错误走 reject。 */
 export type LoginResult =
   | { status: "loggedIn"; display: string }
   | { status: "patRequired" }
@@ -46,7 +46,7 @@ export type LoginResult =
   | { status: "expired"; method: "browser" | "device" }
   | { status: "cancelled" };
 
-/** 登出結果：撤銷為盡力語意；patNotice＝請至伺服器帳號頁撤銷 PAT。 */
+/** 注销结果：撤销为尽力语意；patNotice＝请至服务器帐号页撤销 PAT。 */
 export interface LogoutResult {
   revokedOnServer: boolean;
   patNotice: boolean;
@@ -66,8 +66,8 @@ export interface ScopesView {
   projects: ProjectScopeView[];
 }
 
-/** inspect_checkout 的零寫入結果：確認過的 checkout 根路徑與要預選的既有 built-in
- * 工具選集（claude／codex／copilot／pi／cursor）。不含任何 credential 或 Server 資料。 */
+/** inspect_checkout 的零写入结果：确认过的 checkout 根路径与要预选的既有 built-in
+ * 工具选集（claude／codex／copilot／pi／cursor）。不含任何 credential 或 Server 数据。 */
 export interface CheckoutInspection {
   root: string;
   tools: string[];
@@ -76,26 +76,26 @@ export interface CheckoutInspection {
 export interface ConnectionsAdapter {
   list(): Promise<ConnectionView[]>;
   add(baseUrl: string, name: string): Promise<ConnectionView>;
-  /** 移除連線＝Rust 側先走登出語意再刪條目（決策 6）。 */
+  /** 移除连接＝Rust 侧先走注销语意再删条目（决策 6）。 */
   remove(id: string): Promise<void>;
-  /** 登入到終態才 resolve：先試靜默換新，否則依 server 宣告的方式登入；途中的
-   * 等待階段（只屬於這個 origin）經 onPhase 送來。 */
+  /** 登录到终态才 resolve：先试静默换新，否则依 server 声明的方式登录；途中的
+   * 等待阶段（只属于这个 origin）经 onPhase 送来。 */
   loginStart(origin: string, onPhase: (phase: LoginPhase) => void): Promise<LoginResult>;
-  /** 取消等待中的登入：Rust 結束等待、loginStart 以 cancelled 收場。 */
+  /** 取消等待中的登录：Rust 结束等待、loginStart 以 cancelled 收场。 */
   loginCancel(origin: string): Promise<void>;
-  /** PAT 單次過境：呼叫後 TS 不保留任何拷貝。 */
+  /** PAT 单次过境：调用后 TS 不保留任何拷贝。 */
   patLogin(origin: string, pat: string): Promise<{ status: "loggedIn"; display: string }>;
   logout(origin: string): Promise<LogoutResult>;
-  /** 登入者 membership 過濾後的 Project／Repo 清單。 */
+  /** 登录者 membership 过滤后的 Project／Repo 清单。 */
   scopes(connectionId: string): Promise<ScopesView>;
-  /** 先檢查階段（零寫入）：驗證 checkout marker 一致性並回報要預選的既有工具選集。 */
+  /** 先检查阶段（零写入）：验证 checkout marker 一致性并回报要预选的既有工具选集。 */
   inspectCheckout(
     path: string,
     origin: string,
     project: string,
     repo: string,
   ): Promise<CheckoutInspection>;
-  /** 提交階段：重做驗證、無 marker 時寫入 marker，再同步所選 built-in 工具的受管產物。 */
+  /** 提交阶段：重做验证、无 marker 时写入 marker，再同步所选 built-in 工具的受管产物。 */
   bindCheckout(
     path: string,
     origin: string,
@@ -114,7 +114,7 @@ export function createConnectionsAdapter(
     add: (baseUrl, name) => invoke("connection_add", { baseUrl, name }),
     remove: (id) => invoke("connection_remove", { id }),
     async loginStart(origin, onPhase) {
-      // 先掛好監聽再起登入：Rust 一開始就可能送出等待階段。
+      // 先挂好监听再起登录：Rust 一开始就可能送出等待阶段。
       const unlisten = await listen(LOGIN_PHASE_EVENT, (e) => {
         const { origin: from, ...phase } = e.payload as LoginPhase & { origin: string };
         if (from === origin) onPhase(phase as LoginPhase);

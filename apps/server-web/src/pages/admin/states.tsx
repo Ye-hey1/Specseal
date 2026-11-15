@@ -1,7 +1,7 @@
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 
-// 管理六頁共用的載入／錯誤狀態（D6：一致且可恢復）。標題屬頁面外殼、始終呈現，
-// 資料層則以這兩個狀態呈現載入與可重試錯誤。
+// 管理六页共用的加载／错误状态（D6：一致且可恢复）。标题属页面外壳、始终呈现，
+// 数据层则以这两个状态呈现加载与可重试错误。
 export function AdminLoading() {
   const { t } = useI18n();
   return (
@@ -23,7 +23,7 @@ export function AdminError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-/** 卡內分頁的載入／錯誤狀態：與設定型列同樣的內距。 */
+/** 卡内分页的加载／错误状态：与设置型列同样的内距。 */
 export function AdminCardState({ error, onRetry }: { error: unknown; onRetry: () => void }) {
   return <div className="px-4 py-3">{error != null ? <AdminError onRetry={onRetry} /> : <AdminLoading />}</div>;
 }

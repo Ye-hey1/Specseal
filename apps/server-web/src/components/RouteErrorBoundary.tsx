@@ -1,11 +1,11 @@
 import { Component, type ReactNode } from "react";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 
-// route chunk 或 render 失敗時顯示可重試訊息，而非白屏（D6）。route 資料層的
-// 預期錯誤（fetch 失敗）由頁面 inline error 狀態處理；此邊界接住真正的 render crash。
+// route chunk 或 render 失败时显示可重试消息，而非白屏（D6）。route 数据层的
+// 预期错误（fetch 失败）由页面 inline error 状态处理；此边界接住真正的 render crash。
 //
-// 邊界本身必須是 class（只有 class 有 getDerivedStateFromError），class 不能用 hook，
-// 所以文案交給下面這個 function component 讀。
+// 边界本身必须是 class（只有 class 有 getDerivedStateFromError），class 不能用 hook，
+// 所以文案交给下面这个 function component 读。
 export class RouteErrorBoundary extends Component<
   { children: ReactNode },
   { error: unknown }

@@ -1,5 +1,5 @@
-// shadcn Textarea（design D2）：樣式化原生 textarea——多行輸入無 OS chrome 繪製
-// 問題，僅需 border／bg／focus token 化，不引入 Radix。
+// shadcn Textarea（design D2）：样式化原生 textarea——多行输入无 OS chrome 绘制
+// 问题，仅需 border／bg／focus token 化，不引入 Radix。
 import * as React from "react";
 
 import { cn } from "../../lib/utils";

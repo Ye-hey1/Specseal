@@ -1,6 +1,6 @@
-// macOS 原生選單列（desktop-native-menu design D1–D3）：與系統匣同一機制——文案取自
-// i18n 字典、語言或「有無專案」改變時整個重建。分兩層：buildAppMenuModel 是純函式
-// （直測）；installAppMenu 以 Tauri 選單 API 建出並設為 app 選單。
+// macOS 原生菜单列（desktop-native-menu design D1–D3）：与系统匣同一机制——文案取自
+// i18n 字典、语言或「有无项目」改变时整个重建。分两层：buildAppMenuModel 是纯函数
+// （直测）；installAppMenu 以 Tauri 菜单 API 建出并设为 app 菜单。
 import {
   Menu,
   type MenuItemOptions,
@@ -10,7 +10,7 @@ import {
 
 import type { Platform } from "./platform";
 
-/** 自訂選單項的動作 id：App 依此派發到 store 既有動作或 window 事件。 */
+/** 自订菜单项的动作 id：App 依此派发到 store 既有动作或 window 事件。 */
 export type AppMenuAction =
   | "about"
   | "checkUpdates"
@@ -32,7 +32,7 @@ export type AppMenuAction =
   | "github"
   | "reportIssue";
 
-/** 系統預設項：行為與快捷鍵由系統提供（Tauri 的 predefined 項不接受 accelerator）。 */
+/** 系统缺省项：行为与快捷键由系统提供（Tauri 的 predefined 项不接受 accelerator）。 */
 export type AppMenuPredefined =
   | "Services"
   | "Hide"
@@ -61,7 +61,7 @@ export interface AppMenuGroup {
 
 export type AppMenuModel = AppMenuGroup[];
 
-/** 選單模型（design D2）：沒有作用中專案時，關閉專案、檢視組全部與說明的手冊停用。 */
+/** 菜单模型（design D2）：没有作用中项目时，关闭项目、查看组全部与说明的手册停用。 */
 export function buildAppMenuModel({
   t,
   hasProject,
@@ -84,7 +84,7 @@ export function buildAppMenuModel({
   return [
     {
       id: "app",
-      text: "Speclink",
+      text: "Specseal",
       items: [
         item("about", "menu.app.about"),
         item("checkUpdates", "menu.app.checkUpdates"),
@@ -163,7 +163,7 @@ export function buildAppMenuModel({
   ];
 }
 
-/** 設定頁「鍵盤快捷鍵」卡的一列（design D5）。 */
+/** 设置页「键盘快捷键」卡的一列（design D5）。 */
 export interface ShortcutRow {
   id: AppMenuAction | "gotoProject";
   text: string;
@@ -172,7 +172,7 @@ export interface ShortcutRow {
 
 const MODIFIER_SYMBOLS: Record<string, string> = { Cmd: "⌘", CmdOrCtrl: "⌘", Ctrl: "⌃" };
 
-/** 選單 accelerator 轉成 macOS 按鍵符號：`CmdOrCtrl+,` → `⌘,`、`Ctrl+Tab` → `⌃Tab`。 */
+/** 菜单 accelerator 转成 macOS 按键符号：`CmdOrCtrl+,` → `⌘,`、`Ctrl+Tab` → `⌃Tab`。 */
 function formatAccelerator(accelerator: string): string {
   return accelerator
     .split("+")
@@ -181,9 +181,9 @@ function formatAccelerator(accelerator: string): string {
 }
 
 /**
- * 設定頁「鍵盤快捷鍵」卡的列表（design D5），只列實際生效的快捷鍵。macOS 由選單模型導出，
- * 卡片與選單只有一份定義；Windows／Linux 沒有選單列，五列對應 App.tsx 的 keydown（Ctrl+W、
- * Ctrl+R、Ctrl+Tab、Ctrl+1–9）與 BoardSearchBar 的 Ctrl+F——改那兩處的按鍵時要同批改這裡。
+ * 设置页「键盘快捷键」卡的列表（design D5），只列实际生效的快捷键。macOS 由菜单模型导出，
+ * 卡片与菜单只有一份定义；Windows／Linux 没有菜单列，五列对应 App.tsx 的 keydown（Ctrl+W、
+ * Ctrl+R、Ctrl+Tab、Ctrl+1–9）与 BoardSearchBar 的 Ctrl+F——改那两处的按键时要同批改这里。
  */
 export function buildShortcutList({
   t,
@@ -224,10 +224,10 @@ export interface AppMenuDeps {
 }
 
 /**
- * 安裝 macOS 原生選單列（design D3）：與系統匣同一做法，把模型轉成整棵選項物件一次交給
- * `Menu.new` 後 `setAsAppMenu()`，再關掉被換下的舊選單（釋放 Rust 端資源）。非 macOS 不呼叫
- * 任何選單 API。回傳取消函式：語言或專案有無改變時 App 以新的一次取代，取消後才建好的
- * 選單不套用並關掉。建立失敗只記 console.error——app 照常、僅無選單列。
+ * 安装 macOS 原生菜单列（design D3）：与系统匣同一做法，把模型转成整棵选项对象一次交给
+ * `Menu.new` 后 `setAsAppMenu()`，再关掉被换下的旧菜单（释放 Rust 端资源）。非 macOS 不调用
+ * 任何菜单 API。回传取消函数：语言或项目有无改变时 App 以新的一次取代，取消后才建好的
+ * 菜单不套用并关掉。创建失败只记 console.error——app 照常、仅无菜单列。
  */
 export function installAppMenu(deps: AppMenuDeps): () => void {
   if (!deps.isMacOS) return () => {};

@@ -6,9 +6,9 @@ import { CredentialsPage } from "./CredentialsPage";
 import { SystemPage } from "./SystemPage";
 import { AuditPage } from "./AuditPage";
 
-// 管理面的六個目的地。整個 section 由 router 以 lazy import 切出獨立 chunk，
-// 使登入／帳號的初載 bundle 不含管理程式碼（D1）。使用者與專案各是一個區段，
-// 列表與詳情頁在區段內切換（server-web-detail-pages design D1）。
+// 管理面的六个目的地。整个 section 由 router 以 lazy import 切出独立 chunk，
+// 使登录／帐号的初载 bundle 不含管理代码（D1）。用户与项目各是一个区段，
+// 列表与详情页在区段内切换（server-web-detail-pages design D1）。
 export default function AdminSection() {
   return (
     <Routes>
@@ -18,7 +18,7 @@ export default function AdminSection() {
       <Route path="credentials" element={<CredentialsPage />} />
       <Route path="system" element={<SystemPage />} />
       <Route path="audit" element={<AuditPage />} />
-      {/* 資料操作已併入系統：舊書籤送到內容搬去的地方，而不是空白畫面。 */}
+      {/* 数据操作已并入系统：旧书签送到内容搬去的地方，而不是空白画面。 */}
       <Route path="data" element={<Navigate to="/admin/system" replace />} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

@@ -23,26 +23,26 @@ import { SearchField } from "./SearchField";
 import { DocSkeleton } from "./skeletons";
 
 export interface SpecDetailPageProps {
-  /** 目標 capability id；null＝未選定（不渲染）。 */
+  /** 目标 capability id；null＝未选定（不渲染）。 */
   capability: string | null;
-  /** 刷新世代——遞增即就地重載（不清空、latest-wins；未傳＝0）。 */
+  /** 刷新世代——递增即就地重载（不清空、latest-wins；未传＝0）。 */
   refreshGen?: number;
-  /** 讀取正式規格 spec.md 全文（capability 定址）；缺件回 null。 */
+  /** 读取正式规格 spec.md 全文（capability 寻址）；缺件回 null。 */
   loadDocument: (capability: string) => Promise<string | null>;
-  /** 封存變更清單：把 @trace 來源變更名對應到封存目錄名與封存日期；缺席／空＝溯源全部不可點。 */
+  /** 封存变更清单：把 @trace 来源变更名对应到封存目录名与封存日期；缺席／空＝溯源全部不可点。 */
   archivedChanges?: ArchivedItem[];
-  /** 點可點的溯源列或需求錨點：宿主開啟該封存變更的已封存詳情頁（帶 datedName）。 */
+  /** 点可点的溯源列或需求锚点：宿主打开该封存变更的已封存详情页（带 datedName）。 */
   onOpenArchivedChange?: (datedName: string) => void;
-  /** 「規格」閱讀卡標題列右端的文件動作（「開啟 ▾」，對應 spec.md）；溯源文件不對應檔案、不放。 */
+  /** 「规格」阅读卡标题列右端的文档动作（「打开 ▾」，对应 spec.md）；溯源文档不对应文件、不放。 */
   renderDocumentActions?: (target: DocumentTarget | null) => ReactNode;
-  /** spec.md 的實際相對路徑（宿主向 core 查詢，跟著專案的 spec 目錄名走）：出處行首段與 Purpose 待補
-   * 提示框引用它；缺席或查無時出處行不列路徑、提示框改用不帶路徑的說法。 */
+  /** spec.md 的实际相对路径（宿主向 core 查找，跟着项目的 spec 目录名走）：出处行首段与 Purpose 待补
+   * 提示框引用它；缺席或查无时出处行不列路径、提示框改用不带路径的说法。 */
   locateDocument?: (doc: DocumentRef) => Promise<{ relative: string } | null>;
 }
 
 type Doc = string | null | undefined;
 
-/** 封存清單以變更名索引（同名取清單中的第一筆）。 */
+/** 封存清单以变更名索引（同名取清单中的第一笔）。 */
 function archivedByName(archived: ArchivedItem[]): Map<string, ArchivedItem> {
   const byName = new Map<string, ArchivedItem>();
   for (const item of archived) {
@@ -51,8 +51,8 @@ function archivedByName(archived: ArchivedItem[]): Map<string, ArchivedItem> {
   return byName;
 }
 
-/** 溯源列（design D2）：全文 @trace 來源去重；封存清單命中者依封存日期升冪（同日依文件
- * 首次出現序）在前，未命中者依文件出現序在後。 */
+/** 溯源列（design D2）：全文 @trace 来源去重；封存清单命中者依封存日期升幂（同日依文档
+ * 首次出现序）在前，未命中者依文档出现序在后。 */
 function traceItems(doc: Doc, byName: Map<string, ArchivedItem>) {
   const items = parseTraceSources(doc).map((name, index) => ({ name, index, archived: byName.get(name) }));
   const hits = items
@@ -61,7 +61,7 @@ function traceItems(doc: Doc, byName: Map<string, ArchivedItem>) {
   return [...hits, ...items.filter((i) => !i.archived)];
 }
 
-/** 需求段標題列右端的來源錨點：封存清單命中時可點開該封存變更。 */
+/** 需求段标题列右端的来源锚点：封存清单命中时可点开该封存变更。 */
 function TraceAnchor({
   trace,
   byName,
@@ -92,11 +92,11 @@ function TraceAnchor({
 }
 
 /**
- * 規格詳情頁（spec「桌面 app 呈現 change 與 spec 的清單與內容」；desktop-spec-manual-pages design
- * D1–D5）：詳情頁三欄骨架——左欄身分區、「文件」節點規格／溯源與「狀態」三列；「規格」閱讀卡為
- * 標題區（需求數籤、搜尋需求、「開啟 ▾」、出處行）、數字磚、提示框、Purpose 引言段與需求段（命中的
- * 第一條展開、其餘收合）；「溯源」閱讀卡為出處行、數字磚與來源變更列；右欄本頁目錄自渲染後的 DOM
- * 推導。換目標以 key 重掛（清空全量載入、搜尋字串與文件回到初始），世代重載不清空且 latest-wins。
+ * 规格详情页（spec「桌面 app 呈现 change 与 spec 的清单与内容」；desktop-spec-manual-pages design
+ * D1–D5）：详情页三栏骨架——左栏身分区、「文档」节点规格／溯源与「状态」三列；「规格」阅读卡为
+ * 标题区（需求数签、搜索需求、「打开 ▾」、出处行）、数字砖、提示框、Purpose 引言段与需求段（命中的
+ * 第一条展开、其余收合）；「溯源」阅读卡为出处行、数字砖与来源变更列；右栏本页目录自渲染后的 DOM
+ * 推导。换目标以 key 重挂（清空全量加载、搜索字符串与文档回到初始），世代重载不清空且 latest-wins。
  */
 export function SpecDetailPage(props: SpecDetailPageProps) {
   if (!props.capability) return null;
@@ -117,11 +117,11 @@ function SpecDetailView({
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("spec");
   const [docPath, setDocPath] = useState<string | null>(null);
-  // 需求段每次展開／收合都遞增：進 tocKey 讓右欄目錄重掃，展開後才渲染的內文子標題補進目錄。
+  // 需求段每次展开／收合都递增：进 tocKey 让右栏目录重扫，展开后才渲染的内文子标题补进目录。
   const [toggles, setToggles] = useState(0);
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // 開啟全量載入；外部世代重載不清空、回應到達後單次替換（不重置捲動與搜尋）。
+  // 打开全量加载；外部世代重载不清空、回应到达后单次替换（不重置卷动与搜索）。
   useGenerationLoad(refreshGen ?? 0, (isLatest) => {
     void loadDocument(capability)
       .then((v) => {
@@ -148,7 +148,7 @@ function SpecDetailView({
     );
   const showTrace = () => setTab("trace");
 
-  // 換目標以 key 重掛，掛載時向 core 查一次 spec.md 的位置；卸載作廢在途回應。
+  // 换目标以 key 重挂，挂载时向 core 查一次 spec.md 的位置；卸载作废在途回应。
   const locateRef = useRef(locateDocument);
   locateRef.current = locateDocument;
   useEffect(() => {
@@ -251,7 +251,7 @@ function SpecDetailView({
     </>
   );
 
-  // 提示框只放推得出的事實（design D4）：Purpose 待補在前、缺來源變更的需求在後；兩者皆無時缺席。
+  // 提示框只放推得出的事实（design D4）：Purpose 待补在前、缺来源变更的需求在后；两者皆无时缺席。
   const callouts = (stats.purposeTbd || stats.untraced.length > 0) && (
     <div data-doc-callout className="flex flex-col gap-2.5">
       {stats.purposeTbd && (
@@ -301,9 +301,9 @@ function SpecDetailView({
             />
             <DocTiles tiles={specTiles(stats, t)} />
             {callouts}
-            {/* 沒有需求標題（或文件缺席）時整篇單一 markdown 檢視退回：不接 bodyRef，本頁目錄無錨點。 */}
+            {/* 没有需求标题（或文档缺席）时整篇单一 markdown 查看退回：不接 bodyRef，本页目录无锚点。 */}
             <DocBody ref={sections ? bodyRef : undefined}>
-              {/* 載入中畫骨架；空態文案只在載入完成後出（spec「詳情頁文件載入以 skeleton 呈現」）。 */}
+              {/* 加载中画骨架；空态文案只在加载完成后出（spec「详情页文档加载以 skeleton 呈现」）。 */}
               {!loaded ? (
                 <DocSkeleton />
               ) : !sections ? (
@@ -318,7 +318,7 @@ function SpecDetailView({
                       <Markdown content={sections.purpose} />
                     </Lead>
                   </section>
-                  {/* 需求段之外的內容（引言、其他 `## ` 區段）照原文呈現，不丟。 */}
+                  {/* 需求段之外的内容（引言、其他 `## ` 区段）照原文呈现，不丢。 */}
                   {sections.intro && (
                     <section data-spec-intro>
                       <Markdown content={sections.intro} />
@@ -327,7 +327,7 @@ function SpecDetailView({
                   {visible.length === 0 ? (
                     <p className="py-2 text-sm text-muted-foreground">{t("sdetail.noMatch")}</p>
                   ) : (
-                    // 收合規則依命中序：搜尋過濾後第一條命中展開（key 含命中序，序一變即重掛回預設）。
+                    // 收合规则依命中序：搜索过滤后第一条命中展开（key 含命中序，序一变即重挂回缺省）。
                     visible.map((r, i) => (
                       <RequirementBlock
                         key={`${i}:${r.title}`}
@@ -351,7 +351,7 @@ function SpecDetailView({
         </TabsContent>
         <TabsContent value="trace">
           <Card className="flex flex-col gap-5 p-6">
-            {/* 推導文件不對應檔案：無「開啟 ▾」。 */}
+            {/* 推导文档不对应文件：无「打开 ▾」。 */}
             <DocHeader
               title={t("sdetail.tabTrace")}
               badges={count(sources.length)}

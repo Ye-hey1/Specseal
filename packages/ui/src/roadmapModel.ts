@@ -1,14 +1,14 @@
 import type { ChangeItem } from "./adapter";
 import { changeStage, planBlockedBy, planWave, type Stage } from "./stage";
 
-/** 路線圖上的一站（spec desktop-roadmap「路線圖依波次排列變更」）。 */
+/** 路线图上的一站（spec desktop-roadmap「路线图依波次排列变更」）。 */
 export interface RoadmapStation {
   name: string;
   stage: Stage;
   completedTasks: number;
   totalTasks: number;
   blockedBy: string[];
-  /** 站名等於 plan 的 next。 */
+  /** 站名等于 plan 的 next。 */
   next: boolean;
 }
 
@@ -17,7 +17,7 @@ export interface RoadmapWave {
   stations: RoadmapStation[];
 }
 
-/** 一條依賴線：前置（from）連到依賴它的站（to）。 */
+/** 一条依赖线：前置（from）连到依赖它的站（to）。 */
 export interface RoadmapEdge {
   from: string;
   to: string;
@@ -26,16 +26,16 @@ export interface RoadmapEdge {
 export interface RoadmapModel {
   waves: RoadmapWave[];
   edges: RoadmapEdge[];
-  /** 沒有波次（metadata 無法解析）的變更名，只在看板顯示。 */
+  /** 没有波次（metadata 无法解析）的变更名，只在看板显示。 */
   unplaced: string[];
 }
 
-/** 線的鍵（`from→to`）：路線高亮與 SVG 疊層共用。 */
+/** 线的键（`from→to`）：路线高亮与 SVG 叠层共用。 */
 export function roadmapEdgeKey(edge: RoadmapEdge): string {
   return `${edge.from}→${edge.to}`;
 }
 
-/** 清單項（plan 的配置序）→ 波次欄、站、線與無法排程項；波內維持清單順序。 */
+/** 清单项（plan 的配置序）→ 波次栏、站、线与无法调度项；波内维持清单顺序。 */
 export function roadmapModel(changes: readonly ChangeItem[], next: string | null): RoadmapModel {
   const byWave = new Map<number, RoadmapStation[]>();
   const placed = new Set<string>();
@@ -67,7 +67,7 @@ export function roadmapModel(changes: readonly ChangeItem[], next: string | null
   return { waves, edges, unplaced };
 }
 
-/** 自 `start` 沿線的 `along` 端走到 `toward` 端，收集走得到的全部站（含 `start`）。 */
+/** 自 `start` 沿线的 `along` 端走到 `toward` 端，收集走得到的全部站（含 `start`）。 */
 function reach(edges: readonly RoadmapEdge[], start: string, along: "from" | "to", toward: "from" | "to"): Set<string> {
   const seen = new Set([start]);
   const pending = [start];
@@ -83,7 +83,7 @@ function reach(edges: readonly RoadmapEdge[], start: string, along: "from" | "to
   return seen;
 }
 
-/** 停在 `name` 時亮起的路線：該站、遞移前置、遞移依賴者，以及兩端都在這組站內的線。 */
+/** 停在 `name` 时亮起的路线：该站、递移前置、递移依赖者，以及两端都在这组站内的线。 */
 export function roadmapRoute(
   model: RoadmapModel,
   name: string,

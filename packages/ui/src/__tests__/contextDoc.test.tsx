@@ -1,4 +1,4 @@
-// spec「討論詳情頁檢視與轉出變更」背景段的渲染器（desktop-discussion-doc-views design D4）。
+// spec「讨论详情页查看与转出变更」背景段的渲染器（desktop-discussion-doc-views design D4）。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -9,19 +9,19 @@ import { TooltipProvider } from "../components/ui/tooltip";
 import { contextModel, type ContextNames } from "../discussionModel";
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW">
+  <I18nProvider locale="zh-CN">
     <TooltipProvider>{children}</TooltipProvider>
   </I18nProvider>
 );
 const render = (ui: ReactElement) => rtlRender(ui, { wrapper });
 
-// spec Scenario「背景文件的引言、關聯與記錄列」。
+// spec Scenario「背景文档的引言、关联与记录列」。
 const CONTEXT = [
-  "使用者要重做卡片，偵察命中 desktop-app 與 tray-status-menu。",
+  "用户要重做卡片，侦察命中 desktop-app 与 tray-status-menu。",
   "",
-  "在途變更 add-copilot-tool 也碰到；已封存的 tray-panel-card-design 是前例。",
+  "在途变更 add-copilot-tool 也碰到；已封存的 tray-panel-card-design 是前例。",
   "",
-  "Related specs: desktop-app（79 條）、tray-status-menu",
+  "Related specs: desktop-app（79 条）、tray-status-menu",
   "Prior discussions: card-drawer-header-colors, admin-console-redesign",
   "Source doc: none",
 ].join("\n");
@@ -58,12 +58,12 @@ const rowValues = (container: HTMLElement) =>
   ]);
 
 describe("ContextDoc", () => {
-  it("引言為灰底段、內文四顆名稱籤、收尾四行不在內文；關聯五列、記錄三列；點籤分派到對應回呼", () => {
+  it("引言为灰底段、内文四颗名称签、收尾四行不在内文；关联五列、记录三列；点签分派到对应回呼", () => {
     const p = props();
     const { container } = render(<ContextDoc {...p} />);
     const intro = section(container, "context.intro")!;
     expect(intro.querySelector("[data-context-lead]")!.textContent).toBe(
-      "使用者要重做卡片，偵察命中 desktop-app 與 tray-status-menu。",
+      "用户要重做卡片，侦察命中 desktop-app 与 tray-status-menu。",
     );
     expect(Array.from(intro.querySelectorAll("[data-name-chip]")).map((c) => c.getAttribute("data-name-chip"))).toEqual([
       "spec:desktop-app",
@@ -78,11 +78,11 @@ describe("ContextDoc", () => {
       ["changes", "add-copilot-tool"],
       ["archived", "tray-panel-card-design"],
       ["prior", "card-drawer-header-colorsadmin-console-redesign"],
-      ["source", "無"],
+      ["source", "无"],
     ]);
     expect(rowValues(section(container, "context.record")!)).toEqual([
       ["created", "2026-10-08 · MomoChen"],
-      ["kind", "一般討論"],
+      ["kind", "一般讨论"],
       ["file", "openspec/discussions/card-redesign.md"],
     ]);
     expect(section(container, "context.record")!.querySelector('[data-context-row="file"] button')).toBeTruthy();
@@ -93,18 +93,18 @@ describe("ContextDoc", () => {
     expect(p.onOpenChange).toHaveBeenCalledWith("add-copilot-tool");
     fireEvent.click(intro.querySelector('[data-name-chip="archived:tray-panel-card-design"]')!);
     expect(p.onOpenArchivedChange).toHaveBeenCalledWith("tray-panel-card-design");
-    // 關聯列的籤同樣可點。
+    // 关联列的签同样可点。
     fireEvent.click(section(container, "context.relations")!.querySelector('[data-context-row="prior"] button')!);
     expect(p.onOpenDiscussion).toHaveBeenCalledWith("card-drawer-header-colors");
     expect(Array.from(container.querySelectorAll("h2[data-doc-heading]")).map((h) => h.textContent)).toEqual([
-      "起因與範圍",
-      "關聯",
-      "記錄",
+      "起因与范围",
+      "关联",
+      "记录",
     ]);
   });
 
-  it("Enter／空白鍵只在名稱籤上攔下並開啟；內文連結上的按鍵照瀏覽器預設", () => {
-    const p = props({ text: "提到 desktop-app，詳見 [說明](https://example.com/doc)。" });
+  it("Enter／空白键只在名称签上拦下并打开；内文链接上的按键照浏览器缺省", () => {
+    const p = props({ text: "提到 desktop-app，详见 [说明](https://example.com/doc)。" });
     const { container } = render(<ContextDoc {...p} />);
     const intro = section(container, "context.intro")!;
     const link = intro.querySelector("a")!;
@@ -116,7 +116,7 @@ describe("ContextDoc", () => {
     expect(p.onOpenSpec).toHaveBeenCalledWith("desktop-app");
   });
 
-  it("無收尾行且零命中時無關聯段、無籤", () => {
+  it("无收尾行且零命中时无关联段、无签", () => {
     const { container } = render(<ContextDoc {...props({ text: "第一段散文。\n\n第二段散文。" })} />);
     expect(section(container, "context.relations")).toBeNull();
     expect(container.querySelector("[data-name-chip]")).toBeNull();
@@ -124,21 +124,21 @@ describe("ContextDoc", () => {
     expect(section(container, "context.record")).toBeTruthy();
   });
 
-  it("kind improve 時種類為改進討論；無 recordPath 時無檔案列；沒有回呼的種類不成籤", () => {
+  it("kind improve 时种类为改进讨论；无 recordPath 时无文档列；没有回呼的种类不成签", () => {
     const { container } = render(
       <ContextDoc {...props({ kind: "improve", recordPath: null, onOpenArchivedChange: undefined })} />,
     );
     expect(rowValues(section(container, "context.record")!)).toEqual([
       ["created", "2026-10-08 · MomoChen"],
-      ["kind", "改進討論"],
+      ["kind", "改进讨论"],
     ]);
     expect(container.querySelector('[data-name-chip^="archived:"]')).toBeNull();
     expect(container.querySelector('[data-name-chip="spec:desktop-app"]')).toBeTruthy();
   });
 
-  it("空內文顯示空態文案", () => {
-    const { container } = render(<ContextDoc {...props({ text: "\n\n" })} empty="（無背景）" />);
-    expect(container.textContent).toBe("（無背景）");
+  it("空内文显示空态文案", () => {
+    const { container } = render(<ContextDoc {...props({ text: "\n\n" })} empty="（无背景）" />);
+    expect(container.textContent).toBe("（无背景）");
     expect(container.querySelector("[data-section]")).toBeNull();
   });
 });

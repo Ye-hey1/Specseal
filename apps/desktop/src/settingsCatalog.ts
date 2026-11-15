@@ -1,5 +1,5 @@
-// 設定分類目錄（desktop-settings-mode design D1）：應用程式設定與專案設定兩種分類欄的單一來源。
-// 應用程式分類帶各頁列標籤的 i18n 鍵——分類欄搜尋以分類名與這些列標籤做大小寫不敏感比對。
+// 设置分类目录（desktop-settings-mode design D1）：应用程序设置与项目设置两种分类栏的单一来源。
+// 应用程序分类带各页列标签的 i18n 键——分类栏搜索以分类名与这些列标签做大小写不敏感比对。
 import {
   Bot,
   FileText,
@@ -13,40 +13,40 @@ import {
   Workflow,
   type LucideIcon,
 } from "lucide-react";
-import { DEFAULT_SPEC_DIR } from "@speclink/ui";
+import { DEFAULT_SPEC_DIR } from "@specseal/ui";
 
 export interface AppSettingsCategory {
   id: "general" | "updates" | "cli" | "servers" | "about";
   labelKey: string;
   icon: LucideIcon;
-  /** app＝「應用程式」群組；about＝其後的「關於」群組（desktop-about-page design D4）。 */
+  /** app＝「应用程序」群组；about＝其后的「关于」群组（desktop-about-page design D4）。 */
   group: "app" | "about";
-  /** 該頁各列標籤的 i18n 鍵。 */
+  /** 该页各列标签的 i18n 键。 */
   rows: string[];
 }
 
 export interface ProjectSettingsCategory {
-  id: "context" | "rules" | "review" | "subagent" | "workflow" | "speclink";
+  id: "context" | "rules" | "review" | "subagent" | "workflow" | "specseal";
   labelKey: string;
-  /** 子項（帶 parent）不渲染圖示，不給。 */
+  /** 子项（带 parent）不渲染图标，不给。 */
   icon?: LucideIcon;
-  /** config＝「工作流程」組（規格資料夾的 config.yaml）；project＝「專案」組（.speclink.yaml）。 */
+  /** config＝「工作流程」组（规格文件夹的 config.yaml）；project＝「项目」组（.specseal.yaml）。 */
   group: "config" | "project";
-  /** 遠端專案是否呈現（.speclink.yaml 屬本機 checkout，遠端無此分類）。 */
+  /** 远程项目是否呈现（.specseal.yaml 属本机 checkout，远程无此分类）。 */
   remote: boolean;
-  /** 屬於上層分類「品質關卡」（QUALITY_PARENT）的子項；子項在目錄裡相鄰。 */
+  /** 属于上层分类「品质关卡」（QUALITY_PARENT）的子项；子项在目录里相邻。 */
   parent?: "quality";
 }
 
-/** 上層分類「品質關卡」（目前唯一的上層分類）：沒有自己的頁，點了開 `opens` 那頁。 */
+/** 上层分类「品质关卡」（目前唯一的上层分类）：没有自己的页，点了开 `opens` 那页。 */
 export const QUALITY_PARENT: { labelKey: string; icon: LucideIcon; opens: ProjectSettingsCategory["id"] } = {
   labelKey: "settings.projectSection.quality",
   icon: ShieldCheck,
   opens: "review",
 };
 
-/** 工作流設定檔的專案根相對路徑（desktop-spec-dir-migration D4）：專案設定各頁的檔案註記由它
- * 組成；快照沒帶規格資料夾（遠端、尚未載入）時用預設 speclink。 */
+/** 工作流设置档的项目根相对路径（desktop-spec-dir-migration D4）：项目设置各页的文件注记由它
+ * 组成；快照没带规格文件夹（远程、尚未加载）时用缺省 specseal。 */
 export function workflowConfigFile(specDir: string | undefined): string {
   return `${specDir ?? DEFAULT_SPEC_DIR}/config.yaml`;
 }
@@ -118,10 +118,10 @@ export const PROJECT_SETTINGS_CATEGORIES: ProjectSettingsCategory[] = [
   { id: "review", labelKey: "settings.projectSection.review", group: "config", remote: true, parent: "quality" },
   { id: "subagent", labelKey: "settings.projectSection.subagent", group: "config", remote: true, parent: "quality" },
   { id: "workflow", labelKey: "settings.projectSection.workflow", icon: Workflow, group: "config", remote: true },
-  { id: "speclink", labelKey: "settings.projectSection.speclink", icon: Bot, group: "project", remote: false },
+  { id: "specseal", labelKey: "settings.projectSection.specseal", icon: Bot, group: "project", remote: false },
 ];
 
-/** 麵包屑在「專案設定」之後的段：子項的頁為 [上層分類（點了開 `opens`）, 頁名]，其他頁為 [頁名]。 */
+/** 面包屑在「项目设置」之后的段：子项的页为 [上层分类（点了开 `opens`）, 页名]，其他页为 [页名]。 */
 export function projectSettingsTrail(
   section: ProjectSettingsSection,
 ): Array<{ labelKey: string; opens?: ProjectSettingsSection }> {
@@ -130,7 +130,7 @@ export function projectSettingsTrail(
   return category.parent ? [QUALITY_PARENT, page] : [page];
 }
 
-/** 分類欄搜尋：分類名或任一列標籤含查詢字串（大小寫不敏感）；空查詢全數保留。 */
+/** 分类栏搜索：分类名或任一列标签含查找字符串（大小写不敏感）；空查找全数保留。 */
 export function matchAppSettings(
   query: string,
   t: (key: string) => string,

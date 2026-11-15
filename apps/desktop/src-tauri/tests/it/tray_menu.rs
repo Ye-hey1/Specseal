@@ -1,7 +1,7 @@
-//! Tray 復原 action 的原生 fallback 邊界：直接 retry 不取得主視窗焦點；
-//! 顯式詳情、設定與重新登入才允許喚起主視窗。未知 action 必須 fail-closed。
+//! Tray 复原 action 的原生 fallback 边界：直接 retry 不取得主窗口焦点；
+//! 显式详情、设置与重新登录才允许唤起主窗口。未知 action 必须 fail-closed。
 
-use speclink_desktop_lib::tray::TrayRecoveryAction;
+use specseal_desktop_lib::tray::TrayRecoveryAction;
 
 #[test]
 fn recovery_action_focus_policy_is_explicit_and_fail_closed() {
@@ -11,7 +11,7 @@ fn recovery_action_focus_policy_is_explicit_and_fail_closed() {
     assert!(TrayRecoveryAction::Reauthenticate.focuses_main_window());
 
     let unknown = serde_json::from_str::<TrayRecoveryAction>(r#""future-action""#);
-    assert!(unknown.is_err(), "未知 tray action 不得降階成會執行的既有動作");
+    assert!(unknown.is_err(), "未知 tray action 不得降阶成会运行的既有动作");
 }
 
 #[test]

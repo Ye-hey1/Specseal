@@ -1,6 +1,6 @@
-// 波次章與被擋變淡（spec desktop-app「看板卡片的波次與阻擋標示」；add-change-plan-desktop
-// design D4 改版）：清單項帶 wave 時進度列最左浮現圓圈數字章，tooltip 合併前置清單；
-// blockedBy 非空時整卡變淡（data-blocked），標題列不長任何排程章；缺 wave 時無章不變淡。
+// 波次章与被挡变淡（spec desktop-app「看板卡片的波次与阻挡标示」；add-change-plan-desktop
+// design D4 改版）：清单项带 wave 时进度列最左浮现圆圈数字章，tooltip 合并前置清单；
+// blockedBy 非空时整卡变淡（data-blocked），标题列不长任何调度章；缺 wave 时无章不变淡。
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -9,7 +9,7 @@ import { I18nProvider, type UiLocale } from "../i18n";
 import { ChangeCard } from "../components/ChangeCard";
 import type { ChangeItem } from "../adapter";
 
-function render(ui: ReactElement, locale: UiLocale = "zh-TW") {
+function render(ui: ReactElement, locale: UiLocale = "zh-CN") {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <I18nProvider locale={locale}>{children}</I18nProvider>
   );
@@ -26,10 +26,10 @@ function card(plan: Partial<ChangeItem>): ChangeItem {
 }
 
 const cardEl = () => document.querySelector('[data-change="add-c"]') as HTMLElement;
-/** 標題列＝Card 的第一個子元素（CardHeader）。 */
+/** 标题列＝Card 的第一个子元素（CardHeader）。 */
 const headerEl = () => cardEl().firstElementChild as HTMLElement;
 
-/** hover 章、推進 tooltip 延遲後回傳浮層文字。 */
+/** hover 章、推进 tooltip 延迟后回传浮层文本。 */
 function hoverTooltip(badge: HTMLElement): string {
   fireEvent.pointerMove(badge, { pointerType: "mouse" });
   act(() => {
@@ -38,15 +38,15 @@ function hoverTooltip(badge: HTMLElement): string {
   return document.querySelector("[data-side]")?.textContent ?? "";
 }
 
-describe("ChangeCard 波次章與被擋變淡", () => {
-  it("第一波無阻擋：進度列最左圓圈「1」，tooltip「第 1 波」，卡片不變淡", () => {
+describe("ChangeCard 波次章与被挡变淡", () => {
+  it("第一波无阻挡：进度列最左圆圈「1」，tooltip「第 1 波」，卡片不变淡", () => {
     vi.useFakeTimers();
     render(<ChangeCard change={card({ wave: 1, blockedBy: [], dependsOn: [], overlaps: [] })} />);
     const wave = screen.getByLabelText("第 1 波");
     expect(wave.textContent).toBe("1");
     expect(wave.getAttribute("title")).toBeNull();
-    // 章在進度列內（任務數所在的那一列），且是該列第一個子元素（進度條之前）；
-    // 以既有節點定位，不靠測試專用的 data 屬性（缺 wave 時 DOM 才能逐位元不變）。
+    // 章在进度列内（任务数所在的那一列），且是该列第一个子元素（进度条之前）；
+    // 以既有节点定位，不靠测试专用的 data 属性（缺 wave 时 DOM 才能逐比特不变）。
     const row = wave.parentElement as HTMLElement;
     expect(row.textContent).toContain("0/3");
     expect(row.firstElementChild).toBe(wave);
@@ -56,7 +56,7 @@ describe("ChangeCard 波次章與被擋變淡", () => {
     expect(hoverTooltip(wave)).toContain("第 1 波");
   });
 
-  it("第二波被兩項擋住：圓圈「2」、tooltip「第 2 波 · 等待：add-a、add-b」、整卡變淡、標題列無「等 N 項」", () => {
+  it("第二波被两项挡住：圆圈「2」、tooltip「第 2 波 · 等待：add-a、add-b」、整卡变淡、标题列无「等 N 项」", () => {
     vi.useFakeTimers();
     render(
       <ChangeCard
@@ -67,26 +67,26 @@ describe("ChangeCard 波次章與被擋變淡", () => {
     expect(wave.textContent).toBe("2");
     expect(cardEl().getAttribute("data-blocked")).toBe("true");
     expect(cardEl().className).toContain("opacity-60");
-    expect(screen.queryByText(/等 \d+ 項/)).toBeNull();
+    expect(screen.queryByText(/等 \d+ 项/)).toBeNull();
     expect(headerEl().textContent).not.toMatch(/等待|波/);
     expect(hoverTooltip(wave)).toContain("第 2 波 · 等待：add-a、add-b");
   });
 
-  it("缺 wave（remote 摘要或 plan 成環）時無章、不變淡", () => {
+  it("缺 wave（remote 摘要或 plan 成环）时无章、不变淡", () => {
     render(<ChangeCard change={card({})} />);
     expect(screen.queryByLabelText(/^第 \d+ 波$/)).toBeNull();
     expect(cardEl().getAttribute("data-blocked")).toBeNull();
     expect(cardEl().className).not.toContain("opacity-60");
-    // 其餘呈現逐位元一致：DOM 不留任何排程痕跡（含測試用屬性）。
+    // 其余呈现逐比特一致：DOM 不留任何调度痕迹（含测试用属性）。
     expect(cardEl().outerHTML).not.toMatch(/data-blocked|data-progress|opacity-60/);
     cleanup();
-    // 只帶 blockedBy 而無 wave（不合法組合）也不變淡。
+    // 只带 blockedBy 而无 wave（不合法组合）也不变淡。
     render(<ChangeCard change={card({ blockedBy: ["add-a"] })} />);
     expect(cardEl().getAttribute("data-blocked")).toBeNull();
   });
 
-  it("requirement 級重疊與封存順序不讓卡片變淡、tooltip 不多出等待", () => {
-    // blockedBy 只含宣告前置；requirementOverlap 與 archiveAfter 只排封存先後、不擋開工
+  it("requirement 级重叠与封存顺序不让卡片变淡、tooltip 不多出等待", () => {
+    // blockedBy 只含声明前置；requirementOverlap 与 archiveAfter 只排封存先后、不挡开工
     // ——卡片只反映 blockedBy。
     vi.useFakeTimers();
     render(
@@ -100,7 +100,7 @@ describe("ChangeCard 波次章與被擋變淡", () => {
             {
               change: "add-b",
               capability: "desktop-app",
-              requirement: "看板與任務",
+              requirement: "看板与任务",
               ownOperation: "MODIFIED",
               otherOperation: "MODIFIED",
               conflict: false,

@@ -1,6 +1,6 @@
-// 子代理模型頁（spec 需求「設定頁編輯子代理模型」）：「各站使用的模型」表格（每列一個內建 AI 工具、
-// 審查與驗證兩欄）與「自訂清單」卡。編輯沿用審查規則頁的頁標題右側編輯／取消／儲存 ⌘S；每格是
-// 共用下拉（與產出流程頁 locale 同一元件），清單是純文字 CodeEditor。內建清單取自快照（引擎提供）。
+// 子代理模型页（spec 需求「设置页编辑子代理模型」）：「各站使用的模型」表格（每列一个内置 AI 工具、
+// 审查与验证两栏）与「自订清单」卡。编辑沿用审查规则页的页标题右侧编辑／取消／保存 ⌘S；每格是
+// 共用下拉（与产出流程页 locale 同一组件），清单是纯文本 CodeEditor。内置清单取自快照（引擎提供）。
 import {
   Badge,
   Input,
@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { BUILTIN_TOOLS, BUILTIN_TOOL_NAMES, type BuiltinTool } from "../../builtinTools";
 import { CodeEditor } from "../../components/CodeEditor";
@@ -34,7 +34,7 @@ import {
 } from "./subagentModel";
 import type { ProjectSettingsState } from "./useProjectSettings";
 
-/** 名稱的小籤（自訂清單與內建名稱）：共用 Badge，名稱用等寬字。 */
+/** 名称的小签（自订清单与内置名称）：共用 Badge，名称用等宽字。 */
 function NameChip({ name }: { name: string }) {
   return <Badge className="font-mono">{name}</Badge>;
 }
@@ -158,7 +158,7 @@ export function SubagentModelPage({ ps }: { ps: ProjectSettingsState }) {
                   <div className="flex flex-col gap-1">
                     <span className="flex flex-wrap items-center gap-1.5">
                       {toolLabel(tool)}
-                      {/* 遠端沒有 .speclink.yaml；它解析失敗時不知道勾了哪些工具，都不標。 */}
+                      {/* 远程没有 .specseal.yaml；它解析失败时不知道勾了哪些工具，都不标。 */}
                       {!ps.isRemote && ps.snap.app.parseError === null && !ps.snap.app.tools.includes(tool) && (
                         <Badge variant="muted">{t("settings.subagentNotEnabled")}</Badge>
                       )}

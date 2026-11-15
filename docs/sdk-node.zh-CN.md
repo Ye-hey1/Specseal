@@ -1,24 +1,24 @@
-# Node SDK（@speclink/engine）
+# Node SDK（@specseal/engine）
 
 **简体中文** · [English](sdk-node.md)
 
-`@speclink/engine` 让你在 Node.js 进程里直接运行 Speclink 的动词、把规格存进自己的数据库，并为任何 AI 工具产生技能档。它就是 CLI 用的那颗 Rust 引擎，通过 [napi-rs](https://napi.rs) 接到 Node，不是另外重写的版本，所以动词行为、`--json` 输出形状与技能内容都和 CLI 一致。
+`@specseal/engine` 让你在 Node.js 进程里直接运行 Specseal 的动词、把规格存进自己的数据库，并为任何 AI 工具产生技能档。它就是 CLI 用的那颗 Rust 引擎，通过 [napi-rs](https://napi.rs) 接到 Node，不是另外重写的版本，所以动词行为、`--json` 输出形状与技能内容都和 CLI 一致。
 
 常见的两种用法：
 
-- 把 Speclink 接进既有流程，例如脚本、内部工具，或运行 AI agent 的服务。
-- 拿它当**自建 server 的引擎**。官方的 `speclink-server` 只是参考实作；远程模式由 `speclink/specs/` 底下的 `host-runtime` 与 `client-protocol` 两份公开契约定义。你可以照这两份契约，用这个引擎写自己的 server，接上自家的认证、数据库与权限模型，CLI 与桌面 app 一样接得上。官方 server 的用法见 [Remote 入门](remote-getting-started.zh-CN.md)。
+- 把 Specseal 接进既有流程，例如脚本、内部工具，或运行 AI agent 的服务。
+- 拿它当**自建 server 的引擎**。官方的 `specseal-server` 只是参考实作；远程模式由 `specseal/specs/` 底下的 `host-runtime` 与 `client-protocol` 两份公开契约定义。你可以照这两份契约，用这个引擎写自己的 server，接上自家的认证、数据库与权限模型，CLI 与桌面 app 一样接得上。官方 server 的用法见 [Remote 入门](remote-getting-started.zh-CN.md)。
 
 ## <a id="install"></a>安装
 
 ```bash
-npm install @speclink/engine
+npm install @specseal/engine
 ```
 
-0.2.0 起可从 npm 安装，版号跟着 Speclink 的 release 走。需要 Node.js 18 以上。Windows x64、macOS x64 与 arm64、Linux x64 与 arm64（glibc）五个平台都有预先编译好的套件，安装时只下载你的平台那一份，不需要 Rust。Alpine 这类 musl Linux 没有预编译套件。
+0.2.0 起可从 npm 安装，版号跟着 Specseal 的 release 走。需要 Node.js 18 以上。Windows x64、macOS x64 与 arm64、Linux x64 与 arm64（glibc）五个平台都有预先编译好的套件，安装时只下载你的平台那一份，不需要 Rust。Alpine 这类 musl Linux 没有预编译套件。
 
 ```js
-const { createEngine, skills } = require('@speclink/engine')
+const { createEngine, skills } = require('@specseal/engine')
 ```
 
 ### 替代路径：自 repo 建置
@@ -27,7 +27,7 @@ const { createEngine, skills } = require('@speclink/engine')
 
 ```bash
 git clone https://github.com/MomoChenisMe/speclink.git
-cd speclink/crates/adapters/speclink-node
+cd specseal/crates/adapters/specseal-node
 npm ci
 npm run build          # 为目前的平台建出 .node 档
 ```
@@ -35,7 +35,7 @@ npm run build          # 为目前的平台建出 .node 档
 然后用路径引用：
 
 ```js
-const { createEngine } = require('/path/to/speclink/crates/adapters/speclink-node')
+const { createEngine } = require('/path/to/specseal/crates/adapters/specseal-node')
 ```
 
 `npm run build` 只建出目前平台的文档，所以要在部署的目标平台上建置。
@@ -44,11 +44,11 @@ const { createEngine } = require('/path/to/speclink/crates/adapters/speclink-nod
 
 `createEngine` 有两种保存方式。
 
-**本机文档**：指向含 `speclink/`（或旧版创建的 `openspec/`）的项目根目录，适合本机工具与测试。
+**本机文档**：指向含 `specseal/`（或旧版创建的 `openspec/`）的项目根目录，适合本机工具与测试。
 
 ```js
 const engine = createEngine({ store: { type: 'fs', root: '/path/to/project' } })
-// 选填：specDir（缺省与 CLI 相同：依序取 .speclink.yaml 的 spec_dir、speclink/、openspec/，都没有时为 "speclink"）
+// 选填：specDir（缺省与 CLI 相同：依序取 .specseal.yaml 的 spec_dir、specseal/、openspec/，都没有时为 "specseal"）
 ```
 
 **自己的 Store**：传入一个实作 Store 接口的对象（见[自己实作 Store](#store)），引擎通过它读写文档。
@@ -101,7 +101,7 @@ await engine.dispatch(
 
 ## <a id="store"></a>自己实作 Store
 
-Store 是一个对象，引擎通过它读写 change、artifact、规格与讨论。数据要怎幺存（数据表、文档、对象保存）由你决定。完整的方法签名见 [`index.d.ts`](../crates/adapters/speclink-node/index.d.ts)。每个方法可以直接回传值，也可以回传 Promise。
+Store 是一个对象，引擎通过它读写 change、artifact、规格与讨论。数据要怎幺存（数据表、文档、对象保存）由你决定。完整的方法签名见 [`index.d.ts`](../crates/adapters/specseal-node/index.d.ts)。每个方法可以直接回传值，也可以回传 Promise。
 
 **必要方法**（共 31 个）：
 
@@ -200,7 +200,7 @@ await engine.dispatch(['review', 'stamp', 'add-auth', '--agent', 'claude', '--st
 
 ## <a id="render"></a>产生技能档
 
-`skills` 用的是和 `speclink init`／`speclink update` 同一份产生进程，内容不会和 CLI 有落差。
+`skills` 用的是和 `specseal init`／`specseal update` 同一份产生进程，内容不会和 CLI 有落差。
 
 ```js
 skills.list() // [{ name: 'analyze', description: '…' }, …]
@@ -210,29 +210,29 @@ const skillMd = skills.render('propose', { target: 'neutral', invocation: 'tool-
 
 | 选项 | 值 | 说明 |
 | --- | --- | --- |
-| `target` | `claude`、`codex`、`copilot`、`pi`、`cursor`、`neutral` | `neutral` 给自订工具用：没有 `/speclink-` 斜线指令，也不提 plan mode |
-| `invocation` | `cli`（缺省）、`tool-call` | `tool-call` 把动词写成「调用 speclink 工具，参数是 argv 数组」，搭配以 `dispatch` 实作的工具；`cli` 写成 shell 指令 |
-| `specDir` | 字符串 | 技能内文里的规格目录名，缺省 `speclink` |
-| `toolName` | 字符串 | 只用于 `neutral`：技能内文里的工具名称，缺省 `speclink` |
+| `target` | `claude`、`codex`、`copilot`、`pi`、`cursor`、`neutral` | `neutral` 给自订工具用：没有 `/specseal-` 斜线指令，也不提 plan mode |
+| `invocation` | `cli`（缺省）、`tool-call` | `tool-call` 把动词写成「调用 specseal 工具，参数是 argv 数组」，搭配以 `dispatch` 实作的工具；`cli` 写成 shell 指令 |
+| `specDir` | 字符串 | 技能内文里的规格目录名，缺省 `specseal` |
+| `toolName` | 字符串 | 只用于 `neutral`：技能内文里的工具名称，缺省 `specseal` |
 
 把产生的 `SKILL.md` 写进一个目录，交给你的 agent 加载。每个技能的 `description` 说明什幺时候用它，结尾的 Next steps 说明之后建议做什幺，不需要另外的系统提示。前提是你的 agent 会读技能的 description。
 
 ## <a id="example"></a>完整范例：接上 Copilot SDK
 
-一个名为 `speclink`、参数是 argv 数组的工具，加上产生好的技能档。Copilot SDK 的 API 以它的官方文档为准；这个范例对照的是 `@github/copilot-sdk` 1.0.16。
+一个名为 `specseal`、参数是 argv 数组的工具，加上产生好的技能档。Copilot SDK 的 API 以它的官方文档为准；这个范例对照的是 `@github/copilot-sdk` 1.0.16。
 
 ```js
-const { createEngine, skills } = require('@speclink/engine')
+const { createEngine, skills } = require('@specseal/engine')
 const { CopilotClient, defineTool } = require('@github/copilot-sdk')
 const { mkdirSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 
 const engine = createEngine({ store: myDatabaseStore, actor: 'Alice <alice@example.com>' })
 
-// 1. speclink 工具：argv 进、结果出；错误以文本交回 agent。
-const speclinkTool = defineTool('speclink', {
+// 1. specseal 工具：argv 进、结果出；错误以文本交回 agent。
+const specsealTool = defineTool('specseal', {
   description:
-    'Run a speclink verb. Pass the argv array exactly as the skill says, ' +
+    'Run a specseal verb. Pass the argv array exactly as the skill says, ' +
     "e.g. ['status', '--change', 'add-auth', '--json'].",
   parameters: {
     type: 'object',
@@ -254,7 +254,7 @@ const speclinkTool = defineTool('speclink', {
 // 2. 产生技能档。
 const skillsRoot = join(process.cwd(), '.my-agent', 'skills')
 for (const { name } of skills.list()) {
-  const dir = join(skillsRoot, `speclink-${name}`)
+  const dir = join(skillsRoot, `specseal-${name}`)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'SKILL.md'), skills.render(name, { target: 'neutral', invocation: 'tool-call' }))
 }
@@ -262,11 +262,11 @@ for (const { name } of skills.list()) {
 // 3. 创建 session 时交给它工具与技能目录。
 async function startSession() {
   const client = new CopilotClient()
-  return client.createSession({ tools: [speclinkTool], skillDirectories: [skillsRoot] })
+  return client.createSession({ tools: [specsealTool], skillDirectories: [skillsRoot] })
 }
 ```
 
-技能用工具调用的方式描述动词，工具把调用送进同一个进程里的引擎，引擎再通过你的 Store 存盘。整条路上没有 CLI、没有子进程，也不需要本机的 `speclink/` 目录。
+技能用工具调用的方式描述动词，工具把调用送进同一个进程里的引擎，引擎再通过你的 Store 存盘。整条路上没有 CLI、没有子进程，也不需要本机的 `specseal/` 目录。
 
 ## <a id="limits"></a>目前的限制
 

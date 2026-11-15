@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { ChangeItem } from "@speclink/ui";
+import type { ChangeItem } from "@specseal/ui";
 import { TrayIcon } from "@tauri-apps/api/tray";
 import { Menu } from "@tauri-apps/api/menu";
 import { Image } from "@tauri-apps/api/image";
@@ -26,8 +26,8 @@ import type {
 import type { ConnectionView } from "../adapter/connections";
 import { trayIconBytes } from "../trayIcon";
 
-// tray.ts 於頂層 import @tauri-apps/api 的 tray/menu/window/image（＋面板模式的 webviewWindow/dpi）；
-// 於 jsdom 下以樁替，使模組載入安全並讓接線測試可攔截呼叫。純函式測試不觸及這些。
+// tray.ts 于顶层 import @tauri-apps/api 的 tray/menu/window/image（＋面板模式的 webviewWindow/dpi）；
+// 于 jsdom 下以桩替，使模块加载安全并让接线测试可拦截调用。纯函数测试不触及这些。
 vi.mock("@tauri-apps/api/tray", () => ({
   TrayIcon: { new: vi.fn(), removeById: vi.fn() },
 }));
@@ -46,38 +46,38 @@ vi.mock("@tauri-apps/plugin-positioner", () => ({
 
 const fakeT = (key: string): string =>
   (({
-    "tray.open": "開啟 Speclink",
-    "tray.settings": "設定",
-    "tray.quit": "結束",
-    "app.navProjectSettings": "專案設定",
-    "tray.discussions": "討論 {n}",
-    "tray.discussionsHeader": "討論",
-    "tray.promotedHeader": "已轉出",
-    "tray.more": "還有 {n} 個…",
-    "tray.openChange": "開啟此變更",
-    "tray.copyName": "複製名稱",
-    "tray.openDiscussion": "開啟此討論",
-    "tray.copySlug": "複製 slug",
-    "tray.noChanges": "尚無進行中變更",
+    "tray.open": "打开 Specseal",
+    "tray.settings": "设置",
+    "tray.quit": "结束",
+    "app.navProjectSettings": "项目设置",
+    "tray.discussions": "讨论 {n}",
+    "tray.discussionsHeader": "讨论",
+    "tray.promotedHeader": "已转出",
+    "tray.more": "还有 {n} 个…",
+    "tray.openChange": "打开此变更",
+    "tray.copyName": "拷贝名称",
+    "tray.openDiscussion": "打开此讨论",
+    "tray.copySlug": "拷贝 slug",
+    "tray.noChanges": "尚无进行中变更",
     "tray.recovery.active": "作用中",
-    "tray.recovery.restoring": "正在連線",
-    "tray.recovery.offline": "離線（最後資料）",
-    "tray.recovery.needsReauth": "需要重新登入",
-    "tray.recovery.unreachable": "無法連線",
-    "tray.recovery.retry": "重新連線",
-    "tray.recovery.open": "查看問題",
-    "tray.recovery.settings": "伺服器設定",
-    "tray.recovery.reauthenticate": "重新登入",
+    "tray.recovery.restoring": "正在连接",
+    "tray.recovery.offline": "脱机（最后数据）",
+    "tray.recovery.needsReauth": "需要重新登录",
+    "tray.recovery.unreachable": "无法连接",
+    "tray.recovery.retry": "重新连接",
+    "tray.recovery.open": "查看问题",
+    "tray.recovery.settings": "服务器设置",
+    "tray.recovery.reauthenticate": "重新登录",
     "stage.proposed": "提案中",
-    "stage.in-progress": "進行中",
-    "stage.ready": "已就緒",
+    "stage.in-progress": "进行中",
+    "stage.ready": "已就绪",
   } as Record<string, string>)[key] ?? key);
 
 function change(over: Partial<ChangeItem> & { name: string }): ChangeItem {
   return { status: "", totalTasks: 0, completedTasks: 0, ...over };
 }
 
-/** 典型快照：兩分頁（p1 作用中）、一提案／一進行中／一已就緒、兩討論。 */
+/** 典型快照：两分页（p1 作用中）、一提案／一进行中／一已就绪、两讨论。 */
 function snapshot(over: Partial<TraySnapshot> = {}): TraySnapshot {
   return {
     tabs: [
@@ -91,8 +91,8 @@ function snapshot(over: Partial<TraySnapshot> = {}): TraySnapshot {
       change({ name: "rdy", totalTasks: 4, completedTasks: 4 }), // ready
     ],
     discussions: [
-      { slug: "d1", topic: "討論一", promoted: false },
-      { slug: "d2", topic: "討論二", promoted: false },
+      { slug: "d1", topic: "讨论一", promoted: false },
+      { slug: "d2", topic: "讨论二", promoted: false },
     ],
     pendingTabKey: null,
     workspaceLoading: false,
@@ -106,7 +106,7 @@ const byKind = <K extends TrayMenuItem["kind"]>(items: TrayMenuItem[], kind: K) 
   items.filter((i): i is Extract<TrayMenuItem, { kind: K }> => i.kind === kind);
 
 describe("trayIconBytes", () => {
-  it("解碼內嵌 base64 為有效 PNG（magic bytes）", () => {
+  it("解码内嵌 base64 为有效 PNG（magic bytes）", () => {
     const bytes = trayIconBytes();
     expect(Array.from(bytes.slice(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
     expect(bytes.length).toBeGreaterThan(100);
@@ -114,38 +114,38 @@ describe("trayIconBytes", () => {
 });
 
 describe("progressBar", () => {
-  it("依比例填滿 unicode 方塊", () => {
+  it("依比例填满 unicode 方块", () => {
     expect(progressBar(0, 5, 8)).toBe("░░░░░░░░");
     expect(progressBar(4, 4, 8)).toBe("▓▓▓▓▓▓▓▓");
     expect(progressBar(3, 12, 8)).toBe("▓▓░░░░░░"); // round(3/12*8)=2
   });
-  it("total<=0 回空字串（無任務不畫）", () => {
+  it("total<=0 回空字符串（无任务不画）", () => {
     expect(progressBar(0, 0)).toBe("");
     expect(progressBar(5, 0)).toBe("");
   });
 });
 
 describe("buildTrayModel", () => {
-  it("專案項依分頁順序、作用中打勾", () => {
+  it("项目项依分页顺序、作用中打勾", () => {
     const projects = byKind(buildTrayModel(snapshot(), fakeT).items, "project");
     expect(projects.map((p) => p.key)).toEqual(["local:/proj/one", "local:/proj/two"]);
     expect(projects.map((p) => p.checked)).toEqual([true, false]);
   });
 
-  it("每個非空階段一個分區標題（header），依 proposed/in-progress/ready 序", () => {
+  it("每个非空阶段一个分区标题（header），依 proposed/in-progress/ready 序", () => {
     const headers = byKind(buildTrayModel(snapshot(), fakeT).items, "header");
-    // 三階段皆非空＋討論 header
-    expect(headers.map((h) => h.label)).toEqual(["提案中", "進行中", "已就緒", "討論"]);
+    // 三阶段皆非空＋讨论 header
+    expect(headers.map((h) => h.label)).toEqual(["提案中", "进行中", "已就绪", "讨论"]);
   });
 
-  it("變更列帶進度條標籤，子選單動作依序為「開啟此變更」「複製名稱」", () => {
+  it("变更列带进度条标签，子菜单动作依序为「打开此变更」「拷贝名称」", () => {
     const changes = byKind(buildTrayModel(snapshot(), fakeT).items, "change");
     expect(changes.map((c) => c.name)).toEqual(["prop", "inprog", "rdy"]);
-    // 進行中 3/12 → 進度條＋n/m
+    // 进行中 3/12 → 进度条＋n/m
     const inprog = changes.find((c) => c.name === "inprog")!;
     expect(inprog.label).toBe("inprog  ▓▓░░░░░░ 3/12");
-    // spec tray-status-menu Scenario「原生選單不受影響」：站章不進純文字 label
-    // ——單一字元承載四態、無 tooltip 無色彩，不可辨識（design D7 已否決）。
+    // spec tray-status-menu Scenario「原生菜单不受影响」：站章不进纯文本 label
+    // ——单一字符承载四态、无 tooltip 无色彩，不可辨识（design D7 已否决）。
     const stamped = buildTrayModel(
       snapshot({
         changes: [
@@ -163,14 +163,14 @@ describe("buildTrayModel", () => {
     const stampedRow = byKind(stamped.items, "change").find((c) => c.name === "inprog")!;
     expect(stampedRow.label).toBe("inprog  ▓▓░░░░░░ 3/12");
     expect(inprog.actions).toEqual([
-      { kind: "open-change", label: "開啟此變更" },
-      { kind: "copy-name", label: "複製名稱" },
+      { kind: "open-change", label: "打开此变更" },
+      { kind: "copy-name", label: "拷贝名称" },
     ]);
-    // ready 全滿
+    // ready 全满
     expect(changes.find((c) => c.name === "rdy")!.label).toBe("rdy  ▓▓▓▓▓▓▓▓ 4/4");
   });
 
-  it("複製來源為純名稱：標籤含進度條字元、name 不含（spec 例：0/10）", () => {
+  it("拷贝来源为纯名称：标签含进度条字符、name 不含（spec 例：0/10）", () => {
     const items = buildTrayModel(
       snapshot({
         changes: [change({ name: "phase2-e2e-chain", totalTasks: 10, completedTasks: 0 })],
@@ -182,8 +182,8 @@ describe("buildTrayModel", () => {
     expect(c.name).toBe("phase2-e2e-chain");
   });
 
-  it("原生選單列標籤於 wave 存在時前綴「N· 」，無 wave 時不加（spec「原生選單前綴數字」）", () => {
-    // add-change-plan-desktop design D7：原生選單無法變淡，只前綴波次數字。
+  it("原生菜单列标签于 wave 存在时前缀「N· 」，无 wave 时不加（spec「原生菜单前缀数字」）", () => {
+    // add-change-plan-desktop design D7：原生菜单无法变淡，只前缀波次数字。
     const items = buildTrayModel(
       snapshot({
         changes: [
@@ -198,11 +198,11 @@ describe("buildTrayModel", () => {
     expect(byName("third").label).toBe("3· third  ▓▓░░░░░░ 2/10");
     expect(byName("plain").label).toBe("plain  ▓▓░░░░░░ 2/10");
     expect(byName("bare").label).toBe("1· bare");
-    // name（複製來源）不帶前綴。
+    // name（拷贝来源）不带前缀。
     expect(byName("third").name).toBe("third");
   });
 
-  it("無任務的變更僅顯示名稱（不畫進度條）", () => {
+  it("无任务的变更仅显示名称（不画进度条）", () => {
     const items = buildTrayModel(
       snapshot({ changes: [change({ name: "empty-tasks", totalTasks: 0, completedTasks: 0 })] }),
       fakeT,
@@ -210,107 +210,107 @@ describe("buildTrayModel", () => {
     expect(byKind(items, "change")[0].label).toBe("empty-tasks");
   });
 
-  it("討論項以 slug 為標籤、攜帶 topic，子選單動作依序為「開啟此討論」「複製 slug」", () => {
+  it("讨论项以 slug 为标签、携带 topic，子菜单动作依序为「打开此讨论」「拷贝 slug」", () => {
     const items = buildTrayModel(snapshot(), fakeT).items;
     const disc = byKind(items, "discussion");
     expect(disc.map((d) => [d.slug, d.label, d.topic])).toEqual([
-      ["d1", "d1", "討論一"],
-      ["d2", "d2", "討論二"],
+      ["d1", "d1", "讨论一"],
+      ["d2", "d2", "讨论二"],
     ]);
     expect(disc[0].actions).toEqual([
-      { kind: "open-discussion", label: "開啟此討論" },
-      { kind: "copy-slug", label: "複製 slug" },
+      { kind: "open-discussion", label: "打开此讨论" },
+      { kind: "copy-slug", label: "拷贝 slug" },
     ]);
   });
 
-  it("無變更時顯示空狀態", () => {
+  it("无变更时显示空状态", () => {
     const items = buildTrayModel(snapshot({ changes: [] }), fakeT).items;
     expect(byKind(items, "change")).toHaveLength(0);
-    expect(byKind(items, "empty").some((e) => e.label === "尚無進行中變更")).toBe(true);
+    expect(byKind(items, "empty").some((e) => e.label === "尚无进行中变更")).toBe(true);
   });
 
-  it("無討論時顯示「討論 0」", () => {
+  it("无讨论时显示「讨论 0」", () => {
     const items = buildTrayModel(snapshot({ discussions: [] }), fakeT).items;
     expect(byKind(items, "discussion")).toHaveLength(0);
-    expect(byKind(items, "empty").some((e) => e.label === "討論 0")).toBe(true);
+    expect(byKind(items, "empty").some((e) => e.label === "讨论 0")).toBe(true);
   });
 
-  it("討論分流：已轉出討論列於「已轉出」分區、討論中列於「討論」分區", () => {
+  it("讨论分流：已转出讨论列于「已转出」分区、讨论中列于「讨论」分区", () => {
     const items = buildTrayModel(
       snapshot({
         discussions: [
-          { slug: "open-d", topic: "討論中的", promoted: false },
-          { slug: "prom-d", topic: "已轉出的", promoted: true },
+          { slug: "open-d", topic: "讨论中的", promoted: false },
+          { slug: "prom-d", topic: "已转出的", promoted: true },
         ],
       }),
       fakeT,
     ).items;
     const headers = byKind(items, "header").map((h) => h.label);
-    expect(headers).toContain("討論");
-    expect(headers).toContain("已轉出");
-    // 順序：討論 header → open-d → 已轉出 header → prom-d
+    expect(headers).toContain("讨论");
+    expect(headers).toContain("已转出");
+    // 顺序：讨论 header → open-d → 已转出 header → prom-d
     const labels = items.map((i) => ("label" in i ? i.label : i.kind));
-    const iDisc = labels.indexOf("討論");
+    const iDisc = labels.indexOf("讨论");
     const iOpen = labels.indexOf("open-d");
-    const iProm = labels.indexOf("已轉出");
+    const iProm = labels.indexOf("已转出");
     const iPromD = labels.indexOf("prom-d");
     expect(iDisc).toBeLessThan(iOpen);
     expect(iOpen).toBeLessThan(iProm);
     expect(iProm).toBeLessThan(iPromD);
-    // 兩分區子選單結構相同（同為 discussion 項、帶完整動作）
+    // 两分区子菜单结构相同（同为 discussion 项、带完整动作）
     const disc = byKind(items, "discussion");
     expect(disc.map((d) => d.actions.length)).toEqual([2, 2]);
   });
 
-  it("無已轉出討論時不出現「已轉出」分區；無討論中仍顯示「討論 0」且已轉出照列", () => {
+  it("无已转出讨论时不出现「已转出」分区；无讨论中仍显示「讨论 0」且已转出照列", () => {
     const none = buildTrayModel(snapshot(), fakeT).items;
-    expect(byKind(none, "header").map((h) => h.label)).not.toContain("已轉出");
+    expect(byKind(none, "header").map((h) => h.label)).not.toContain("已转出");
 
     const onlyPromoted = buildTrayModel(
-      snapshot({ discussions: [{ slug: "prom-d", topic: "已轉出的", promoted: true }] }),
+      snapshot({ discussions: [{ slug: "prom-d", topic: "已转出的", promoted: true }] }),
       fakeT,
     ).items;
-    expect(byKind(onlyPromoted, "empty").some((e) => e.label === "討論 0")).toBe(true);
-    expect(byKind(onlyPromoted, "header").map((h) => h.label)).toContain("已轉出");
+    expect(byKind(onlyPromoted, "empty").some((e) => e.label === "讨论 0")).toBe(true);
+    expect(byKind(onlyPromoted, "header").map((h) => h.label)).toContain("已转出");
     expect(byKind(onlyPromoted, "discussion").map((d) => d.slug)).toEqual(["prom-d"]);
   });
 
-  it("分區逾 5 筆：直列前 5、尾端「還有 N 個…」內嵌其餘（spec Example 門檻邊界 5/6/20）", () => {
+  it("分区逾 5 笔：直列前 5、尾端「还有 N 个…」内嵌其余（spec Example 门槛边界 5/6/20）", () => {
     const mk = (n: number) =>
       Array.from({ length: n }, (_, i) => change({ name: `c${i}`, totalTasks: 2, completedTasks: 1 }));
-    // 5 → 無溢出節點
+    // 5 → 无溢出节点
     let items = buildTrayModel(snapshot({ changes: mk(5), discussions: [] }), fakeT).items;
     expect(byKind(items, "change")).toHaveLength(5);
     expect(byKind(items, "overflow")).toHaveLength(0);
-    // 6 → 5＋還有 1 個
+    // 6 → 5＋还有 1 个
     items = buildTrayModel(snapshot({ changes: mk(6), discussions: [] }), fakeT).items;
     expect(byKind(items, "change")).toHaveLength(5);
     let overflow = byKind(items, "overflow")[0];
-    expect(overflow.label).toBe("還有 1 個…");
+    expect(overflow.label).toBe("还有 1 个…");
     expect(overflow.items).toHaveLength(1);
-    // 20 → 5＋還有 15 個，內嵌項目保有完整動作（同構 change 模型）
+    // 20 → 5＋还有 15 个，内嵌项目保有完整动作（同构 change 模型）
     items = buildTrayModel(snapshot({ changes: mk(20), discussions: [] }), fakeT).items;
     expect(byKind(items, "change")).toHaveLength(5);
     overflow = byKind(items, "overflow")[0];
-    expect(overflow.label).toBe("還有 15 個…");
+    expect(overflow.label).toBe("还有 15 个…");
     expect(overflow.items).toHaveLength(15);
     const nested = overflow.items[0] as Extract<TrayMenuItem, { kind: "change" }>;
     expect(nested.kind).toBe("change");
     expect(nested.actions).toHaveLength(2);
   });
 
-  it("討論分區同樣適用溢出門檻", () => {
+  it("讨论分区同样适用溢出门槛", () => {
     const ds = Array.from({ length: 7 }, (_, i) => ({ slug: `d${i}`, topic: `t${i}`, promoted: false }));
     const items = buildTrayModel(snapshot({ discussions: ds }), fakeT).items;
     expect(byKind(items, "discussion")).toHaveLength(5);
-    expect(byKind(items, "overflow")[0].label).toBe("還有 2 個…");
+    expect(byKind(items, "overflow")[0].label).toBe("还有 2 个…");
   });
 
-  it("模型不含數字徽章欄位（系統匣不顯示數字）", () => {
+  it("模型不含数字徽章字段（系统匣不显示数字）", () => {
     expect("badge" in buildTrayModel(snapshot(), fakeT)).toBe(false);
   });
 
-  it("區段順序：專案 → 分隔 → 各階段(header+change) → 分隔 → 討論(header+項) → 分隔 → 動作", () => {
+  it("区段顺序：项目 → 分隔 → 各阶段(header+change) → 分隔 → 讨论(header+项) → 分隔 → 动作", () => {
     expect(kinds(buildTrayModel(snapshot(), fakeT).items)).toEqual([
       "project",
       "project",
@@ -333,14 +333,14 @@ describe("buildTrayModel", () => {
     ]);
   });
 
-  it("動作區含專案設定項：位於開啟 Speclink 之後、label 沿用 app.navProjectSettings", () => {
+  it("动作区含项目设置项：位于打开 Specseal 之后、label 沿用 app.navProjectSettings", () => {
     const items = buildTrayModel(snapshot(), fakeT).items;
     const ps = byKind(items, "project-settings");
     expect(ps).toHaveLength(1);
-    expect(ps[0].label).toBe("專案設定");
+    expect(ps[0].label).toBe("项目设置");
   });
 
-  it("共用狀態投影讓 restoring／error／needs-reauth 成為原生復原項，且 active error 不顯示舊資料", () => {
+  it("共用状态投影让 restoring／error／needs-reauth 成为原生复原项，且 active error 不显示旧数据", () => {
     const errorKey = "remote:c1/demo/error";
     const model = buildTrayModel(
       snapshot({
@@ -383,7 +383,7 @@ describe("buildTrayModel", () => {
         ],
         activeKey: errorKey,
         changes: [change({ name: "previous-workspace-change", totalTasks: 2, completedTasks: 1 })],
-        discussions: [{ slug: "previous-workspace-discussion", topic: "舊資料", promoted: false }],
+        discussions: [{ slug: "previous-workspace-discussion", topic: "旧数据", promoted: false }],
       } as unknown as Partial<TraySnapshot>),
       fakeT,
     );
@@ -408,9 +408,9 @@ describe("buildTrayModel", () => {
   });
 });
 
-// ---- 接線層（Tauri tray/menu/window API）----
+// ---- 接线层（Tauri tray/menu/window API）----
 
-/** 可觀察的假 store（tabs＋changes＋discussions＋動作），可推變更通知訂閱者。 */
+/** 可观察的假 store（tabs＋changes＋discussions＋动作），可推变更通知订阅者。 */
 function makeStore(
   activateTab = vi.fn(),
   openProjectAt = vi.fn(),
@@ -481,7 +481,7 @@ function makeStore(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyItem = any;
 
-describe("initTray 接線（選單）", () => {
+describe("initTray 接线（菜单）", () => {
   const trayObj = {
     setMenu: vi.fn(),
     setTitle: vi.fn(),
@@ -503,7 +503,7 @@ describe("initTray 接線（選單）", () => {
     vi.mocked(getCurrentWindow).mockReturnValue(win as never);
   });
 
-  it("建立 tray 圖示並掛上由當前快照組出的選單（含兩專案 check 項）", async () => {
+  it("创建 tray 图标并挂上由当前快照组出的菜单（含两项目 check 项）", async () => {
     const { store } = makeStore();
     await initTray(store, { platform: "macos" });
     const opts = vi.mocked(TrayIcon.new).mock.calls[0][0] as AnyItem;
@@ -514,7 +514,7 @@ describe("initTray 接線（選單）", () => {
     expect(projects.map((p: AnyItem) => p.checked)).toEqual([true, false]);
   });
 
-  it("變更列為子選單（有 items）、標籤帶進度條；store 變動後重建選單", async () => {
+  it("变更列为子菜单（有 items）、标签带进度条；store 变动后重建菜单", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 100 });
     vi.mocked(Menu.new).mockClear();
@@ -544,7 +544,7 @@ describe("initTray 接線（選單）", () => {
       "Demo/backend",
       "remote:conn-1/demo/backend",
     ],
-  ])("點非作用中 %s 專案以 locator key 呼叫 activateTab", async (_kind, locator, name, key) => {
+  ])("点非作用中 %s 项目以 locator key 调用 activateTab", async (_kind, locator, name, key) => {
     const bag = makeStore();
     bag.emit({
       tabs: [
@@ -572,20 +572,20 @@ describe("initTray 接線（選單）", () => {
     expect(bag.openProjectAt).not.toHaveBeenCalled();
   });
 
-  it("變更子選單「開啟此變更」開主視窗並開啟該變更的詳情頁（store openDetail，宿主落回看板）", async () => {
+  it("变更子菜单「打开此变更」开主窗口并打开该变更的详情页（store openDetail，宿主落回看板）", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos" });
-    // alpha 為進行中，是子選單（有 items）
+    // alpha 为进行中，是子菜单（有 items）
     const alpha = lastItems.find((i) => Array.isArray(i.items) && (i.text ?? "").startsWith("alpha"));
     expect(alpha).toBeDefined();
     alpha.items[0].action();
-    // openMainWindow 為 async（hide_tray_panel → unminimize → show → setFocus）：沖洗微任務後再斷言
+    // openMainWindow 为 async（hide_tray_panel → unminimize → show → setFocus）：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(bag.openDetail).toHaveBeenCalledWith("alpha");
   });
 
-  it("原生 needs-reauth submenu 的顯式詳情與登入才聚焦主視窗", async () => {
+  it("原生 needs-reauth submenu 的显式详情与登录才聚焦主窗口", async () => {
     const bag = makeStore();
     const key = "remote:c1/demo/backend";
     bag.emit({
@@ -623,10 +623,10 @@ describe("initTray 接線（選單）", () => {
     );
     expect(recovery.items.map((item: AnyItem) => item.text)).toEqual([
       "作用中",
-      "需要重新登入",
-      "重新登入",
-      "查看問題",
-      "伺服器設定",
+      "需要重新登录",
+      "重新登录",
+      "查看问题",
+      "服务器设置",
     ]);
 
     recovery.items[2].action();
@@ -641,7 +641,7 @@ describe("initTray 接線（選單）", () => {
     expect(win.show).toHaveBeenCalledTimes(1);
   });
 
-  it("原生 error submenu 直接 retry 不顯示或聚焦主視窗，且 snapshot 不攜帶 technical detail", async () => {
+  it("原生 error submenu 直接 retry 不显示或聚焦主窗口，且 snapshot 不携带 technical detail", async () => {
     const bag = makeStore();
     const key = "remote:c1/demo/backend";
     bag.emit({
@@ -695,89 +695,89 @@ describe("initTray 接線（選單）", () => {
     expect(win.setFocus).not.toHaveBeenCalled();
   });
 
-  it("變更子選單「複製名稱」寫入剪貼簿且不開主視窗", async () => {
+  it("变更子菜单「拷贝名称」写入剪贴板且不开主窗口", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos" });
     const alpha = lastItems.find((i) => Array.isArray(i.items) && (i.text ?? "").startsWith("alpha"));
-    expect(alpha.items.map((a: AnyItem) => a.text)).toEqual(["開啟此變更", "複製名稱"]);
+    expect(alpha.items.map((a: AnyItem) => a.text)).toEqual(["打开此变更", "拷贝名称"]);
     await alpha.items[1].action();
     expect(writeText).toHaveBeenCalledWith("alpha");
     expect(win.show).not.toHaveBeenCalled();
   });
 
-  it("討論為子選單：父標籤 slug、首行 disabled topic、開啟與複製 slug 動作", async () => {
+  it("讨论为子菜单：父标签 slug、首行 disabled topic、打开与拷贝 slug 动作", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos" });
     const disc = lastItems.find((i) => Array.isArray(i.items) && i.text === "d1");
     expect(disc).toBeDefined();
-    // 首行為 topic 描述（disabled、不可選取）
+    // 首行为 topic 描述（disabled、不可选取）
     expect(disc.items[0].text).toBe("t1");
     expect(disc.items[0].enabled).toBe(false);
-    // 開啟此討論 → 主視窗＋openDiscussion（開啟該討論的詳情頁）
-    expect(disc.items[1].text).toBe("開啟此討論");
+    // 打开此讨论 → 主窗口＋openDiscussion（打开该讨论的详情页）
+    expect(disc.items[1].text).toBe("打开此讨论");
     disc.items[1].action();
-    // openMainWindow 為 async（hide_tray_panel → unminimize → show → setFocus）：沖洗微任務後再斷言
+    // openMainWindow 为 async（hide_tray_panel → unminimize → show → setFocus）：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(bag.openDiscussion).toHaveBeenCalledWith("d1");
-    // 複製 slug → 剪貼簿為 slug
-    expect(disc.items[2].text).toBe("複製 slug");
+    // 拷贝 slug → 剪贴板为 slug
+    expect(disc.items[2].text).toBe("拷贝 slug");
     await disc.items[2].action();
     expect(writeText).toHaveBeenCalledWith("d1");
   });
 
-  it("剪貼簿寫入失敗時靜默（不拋出、不彈窗）", async () => {
+  it("剪贴板写入失败时静默（不抛出、不弹窗）", async () => {
     vi.mocked(writeText).mockRejectedValue(new Error("denied"));
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos" });
     const alpha = lastItems.find((i) => Array.isArray(i.items) && (i.text ?? "").startsWith("alpha"));
     await expect(Promise.resolve(alpha.items[1].action())).resolves.not.toThrow();
-    // 沖洗微任務：內部 rejection 須被吞掉，否則 vitest 以 unhandled rejection 失敗
+    // 冲洗微任务：内部 rejection 须被吞掉，否则 vitest 以 unhandled rejection 失败
     await new Promise((r) => setTimeout(r, 0));
   });
 
-  it("點「開啟 Speclink」顯示視窗並取得焦點", async () => {
+  it("点「打开 Specseal」显示窗口并取得焦点", async () => {
     const { store } = makeStore();
     await initTray(store, { platform: "macos" });
-    const open = lastItems.find((i) => i.text === "開啟 Speclink");
+    const open = lastItems.find((i) => i.text === "打开 Specseal");
     await open.action();
     expect(win.show).toHaveBeenCalled();
     expect(win.setFocus).toHaveBeenCalled();
   });
 
-  it("點「設定」開主視窗、取得焦點並切換至設定頁", async () => {
+  it("点「设置」开主窗口、取得焦点并切换至设置页", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos" });
-    const settings = lastItems.find((i) => i.text === "設定");
+    const settings = lastItems.find((i) => i.text === "设置");
     expect(settings).toBeDefined();
     settings.action();
-    // openMainWindow 為 async（hide_tray_panel → unminimize → show → setFocus）：沖洗微任務後再斷言
+    // openMainWindow 为 async（hide_tray_panel → unminimize → show → setFocus）：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(win.setFocus).toHaveBeenCalled();
     expect(bag.setBoardView).toHaveBeenCalledWith("settings");
   });
 
-  it("點「專案設定」開主視窗、取得焦點並切換至專案設定頁", async () => {
+  it("点「项目设置」开主窗口、取得焦点并切换至项目设置页", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos" });
-    const ps = lastItems.find((i) => i.text === "專案設定");
+    const ps = lastItems.find((i) => i.text === "项目设置");
     expect(ps).toBeDefined();
     ps.action();
-    // openMainWindow 為 async（hide_tray_panel → unminimize → show → setFocus）：沖洗微任務後再斷言
+    // openMainWindow 为 async（hide_tray_panel → unminimize → show → setFocus）：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(win.setFocus).toHaveBeenCalled();
     expect(bag.setBoardView).toHaveBeenCalledWith("project-settings");
   });
 
-  it("「結束」映射為原生 predefined Quit", async () => {
+  it("「结束」映射为原生 predefined Quit", async () => {
     const { store } = makeStore();
     await initTray(store, { platform: "macos" });
     expect(lastItems.find((i) => i.item === "Quit")).toBeDefined();
   });
 
-  it("macOS panel 樣式：建立時不掛選單、不開左鍵選單，點擊圖示觸發 onPanelToggle", async () => {
+  it("macOS panel 样式：创建时不挂菜单、不开左键菜单，点击图标触发 onPanelToggle", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     const onPanelToggle = vi.fn();
@@ -789,7 +789,7 @@ describe("initTray 接線（選單）", () => {
     expect(onPanelToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("macOS panel 樣式：右鍵點擊圖示同樣觸發 onPanelToggle（與左鍵等價），Down 不觸發", async () => {
+  it("macOS panel 样式：右键点击图标同样触发 onPanelToggle（与左键等价），Down 不触发", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     const onPanelToggle = vi.fn();
@@ -797,12 +797,12 @@ describe("initTray 接線（選單）", () => {
     const opts = vi.mocked(TrayIcon.new).mock.calls[0][0] as AnyItem;
     opts.action({ type: "Click", button: "Right", buttonState: "Up" });
     expect(onPanelToggle).toHaveBeenCalledTimes(1);
-    // 放開才開閉：Down 事件不觸發（與左鍵同規則）
+    // 放开才开闭：Down 事件不触发（与左键同规则）
     opts.action({ type: "Click", button: "Right", buttonState: "Down" });
     expect(onPanelToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("native 樣式：點擊事件不觸發 onPanelToggle（選單接管互動）", async () => {
+  it("native 样式：点击事件不触发 onPanelToggle（菜单接管交互）", async () => {
     const bag = makeStore();
     const onPanelToggle = vi.fn();
     await initTray(bag.store, { platform: "macos", onPanelToggle });
@@ -812,7 +812,7 @@ describe("initTray 接線（選單）", () => {
     expect(onPanelToggle).not.toHaveBeenCalled();
   });
 
-  it("樣式切換即時分流：panel 卸選單且關左鍵開選單、切回 native 雙雙復原（無需重啟）", async () => {
+  it("样式切换即时分流：panel 卸菜单且关左键开菜单、切回 native 双双复原（无需重启）", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     trayObj.setMenu.mockClear();
@@ -820,7 +820,7 @@ describe("initTray 接線（選單）", () => {
     bag.emit({ trayStyle: "panel" });
     await vi.advanceTimersByTimeAsync(50);
     expect(trayObj.setMenu).toHaveBeenLastCalledWith(null);
-    // 關鍵：僅卸選單不夠——左鍵仍被「開選單」路徑吃掉，點擊事件到不了 action。
+    // 关键：仅卸菜单不够——左键仍被「开菜单」路径吃掉，点击事件到不了 action。
     expect(trayObj.setShowMenuOnLeftClick).toHaveBeenLastCalledWith(false);
     bag.emit({ trayStyle: "native-menu" });
     await vi.advanceTimersByTimeAsync(50);
@@ -829,9 +829,9 @@ describe("initTray 接線（選單）", () => {
     expect(trayObj.setShowMenuOnLeftClick).toHaveBeenLastCalledWith(true);
   });
 
-  // Windows 的 panel 樣式（spec「面板樣式」平台差異——Windows；tray-panel-windows design D5）：
-  // 左鍵開閉面板、右鍵由系統顯示同一份原生選單。
-  it("Windows panel 樣式：建立時掛原生選單且關左鍵開選單，只有左鍵放開觸發 onPanelToggle", async () => {
+  // Windows 的 panel 样式（spec「面板样式」平台差异——Windows；tray-panel-windows design D5）：
+  // 左键开闭面板、右键由系统显示同一份原生菜单。
+  it("Windows panel 样式：创建时挂原生菜单且关左键开菜单，只有左键放开触发 onPanelToggle", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     const onPanelToggle = vi.fn();
@@ -848,7 +848,7 @@ describe("initTray 接線（選單）", () => {
     expect(onPanelToggle).toHaveBeenCalledTimes(1);
   });
 
-  it("Windows panel 樣式：去抖更新後仍掛選單（隨快照重建）且維持關閉左鍵開選單", async () => {
+  it("Windows panel 样式：去抖更新后仍挂菜单（随快照重建）且维持关闭左键开菜单", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     await initTray(bag.store, { platform: "windows", debounceMs: 50 });
@@ -861,7 +861,7 @@ describe("initTray 接線（選單）", () => {
     expect(trayObj.setShowMenuOnLeftClick).toHaveBeenLastCalledWith(false);
   });
 
-  it("Windows 面板建立失敗（panelFallback）後轉 native-menu：左鍵開選單、點擊不再開閉面板", async () => {
+  it("Windows 面板创建失败（panelFallback）后转 native-menu：左键开菜单、点击不再开闭面板", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     const onPanelToggle = vi.fn();
@@ -877,9 +877,9 @@ describe("initTray 接線（選單）", () => {
     expect(onPanelToggle).not.toHaveBeenCalled();
   });
 
-  // 面板位置：macOS 由 positioner 依點擊事件的圖示座標計算；Windows 由 Tauri 殼讀圖示位置自算
-  // （tray-panel-windows design D3），點擊不餵 positioner。
-  it("macOS panel 樣式：點擊先把事件餵給 positioner", async () => {
+  // 面板位置：macOS 由 positioner 依点击事件的图标座标计算；Windows 由 Tauri 壳读图标位置自算
+  // （tray-panel-windows design D3），点击不喂 positioner。
+  it("macOS panel 样式：点击先把事件喂给 positioner", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     await initTray(bag.store, { platform: "macos", onPanelToggle: vi.fn() });
@@ -889,7 +889,7 @@ describe("initTray 接線（選單）", () => {
     expect(handleIconState).toHaveBeenCalledWith(event);
   });
 
-  it("Windows panel 樣式：點擊不餵 positioner", async () => {
+  it("Windows panel 样式：点击不喂 positioner", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     const onPanelToggle = vi.fn();
@@ -900,18 +900,18 @@ describe("initTray 接線（選單）", () => {
     expect(handleIconState).not.toHaveBeenCalled();
   });
 
-  it("tray 以固定 id 建立，建立前先移除同 id 孤兒（webview 重建不殘留殭屍徽章）", async () => {
+  it("tray 以固定 id 创建，创建前先移除同 id 孤儿（webview 重建不残留僵尸徽章）", async () => {
     const { store } = makeStore();
     await initTray(store, { platform: "macos" });
-    expect(TrayIcon.removeById).toHaveBeenCalledWith("speclink-tray");
+    expect(TrayIcon.removeById).toHaveBeenCalledWith("specseal-tray");
     const opts = vi.mocked(TrayIcon.new).mock.calls[0][0] as AnyItem;
-    expect(opts.id).toBe("speclink-tray");
+    expect(opts.id).toBe("specseal-tray");
     expect(vi.mocked(TrayIcon.removeById).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(TrayIcon.new).mock.invocationCallOrder[0],
     );
   });
 
-  it("不顯示數字徽章：建立不帶 title，資料變動與點擊圖示皆不呼叫 setTitle", async () => {
+  it("不显示数字徽章：创建不带 title，数据变动与点击图标皆不调用 setTitle", async () => {
     const bag = makeStore();
     bag.emit({ trayStyle: "panel" });
     const onPanelToggle = vi.fn();
@@ -929,7 +929,7 @@ describe("initTray 接線（選單）", () => {
     expect(trayObj.setTitle).not.toHaveBeenCalled();
   });
 
-  it("溢出節點轉為原生子選單（內含其餘變更、各自保有動作子選單）", async () => {
+  it("溢出节点转为原生子菜单（内含其余变更、各自保有动作子菜单）", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     vi.useFakeTimers();
@@ -940,21 +940,21 @@ describe("initTray 接線（選單）", () => {
     });
     await vi.advanceTimersByTimeAsync(50);
     vi.useRealTimers();
-    const more = lastItems.find((i) => i.text === "還有 2 個…");
+    const more = lastItems.find((i) => i.text === "还有 2 个…");
     expect(more).toBeDefined();
     expect(more.items).toHaveLength(2);
-    // 內嵌項目仍是完整變更子選單（開啟此變更＋複製名稱）
-    expect(more.items[0].items.map((a: AnyItem) => a.text)).toEqual(["開啟此變更", "複製名稱"]);
+    // 内嵌项目仍是完整变更子菜单（打开此变更＋拷贝名称）
+    expect(more.items[0].items.map((a: AnyItem) => a.text)).toEqual(["打开此变更", "拷贝名称"]);
   });
 
-  it("面板事件接線：訂閱 ready/action、去抖推送快照、動作回流 store", async () => {
+  it("面板事件接线：订阅 ready/action、去抖推送快照、动作回流 store", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
-    // 訂閱面板的 ready 與 action 事件
+    // 订阅面板的 ready 与 action 事件
     const topics = vi.mocked(tauriListen).mock.calls.map((c) => c[0]);
     expect(topics).toContain("tray-panel-ready");
     expect(topics).toContain("tray-panel-action");
-    // 資料變動去抖後推送快照給面板
+    // 数据变动去抖后推送快照给面板
     vi.mocked(tauriEmit).mockClear();
     vi.useFakeTimers();
     bag.emit({ activeKey: "local:/proj/two" });
@@ -964,19 +964,19 @@ describe("initTray 接線（選單）", () => {
       "tray-snapshot",
       expect.objectContaining({ activeKey: "local:/proj/two" }),
     );
-    // 動作回流：open-change 開主視窗並開啟該變更的詳情頁
+    // 动作回流：open-change 开主窗口并打开该变更的详情页
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
     (actionCall[1] as (e: AnyItem) => void)({ payload: { kind: "open-change", id: "alpha" } });
-    // openMainWindow 為 async（hide_tray_panel → unminimize → show → setFocus）：沖洗微任務後再斷言
+    // openMainWindow 为 async（hide_tray_panel → unminimize → show → setFocus）：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(bag.openDetail).toHaveBeenCalledWith("alpha");
   });
 
-  // spec「面板交接主視窗後滑鼠互動完整」（design D2、D5 自動層）：交接先收合面板
-  // 再喚起主視窗——invoke 的第一個呼叫是 hide_tray_panel，視窗 unminimize／show／
-  // setFocus 全在其後；收合失敗靜默，不阻斷喚起。
-  it("面板動作 open-change 先 invoke hide_tray_panel，之後才 unminimize／show／setFocus", async () => {
+  // spec「面板交接主窗口后鼠标交互完整」（design D2、D5 自动层）：交接先收合面板
+  // 再唤起主窗口——invoke 的第一个调用是 hide_tray_panel，窗口 unminimize／show／
+  // setFocus 全在其后；收合失败静默，不阻断唤起。
+  it("面板动作 open-change 先 invoke hide_tray_panel，之后才 unminimize／show／setFocus", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
@@ -990,20 +990,20 @@ describe("initTray 接線（選單）", () => {
     expect(bag.openDetail).toHaveBeenCalledWith("alpha");
   });
 
-  it("hide_tray_panel 拒絕時靜默，主視窗仍 show 並 setFocus", async () => {
+  it("hide_tray_panel 拒绝时静默，主窗口仍 show 并 setFocus", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     vi.mocked(invoke).mockRejectedValueOnce(new Error("tray panel unavailable"));
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
     (actionCall[1] as (e: AnyItem) => void)({ payload: { kind: "open-change", id: "alpha" } });
-    // 沖洗微任務：rejection 須被吞掉，否則 vitest 以 unhandled rejection 失敗
+    // 冲洗微任务：rejection 须被吞掉，否则 vitest 以 unhandled rejection 失败
     await new Promise((r) => setTimeout(r, 0));
     expect(invoke).toHaveBeenCalledWith("hide_tray_panel");
     expect(win.show).toHaveBeenCalled();
     expect(win.setFocus).toHaveBeenCalled();
   });
 
-  it("面板動作 open-project 以 remote locator key 呼叫 activateTab", async () => {
+  it("面板动作 open-project 以 remote locator key 调用 activateTab", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
@@ -1013,7 +1013,7 @@ describe("initTray 接線（選單）", () => {
     expect(bag.openProjectAt).not.toHaveBeenCalled();
   });
 
-  it("面板 recovery action 的 retry 留在 Tray，詳情／設定／登入才顯示並聚焦主視窗", async () => {
+  it("面板 recovery action 的 retry 留在 Tray，详情／设置／登录才显示并聚焦主窗口", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
@@ -1040,29 +1040,29 @@ describe("initTray 接線（選單）", () => {
     expect(win.setFocus).toHaveBeenCalledTimes(2);
   });
 
-  it("面板動作 open-settings 喚起主視窗並切換至設定頁", async () => {
+  it("面板动作 open-settings 唤起主窗口并切换至设置页", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
     (actionCall[1] as (e: AnyItem) => void)({ payload: { kind: "open-settings" } });
-    // openMainWindow 為 async：沖洗微任務後再斷言
+    // openMainWindow 为 async：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(bag.setBoardView).toHaveBeenCalledWith("settings");
   });
 
-  it("面板動作 open-project-settings 喚起主視窗並切換至專案設定頁", async () => {
+  it("面板动作 open-project-settings 唤起主窗口并切换至项目设置页", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
     (actionCall[1] as (e: AnyItem) => void)({ payload: { kind: "open-project-settings" } });
-    // openMainWindow 為 async：沖洗微任務後再斷言
+    // openMainWindow 为 async：冲洗微任务后再断言
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(bag.setBoardView).toHaveBeenCalledWith("project-settings");
   });
 
-  it("面板動作 quit 呼叫結束 app 的命令", async () => {
+  it("面板动作 quit 调用结束 app 的命令", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
@@ -1070,19 +1070,19 @@ describe("initTray 接線（選單）", () => {
     expect(invoke).toHaveBeenCalledWith("quit_app");
   });
 
-  it("面板動作 add-project 先喚起主視窗再轉呼資料夾選擇流程（D7 快速加入專案）", async () => {
+  it("面板动作 add-project 先唤起主窗口再转呼文件夹选择流程（D7 快速加入项目）", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     const actionCall = vi.mocked(tauriListen).mock.calls.find((c) => c[0] === "tray-panel-action")!;
     (actionCall[1] as (e: AnyItem) => void)({ payload: { kind: "add-project" } });
-    // 喚起主視窗（openIn 路徑）：主視窗在另一桌面時 macOS 才會切 Space，
-    // 選擇器才於前景可見（D7 實測修訂）。openMainWindow 為 async，沖洗微任務。
+    // 唤起主窗口（openIn 路径）：主窗口在另一桌面时 macOS 才会切 Space，
+    // 选择器才于前景可见（D7 实测修订）。openMainWindow 为 async，冲洗微任务。
     await new Promise((r) => setTimeout(r, 0));
     expect(win.show).toHaveBeenCalled();
     expect(bag.openProjectViaDialog).toHaveBeenCalled();
   });
 
-  it("dispose 取消訂閱並關閉 tray", async () => {
+  it("dispose 取消订阅并关闭 tray", async () => {
     const bag = makeStore();
     const controller = await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     controller.dispose();
@@ -1096,20 +1096,20 @@ describe("initTray 接線（選單）", () => {
   });
 });
 
-// spec「面板分頁切換中回饋」「面板分區首訪 skeleton」（design D5）：面板是薄渲染層，
-// 兩個載入態欄位自主視窗 store 導出，面板不自建狀態。
-describe("TraySnapshot 的討論分區判準（conclusion-gated-discussion-archive）", () => {
-  it("promoted 且 concluded 非 false 且未保留才歸「已轉出」；未結論或保留中留「討論」分區；缺席退回現行", () => {
+// spec「面板分页切换中回馈」「面板分区首访 skeleton」（design D5）：面板是薄渲染层，
+// 两个加载态字段自主窗口 store 导出，面板不自建状态。
+describe("TraySnapshot 的讨论分区判准（conclusion-gated-discussion-archive）", () => {
+  it("promoted 且 concluded 非 false 且未保留才归「已转出」；未结论或保留中留「讨论」分区；缺席退回现行", () => {
     const bag = makeStore();
     bag.emit({
       discussions: {
         active: [
-          { slug: "mid", topic: "未結論轉出", promotedTo: ["cut-a"], concluded: false },
-          { slug: "done", topic: "已結論轉出", promotedTo: ["cut-b"], concluded: true },
-          { slug: "legacy", topic: "舊 server 無欄位", promotedTo: ["cut-c"] },
-          { slug: "plain", topic: "未轉出", promotedTo: [], concluded: false },
+          { slug: "mid", topic: "未结论转出", promotedTo: ["cut-a"], concluded: false },
+          { slug: "done", topic: "已结论转出", promotedTo: ["cut-b"], concluded: true },
+          { slug: "legacy", topic: "旧 server 无字段", promotedTo: ["cut-c"] },
+          { slug: "plain", topic: "未转出", promotedTo: [], concluded: false },
           { slug: "held", topic: "保留中", promotedTo: ["cut-d"], concluded: true, hold: true },
-          { slug: "freed", topic: "已釋放", promotedTo: ["cut-e"], concluded: true, hold: false },
+          { slug: "freed", topic: "已释放", promotedTo: ["cut-e"], concluded: true, hold: false },
         ],
       },
     });
@@ -1117,37 +1117,37 @@ describe("TraySnapshot 的討論分區判準（conclusion-gated-discussion-archi
     const snap = buildTraySnapshot(bag.store.getState());
     const bySlug = Object.fromEntries(snap.discussions.map((d) => [d.slug, d.promoted]));
     expect(bySlug).toEqual({
-      mid: false, // 已轉出但尚無結論 → 「討論」分區
-      done: true, // 已轉出、已有結論、hold 缺席（視同未保留）→ 「已轉出」分區
-      legacy: true, // concluded 缺席（舊 server）→ 退回現行判準
+      mid: false, // 已转出但尚无结论 → 「讨论」分区
+      done: true, // 已转出、已有结论、hold 缺席（视同未保留）→ 「已转出」分区
+      legacy: true, // concluded 缺席（旧 server）→ 退回现行判准
       plain: false,
-      held: false, // 保留在途 → 「討論」分區
-      freed: true, // hold 為 false → 「已轉出」分區
+      held: false, // 保留在途 → 「讨论」分区
+      freed: true, // hold 为 false → 「已转出」分区
     });
   });
 });
 
-describe("TraySnapshot 的載入態導出", () => {
-  it("切換中 → pendingTabKey 帶出目標分頁 key", () => {
+describe("TraySnapshot 的加载态导出", () => {
+  it("切换中 → pendingTabKey 带出目标分页 key", () => {
     const bag = makeStore();
     bag.emit({ pendingTabKey: "local:/proj/two" });
     expect(buildTraySnapshot(bag.store.getState()).pendingTabKey).toBe("local:/proj/two");
   });
 
-  it("無切換 → pendingTabKey 為 null", () => {
+  it("无切换 → pendingTabKey 为 null", () => {
     const bag = makeStore();
     expect(buildTraySnapshot(bag.store.getState()).pendingTabKey).toBeNull();
   });
 
-  // spec「面板點擊分頁立即回饋」：切換中要「立即」出 spinner。走去抖（400ms 且每次
-  // store 變動都重設）等於探測快時 spinner 根本不出現——正是本變更要解決的情境。
-  it("切換中標記不等去抖 → 即時推送快照給面板", async () => {
+  // spec「面板点击分页立即回馈」：切换中要「立即」出 spinner。走去抖（400ms 且每次
+  // store 变动都重设）等于探测快时 spinner 根本不出现——正是本变更要解决的情境。
+  it("切换中标记不等去抖 → 即时推送快照给面板", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     vi.mocked(tauriEmit).mockClear();
     vi.useFakeTimers();
     bag.emit({ pendingTabKey: "local:/proj/two" });
-    // 去抖時間尚未到，快照就該已經送出。
+    // 去抖时间尚未到，快照就该已经送出。
     await vi.advanceTimersByTimeAsync(0);
     const pushed = vi
       .mocked(tauriEmit)
@@ -1159,9 +1159,9 @@ describe("TraySnapshot 的載入態導出", () => {
     );
   });
 
-  // spec「切換完成後高亮更新」：spinner 消失與高亮移轉須同批抵達。只即時推
-  // pendingTabKey 會讓面板在 spinner 消失後仍停在切換前的高亮與資料。
-  it("活躍分頁翻轉 → 一併即時推送，不落後於 spinner 消失", async () => {
+  // spec「切换完成后高亮更新」：spinner 消失与高亮移转须同批抵达。只即时推
+  // pendingTabKey 会让面板在 spinner 消失后仍停在切换前的高亮与数据。
+  it("活跃分页翻转 → 一并即时推送，不落后于 spinner 消失", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     vi.mocked(tauriEmit).mockClear();
@@ -1181,7 +1181,7 @@ describe("TraySnapshot 的載入態導出", () => {
     );
   });
 
-  it("整批載入完成（載入態翻假）→ 一併即時推送", async () => {
+  it("整批加载完成（加载态翻假）→ 一并即时推送", async () => {
     const bag = makeStore();
     bag.emit({ loaded: false, loadingActive: true });
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
@@ -1195,10 +1195,10 @@ describe("TraySnapshot 的載入態導出", () => {
     expect(pushed[0][1]).toEqual(expect.objectContaining({ workspaceLoading: false }));
   });
 
-  // 翻頁入口是同一同步段內的兩次 set：先翻 activeKey（載入態尚未翻真）、再由
-  // refresh() 的計數 +1 翻真。逐次即推會把中間那份「已翻頁、尚未起載入」的
-  // 假空態推給面板——同段變動必須合併成一份最終快照。
-  it("同一同步段的連續變動 → 只推最終快照，不推中間假空態", async () => {
+  // 翻页入口是同一同步段内的两次 set：先翻 activeKey（加载态尚未翻真）、再由
+  // refresh() 的计数 +1 翻真。逐次即推会把中间那份「已翻页、尚未起加载」的
+  // 假空态推给面板——同段变动必须合并成一份最终快照。
+  it("同一同步段的连续变动 → 只推最终快照，不推中间假空态", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     vi.mocked(tauriEmit).mockClear();
@@ -1214,9 +1214,9 @@ describe("TraySnapshot 的載入態導出", () => {
     );
   });
 
-  // 失敗時 loaded 維持 false，翻的是載入態——它若不在即推面，面板要等一個去抖
-  // 週期才收掉骨架（desktop-loading-skeleton-ux design D5 的例外，本案取代之）。
-  it("首訪載入失敗（載入態翻假）→ 即時推送，骨架當下收掉", async () => {
+  // 失败时 loaded 维持 false，翻的是加载态——它若不在即推面，面板要等一个去抖
+  // 周期才收掉骨架（desktop-loading-skeleton-ux design D5 的例外，本案取代之）。
+  it("首访加载失败（加载态翻假）→ 即时推送，骨架当下收掉", async () => {
     const bag = makeStore();
     bag.emit({ loaded: false, loadingActive: true });
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
@@ -1232,7 +1232,7 @@ describe("TraySnapshot 的載入態導出", () => {
     );
   });
 
-  it("只有清單內容變動（活躍分頁與載入態不變）→ 維持去抖", async () => {
+  it("只有清单内容变动（活跃分页与加载态不变）→ 维持去抖", async () => {
     const bag = makeStore();
     await initTray(bag.store, { platform: "macos", debounceMs: 50 });
     vi.mocked(tauriEmit).mockClear();
@@ -1250,32 +1250,32 @@ describe("TraySnapshot 的載入態導出", () => {
     ).toBeGreaterThan(0);
   });
 
-  // 面板骨架的條件整條由 store 導出（design D3）：面板不再自行組合旗標，
-  // 導出值即主視窗看板的骨架條件——兩處呈現不會各自算出不同答案。
-  it("首訪整批載入中 → workspaceLoading 為 true", () => {
+  // 面板骨架的条件整条由 store 导出（design D3）：面板不再自行组合旗标，
+  // 导出值即主窗口看板的骨架条件——两处呈现不会各自算出不同答案。
+  it("首访整批加载中 → workspaceLoading 为 true", () => {
     const bag = makeStore();
     bag.emit({ loaded: false, loadingActive: true });
     expect(buildTraySnapshot(bag.store.getState()).workspaceLoading).toBe(true);
   });
 
-  it("首訪探測中（尚未起整批載入）→ workspaceLoading 為 true", () => {
+  it("首访探测中（尚未起整批加载）→ workspaceLoading 为 true", () => {
     const bag = makeStore();
     bag.emit({ loaded: false, pendingTabKey: "local:/proj/two" });
     expect(buildTraySnapshot(bag.store.getState()).workspaceLoading).toBe(true);
   });
 
-  it("已有真值的重載 → workspaceLoading 為 false（不重回骨架）", () => {
+  it("已有真值的重载 → workspaceLoading 为 false（不重回骨架）", () => {
     const bag = makeStore();
     bag.emit({ loaded: true, loadingActive: true });
     expect(buildTraySnapshot(bag.store.getState()).workspaceLoading).toBe(false);
   });
 
-  it("無載入亦無探測 → workspaceLoading 為 false", () => {
+  it("无加载亦无探测 → workspaceLoading 为 false", () => {
     const bag = makeStore();
     expect(buildTraySnapshot(bag.store.getState()).workspaceLoading).toBe(false);
   });
 
-  it("首訪載入失敗 → workspaceLoadFailed 為 true、workspaceLoading 為 false", () => {
+  it("首访加载失败 → workspaceLoadFailed 为 true、workspaceLoading 为 false", () => {
     const bag = makeStore();
     bag.emit({ loaded: false, loadingActive: false, loadFailed: true });
     const snapshot = buildTraySnapshot(bag.store.getState());
@@ -1283,7 +1283,7 @@ describe("TraySnapshot 的載入態導出", () => {
     expect(snapshot.workspaceLoading).toBe(false);
   });
 
-  it("已有舊快取的重載失敗 → workspaceLoadFailed 為 false（照舊沿用舊資料）", () => {
+  it("已有旧缓存的重载失败 → workspaceLoadFailed 为 false（照旧沿用旧数据）", () => {
     const bag = makeStore();
     bag.emit({ loaded: true, loadFailed: true });
     expect(buildTraySnapshot(bag.store.getState()).workspaceLoadFailed).toBe(false);

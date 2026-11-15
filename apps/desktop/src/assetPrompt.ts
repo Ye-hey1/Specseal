@@ -1,33 +1,33 @@
-// 技能檔過期提示的裁決與略過記憶（desktop-instruction-staleness-prompt 決策 6/7）：
-// 探測回報是引擎事實，是否顯示提示則是本機個人決定——「保留現狀」寫入 app 本機
-// 持久化（專案路徑 → 已略過的產物層版號），不進 .speclink.yaml、不進任何 repo 檔案。
-// 規格資料夾遷移由同一張提示承載（desktop-spec-dir-migration D2）。
-// remote 專案的基準是 Server 提供的技能（remote-skill-delivery D6）：同一套裁決，略過的鍵
+// 技能档过期提示的裁决与略过记忆（desktop-instruction-staleness-prompt 决策 6/7）：
+// 探测回报是引擎事实，是否显示提示则是本机个人决定——「保留现状」写入 app 本机
+// 持久化（项目路径 → 已略过的产物层版号），不进 .specseal.yaml、不进任何 repo 文件。
+// 规格文件夹迁移由同一张提示承载（desktop-spec-dir-migration D2）。
+// remote 项目的基准是 Server 提供的技能（remote-skill-delivery D6）：同一套裁决，略过的键
 // 改用 Server 的版本。
 import type { AssetProbeResult, MigrationProbe } from "./adapter/workspace";
 
-/** 提示的呈現態：主動作依此分文案（過期→更新、缺失→安裝、較新→無改寫動作、
- * migrate＝技能檔是現版、只有規格資料夾要遷移）。 */
+/** 提示的呈现态：主动作依此分文案（过期→更新、缺失→安装、较新→无改写动作、
+ * migrate＝技能档是现版、只有规格文件夹要迁移）。 */
 export interface AssetPromptState {
   kind: "stale" | "missing" | "newer" | "migrate";
-  /** 將被新建或改寫且內容有異的受管檔數。 */
+  /** 将被新建或改写且内容有异的受管档数。 */
   fileCount: number;
-  /** 此提示對應的版號（「保留現狀」記的就是它）：本機專案是這個 app 內建的技能版號，
-   * remote 專案是 Server 提供的技能版本。 */
+  /** 此提示对应的版号（「保留现状」记的就是它）：本机项目是这个 app 内置的技能版号，
+   * remote 项目是 Server 提供的技能版本。 */
   version: string;
-  /** 專案指令檔的標記版號（確認框「這個專案的技能檔版本」列）；從未安裝為 null。 */
+  /** 项目指令档的标记版号（确认框「这个项目的技能档版本」列）；从未安装为 null。 */
   projectVersion: string | null;
-  /** 按更新時規格資料夾會怎樣；較新態恆為 none（引擎拒絕這次更新），migrate 態恆為 pending。 */
+  /** 按更新时规格文件夹会怎样；较新态恒为 none（引擎拒绝这次更新），migrate 态恒为 pending。 */
   migration: MigrationProbe;
-  /** remote 專案才有。`appVersion` 是這個 app 內建的技能版號（確認框「你的 Speclink 版本」
-   * 列）；`appOlder` 為真時 app 比 Server 舊，確認框多一句說明與「更新 Speclink」。 */
+  /** remote 项目才有。`appVersion` 是这个 app 内置的技能版号（确认框「你的 Specseal 版本」
+   * 列）；`appOlder` 为真时 app 比 Server 旧，确认框多一句说明与「更新 Specseal」。 */
   server?: { appVersion: string; appOlder: boolean };
 }
 
-// 沿用改名前的 key：既有使用者的略過記憶存在這個名字下，換名等於全部失效。
-const STORAGE_KEY = "speclink.instructionSkips";
+// 沿用改名前的 key：既有用户的略过记忆存在这个名字下，换名等于全部失效。
+const STORAGE_KEY = "specseal.instructionSkips";
 
-/** 讀取略過記憶（專案 → 已略過版號；本機專案的鍵是專案路徑，remote 專案是分頁的鍵）。壞 JSON 或不識別形狀一律視為無記憶。 */
+/** 读取略过记忆（项目 → 已略过版号；本机项目的键是项目路径，remote 项目是分页的键）。坏 JSON 或不识别形状一律视为无记忆。 */
 export function readAssetSkips(storage: Storage = localStorage): Record<string, string> {
   try {
     const raw = storage.getItem(STORAGE_KEY);
@@ -44,8 +44,8 @@ export function readAssetSkips(storage: Storage = localStorage): Record<string, 
   }
 }
 
-/** 記下「此專案於此版號已保留現狀」。同專案再次略過時覆蓋舊版號。`skipKey` 是專案在略過
- * 記憶裡的鍵：本機專案是專案路徑，remote 專案是分頁的鍵。 */
+/** 记下「此项目于此版号已保留现状」。同项目再次略过时覆盖旧版号。`skipKey` 是项目在略过
+ * 记忆里的键：本机项目是项目路径，remote 项目是分页的键。 */
 export function writeAssetSkip(
   skipKey: string,
   version: string,
@@ -55,10 +55,10 @@ export function writeAssetSkip(
   storage.setItem(STORAGE_KEY, JSON.stringify(skips));
 }
 
-/** 顯示裁決（規格「技能檔過期探測」的提示面）：過期、缺失或較新才提示，技能檔是現版
- * 但規格資料夾待遷移時也提示；且該專案未略過當前版號。技能檔是現版而遷移暫緩時不提示：
- * 略過以版號為鍵，暫緩時的略過會壓掉排除原因後的待遷移提示——暫緩原因只在過期或缺失的
- * 提示裡說明。無法判定一律不提示——無法判定不記入略過、也不視同現版。 */
+/** 显示裁决（规格「技能档过期探测」的提示面）：过期、缺失或较新才提示，技能档是现版
+ * 但规格文件夹待迁移时也提示；且该项目未略过当前版号。技能档是现版而迁移暂缓时不提示：
+ * 略过以版号为键，暂缓时的略过会压掉排除原因后的待迁移提示——暂缓原因只在过期或缺失的
+ * 提示里说明。无法判定一律不提示——无法判定不记入略过、也不视同现版。 */
 export function assetPrompt(
   probe: AssetProbeResult,
   skipKey: string,
@@ -74,8 +74,8 @@ export function assetPrompt(
   if (!kind) return null;
   const version = probe.serverVersion ?? probe.currentVersion;
   if (skips[skipKey] === version) return null;
-  // 專案的技能檔版號取觸發這個狀態的工具：較新取領先的、過期取落後的；缺失（從未安裝）為 null；
-  // 現版取第一個有版號的工具。
+  // 项目的技能档版号取触发这个状态的工具：较新取领先的、过期取落后的；缺失（从未安装）为 null；
+  // 现版取第一个有版号的工具。
   const flagged =
     kind === "missing"
       ? undefined

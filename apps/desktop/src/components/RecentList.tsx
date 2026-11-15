@@ -1,8 +1,8 @@
-// 最近開啟清單（design D7）：新增專案對話框第一步與零專案空狀態共用同一份清單與
-// 開啟流程；兩個 variant 只差外框。
+// 最近打开清单（design D7）：添加项目对话框第一步与零项目空状态共用同一份清单与
+// 打开流程；两个 variant 只差外框。
 import { useState } from "react";
 import { AlertTriangle, Cloud, Folder, X } from "lucide-react";
-import { cn, useI18n } from "@speclink/ui";
+import { cn, useI18n } from "@specseal/ui";
 
 import type { ConnectionView, ConnectionsAdapter } from "../adapter/connections";
 import type { WorkspaceAdapter } from "../adapter/workspace";
@@ -11,12 +11,12 @@ import { locatorKey } from "../session";
 
 export interface RecentListProps {
   variant: "dialog" | "card";
-  /** 已濾掉專案列上開著的項目（visibleRecents）。 */
+  /** 已滤掉项目列上开着的项目（visibleRecents）。 */
   entries: RecentEntry[];
   connections: ConnectionView[];
-  /** 連線清單是否讀取成功——未就緒時 remote 列不得判成「連線已移除／已登出」。 */
+  /** 连接清单是否读取成功——未就绪时 remote 列不得判成「连接已移除／已注销」。 */
   connectionsReady: boolean;
-  /** 點擊開啟失敗的錯誤（locator key → 原因）。 */
+  /** 点击打开失败的错误（locator key → 原因）。 */
   errors: Record<string, string>;
   busy?: boolean;
   onOpen: (entry: RecentEntry) => void;
@@ -55,7 +55,7 @@ export function RecentList({
           const key = locatorKey(entry.locator);
           const connectionId = entry.locator.kind === "remote" ? entry.locator.connectionId : null;
           const connection = connectionId ? connections.find((c) => c.id === connectionId) : null;
-          // 連線清單載入完成前不下判斷；載入後才分「已移除」與「已登出」。
+          // 连接清单加载完成前不下判断；加载后才分「已移除」与「已注销」。
           const connectionReason =
             connectionId && connectionsReady
               ? !connection
@@ -72,11 +72,11 @@ export function RecentList({
               key={key}
               className={cn(
                 "group flex items-start gap-1 px-3 py-2 transition-colors",
-                // 開啟進行中各列的開啟鈕停用：外層不給 hover 底色（× 移除鈕仍可用，滑過整列時照常浮現）。
+                // 打开进行中各列的打开钮停用：外层不给 hover 底色（× 移除钮仍可用，滑过整列时照常浮现）。
                 reason ? "bg-destructive/5" : !busy && "hover:bg-foreground/5",
               )}
             >
-              {/* 開啟失敗的錯誤態仍可再點重試；連線已移除／已登出才停用。 */}
+              {/* 打开失败的错误态仍可再点重试；连接已移除／已注销才停用。 */}
               <button
                 type="button"
                 disabled={busy || Boolean(connectionReason)}
@@ -130,13 +130,13 @@ export function RecentList({
   );
 }
 
-/** 本機開啟動作（store 的 openProjectAt）：EmptyWorkspace、WorkspaceChooser 與這裡共用的
- * prop 型別；三者都不讀回傳值。 */
+/** 本机打开动作（store 的 openProjectAt）：EmptyWorkspace、WorkspaceChooser 与这里共用的
+ * prop 类型；三者都不读回传值。 */
 export type OpenLocal = (path: string) => Promise<unknown>;
 
-/** 最近開啟條目的開啟流程（design D4）：本機先探測再沿既有開啟流程（分流由
- * openProjectAt 承擔）；remote 以原 connection／scope／checkout 走既有 remote 開啟。
- * 失敗只標記該列——錯誤態只活在呼叫端畫面，重試或 reset 即清。 */
+/** 最近打开条目的打开流程（design D4）：本机先探测再沿既有打开流程（分流由
+ * openProjectAt 承担）；remote 以原 connection／scope／checkout 走既有 remote 打开。
+ * 失败只标记该列——错误态只活在调用端画面，重试或 reset 即清。 */
 export function useRecentOpener({
   workspace,
   connections,
@@ -149,26 +149,26 @@ export function useRecentOpener({
   workspace: Pick<WorkspaceAdapter, "openProject">;
   connections: ConnectionView[];
   connectionAdapter: Pick<ConnectionsAdapter, "inspectCheckout">;
-  /** 重整連線清單；回傳讀取是否成功（成功才判定 remote 列的連線錯誤態）。 */
+  /** 重整连接清单；回传读取是否成功（成功才判定 remote 列的连接错误态）。 */
   onRefreshConnections: () => Promise<boolean>;
   onOpenLocal: OpenLocal;
   onOpenRemote: (connectionId: string, target: string, checkoutRoot?: string) => Promise<void>;
-  /** 本機探測成功、交給開啟流程之前（對話框於此關閉自己）。 */
+  /** 本机探测成功、交给打开流程之前（对话框于此关闭自己）。 */
   onLocalProbed?: () => void;
 }) {
   const { t } = useI18n();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  /** 連線清單是否讀取成功——載入中或讀取失敗時，remote 列都不得判成
-   * 「連線已移除」：清單初值是空陣列，讀取失敗又保留現值，先判斷會把有效
-   * 條目誤標成已移除且停用開啟。 */
+  /** 连接清单是否读取成功——加载中或读取失败时，remote 列都不得判成
+   * 「连接已移除」：清单初值是空数组，读取失败又保留现值，先判断会把有效
+   * 条目误标成已移除且停用打开。 */
   const [connectionsReady, setConnectionsReady] = useState(false);
 
   async function refreshConnections() {
     setConnectionsReady(await onRefreshConnections().catch(() => false));
   }
 
-  /** 重新進入（對話框重開、空狀態出現）：清錯誤態、重讀連線清單。 */
+  /** 重新进入（对话框重开、空状态出现）：清错误态、重读连接清单。 */
   function reset() {
     setErrors({});
     setConnectionsReady(false);
@@ -186,14 +186,14 @@ export function useRecentOpener({
         await onOpenLocal(entry.locator.root);
       } else {
         const { connectionId, projectId, repoId, checkoutRoot } = entry.locator;
-        // 綁著 checkout 的條目先驗資料夾仍與該 scope 一致（與其他 checkout 開啟
-        // 路徑同一步）——handshake 只問伺服器，不會發現資料夾已消失。這一步要
-        // connection 的 origin；規格模式（無 checkout 綁定）只需 connectionId，
-        // 不得因清單未就緒而被擋下。
+        // 绑着 checkout 的条目先验文件夹仍与该 scope 一致（与其他 checkout 打开
+        // 路径同一步）——handshake 只问服务器，不会发现文件夹已消失。这一步要
+        // connection 的 origin；规格模式（无 checkout 绑定）只需 connectionId，
+        // 不得因清单未就绪而被挡下。
         if (checkoutRoot) {
           const connection = connections.find((c) => c.id === connectionId);
           if (!connection) {
-            // 清單未就緒時列仍是啟用的——此處補判，理由與就緒後的列同一句純文字。
+            // 清单未就绪时列仍是激活的——此处补判，理由与就绪后的列同一句纯文本。
             setErrors((prev) => ({ ...prev, [key]: t("chooser.recentConnectionMissing") }));
             return;
           }

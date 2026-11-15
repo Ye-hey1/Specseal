@@ -1,6 +1,6 @@
-// 程式碼編輯器（desktop-settings-editors design D1）：包 CodeMirror 6——markdown／純文字兩模式、
-// 行號、自動換行、Mod-s 儲存與底部狀態列；配色只取設計 token，蓋掉套件基底主題的每個顏色
-// （spec「表單控制項與按鈕以主題化元件呈現」）。
+// 代码编辑器（desktop-settings-editors design D1）：包 CodeMirror 6——markdown／纯文本两模式、
+// 行号、自动换行、Mod-s 保存与底部状态栏；配色只取设计 token，盖掉套件基底主题的每个颜色
+// （spec「表单控制项与按钮以主题化组件呈现」）。
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import {
@@ -14,7 +14,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { markdownLanguage } from "@codemirror/lang-markdown";
 import { tags } from "@lezer/highlight";
-import { useI18n } from "@speclink/ui";
+import { useI18n } from "@specseal/ui";
 
 export interface CodeEditorProps {
   value: string;
@@ -22,7 +22,7 @@ export interface CodeEditorProps {
   mode: "markdown" | "plain";
   readOnly?: boolean;
   onSave?: () => void;
-  /** 內容區最小高度（行數）。 */
+  /** 内容区最小高度（行数）。 */
   minLines?: number;
   ariaLabel: string;
   autoFocus?: boolean;
@@ -55,7 +55,7 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.emphasis, fontStyle: "italic" },
 ]);
 
-/** 外部 value 同步的 transaction 標記：這類變動不回送 onChange。 */
+/** 外部 value 同步的 transaction 标记：这类变动不回送 onChange。 */
 const syncFromProps = Annotation.define<boolean>();
 
 const cursorOf = (state: EditorState) => {
@@ -77,10 +77,10 @@ export function CodeEditor({
   const { t } = useI18n();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  // 唯讀只設 EditorState.readOnly：輸入被忽略，但內容區仍可聚焦——關掉 editable 會讓
-  // WebView 把焦點移走，儲存失敗恢復可編輯後焦點也回不來。
+  // 唯读只设 EditorState.readOnly：输入被忽略，但内容区仍可聚焦——关掉 editable 会让
+  // WebView 把焦点移走，保存失败恢复可编辑后焦点也回不来。
   const readOnlyMode = useRef(new Compartment()).current;
-  // 編輯器只建一次，擴充內的回呼經 ref 取最新 props。
+  // 编辑器只建一次，扩充内的回呼经 ref 取最新 props。
   const latest = useRef({ onChange, onSave });
   latest.current = { onChange, onSave };
   const [cursor, setCursor] = useState({ line: 1, col: 1 });
@@ -99,7 +99,7 @@ export function CodeEditor({
           keymap.of([
             {
               key: "Mod-s",
-              // 唯讀時不攔：事件交給頁層，由它決定是否儲存。
+              // 唯读时不拦：事件交给页层，由它决定是否保存。
               run: (view) => {
                 if (!latest.current.onSave || view.state.readOnly) return false;
                 latest.current.onSave();
@@ -132,11 +132,11 @@ export function CodeEditor({
       created.destroy();
       view.current = null;
     };
-    // 只在掛載時建立：mode／ariaLabel／minLines／autoFocus 由呼叫端固定，value 與 readOnly 由下方同步。
+    // 只在挂载时创建：mode／ariaLabel／minLines／autoFocus 由调用端固定，value 与 readOnly 由下方同步。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // layout effect：commit 後立刻同步，不留讓新按鍵插進來、再被舊 value 蓋掉的空檔。
+  // layout effect：commit 后立刻同步，不留让新按键插进来、再被旧 value 盖掉的空档。
   useLayoutEffect(() => {
     const current = view.current;
     if (!current || current.state.doc.toString() === value) return;

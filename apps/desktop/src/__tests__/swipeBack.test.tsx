@@ -1,6 +1,6 @@
-// 觸控板滑動返回（spec desktop-app「詳情頁的導覽與返回」；desktop-swipe-back-finger-lift design D4）：
-// 只在原生層送來的手指按下（began）到離開（ended）之間累計朝返回方向的水平位移，左緣「←」指示
-// 隨之推出、達門檻轉實心；手指離開的當下結算——已達門檻即返回、未達收回，不等慣性捲動。
+// 触摸板滑动返回（spec desktop-app「详情页的导览与返回」；desktop-swipe-back-finger-lift design D4）：
+// 只在原生层送来的手指按下（began）到离开（ended）之间累计朝返回方向的水平位移，左缘「←」指示
+// 随之推出、达门槛转实心；手指离开的当下结算——已达门槛即返回、未达收回，不等惯性卷动。
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render } from "@testing-library/react";
 import { listen } from "@tauri-apps/api/event";
@@ -8,13 +8,13 @@ import { listen } from "@tauri-apps/api/event";
 import { SWIPE_THRESHOLD, SwipeBack } from "../components/SwipeBack";
 import { type GestureHandler, gesture, gestureHandlers } from "./helpers/trackpadGesture";
 
-// 攔下 Tauri 事件層：trackpad-gesture 的處理器交給共用替身，測試以 gesture() 模擬手指按下與離開。
+// 拦下 Tauri 事件层：trackpad-gesture 的处理器交给共用替身，测试以 gesture() 仿真手指按下与离开。
 vi.mock("@tauri-apps/api/event", async () => {
   const { subscribeGesture } = await import("./helpers/trackpadGesture");
   return { listen: vi.fn((_event: string, handler: GestureHandler) => subscribeGesture(handler)) };
 });
 
-// 假計時器且從不推進：結算若仍靠計時器，onBack 就不會在 ended 的當下被呼叫。
+// 假计时器且从不推进：结算若仍靠计时器，onBack 就不会在 ended 的当下被调用。
 beforeEach(() => {
   vi.useFakeTimers();
 });
@@ -27,7 +27,7 @@ afterEach(() => {
 
 const indicator = () => document.querySelector("[data-swipe-back]") as HTMLElement;
 
-/** 送一個 wheel 事件；`inverted` 對應 WebKit 的自然捲動旗標（缺席＝不帶此欄位）。 */
+/** 送一个 wheel 事件；`inverted` 对应 WebKit 的自然卷动旗标（缺席＝不带此字段）。 */
 function wheel(
   target: EventTarget,
   deltaX: number,
@@ -40,7 +40,7 @@ function wheel(
   });
 }
 
-/** 一次完整手勢：手指按下、依序送出位移（自然捲動下手指向右＝deltaX 為負）、手指離開。 */
+/** 一次完整手势：手指按下、依序送出位移（自然卷动下手指向右＝deltaX 为负）、手指离开。 */
 function swipe(deltas: number[], target: EventTarget = window, inverted?: boolean) {
   gesture("began");
   for (const dx of deltas) wheel(target, dx, { inverted });
@@ -48,7 +48,7 @@ function swipe(deltas: number[], target: EventTarget = window, inverted?: boolea
 }
 
 describe("SwipeBack", () => {
-  it("手指按著滑過門檻：指示轉實心但不返回；手指離開的當下返回並收回指示", () => {
+  it("手指按着滑过门槛：指示转实心但不返回；手指离开的当下返回并收回指示", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");
@@ -60,20 +60,20 @@ describe("SwipeBack", () => {
     expect(indicator().getAttribute("data-progress")).toBe("0.00");
   });
 
-  // spec Example「放開時的結算（門檻 120px）」逐列；慣性是手指離開後才送的 wheel。
+  // spec Example「放开时的结算（门槛 120px）」逐列；惯性是手指离开后才送的 wheel。
   it.each([
-    { gesture: "向右滑 200px 後放開", result: "立即關閉詳情頁", moves: [-50, -50, -50, -50], momentum: [], backs: 1 },
-    { gesture: "向右滑 80px 後放開", result: "指示收回、詳情頁維持", moves: [-40, -40], momentum: [], backs: 0 },
+    { gesture: "向右滑 200px 后放开", result: "立即关闭详情页", moves: [-50, -50, -50, -50], momentum: [], backs: 1 },
+    { gesture: "向右滑 80px 后放开", result: "指示收回、详情页维持", moves: [-40, -40], momentum: [], backs: 0 },
     {
-      gesture: "向右滑 150px、未放開再往回滑到 80px 後放開",
-      result: "指示收回、詳情頁維持",
+      gesture: "向右滑 150px、未放开再往回滑到 80px 后放开",
+      result: "指示收回、详情页维持",
       moves: [-50, -50, -50, 70],
       momentum: [],
       backs: 0,
     },
     {
-      gesture: "向右滑 200px 後放開，慣性又捲了 300px",
-      result: "放開當下關頁，慣性不影響",
+      gesture: "向右滑 200px 后放开，惯性又卷了 300px",
+      result: "放开当下关页，惯性不影响",
       moves: [-50, -50, -50, -50],
       momentum: [-100, -100, -100],
       backs: 1,
@@ -89,7 +89,7 @@ describe("SwipeBack", () => {
     expect(onBack).toHaveBeenCalledTimes(backs);
   });
 
-  it("放開前滑回門檻以下：指示由實心轉回空心，放開不返回", () => {
+  it("放开前滑回门槛以下：指示由实心转回空心，放开不返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");
@@ -101,7 +101,7 @@ describe("SwipeBack", () => {
     expect(onBack).not.toHaveBeenCalled();
   });
 
-  it("沒有手勢階段的輸入（一般滑鼠水平滾輪、Shift＋滾輪）不推進指示、不返回", () => {
+  it("没有手势阶段的输入（一般鼠标水平滚轮、Shift＋滚轮）不推进指示、不返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     for (let i = 0; i < 4; i++) wheel(window, -50);
@@ -113,7 +113,7 @@ describe("SwipeBack", () => {
     expect(onBack).not.toHaveBeenCalled();
   });
 
-  it("系統設定不允許兩指滑動（began 的 swipeEnabled 為 false）時不推進、不返回", () => {
+  it("系统设置不允许两指滑动（began 的 swipeEnabled 为 false）时不推进、不返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began", false);
@@ -121,12 +121,12 @@ describe("SwipeBack", () => {
     expect(indicator().getAttribute("data-progress")).toBe("0.00");
     gesture("ended");
     expect(onBack).not.toHaveBeenCalled();
-    // 設定改回允許兩指：下一次手勢即可返回。
+    // 设置改回允许两指：下一次手势即可返回。
     swipe([-50, -50, -50, -50]);
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("同一手勢的 MayBegin 與 Began 各送一次 began：第二次歸零時尚未移動，放開照常返回", () => {
+  it("同一手势的 MayBegin 与 Began 各送一次 began：第二次归零时尚未移动，放开照常返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");
@@ -136,11 +136,11 @@ describe("SwipeBack", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  // ended 遺失（系統沒送 Cancelled）時，下一次 began 就是新手勢；輕觸不移動也是 began（MayBegin）→ended。
+  // ended 遗失（系统没送 Cancelled）时，下一次 began 就是新手势；轻触不移动也是 began（MayBegin）→ended。
   it.each([
-    { next: "允許兩指滑動", swipeEnabled: true },
-    { next: "系統設定已改為不允許", swipeEnabled: false },
-  ])("ended 遺失、指示停在實心後，下一次 began（$next）從零開始：輕觸放開不返回", ({ swipeEnabled }) => {
+    { next: "允许两指滑动", swipeEnabled: true },
+    { next: "系统设置已改为不允许", swipeEnabled: false },
+  ])("ended 遗失、指示停在实心后，下一次 began（$next）从零开始：轻触放开不返回", ({ swipeEnabled }) => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");
@@ -152,7 +152,7 @@ describe("SwipeBack", () => {
     expect(onBack).not.toHaveBeenCalled();
   });
 
-  it("先垂直捲動 40px 再向右滑 200px：整次手勢取消，放開不返回", () => {
+  it("先垂直卷动 40px 再向右滑 200px：整次手势取消，放开不返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");
@@ -161,12 +161,12 @@ describe("SwipeBack", () => {
     expect(indicator().getAttribute("data-progress")).toBe("0.00");
     gesture("ended");
     expect(onBack).not.toHaveBeenCalled();
-    // 取消只持續到手指離開：下一次手勢重新判定。
+    // 取消只持续到手指离开：下一次手势重新判定。
     swipe([-50, -50, -50, -50]);
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("純水平 200px 夾少量垂直晃動（累計 8px）不取消，放開即返回", () => {
+  it("纯水平 200px 夹少量垂直晃动（累计 8px）不取消，放开即返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");
@@ -175,7 +175,7 @@ describe("SwipeBack", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("往前方向的滑動與縮放（ctrl＋滾輪）都不理會", () => {
+  it("往前方向的滑动与缩放（ctrl＋滚轮）都不理会", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     swipe([50, 50, 50, 50]);
@@ -186,7 +186,7 @@ describe("SwipeBack", () => {
     expect(onBack).not.toHaveBeenCalled();
   });
 
-  /** 寬 600、可視 200 的水平捲動區塊（overflow 可捲動才算），回傳其內的子元素當事件目標。 */
+  /** 宽 600、可视 200 的水平卷动区块（overflow 可卷动才算），回传其内的子元素当事件目标。 */
   function scroller(scrollLeft: number, overflowX = "auto") {
     const box = document.createElement("div");
     const cell = document.createElement("span");
@@ -199,7 +199,7 @@ describe("SwipeBack", () => {
     return { box, cell };
   }
 
-  it("手勢開始於仍可往左捲動的水平捲動區塊時不接手；捲到最左才接手", () => {
+  it("手势开始于仍可往左卷动的水平卷动区块时不接手；卷到最左才接手", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     const { box, cell } = scroller(50);
@@ -211,7 +211,7 @@ describe("SwipeBack", () => {
     box.remove();
   });
 
-  it("自然捲動關閉時手指向右是把區塊往右捲：停在最左的寬表格仍可往右捲就不接手，捲到最右才接手", () => {
+  it("自然卷动关闭时手指向右是把区块往右卷：停在最左的宽表格仍可往右卷就不接手，卷到最右才接手", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     const { box, cell } = scroller(0);
@@ -223,7 +223,7 @@ describe("SwipeBack", () => {
     box.remove();
   });
 
-  it("只裁切不捲動的區塊（overflow hidden，如截斷的長名稱）不擋返回", () => {
+  it("只裁切不卷动的区块（overflow hidden，如截断的长名称）不挡返回", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     const { box, cell } = scroller(0, "hidden");
@@ -232,7 +232,7 @@ describe("SwipeBack", () => {
     box.remove();
   });
 
-  it("自然捲動關閉時方向反轉：手指向右＝deltaX 為正", () => {
+  it("自然卷动关闭时方向反转：手指向右＝deltaX 为正", () => {
     const onBack = vi.fn();
     render(<SwipeBack enabled onBack={onBack} />);
     swipe([-40, -40, -40, -40], window, false);
@@ -241,7 +241,7 @@ describe("SwipeBack", () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it("停用時不訂閱手勢事件、也不監聽 wheel", () => {
+  it("停用时不订阅手势事件、也不监听 wheel", () => {
     const addListener = vi.spyOn(window, "addEventListener");
     const onBack = vi.fn();
     render(<SwipeBack enabled={false} onBack={onBack} />);
@@ -253,7 +253,7 @@ describe("SwipeBack", () => {
     addListener.mockRestore();
   });
 
-  it("手勢中途停用（詳情頁關閉）：指示歸零並解除訂閱", async () => {
+  it("手势中途停用（详情页关闭）：指示归零并解除订阅", async () => {
     const onBack = vi.fn();
     const { rerender } = render(<SwipeBack enabled onBack={onBack} />);
     gesture("began");

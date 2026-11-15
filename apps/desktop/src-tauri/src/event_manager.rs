@@ -1,51 +1,51 @@
-//! per-connection 事件管理者（design 決策 3、5；規格「Query 加 ETag 為重讀
-//! 正典且 push 只做 invalidate」「斷線以 Polling 加 ETag 收斂後續訂」）。
+//! per-connection 事件管理者（design 决策 3、5；规格「Query 加 ETag 为重读
+//! 正典且 push 只做 invalidate」「断线以 Polling 加 ETag 收敛后续订」）。
 //!
-//! 以 locator key（connection＋project/repo）為訂閱鍵：server 的 /events 是
-//! project-scoped＋repo header，同 scope 的 sessions 以參照計數共用單一條流、
-//! 事件以 key 分發（每事件每 key 恰一次通知）。收 invalidate 只轉發失效提示
-//! ——payload＝locator key，前端一律經 Query 重讀，這裡不攜帶、不快取任何
-//! 資料實體。
+//! 以 locator key（connection＋project/repo）为订阅键：server 的 /events 是
+//! project-scoped＋repo header，同 scope 的 sessions 以参照计数共用单一条流、
+//! 事件以 key 分发（每事件每 key 恰一次通知）。收 invalidate 只转发失效提示
+//! ——payload＝locator key，前端一律经 Query 重读，这里不携带、不缓存任何
+//! 数据实体。
 //!
-//! 斷線收斂程序（決策 5）：(1) 停流；(2) 以 /sync-state ETag 與已知值比對
-//! ——不同即發重載通知（已知值由 invalidate 的 revision 推導：ETag＝加引號的
-//! project revision，零額外請求）；(3) 依注入的退避序列重連並帶 Last-Event-ID
-//! 續傳。SSE 持續不可用期間，每輪退避都跑一次 ETag 比對——輪詢即心跳。收到
-//! reset 信號：發全量重載通知、位點歸零，自同一條流的新位點續訂。
+//! 断线收敛进程（决策 5）：(1) 停流；(2) 以 /sync-state ETag 与已知值比对
+//! ——不同即发重载通知（已知值由 invalidate 的 revision 推导：ETag＝加引号的
+//! project revision，零额外请求）；(3) 依注入的退避串行重连并带 Last-Event-ID
+//! 续传。SSE 持续不可用期间，每轮退避都跑一次 ETag 比对——轮询即心跳。收到
+//! reset 信号：发全量重载通知、位点归零，自同一条流的新位点续订。
 //!
-//! 已知邊界：server 若以全新 outbox 重啟（例如 memory store），過大的
-//! Last-Event-ID 會使續傳靜默失聰——重連當下的 ETag 比對會補發一次重載通知，
-//! 其後的收斂依賴下一次斷線或重訂（sqlite/pg 後端的 outbox 跨重啟連續，
-//! 不受此影響）。
+//! 已知边界：server 若以全新 outbox 重启（例如 memory store），过大的
+//! Last-Event-ID 会使续传静默失聪——重连当下的 ETag 比对会补发一次重载通知，
+//! 其后的收敛依赖下一次断线或重订（sqlite/pg 后端的 outbox 跨重启连续，
+//! 不受此影响）。
 
-use speclink_remote::events::{EventStream, RemoteEvent};
-use speclink_remote::RemoteError;
+use specseal_remote::events::{EventStream, RemoteEvent};
+use specseal_remote::RemoteError;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-/// 一條共用訂閱的控制面：參照計數＋收束把手。
+/// 一条共用订阅的控制面：参照计数＋收束把手。
 struct SubEntry {
     count: usize,
     shutdown: Arc<AtomicBool>,
-    /// 目前開著的流的中止把手（worker 每次開流後掛上）。
-    stream_abort: Arc<Mutex<Option<speclink_remote::events::AbortHandle>>>,
+    /// 目前开着的流的中止把手（worker 每次开流后挂上）。
+    stream_abort: Arc<Mutex<Option<specseal_remote::events::AbortHandle>>>,
 }
 
-/// 訂閱表：共用訂閱之外，另記兩種帳目，讓 register／unregister 在任何抵達
-/// 順序下總帳都平（async IPC 後順序不再保證，cleanup 可先於 subscribe 抵達）：
+/// 订阅表：共用订阅之外，另记两种帐目，让 register／unregister 在任何抵达
+/// 顺序下总帐都平（async IPC 后顺序不再保证，cleanup 可先于 subscribe 抵达）：
 ///
-/// - `debts`——先到的 unregister：對不存在的 key 退訂＝記一筆額度，該 key 的
-///   下一個 register（或失敗註冊的入帳）直接被抵銷、不開 worker。
-/// - `credits`——註冊失敗的入帳（[`EventManager::register_failed`]）：註冊沒
-///   發生但前端 unmount 照樣退訂，先到的失敗額度讓那筆退訂變 no-op，不毒害
-///   之後的訂閱。
+/// - `debts`——先到的 unregister：对不存在的 key 退订＝记一笔额度，该 key 的
+///   下一个 register（或失败注册的入帐）直接被抵销、不开 worker。
+/// - `credits`——注册失败的入帐（[`EventManager::register_failed`]）：注册没
+///   发生但前端 unmount 照样退订，先到的失败额度让那笔退订变 no-op，不毒害
+///   之后的订阅。
 ///
-/// 每筆 register（成功、失敗皆入帳）＋1、每筆 unregister −1，兩種額度互不
-/// 共存（入帳先消 debt、退訂先消 credit）——收斂後帳目歸零：不會留下沒人
-/// 退訂的孤兒 worker，也不會留下吃掉未來訂閱的毒藥額度（代價是罕見交錯下
-/// 訂閱短暫斷開重建，可接受）。
+/// 每笔 register（成功、失败皆入帐）＋1、每笔 unregister −1，两种额度互不
+/// 共存（入帐先消 debt、退订先消 credit）——收敛后帐目归零：不会留下没人
+/// 退订的孤儿 worker，也不会留下吃掉未来订阅的毒药额度（代价是罕见交错下
+/// 订阅短暂断开重建，可接受）。
 #[derive(Default)]
 struct Subs {
     entries: HashMap<String, SubEntry>,
@@ -53,8 +53,8 @@ struct Subs {
     credits: HashMap<String, usize>,
 }
 
-/// remote 事件的分發中樞：tauri 接線注入 notify（emit remote-workspace-changed），
-/// 測試注入 channel 水槽。
+/// remote 事件的分发中枢：tauri 接线注入 notify（emit remote-workspace-changed），
+/// 测试注入 channel 水槽。
 pub struct EventManager {
     notify: Arc<dyn Fn(String) + Send + Sync>,
     subs: Mutex<Subs>,
@@ -80,9 +80,9 @@ impl EventManager {
         }
     }
 
-    /// 註冊一個 session：先消掉先到的 unregister 額度（見 [`Subs`]），
-    /// 其次同 key 已有訂閱即共用（參照計數＋1，閉包棄用），
-    /// 否則以給定的訂閱／sync-state 閉包與退避序列開 worker 執行緒。
+    /// 注册一个 session：先消掉先到的 unregister 额度（见 [`Subs`]），
+    /// 其次同 key 已有订阅即共用（参照计数＋1，闭包弃用），
+    /// 否则以给定的订阅／sync-state 闭包与退避串行开 worker 线程。
     pub fn register<S, P>(&self, key: &str, subscribe: S, sync_state: P, backoff: Vec<Duration>)
     where
         S: Fn(Option<u64>) -> Result<EventStream, RemoteError> + Send + 'static,
@@ -101,7 +101,7 @@ impl EventManager {
             return;
         }
         let shutdown = Arc::new(AtomicBool::new(false));
-        let stream_abort: Arc<Mutex<Option<speclink_remote::events::AbortHandle>>> =
+        let stream_abort: Arc<Mutex<Option<specseal_remote::events::AbortHandle>>> =
             Arc::new(Mutex::new(None));
         subs.entries.insert(
             key.to_string(),
@@ -126,9 +126,9 @@ impl EventManager {
         });
     }
 
-    /// 註冊失敗的入帳：command 在 register 之前失敗（如 registry 壞讀）時
-    /// 呼叫——沒有訂閱入帳，但前端 unmount 照樣退訂，這筆額度讓配對的
-    /// unregister 變 no-op。先消先到的退訂額度（反向交錯）。
+    /// 注册失败的入帐：command 在 register 之前失败（如 registry 坏读）时
+    /// 调用——没有订阅入帐，但前端 unmount 照样退订，这笔额度让配对的
+    /// unregister 变 no-op。先消先到的退订额度（反向交错）。
     pub fn register_failed(&self, key: &str) {
         let mut subs = self.subs.lock().expect("subs lock");
         if let Some(debt) = subs.debts.get_mut(key) {
@@ -141,9 +141,9 @@ impl EventManager {
         *subs.credits.entry(key.to_string()).or_insert(0) += 1;
     }
 
-    /// 退出一個 session：先消失敗註冊的額度（該筆退訂沒有對應的訂閱）；
-    /// 其次參照計數歸零時收束訂閱（中止流、worker 退場）；
-    /// key 不存在＝這筆退訂先於它的 register 抵達，記一筆抵銷額度。
+    /// 退出一个 session：先消失败注册的额度（该笔退订没有对应的订阅）；
+    /// 其次参照计数归零时收束订阅（中止流、worker 退场）；
+    /// key 不存在＝这笔退订先于它的 register 抵达，记一笔抵销额度。
     pub fn unregister(&self, key: &str) {
         let mut subs = self.subs.lock().expect("subs lock");
         if let Some(credit) = subs.credits.get_mut(key) {
@@ -169,7 +169,7 @@ impl EventManager {
     }
 }
 
-/// 一條訂閱的 worker：開流→分發→斷線收斂→重連，直到 shutdown。
+/// 一条订阅的 worker：开流→分发→断线收敛→重连，直到 shutdown。
 fn worker(
     key: String,
     notify: Arc<dyn Fn(String) + Send + Sync>,
@@ -177,7 +177,7 @@ fn worker(
     sync_state: impl Fn() -> Result<String, RemoteError>,
     backoff: Vec<Duration>,
     shutdown: Arc<AtomicBool>,
-    stream_abort: Arc<Mutex<Option<speclink_remote::events::AbortHandle>>>,
+    stream_abort: Arc<Mutex<Option<specseal_remote::events::AbortHandle>>>,
 ) {
     let mut last_event_id: Option<u64> = None;
     let mut last_etag: Option<String> = None;
@@ -189,14 +189,14 @@ fn worker(
             return;
         }
         if let Ok(mut stream) = subscribe(last_event_id) {
-            // 曾斷線後第一次成功重訂即全量失效；若前一輪 sync-state 已送過，
-            // 此處只結束 recovery episode，不重複通知。
+            // 曾断线后第一次成功重订即全量失效；若前一轮 sync-state 已送过，
+            // 此处只结束 recovery episode，不重复通知。
             if recovery_episode && !recovery_invalidation_sent {
                 notify(key.clone());
             }
             let abort = stream.abort_handle();
             *stream_abort.lock().expect("abort lock") = Some(abort.clone());
-            // shutdown 恰於掛上把手前發生：自行收束。
+            // shutdown 恰于挂上把手前发生：自行收束。
             if shutdown.load(Ordering::Relaxed) {
                 abort.abort();
                 return;
@@ -208,21 +208,21 @@ fn worker(
                         if let Ok(seq) = hint.event_id.parse::<u64>() {
                             last_event_id = Some(seq);
                         }
-                        // ETag＝加引號的 project revision（server 的 scope token
-                        // 形制）——由事件推導，收斂比對零額外請求。
+                        // ETag＝加引号的 project revision（server 的 scope token
+                        // 形制）——由事件推导，收敛比对零额外请求。
                         last_etag = Some(format!("\"{}\"", hint.revision));
                         notify(key.clone());
                     }
                     Ok(Some(RemoteEvent::Reset)) => {
-                        // 續傳位點已過保留期：全量重載，位點歸零，自同一條流
-                        // 的新位點續訂。
+                        // 续传位点已过保留期：全量重载，位点归零，自同一条流
+                        // 的新位点续订。
                         last_event_id = None;
                         last_etag = None;
                         notify(key.clone());
                     }
                     // Ok(None)＝中止把手收束（unregister）。
                     Ok(None) => return,
-                    // 斷線：進收斂程序。
+                    // 断线：进收敛进程。
                     Err(_) => {
                         recovery_episode = true;
                         recovery_invalidation_sent = false;
@@ -238,16 +238,16 @@ fn worker(
         if shutdown.load(Ordering::Relaxed) {
             return;
         }
-        // 收斂 (2)：ETag 相異即發重載通知——完全漏掉 push 仍經 Query 收斂。
-        // SSE 不可用期間每輪退避都經過這裡：輪詢即心跳。
+        // 收敛 (2)：ETag 相异即发重载通知——完全漏掉 push 仍经 Query 收敛。
+        // SSE 不可用期间每轮退避都经过这里：轮询即心跳。
         if let Ok(etag) = sync_state() {
             let changed = last_etag.as_deref() != Some(etag.as_str());
             if changed {
                 last_etag = Some(etag);
                 notify(key.clone());
             }
-            // 同一斷線 episode 第一次成功收斂必送一次全量失效；ETag 已變時
-            // 上方通知即同一筆，不再重複。SSE 持續失敗時後續輪詢也不洗版。
+            // 同一断线 episode 第一次成功收敛必送一次全量失效；ETag 已变时
+            // 上方通知即同一笔，不再重复。SSE 持续失败时后续轮询也不洗版。
             if recovery_episode && !recovery_invalidation_sent {
                 if !changed {
                     notify(key.clone());
@@ -255,7 +255,7 @@ fn worker(
                 recovery_invalidation_sent = true;
             }
         }
-        // 收斂 (3)：退避後重連（Last-Event-ID 續傳）。序列走完即停在最末值。
+        // 收敛 (3)：退避后重连（Last-Event-ID 续传）。串行走完即停在最末值。
         let delay = backoff
             .get(attempt.min(backoff.len().saturating_sub(1)))
             .copied()
@@ -265,7 +265,7 @@ fn worker(
     }
 }
 
-/// 可被 shutdown 打斷的睡眠（25ms 切片）。
+/// 可被 shutdown 打断的睡眠（25ms 切片）。
 fn sleep_interruptible(total: Duration, shutdown: &AtomicBool) {
     let slice = Duration::from_millis(25);
     let mut slept = Duration::ZERO;

@@ -1,5 +1,5 @@
-// Switch 原語（Radix，desktop-settings-mode design D3）：Root 為 button——switch 角色、
-// aria-checked、空白鍵切換原生支援。軌 h-5 w-9、thumb 16px，開為主色、關為 input 色。
+// Switch 原语（Radix，desktop-settings-mode design D3）：Root 为 button——switch 角色、
+// aria-checked、空白键切换原生支持。轨 h-5 w-9、thumb 16px，开为主色、关为 input 色。
 import * as React from "react";
 import * as SwitchPrimitive from "@radix-ui/react-switch";
 

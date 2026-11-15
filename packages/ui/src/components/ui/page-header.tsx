@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 
 import { cn } from "../../lib/utils";
 
-/** 頁標題區（design D6）：24px 一般字重標題＋灰字說明，右側動作槽與標題底緣對齊。
- *  `level` 只換標籤不換樣式：desktop 頁標題在 app 標題之下用 h2；server 後台沒有外層標題，用 h1。
- *  並排放不下時動作槽換到標題下方一列、槽內控件再各自換行（server-web-list-pages design D1）；
- *  標題欄以 16rem 為換行基準，長說明照舊在欄內折行，不會因說明長就把動作擠下去。
- *  `badge` 接在標題文字後面同一列（詳情頁的狀態籤，server-web-detail-pages design D8）；
- *  不給時 DOM 與加槽前相同。 */
+/** 页标题区（design D6）：24px 一般字重标题＋灰字说明，右侧动作槽与标题底缘对齐。
+ *  `level` 只换标签不换样式：desktop 页标题在 app 标题之下用 h2；server 后台没有外层标题，用 h1。
+ *  并排放不下时动作槽换到标题下方一列、槽内控件再各自换行（server-web-list-pages design D1）；
+ *  标题栏以 16rem 为换行基准，长说明照旧在栏内折行，不会因说明长就把动作挤下去。
+ *  `badge` 接在标题文本后面同一列（详情页的状态签，server-web-detail-pages design D8）；
+ *  不给时 DOM 与加槽前相同。 */
 function PageHeader({
   title,
   description,

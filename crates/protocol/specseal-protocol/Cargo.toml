@@ -1,0 +1,13 @@
+[package]
+name = "specseal-protocol"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+# JSON Schema 导出仅限本 crate 依赖（design 决策二）；不得渗入 core／host。
+schemars = "1"
+# BoardOrderDoc 的宽松解析（add-change-plan-remote D1）：桌面 overlay 与 server
+# plan 端点共用同一份；schemars 已把它带进建置图，不增新 crate。
+serde_json = { workspace = true }

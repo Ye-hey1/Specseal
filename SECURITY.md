@@ -17,7 +17,7 @@ Report it privately on GitHub:
 Tell us:
 
 - The affected part: the CLI, the desktop app, the server, the Node SDK, or the Claude Code plugin.
-- The version (`speclink --version`) and your operating system.
+- The version (`specseal --version`) and your operating system.
 - The steps that show the problem, and what an attacker can do with it.
 
 Do not put real access tokens, passwords, or data from your own systems in the report.

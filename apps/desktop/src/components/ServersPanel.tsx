@@ -1,7 +1,7 @@
-// 伺服器管理最小面（規格「伺服器管理最小面」；desktop-settings-mode design D7）：頁頂的新增卡
-// （URL＋顯示名→隨即登入，成功即收起）與「連線」卡——一列一個 saved server：顯示名＋狀態籤、
-// 等寬 origin、身分；右側登出或登入／重新登入＋「⋯」（開啟專案、移除）；等待授權與 PAT 輸入
-// 於列下就地展開。app 全域、不經 session 綁定；credential 全程不出 Rust——此面只見狀態與身分。
+// 服务器管理最小面（规格「服务器管理最小面」；desktop-settings-mode design D7）：页顶的添加卡
+// （URL＋显示名→随即登录，成功即收起）与「连接」卡——一列一个 saved server：显示名＋状态签、
+// 等宽 origin、身分；右侧注销或登录／重新登录＋「⋯」（打开项目、移除）；等待授权与 PAT 输入
+// 于列下就地展开。app 全域、不经 session 绑定；credential 全程不出 Rust——此面只见状态与身分。
 import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 import {
@@ -17,7 +17,7 @@ import {
   StatusPill,
   useI18n,
   type StatusPillLabel,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { ConnectionView } from "../adapter/connections";
 import type { ConnectionPhase } from "../store";
@@ -25,31 +25,31 @@ import { LoginWaiting, PatLoginInput } from "./connectionLogin";
 
 export interface ServersPanelProps {
   connections: ConnectionView[];
-  /** 逐連線互動狀態（keyed by origin）。 */
+  /** 逐连接交互状态（keyed by origin）。 */
   phases: Record<string, ConnectionPhase>;
-  /** 新增並隨即登入；無效輸入 reject、由表單就地呈現。 */
+  /** 添加并随即登录；无效输入 reject、由表单就地呈现。 */
   onAdd: (baseUrl: string, name: string) => Promise<unknown>;
   onLogin: (origin: string) => void;
-  /** 取消等待中的登入（等待授權或等待瀏覽器登入）：回未登入。 */
+  /** 取消等待中的登录（等待授权或等待浏览器登录）：回未登录。 */
   onCancelLogin?: (origin: string) => void;
-  /** PAT 單次過境：提交後本面即清空草稿。 */
+  /** PAT 单次过境：提交后本面即清空草稿。 */
   onSubmitPat: (origin: string, pat: string) => void;
   onLogout: (origin: string) => void;
   onRemove: (id: string) => void;
-  /** 掛載時載入清單（進伺服器頁才觸發）。 */
+  /** 挂载时加载清单（进服务器页才触发）。 */
   onRefresh?: () => void;
-  /** 開啟統一 chooser，預選此 server 並直達 scopes；未注入時入口不顯示。 */
+  /** 打开统一 chooser，预选此 server 并直达 scopes；未注入时入口不显示。 */
   onOpenWorkspace?: (id: string) => void;
-  /** needs-reauth 導向時即使 registry 仍標 loggedIn，也呈現並聚焦重新登入。 */
+  /** needs-reauth 导向时即使 registry 仍标 loggedIn，也呈现并聚焦重新登录。 */
   focusConnectionId?: string | null;
-  /** 開著的 remote session 回報需重新登入的連線：registry 仍標 loggedIn，也呈現登入過期與重新登入（不搶焦點）。 */
+  /** 开着的 remote session 回报需重新登录的连接：registry 仍标 loggedIn，也呈现登录过期与重新登录（不抢焦点）。 */
   expiredConnectionIds?: readonly string[];
-  /** 頁頂新增卡是否展開（伺服器頁標題右側「新增連線」切換）。 */
+  /** 页顶添加卡是否展开（服务器页标题右侧「添加连接」切换）。 */
   addOpen?: boolean;
   onAddOpenChange?: (open: boolean) => void;
 }
 
-/** 狀態籤：互動狀態優先於登入狀態。 */
+/** 状态签：交互状态优先于登录状态。 */
 function statusPill(entry: ConnectionView, phase: ConnectionPhase, needsReauth: boolean): StatusPillLabel {
   if (phase.kind === "busy") return { key: "servers.busy", tone: "neutral" };
   if (phase.kind === "awaitingApproval" || phase.kind === "awaitingBrowser") {
@@ -131,10 +131,10 @@ export function ServersPanel({
 }: ServersPanelProps) {
   const { t } = useI18n();
   const reauthButton = useRef<HTMLButtonElement | null>(null);
-  /** 剛登入成功那一列的開啟專案鈕（規格「登入成功聚焦開啟工作區」）。 */
+  /** 刚登录成功那一列的打开项目钮（规格「登录成功聚焦打开工作区」）。 */
   const openWorkspaceButton = useRef<HTMLButtonElement | null>(null);
-  /** 上一輪已登入的 origins；null＝尚未初始化。初次渲染只記錄不聚焦——進頁看見既有已登入
-   * 條目不該被搶走焦點，聚焦與行動呼籲只給「剛完成的登入」。 */
+  /** 上一轮已登录的 origins；null＝尚未初始化。初次渲染只记录不聚焦——进页看见既有已登录
+   * 条目不该被抢走焦点，聚焦与行动呼吁只给「刚完成的登录」。 */
   const loggedInBefore = useRef<Set<string> | null>(null);
   const [justLoggedIn, setJustLoggedIn] = useState<string | null>(null);
   useEffect(() => {
@@ -187,7 +187,7 @@ export function ServersPanel({
                   }
                   control={
                     <>
-                      {/* 登入成功的行動呼籲：只給剛完成登入的那一列，並取得鍵盤焦點。 */}
+                      {/* 登录成功的行动呼吁：只给刚完成登录的那一列，并取得键盘焦点。 */}
                       {canOpen && entry.origin === justLoggedIn && (
                         <Button
                           ref={openWorkspaceButton}

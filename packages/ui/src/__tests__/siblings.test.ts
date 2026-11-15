@@ -7,9 +7,9 @@ function change(name: string, fromDiscussions: string[]): ChangeItem {
   return { name, status: "in-progress", totalTasks: 0, completedTasks: 0, fromDiscussions };
 }
 
-describe("siblingChangesOf（同源以來源討論交集判定）", () => {
-  // spec「變更的來源討論多值呈現」的 Example 交集判定表：
-  // A 的來源、B 的來源、是否同源。
+describe("siblingChangesOf（同源以来源讨论交集判定）", () => {
+  // spec「变更的来源讨论多值呈现」的 Example 交集判定表：
+  // A 的来源、B 的来源、是否同源。
   it.each([
     { a: ["d1", "d2"], b: ["d2"], sibling: true },
     { a: ["d1"], b: ["d1"], sibling: true },
@@ -21,7 +21,7 @@ describe("siblingChangesOf（同源以來源討論交集判定）", () => {
     expect(result.includes("B")).toBe(sibling);
   });
 
-  it("排除自己、可收多個同源", () => {
+  it("排除自己、可收多个同源", () => {
     const changes = [
       change("A", ["d1", "d2"]),
       change("B", ["d2"]),

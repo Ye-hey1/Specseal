@@ -1,7 +1,7 @@
-// 圖示列（design D3）：品牌標記、每個開著的專案一個首字母方塊、「＋」、底部齒輪。
-// 方塊不顯示計數徽章；角落狀態點：路徑失效或復原錯誤＝紅、remote 離線或需重新登入
-// 或技能檔需要處理（上次探測為過期／缺失／較新）＝琥珀；探測中與復原中以 spinner 取代首字母。右鍵＝專案動作選單；本機路徑失效
-// 時點擊開錯誤選單而不切換（remote 復原錯誤仍可選，主區是復原頁）。
+// 图标列（design D3）：品牌标记、每个开着的项目一个首字母方块、「＋」、底部齿轮。
+// 方块不显示计数徽章；角落状态点：路径失效或复原错误＝红、remote 脱机或需重新登录
+// 或技能档需要处理（上次探测为过期／缺失／较新）＝琥珀；探测中与复原中以 spinner 取代首字母。右键＝项目动作菜单；本机路径失效
+// 时点击开错误菜单而不切换（remote 复原错误仍可选，主区是复原页）。
 import type { ReactNode } from "react";
 import { LoaderCircle, Plus, Settings } from "lucide-react";
 import {
@@ -19,7 +19,7 @@ import {
   TooltipTrigger,
   cn,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { AssetPromptState } from "../assetPrompt";
 import type { Platform } from "../platform";
@@ -36,29 +36,29 @@ import { ADD_TILE, PROJECT_TILE_ACTIVE, PROJECT_TILE_IDLE, RAIL_SQUARE, projectI
 export interface ProjectRailProps {
   tabs: ProjectTab[];
   activeKey: string | null;
-  /** 失效分頁錯誤（locator key → 單行訊息）。 */
+  /** 失效分页错误（locator key → 单行消息）。 */
   tabErrors: Record<string, string>;
   recoveryStates?: Record<string, RemoteWorkspaceRecoveryState>;
   connectionStates?: Record<string, RemoteConnectionStateEvent | undefined>;
-  /** 連線 id → 連線名稱（remote 無 checkout 時 tooltip 用）。 */
+  /** 连接 id → 连接名称（remote 无 checkout 时 tooltip 用）。 */
   connectionNames?: Record<string, string>;
-  /** 探測進行中的目標方塊（store 的 pendingTabKey）。 */
+  /** 探测进行中的目标方块（store 的 pendingTabKey）。 */
   pendingKey?: string | null;
-  /** 各分頁上次的技能檔提示（locator key → 值；非 null 即亮琥珀點）。 */
+  /** 各分页上次的技能档提示（locator key → 值；非 null 即亮琥珀点）。 */
   assetPrompts?: Record<string, AssetPromptState | null>;
   platform: Platform;
-  /** 右鍵與錯誤選單的動作（與標題列「⋯」同一份）。 */
+  /** 右键与错误菜单的动作（与标题列「⋯」同一份）。 */
   actions: ProjectActions;
   onActivate?: (key: string) => void;
-  /** 「＋」入口：開新增專案對話框。 */
+  /** 「＋」入口：开添加项目对话框。 */
   onOpen?: () => void;
   onOpenSettings?: () => void;
   settingsActive?: boolean;
-  /** 齒輪上方的「有新版本」狀態鈕（desktop-notice-relocation design D2；無事時為 null）。 */
+  /** 齿轮上方的「有新版本」状态钮（desktop-notice-relocation design D2；无事时为 null）。 */
   updateButton?: ReactNode;
 }
 
-/** 方塊與左側標題列的 hover 路徑：本機根；remote 有 checkout 明示連接路徑，否則連線名稱加 Project/Repo。 */
+/** 方块与左侧标题列的 hover 路径：本机根；remote 有 checkout 明示连接路径，否则连接名称加 Project/Repo。 */
 export function tabPathHint(
   tab: ProjectTab,
   connectionNames: Record<string, string>,
@@ -115,10 +115,10 @@ export function ProjectRail({
                   : "ready";
             const active = key === activeKey;
             const pending = key === pendingKey;
-            // 技能檔狀況是上次看過時的狀態（背景分頁不主動探測），只說「需要處理」不帶版號。
+            // 技能档状况是上次看过时的状态（背景分页不主动探测），只说「需要处理」不带版号。
             const assetFlag = assetPrompts[key] != null;
             const assetHint = assetFlag ? t("assets.railHint") : "";
-            // 本機路徑失效：點擊開錯誤選單、不切換。remote 錯誤的主區是復原頁，照常可選。
+            // 本机路径失效：点击开错误菜单、不切换。remote 错误的主区是复原页，照常可选。
             const localError = tab.locator.kind === "local" && status === "error";
             const statusLabel =
               status === "restoring"
@@ -195,8 +195,8 @@ export function ProjectRail({
                 )}
               </button>
             );
-            // 右鍵觸發器要直接包住按鈕：包在 DropdownMenu（非 DOM 的 Root）外面時，
-            // Slot 傳下的 onContextMenu 會被丟掉。
+            // 右键触发器要直接包住按钮：包在 DropdownMenu（非 DOM 的 Root）外面时，
+            // Slot 传下的 onContextMenu 会被丢掉。
             const trigger = <ContextMenuTrigger asChild>{button}</ContextMenuTrigger>;
             return (
               <Tooltip key={key}>
@@ -251,7 +251,7 @@ export function ProjectRail({
         >
           <Plus className="h-4 w-4" />
         </button>
-        {/* 沉底的一組：更新鈕（有事才渲染）＋齒輪；gap 只在兩者都在時才出現。 */}
+        {/* 沉底的一组：更新钮（有事才渲染）＋齿轮；gap 只在两者都在时才出现。 */}
         <div className="mt-auto flex flex-col items-center gap-1">
           {updateButton}
           <button

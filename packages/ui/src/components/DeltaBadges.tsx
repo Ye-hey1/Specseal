@@ -10,8 +10,8 @@ import { SECTION_HEADING_CLS } from "./DocParts";
 import { Markdown } from "./Markdown";
 import { RequirementBlock } from "./RequirementBlock";
 
-/** delta 四種操作的色彩 class——計數徽章與規格分頁色標區段共用的單一來源。
- *  新增＝成功、修改＝警示、移除＝destructive、更名＝進行中，色值在 theme.css。 */
+/** delta 四种操作的色彩 class——计数徽章与规格分页色标区段共用的单一来源。
+ *  添加＝成功、修改＝警示、移除＝destructive、更名＝进行中，色值在 theme.css。 */
 export const DELTA_COLORS: Record<keyof DeltaCounts, string> = {
   added: SEMANTIC_TONE.success,
   modified: SEMANTIC_TONE.warning,
@@ -19,7 +19,7 @@ export const DELTA_COLORS: Record<keyof DeltaCounts, string> = {
   renamed: SEMANTIC_TONE.inProgress,
 };
 
-/** 同色的左色條（delta 需求段）：色值同 DELTA_COLORS 的語意 token。 */
+/** 同色的左色条（delta 需求段）：色值同 DELTA_COLORS 的语意 token。 */
 export const DELTA_BORDER: Record<keyof DeltaCounts, string> = {
   added: "border-status-success",
   modified: "border-status-warning",
@@ -34,7 +34,7 @@ const DELTA_MARKS: Record<keyof DeltaCounts, string> = {
   renamed: "→",
 };
 
-/** delta 四種操作的 i18n 詞條鍵——規格分頁色標區段與排程分頁的操作標籤共用。 */
+/** delta 四种操作的 i18n 词条键——规格分页色标区段与调度分页的操作标签共用。 */
 export const DELTA_LABEL_KEYS: Record<keyof DeltaCounts, string> = {
   added: "delta.added",
   modified: "delta.modified",
@@ -42,7 +42,7 @@ export const DELTA_LABEL_KEYS: Record<keyof DeltaCounts, string> = {
   renamed: "delta.renamed",
 };
 
-/** 彩色 delta 計數：+新增=綠、~修改=琥珀、-移除=紅、→更名=藍。 */
+/** 彩色 delta 计数：+添加=绿、~修改=琥珀、-移除=红、→更名=蓝。 */
 export function DeltaBadges({ counts }: { counts: DeltaCounts }) {
   const parts: { text: string; cls: string }[] = [];
   if (counts.added) parts.push({ text: `+${counts.added}`, cls: DELTA_COLORS.added });
@@ -61,7 +61,7 @@ export function DeltaBadges({ counts }: { counts: DeltaCounts }) {
   );
 }
 
-/** 需求段的 REMOVED-SCENARIO 宣告（需求文或 Scenario 內文都可能放）：取出名稱、去掉宣告與 BEFORE 註解行。 */
+/** 需求段的 REMOVED-SCENARIO 声明（需求文或 Scenario 内文都可能放）：取出名称、去掉声明与 BEFORE 注解行。 */
 function withoutRemovals(req: SpecRequirement): { req: SpecRequirement; names: string[] } {
   const body = removedScenarios(req.body);
   const scenarios = req.scenarios.map((sc) => ({ title: sc.title, ...removedScenarios(sc.body) }));
@@ -71,7 +71,7 @@ function withoutRemovals(req: SpecRequirement): { req: SpecRequirement; names: s
   };
 }
 
-/** 一個 op 區段的內文：ADDED／MODIFIED 每條需求成需求段（第一條展開），其餘照 Markdown。 */
+/** 一个 op 区段的内文：ADDED／MODIFIED 每条需求成需求段（第一条展开），其余照 Markdown。 */
 function DeltaSectionBody({ op, content }: { op: keyof DeltaCounts; content: string }) {
   const parsed = op === "added" || op === "modified" ? parseSpecSections(content) : null;
   if (!parsed) return <Markdown content={content} />;
@@ -88,11 +88,11 @@ function DeltaSectionBody({ op, content }: { op: keyof DeltaCounts; content: str
 }
 
 /**
- * delta spec 的色標區段檢視（spec「規格分頁 delta 區段以色標呈現」；design D6）：
- * `## <OP> Requirements` 機器標題不直出，改為色標區段標頭（配色同 DELTA_COLORS）；ADDED／MODIFIED
- * 的每條需求以規格詳情頁同一個需求段呈現（操作色左色條、REMOVED-SCENARIO 提示框、可收合），
- * REMOVED／RENAMED 內文照 Markdown。無 delta 標題的文件整篇照常渲染。
- * ChangeDetailPage 與 ArchivedDetailPage 的規格文件共用。
+ * delta spec 的色标区段查看（spec「规格分页 delta 区段以色标呈现」；design D6）：
+ * `## <OP> Requirements` 机器标题不直出，改为色标区段标头（配色同 DELTA_COLORS）；ADDED／MODIFIED
+ * 的每条需求以规格详情页同一个需求段呈现（操作色左色条、REMOVED-SCENARIO 提示框、可收合），
+ * REMOVED／RENAMED 内文照 Markdown。无 delta 标题的文档整篇照常渲染。
+ * ChangeDetailPage 与 ArchivedDetailPage 的规格文档共用。
  */
 export function DeltaSpecView({ markdown }: { markdown: string | null }) {
   const { t } = useI18n();
@@ -120,7 +120,7 @@ export function DeltaSpecView({ markdown }: { markdown: string | null }) {
   );
 }
 
-/** 規格文件的能力頭（design D6）：等寬能力名（本頁目錄錨點）、delta 計數，有回呼時「看正式規格」。 */
+/** 规格文档的能力头（design D6）：等宽能力名（本页目录锚点）、delta 计数，有回呼时「看正式规格」。 */
 export function CapabilityHeader({
   cap,
   counts,
@@ -147,9 +147,9 @@ export function CapabilityHeader({
 }
 
 /**
- * 規格文件的一個能力段（能力頭＋delta 檢視），變更與已封存兩頁共用。`jump` 指到它時捲到段首並回報清除：
- * 捲動放在段自己的 effect，因為 Radix 的 TabsContent 在切換後的下一輪 render 才掛上內文，頁層 effect
- * 那時還找不到段。
+ * 规格文档的一个能力段（能力头＋delta 查看），变更与已封存两页共用。`jump` 指到它时卷到段首并回报清除：
+ * 卷动放在段自己的 effect，因为 Radix 的 TabsContent 在切换后的下一轮 render 才挂上内文，页层 effect
+ * 那时还找不到段。
  */
 export function DeltaCapSection({
   cap,
@@ -173,7 +173,7 @@ export function DeltaCapSection({
   return (
     <div ref={ref} data-spec-cap={cap} className="mb-6 flex flex-col gap-3">
       <CapabilityHeader cap={cap} counts={specDeltaCounts(doc)} onOpenSpec={onOpenSpec} />
-      {/* 逐項空態（capability 有列出、其 spec.md 為空）不套整體性文案。 */}
+      {/* 逐项空态（capability 有列出、其 spec.md 为空）不套整体性文案。 */}
       <DeltaSpecView markdown={doc} />
     </div>
   );

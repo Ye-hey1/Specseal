@@ -1,9 +1,9 @@
 {
-  "name": "speclink-skills",
+  "name": "specseal-skills",
   "version": "0.7.0",
-  "description": "Speclink for Claude Code: clickable speclink skills above the prompt, and a side panel with tabs for the active changes, discussions and open quality tickets, and a # menu of proposed changes in the prompt box",
+  "description": "Specseal for Claude Code: clickable specseal skills above the prompt, and a side panel with tabs for the active changes, discussions and open quality tickets, and a # menu of proposed changes in the prompt box",
   "author": { "name": "MomoChen" },
-  "homepage": "https://github.com/MomoChenisMe/speclink/tree/main/integrations/claude-code/speclink-skills",
+  "homepage": "https://github.com/MomoChenisMe/speclink/tree/main/integrations/claude-code/specseal-skills",
   "repository": "https://github.com/MomoChenisMe/speclink",
   "license": "MIT",
   "types": "./types/index.d.ts",
@@ -11,9 +11,9 @@
     "language": {
       "type": "string",
       "title": "Language",
-      "description": "The language of the buttons and the panel. auto follows Claude Code's own language setting: Chinese gives zh-TW, anything else gives en.",
+      "description": "The language of the buttons and the panel. auto follows Claude Code's own language setting: Chinese gives zh-CN, anything else gives en.",
       "default": "auto",
-      "options": ["auto", "en", "zh-TW"]
+      "options": ["auto", "en", "zh-CN"]
     }
   }
 }

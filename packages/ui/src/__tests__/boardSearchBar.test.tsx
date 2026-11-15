@@ -1,5 +1,5 @@
-// spec 需求「看板搜尋過濾卡片」的搜尋列（design D5）：搜尋圖示、輸入非空時的
-// 清除鈕（清空後保持聚焦）與即時命中數、Cmd+F／Ctrl+F 聚焦快捷鍵。
+// spec 需求「看板搜索过滤卡片」的搜索列（design D5）：搜索图标、输入非空时的
+// 清除钮（清空后保持聚焦）与即时命中数、Cmd+F／Ctrl+F 聚焦快捷键。
 import { describe, it, expect, vi } from "vitest";
 import { render as rtlRender, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -10,7 +10,7 @@ import { KanbanBoard } from "../components/KanbanBoard";
 import type { ChangeItem, DiscussionLists } from "../adapter";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW">{children}</I18nProvider>
+  <I18nProvider locale="zh-CN">{children}</I18nProvider>
 );
 function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: zhWrapper });
@@ -22,7 +22,7 @@ const changes: ChangeItem[] = [
     status: "in-progress",
     totalTasks: 18,
     completedTasks: 0,
-    summary: "typed 命令層",
+    summary: "typed 命令层",
     createdBy: "Momo Chen <momo@example.com>",
     fromDiscussions: ["collab"],
   },
@@ -37,10 +37,10 @@ const changes: ChangeItem[] = [
 ];
 const discussions: DiscussionLists = {
   active: [
-    { slug: "board-search", topic: "看板搜尋", status: "open", rounds: 1, created: "2026-07-10", promotedTo: [] },
+    { slug: "board-search", topic: "看板搜索", status: "open", rounds: 1, created: "2026-07-10", promotedTo: [] },
     {
       slug: "collab",
-      topic: "多人協作",
+      topic: "多人协作",
       status: "promoted",
       rounds: 9,
       created: "2026-07-01",
@@ -50,148 +50,148 @@ const discussions: DiscussionLists = {
   archived: [],
 };
 
-/** 受控 query 的宿主——模擬 App 的 store 接線。 */
+/** 受控 query 的宿主——仿真 App 的 store 接线。 */
 function Host() {
   const [q, setQ] = useState("");
   return <KanbanBoard changes={changes} discussions={discussions} query={q} onQuery={setQ} />;
 }
 
-describe("BoardSearchBar（搜尋列，design D5）", () => {
-  it("空 query 無清除鈕與命中數；輸入後顯示；點清除還原全量且輸入保持聚焦", () => {
+describe("BoardSearchBar（搜索列，design D5）", () => {
+  it("空 query 无清除钮与命中数；输入后显示；点清除还原全量且输入保持聚焦", () => {
     render(<Host />);
-    expect(screen.queryByRole("button", { name: "清除搜尋" })).toBeNull();
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    expect(screen.queryByRole("button", { name: "清除搜索" })).toBeNull();
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     fireEvent.change(input, { target: { value: "engine" } });
-    // 命中數＝過濾後卡片總數（engine-typed-core 1 張）。
-    expect(screen.getByText("1 張卡")).toBeTruthy();
+    // 命中数＝过滤后卡片总数（engine-typed-core 1 张）。
+    expect(screen.getByText("1 张卡")).toBeTruthy();
     expect(screen.queryByText("web-role-views")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "清除搜尋" }));
+    fireEvent.click(screen.getByRole("button", { name: "清除搜索" }));
     expect((input as HTMLInputElement).value).toBe("");
     expect(document.activeElement).toBe(input);
     expect(screen.getByText("web-role-views")).toBeTruthy();
   });
 
-  it("Cmd+F（或 Ctrl+F）聚焦搜尋輸入", () => {
+  it("Cmd+F（或 Ctrl+F）聚焦搜索输入", () => {
     render(<Host />);
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     expect(document.activeElement).not.toBe(input);
     fireEvent.keyDown(window, { key: "f", metaKey: true });
     expect(document.activeElement).toBe(input);
   });
 
-  it("macOS 原生選單的「搜尋看板」以 speclink:focus-search 事件聚焦搜尋輸入", () => {
+  it("macOS 原生菜单的「搜索看板」以 specseal:focus-search 事件聚焦搜索输入", () => {
     render(<Host />);
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     expect(document.activeElement).not.toBe(input);
-    fireEvent(window, new CustomEvent("speclink:focus-search"));
+    fireEvent(window, new CustomEvent("specseal:focus-search"));
     expect(document.activeElement).toBe(input);
   });
 
-  it("卡片檢視被藏起來時（宿主給 onRevealSearch）快捷鍵與選單事件改呼叫它，不聚焦藏起來的輸入", () => {
+  it("卡片查看被藏起来时（宿主给 onRevealSearch）快捷键与菜单事件改调用它，不聚焦藏起来的输入", () => {
     const onRevealSearch = vi.fn();
     render(<KanbanBoard changes={changes} discussions={discussions} query="" onQuery={() => {}} onRevealSearch={onRevealSearch} />);
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     fireEvent.keyDown(window, { key: "f", metaKey: true });
-    fireEvent(window, new CustomEvent("speclink:focus-search"));
+    fireEvent(window, new CustomEvent("specseal:focus-search"));
     expect(onRevealSearch).toHaveBeenCalledTimes(2);
     expect(document.activeElement).not.toBe(input);
   });
 
-  it("搜尋圖示呈現於輸入框內", () => {
+  it("搜索图标呈现于输入框内", () => {
     render(<Host />);
     expect(document.querySelector("svg.lucide-search")).toBeTruthy();
   });
 });
 
-// spec 需求「看板搜尋過濾卡片」的篩選面板（design D5）：收於漏斗開關的彈出面板、
-// 三維度選單、與搜尋字串 AND 交集、可單獨清除與全部清除、關閉不清除過濾。
+// spec 需求「看板搜索过滤卡片」的筛选面板（design D5）：收于漏斗开关的弹出面板、
+// 三维度菜单、与搜索字符串 AND 交集、可单独清除与全部清除、关闭不清除过滤。
 //
-// 三個維度改用 Radix Select 後不再是原生 <select>，操作路徑是「點開 trigger → 點選項」。
-// Radix 開啟時會把 body 的 pointer-events 關掉（避免背景誤觸），jsdom 沒有真實命中測試，
-// 所以關掉 userEvent 的 pointer-events 檢查。
+// 三个维度改用 Radix Select 后不再是原生 <select>，操作路径是「点开 trigger → 点击项」。
+// Radix 打开时会把 body 的 pointer-events 关掉（避免背景误触），jsdom 没有真实命中测试，
+// 所以关掉 userEvent 的 pointer-events 检查。
 const pointer = () => userEvent.setup({ pointerEventsCheck: 0 });
 
-/** 點開某個維度的下拉並選中一個選項。 */
+/** 点开某个维度的下拉并选中一个选项。 */
 async function pick(dimension: string, option: string) {
   const user = pointer();
   await user.click(screen.getByLabelText(dimension));
   await user.click(await screen.findByRole("option", { name: option }));
 }
 
-describe("篩選面板（design D5）", () => {
-  it("面板預設關閉；點篩選鈕彈出三維度；關閉後過濾持續且鈕帶啟用計數", async () => {
+describe("筛选面板（design D5）", () => {
+  it("面板缺省关闭；点筛选钮弹出三维度；关闭后过滤持续且钮带激活计数", async () => {
     render(<Host />);
-    // 預設：單列只有搜尋框與篩選鈕，面板不佔版面。
-    expect(screen.queryByLabelText("建立者")).toBeNull();
-    const toggle = screen.getByRole("button", { name: "篩選" });
+    // 缺省：单列只有搜索框与筛选钮，面板不占版面。
+    expect(screen.queryByLabelText("创建者")).toBeNull();
+    const toggle = screen.getByRole("button", { name: "筛选" });
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    // 彈出：三個維度選單可見。
+    // 弹出：三个维度菜单可见。
     fireEvent.click(toggle);
     expect(toggle.getAttribute("aria-expanded")).toBe("true");
-    expect(screen.getByLabelText("建立者")).toBeTruthy();
-    expect(screen.getByLabelText("建立時間")).toBeTruthy();
-    expect(screen.getByLabelText("來源討論")).toBeTruthy();
-    // 啟用一個維度後關閉面板：面板消失、過濾持續、鈕帶計數。
-    await pick("建立時間", "近 7 天");
+    expect(screen.getByLabelText("创建者")).toBeTruthy();
+    expect(screen.getByLabelText("创建时间")).toBeTruthy();
+    expect(screen.getByLabelText("来源讨论")).toBeTruthy();
+    // 激活一个维度后关闭面板：面板消失、过滤持续、钮带计数。
+    await pick("创建时间", "近 7 天");
     fireEvent.click(toggle);
-    expect(screen.queryByLabelText("建立時間")).toBeNull();
+    expect(screen.queryByLabelText("创建时间")).toBeNull();
     expect(toggle.textContent).toContain("1");
-    // 過濾持續生效：變更卡無 created → 被近 7 天窗過濾。
+    // 过滤持续生效：变更卡无 created → 被近 7 天窗过滤。
     expect(document.querySelector('[data-change="engine-typed-core"]')).toBeNull();
   });
 
-  it("按 Esc 關閉面板", () => {
+  it("按 Esc 关闭面板", () => {
     render(<Host />);
-    fireEvent.click(screen.getByRole("button", { name: "篩選" }));
-    expect(screen.getByLabelText("建立者")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    expect(screen.getByLabelText("创建者")).toBeTruthy();
     fireEvent.keyDown(window, { key: "Escape" });
-    expect(screen.queryByLabelText("建立者")).toBeNull();
+    expect(screen.queryByLabelText("创建者")).toBeNull();
   });
 
-  it("建立者篩選過濾卡片；與搜尋字串 AND 交集；選回全部即單獨清除", async () => {
+  it("创建者筛选过滤卡片；与搜索字符串 AND 交集；选回全部即单独清除", async () => {
     render(<Host />);
-    fireEvent.click(screen.getByRole("button", { name: "篩選" }));
-    await pick("建立者", "Momo Chen <momo@example.com>");
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    await pick("创建者", "Momo Chen <momo@example.com>");
     expect(screen.getByText("engine-typed-core")).toBeTruthy();
     expect(screen.queryByText("web-role-views")).toBeNull();
-    // AND 交集：query 命中另一張 → 兩張皆不可見。
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    // AND 交集：query 命中另一张 → 两张皆不可见。
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     fireEvent.change(input, { target: { value: "web" } });
     expect(document.querySelector('[data-change="engine-typed-core"]')).toBeNull();
     expect(document.querySelector('[data-change="web-role-views"]')).toBeNull();
-    // 單獨清除（選回全部）：回到僅以字串過濾（卡名經高亮 mark 拆分，改以 data-change 查詢）。
-    await pick("建立者", "全部");
+    // 单独清除（选回全部）：回到仅以字符串过滤（卡名经高亮 mark 拆分，改以 data-change 查找）。
+    await pick("创建者", "全部");
     expect(document.querySelector('[data-change="web-role-views"]')).toBeTruthy();
   });
 
-  it("面板內全部清除還原所有維度", async () => {
+  it("面板内全部清除还原所有维度", async () => {
     render(<Host />);
-    const toggle = screen.getByRole("button", { name: "篩選" });
+    const toggle = screen.getByRole("button", { name: "筛选" });
     fireEvent.click(toggle);
-    await pick("建立者", "Momo Chen <momo@example.com>");
-    await pick("建立時間", "近 7 天");
-    fireEvent.click(screen.getByRole("button", { name: "清除全部篩選" }));
+    await pick("创建者", "Momo Chen <momo@example.com>");
+    await pick("创建时间", "近 7 天");
+    fireEvent.click(screen.getByRole("button", { name: "清除全部筛选" }));
     expect(document.querySelector('[data-change="web-role-views"]')).toBeTruthy();
     expect(document.querySelector('[data-change="engine-typed-core"]')).toBeTruthy();
     expect(toggle.textContent).not.toContain("2");
   });
 
-  it("來源討論篩選：顯示該討論卡自身與其衍生變更卡", async () => {
+  it("来源讨论筛选：显示该讨论卡自身与其衍生变更卡", async () => {
     render(<Host />);
-    fireEvent.click(screen.getByRole("button", { name: "篩選" }));
-    await pick("來源討論", "collab");
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    await pick("来源讨论", "collab");
     expect(screen.getByText("engine-typed-core")).toBeTruthy();
     expect(screen.queryByText("web-role-views")).toBeNull();
-    // 非來源的 open 討論卡也被過濾。
+    // 非来源的 open 讨论卡也被过滤。
     expect(screen.queryByText("board-search")).toBeNull();
-    // 該討論自身（promoted）計入欄底收合列。
-    expect(screen.getByRole("button", { name: /已轉出/ }).textContent).toContain("1");
+    // 该讨论自身（promoted）计入栏底收合列。
+    expect(screen.getByRole("button", { name: /已转出/ }).textContent).toContain("1");
   });
 
-  it("建立時間篩選提供三窗選項", async () => {
+  it("创建时间筛选提供三窗选项", async () => {
     render(<Host />);
-    fireEvent.click(screen.getByRole("button", { name: "篩選" }));
-    await pointer().click(screen.getByLabelText("建立時間"));
+    fireEvent.click(screen.getByRole("button", { name: "筛选" }));
+    await pointer().click(screen.getByLabelText("创建时间"));
     const labels = (await screen.findAllByRole("option")).map((o) => o.textContent);
     expect(labels).toContain("近 7 天");
     expect(labels).toContain("近 30 天");
@@ -199,9 +199,9 @@ describe("篩選面板（design D5）", () => {
   });
 });
 
-// spec 需求「看板搜尋過濾卡片」的全文與模糊比對層（design D6/D7）。
-describe("全文命中與名稱層模糊比對併入可見集合", () => {
-  it("欄位不命中但全文命中的卡片顯示；欄位與全文皆不命中者隱藏", () => {
+// spec 需求「看板搜索过滤卡片」的全文与模糊比对层（design D6/D7）。
+describe("全文命中与名称层模糊比对并入可见集合", () => {
+  it("字段不命中但全文命中的卡片显示；字段与全文皆不命中者隐藏", () => {
     render(
       <KanbanBoard
         changes={changes}
@@ -209,7 +209,7 @@ describe("全文命中與名稱層模糊比對併入可見集合", () => {
         query="dispatch"
         onQuery={() => {}}
         fulltextHits={[
-          { kind: "change", id: "web-role-views", artifact: "design.md", snippet: "…唯一 dispatch 相容層…" },
+          { kind: "change", id: "web-role-views", artifact: "design.md", snippet: "…唯一 dispatch 兼容层…" },
         ]}
       />,
     );
@@ -217,7 +217,7 @@ describe("全文命中與名稱層模糊比對併入可見集合", () => {
     expect(screen.queryByText("engine-typed-core")).toBeNull();
   });
 
-  it("名稱層 subsequence 模糊命中（etc → engine-typed-core）", () => {
+  it("名称层 subsequence 模糊命中（etc → engine-typed-core）", () => {
     render(
       <KanbanBoard changes={changes} discussions={discussions} query="etc" onQuery={() => {}} />,
     );
@@ -225,36 +225,36 @@ describe("全文命中與名稱層模糊比對併入可見集合", () => {
     expect(screen.queryByText("web-role-views")).toBeNull();
   });
 
-  it("searchUnavailableReason 停用搜尋輸入並附說明（remote capability 缺口）", () => {
+  it("searchUnavailableReason 停用搜索输入并附说明（remote capability 缺口）", () => {
     render(
       <KanbanBoard
         changes={changes}
         discussions={discussions}
         query=""
         onQuery={() => {}}
-        searchUnavailableReason="此 server 尚未提供全文搜尋——功能已停用"
+        searchUnavailableReason="此 server 尚未提供全文搜索——功能已停用"
       />,
     );
-    const input = screen.getByPlaceholderText("搜尋看板卡片…") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("搜索看板卡片…") as HTMLInputElement;
     expect(input.disabled).toBe(true);
-    expect(input.title).toBe("此 server 尚未提供全文搜尋——功能已停用");
+    expect(input.title).toBe("此 server 尚未提供全文搜索——功能已停用");
   });
 
-  it("未提供 searchUnavailableReason 時搜尋照常可用（本地不受影響）", () => {
+  it("未提供 searchUnavailableReason 时搜索照常可用（本地不受影响）", () => {
     render(
       <KanbanBoard changes={changes} discussions={discussions} query="" onQuery={() => {}} />,
     );
-    const input = screen.getByPlaceholderText("搜尋看板卡片…") as HTMLInputElement;
+    const input = screen.getByPlaceholderText("搜索看板卡片…") as HTMLInputElement;
     expect(input.disabled).toBe(false);
   });
 });
 
-// desktop-board-reskin design D4：搜尋輸入為 280px 全圓（左留搜尋圖示位、輸入非空時右留命中數
-// 與清除鈕位）、篩選鈕為 32px 圓角圖示鈕，兩者同列置於頁標題區右端；容器不再填滿整列。
-describe("搜尋列外觀（desktop-board-reskin D4）", () => {
-  it("輸入為 h-8 w-[280px] rounded-full pl-8；輸入非空時改 pr-24（三位數命中數與清除鈕放得下）", () => {
+// desktop-board-reskin design D4：搜索输入为 280px 全圆（左留搜索图标位、输入非空时右留命中数
+// 与清除钮位）、筛选钮为 32px 圆角图标钮，两者同列置于页标题区右端；容器不再填满整列。
+describe("搜索列外观（desktop-board-reskin D4）", () => {
+  it("输入为 h-8 w-[280px] rounded-full pl-8；输入非空时改 pr-24（三位数命中数与清除钮放得下）", () => {
     render(<Host />);
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     const cls = () => input.className.split(/\s+/);
     expect(cls()).toContain("rounded-full");
     expect(cls()).toContain("w-[280px]");
@@ -265,24 +265,24 @@ describe("搜尋列外觀（desktop-board-reskin D4）", () => {
     expect(cls()).toContain("pr-24");
   });
 
-  it("容器不再 w-full；篩選鈕為 32px rounded-lg 圖示鈕、啟用計數角標照舊", async () => {
+  it("容器不再 w-full；筛选钮为 32px rounded-lg 图标钮、激活计数角标照旧", async () => {
     render(<Host />);
-    const input = screen.getByPlaceholderText("搜尋看板卡片…");
+    const input = screen.getByPlaceholderText("搜索看板卡片…");
     const container = input.parentElement!.parentElement as HTMLElement;
     expect(container.className.split(/\s+/)).not.toContain("w-full");
-    const toggle = screen.getByRole("button", { name: "篩選" });
+    const toggle = screen.getByRole("button", { name: "筛选" });
     const cls = toggle.className.split(/\s+/);
     expect(cls).toContain("rounded-lg");
     expect(cls).toContain("h-8");
     expect(cls).toContain("w-8");
     fireEvent.click(toggle);
-    await pick("建立時間", "近 7 天");
+    await pick("创建时间", "近 7 天");
     expect(toggle.textContent).toContain("1");
   });
 
-  it("篩選鈕走 toggle 變體：展開態底色由 aria-expanded 帶出，呼叫端不隨開闔切換顏色 class", () => {
+  it("筛选钮走 toggle 变体：展开态底色由 aria-expanded 带出，调用端不随开阖切换颜色 class", () => {
     render(<Host />);
-    const toggle = screen.getByRole("button", { name: "篩選" });
+    const toggle = screen.getByRole("button", { name: "筛选" });
     const staticCls = () => toggle.className.split(/\s+/).filter((c) => !c.includes(":"));
     expect(toggle.className).toContain("aria-expanded:bg-muted");
     expect(staticCls()).toContain("text-muted-foreground");
@@ -292,12 +292,12 @@ describe("搜尋列外觀（desktop-board-reskin D4）", () => {
     expect(staticCls()).toContain("text-muted-foreground");
   });
 
-  it("傳 title 時搜尋列直接落在頁標題區動作槽，沒有 22rem 的包裹層", () => {
+  it("传 title 时搜索列直接落在页标题区动作槽，没有 22rem 的包裹层", () => {
     render(
-      <KanbanBoard changes={changes} discussions={discussions} query="" onQuery={() => {}} title="變更" />,
+      <KanbanBoard changes={changes} discussions={discussions} query="" onQuery={() => {}} title="变更" />,
     );
-    const header = screen.getByRole("heading", { level: 2, name: "變更" }).closest("[data-page-header]") as HTMLElement;
+    const header = screen.getByRole("heading", { level: 2, name: "变更" }).closest("[data-page-header]") as HTMLElement;
     expect(header.innerHTML).not.toContain("w-[22rem]");
-    expect(screen.getByPlaceholderText("搜尋看板卡片…").closest("[data-page-header]")).toBe(header);
+    expect(screen.getByPlaceholderText("搜索看板卡片…").closest("[data-page-header]")).toBe(header);
   });
 });

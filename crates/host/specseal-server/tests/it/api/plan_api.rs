@@ -1,0 +1,678 @@
+//! Execution-order endpoints (server-verb-api「plan 唯读衍生查找端点」「变更依赖
+//! 写入端点」「变更 schema 写入端点」): GET /plan runs the engine plan over the
+//! scope with the board resource as its rank source, POST /changes/{name}/depends
+//! and POST /changes/{name}/schema run the engine's meta writes — all through the
+//! Command gateway, the writes editor-only, every refusal a `refused` 409
+//! carrying the engine's line.
+
+use crate::common;
+
+use serde_json::{json, Value};
+use specseal_protocol::error::{ErrorReason, ErrorResponse};
+use specseal_protocol::query::BoardOrderDoc;
+use specseal_server::audit::AuditActor;
+use specseal_server::identity::MembershipRole;
+use specseal_store::memory::MemoryStore;
+use specseal_store::{CommandContext, DocumentId, OutboxCursor, ProjectId, RepoId, Scope, TeamStore};
+use std::sync::Arc;
+
+fn scope() -> Scope {
+    Scope::new(ProjectId::new("demo"), RepoId::new("backend"))
+}
+
+struct Fixture {
+    base: String,
+    store: Arc<MemoryStore>,
+    editor_pat: String,
+    reader_pat: String,
+}
+
+fn meta(created: &str, depends_on: Option<&str>) -> String {
+    let mut text = format!("schema: spec-driven\ncreated: {created}\n");
+    if let Some(deps) = depends_on {
+        text.push_str(&format!("depends_on: {deps}\n"));
+    }
+    text
+}
+
+/// Write `docs` into the demo scope in one commit (creating or updating).
+fn seed(store: &MemoryStore, docs: &[(DocumentId, String)]) {
+    let snapshot = store.snapshot(&scope()).expect("snapshot");
+    let current: Vec<_> = docs
+        .iter()
+        .map(|(id, _)| snapshot.read(id).expect("read").map(|d| d.revision))
+        .collect();
+    drop(snapshot);
+    let mut uow = store
+        .begin_unit_of_work(
+            &scope(),
+            CommandContext { command: "seed".into(), actor: "seed".into() },
+        )
+        .expect("begin uow");
+    for ((id, content), revision) in docs.iter().zip(current) {
+        match revision {
+            Some(rev) => uow.update(id.clone(), content, rev),
+            None => uow.create(id.clone(), content),
+        }
+    }
+    store.commit(uow, Vec::new()).expect("seed commit");
+}
+
+fn change_meta(name: &str) -> DocumentId {
+    DocumentId::ChangeMeta { change: name.into() }
+}
+
+/// Server over a store seeded with `changes` (name, meta text); an editor PAT
+/// and a reader PAT are both live.
+fn fixture(changes: &[(&str, String)]) -> Fixture {
+    let store = Arc::new(MemoryStore::new());
+    let docs: Vec<_> = changes
+        .iter()
+        .map(|(name, text)| (change_meta(name), text.clone()))
+        .collect();
+    seed(&store, &docs);
+
+    let state = common::state_with(store.clone());
+    let (editor_pat, _) =
+        common::seed_named_pat(&state.identity, "editor@example.com", "Editor", &["demo"]);
+    let (reader_pat, reader_id) =
+        common::seed_named_pat(&state.identity, "reader@example.com", "Reader", &["demo"]);
+    state
+        .identity
+        .admin_set_membership(
+            &AuditActor::system_cli(),
+            &reader_id,
+            "demo",
+            MembershipRole::Reader,
+            true,
+        )
+        .expect("set reader role");
+    Fixture { base: common::start(state), store, editor_pat, reader_pat }
+}
+
+fn request(method: &str, f: &Fixture, pat: &str, tail: &str) -> ureq::Request {
+    ureq::request(method, &format!("{}/api/specseal/v1/projects/demo/{tail}", f.base))
+        .set("Authorization", &format!("Bearer {pat}"))
+        .set("X-Specseal-Api-Version", specseal_protocol::API_VERSION)
+        .set("X-Specseal-Repo", "backend")
+}
+
+fn get_plan(f: &Fixture, pat: &str) -> (Value, String) {
+    let response = request("GET", f, pat, "plan").call().expect("GET /plan succeeds");
+    let etag = response.header("ETag").expect("ETag present").to_string();
+    (response.into_json::<Value>().expect("JSON body"), etag)
+}
+
+fn post_depends(
+    f: &Fixture,
+    pat: &str,
+    change: &str,
+    on: &[&str],
+    remove: bool,
+) -> Result<ureq::Response, ureq::Error> {
+    request("POST", f, pat, &format!("changes/{change}/depends"))
+        .send_json(json!({ "on": on, "remove": remove }))
+}
+
+fn protocol_error(result: Result<ureq::Response, ureq::Error>) -> (u16, ErrorResponse) {
+    match result {
+        Ok(response) => panic!("expected protocol error, got {}", response.status()),
+        Err(ureq::Error::Status(status, response)) => {
+            let body = response.into_string().unwrap_or_default();
+            let error = serde_json::from_str(&body)
+                .unwrap_or_else(|_| panic!("expected ErrorResponse, got {body:?}"));
+            (status, error)
+        }
+        Err(error) => panic!("transport error: {error}"),
+    }
+}
+
+fn revision(f: &Fixture) -> u64 {
+    f.store.snapshot(&scope()).expect("snapshot").revision().0
+}
+
+fn outbox_names(f: &Fixture) -> Vec<String> {
+    f.store
+        .read_outbox(&scope(), OutboxCursor(0))
+        .expect("read outbox")
+        .iter()
+        .map(|e| e.record.name.clone())
+        .collect()
+}
+
+fn stored(f: &Fixture, id: &DocumentId) -> Option<(String, u64)> {
+    f.store
+        .snapshot(&scope())
+        .expect("snapshot")
+        .read(id)
+        .expect("read")
+        .map(|d| (d.content, d.revision.0))
+}
+
+fn order(plan: &Value) -> Vec<String> {
+    plan["changes"]
+        .as_array()
+        .expect("changes array")
+        .iter()
+        .map(|c| c["name"].as_str().expect("name").to_string())
+        .collect()
+}
+
+// --- 规格「plan 唯读衍生查找端点」---
+
+#[test]
+fn reader_reads_the_plan_with_the_scope_etag_and_nothing_is_written() {
+    // Scenario「reader 可读 plan」。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", Some("add-a"))),
+    ]);
+    let before = revision(&f);
+    let events = outbox_names(&f);
+
+    let (plan, etag) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&plan), ["add-a", "add-b"]);
+    assert_eq!(plan["changes"][1]["blockedBy"], json!(["add-a"]));
+    assert_eq!(plan["changes"][1]["dependsOn"], json!(["add-a"]));
+    assert_eq!(plan["changes"][1]["wave"], 2);
+    assert_eq!(plan["changes"][1]["stage"], "proposed");
+    assert_eq!(plan["next"], "add-a");
+    assert_eq!(plan["skipped"], json!([]));
+    assert_eq!(etag, format!("\"{before}\""), "the ETag is the scope revision");
+    assert_eq!(revision(&f), before, "a derived query never advances the revision");
+    assert_eq!(outbox_names(&f), events, "a derived query publishes no event");
+
+    let (editor_view, _) = get_plan(&f, &f.editor_pat);
+    assert_eq!(editor_view, plan, "editors read the same plan");
+}
+
+#[test]
+fn plan_carries_the_unpromoted_cuts_of_the_scope_discussions() {
+    // Scenario「回应带尚未转出的刀」：talk-a 只转出了 cut 1。
+    let f = fixture(&[("add-a", meta("2026-09-01", None))]);
+    let talk = "---\ntopic: talk-a\nslug: talk-a\nstatus: promoted\npromoted_to: add-a\n\
+                created: 2026-09-01\n---\n\n# Discussion: talk-a\n\n## Context\n\n背景。\n\n\
+                ## Rounds\n\n### Round 1 — assumptions (2026-09-01)\n\n**Focus**: scope\n\n\
+                ## Conclusion\n\n**Decision**: 定案。\n\n\
+                - **cut 1 `add-a`**: 第一刀\n- **cut 2 `add-b`**: 第二刀\n";
+    seed(
+        &f.store,
+        &[(DocumentId::Discussion { slug: "talk-a".into(), archived: false }, talk.to_string())],
+    );
+    let before = revision(&f);
+
+    let (plan, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(
+        plan["unpromotedCuts"],
+        json!([{
+            "discussion": "talk-a",
+            "cut": "cut 2",
+            "title": "第二刀",
+            "changes": ["add-b"],
+            "unpromoted": ["add-b"]
+        }])
+    );
+    assert_eq!(revision(&f), before, "a derived query never advances the revision");
+}
+
+#[test]
+fn plan_ranks_come_from_the_board_resource() {
+    // Scenario「rank 来自 board resource」：无 board 时依 created，有 rank 图
+    // 时依 rank 字典序。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", None)),
+    ]);
+    let (unranked, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&unranked), ["add-a", "add-b"], "no board resource: created order");
+
+    seed(
+        &f.store,
+        &[(
+            DocumentId::BoardOrder,
+            r#"{"changes":{"add-b":"b","add-a":"f"},"discussions":{}}"#.to_string(),
+        )],
+    );
+    let (ranked, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&ranked), ["add-b", "add-a"]);
+    assert_eq!(ranked["waves"], json!([{ "index": 1, "changes": ["add-b", "add-a"] }]));
+}
+
+#[test]
+fn unusable_board_content_reads_as_no_ranks_and_is_never_rewritten() {
+    // Scenario「坏 board 内容视为空图」与 remote-board-order「plan 端点宽松读取」。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-02", None)),
+        ("add-b", meta("2026-09-01", None)),
+    ]);
+    seed(
+        &f.store,
+        &[(DocumentId::BoardOrder, r#"{"changes":{"add-a":"n"},"discussions":{}}"#.to_string())],
+    );
+    let board = stored(&f, &DocumentId::BoardOrder);
+    let (ranked, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&ranked), ["add-a", "add-b"], "add-a's rank n places it first");
+    assert_eq!(stored(&f, &DocumentId::BoardOrder), board, "the plan never writes the board");
+
+    seed(&f.store, &[(DocumentId::BoardOrder, "not json".to_string())]);
+    let board = stored(&f, &DocumentId::BoardOrder);
+    let before = revision(&f);
+    let (unranked, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&unranked), ["add-b", "add-a"], "bad content: every change unranked");
+    assert_eq!(stored(&f, &DocumentId::BoardOrder), board, "bad content is left as it is");
+    assert_eq!(revision(&f), before);
+}
+
+/// A delta for `change` that MODIFIES `requirement` in capability `cap`.
+fn modified(change: &str, cap: &str, requirement: &str) -> (DocumentId, String) {
+    (
+        DocumentId::ChangeArtifact { change: change.into(), artifact: format!("specs/{cap}/spec.md") },
+        format!("## MODIFIED Requirements\n\n### Requirement: {requirement}\n\nbody\n"),
+    )
+}
+
+#[test]
+fn plan_entry_carries_requirement_overlap_and_archive_after() {
+    // Scenario「同 requirement 重叠带 archiveAfter」：两者 MODIFIED 同一 requirement，
+    // 无依赖、无 rank、add-a 配置在前——add-b 排在 add-a 之后封存，两者同波。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", None)),
+    ]);
+    seed(&f.store, &[modified("add-a", "auth", "Login"), modified("add-b", "auth", "Login")]);
+    let (plan, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&plan), ["add-a", "add-b"]);
+    let add_b = &plan["changes"][1];
+    assert_eq!(add_b["wave"], 1);
+    assert_eq!(add_b["archiveAfter"], json!(["add-a"]));
+    assert_eq!(
+        add_b["requirementOverlap"],
+        json!([{
+            "change": "add-a",
+            "capability": "auth",
+            "requirement": "Login",
+            "ownOperation": "MODIFIED",
+            "otherOperation": "MODIFIED",
+            "conflict": false,
+        }])
+    );
+    assert_eq!(plan["changes"][0]["archiveAfter"], json!([]));
+}
+
+#[test]
+fn plan_same_capability_different_requirement_has_empty_archive_after() {
+    // 同 capability、不同 requirement 不算重叠：两者同波，两个新字段都为空数组。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", None)),
+    ]);
+    seed(&f.store, &[modified("add-a", "auth", "Login"), modified("add-b", "auth", "Logout")]);
+    let (plan, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(plan["waves"], json!([{ "index": 1, "changes": ["add-a", "add-b"] }]));
+    for change in plan["changes"].as_array().unwrap() {
+        assert_eq!(change["archiveAfter"], json!([]), "{change}");
+        assert_eq!(change["requirementOverlap"], json!([]), "{change}");
+    }
+}
+
+#[test]
+fn a_dependency_cycle_is_a_refused_409_with_the_engine_line() {
+    // Scenario「成环回 409」。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", Some("add-b"))),
+        ("add-b", meta("2026-09-01", Some("add-a"))),
+    ]);
+    let before = revision(&f);
+    let (status, error) = protocol_error(request("GET", &f, &f.reader_pat, "plan").call());
+    assert_eq!(status, 409);
+    assert_eq!(error.reason, ErrorReason::Refused);
+    assert_eq!(error.message, "dependency cycle: add-a -> add-b -> add-a");
+    assert_eq!(revision(&f), before);
+}
+
+// --- 规格「变更依赖写入端点」---
+
+#[test]
+fn an_editor_declares_a_prerequisite_and_the_commit_publishes_an_event() {
+    // Scenario「editor 写入前置」。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", None)),
+    ]);
+    let before = revision(&f);
+    let response = post_depends(&f, &f.editor_pat, "add-b", &["add-a"], false)
+        .expect("editor POST succeeds");
+    assert_eq!(response.status(), 200);
+    let etag = response.header("ETag").expect("ETag present").to_string();
+    let body = response.into_json::<Value>().expect("JSON body");
+    assert_eq!(body, json!({ "change": "add-b", "dependsOn": ["add-a"] }));
+
+    let (text, _) = stored(&f, &change_meta("add-b")).expect("meta present");
+    assert_eq!(text, format!("{}depends_on: add-a\n", meta("2026-09-02", None)));
+    let after = revision(&f);
+    assert!(after > before, "the write advances the scope revision");
+    assert_eq!(etag, format!("\"{after}\""), "the response carries the post-commit ETag");
+    assert_eq!(outbox_names(&f).last().map(String::as_str), Some("change-depends-changed"));
+
+    let (plan, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(plan["changes"][1]["blockedBy"], json!(["add-a"]), "plan sees the new edge");
+}
+
+#[test]
+fn a_reader_cannot_declare_prerequisites() {
+    // Scenario「reader 被拒」。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", None)),
+    ]);
+    let meta_before = stored(&f, &change_meta("add-b"));
+    let before = revision(&f);
+    let (status, error) =
+        protocol_error(post_depends(&f, &f.reader_pat, "add-b", &["add-a"], false));
+    assert_eq!(status, 403);
+    assert_eq!(error.reason, ErrorReason::PermissionDenied);
+    assert_eq!(stored(&f, &change_meta("add-b")), meta_before);
+    assert_eq!(revision(&f), before);
+}
+
+#[test]
+fn an_unknown_change_is_a_404() {
+    // Scenario「不存在的 change」。
+    let f = fixture(&[("add-a", meta("2026-09-01", None))]);
+    let before = revision(&f);
+    let (status, error) =
+        protocol_error(post_depends(&f, &f.editor_pat, "ghost", &["add-a"], false));
+    assert_eq!(status, 404);
+    assert_eq!(error.reason, ErrorReason::NotFound);
+    assert_eq!(revision(&f), before);
+}
+
+#[test]
+fn guard_refusals_are_refused_409s_with_the_engine_line_and_write_nothing() {
+    // Scenario「守门失败 409」：自依赖、已封存、成环；另补需求内文列出的目标不存在。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", Some("add-b"))),
+        ("add-b", meta("2026-09-02", None)),
+    ]);
+    seed(
+        &f.store,
+        &[(
+            DocumentId::ArchivedChange {
+                change: "2026-08-01-old-change".into(),
+                doc: ".openspec.yaml".into(),
+            },
+            "schema: spec-driven\ncreated: 2026-07-01\n".to_string(),
+        )],
+    );
+    let meta_before = stored(&f, &change_meta("add-b"));
+    let before = revision(&f);
+    let events = outbox_names(&f);
+
+    for (on, message) in [
+        ("add-b", "'add-b' cannot depend on itself"),
+        ("ghost", "cannot depend on 'ghost': no active change with that name"),
+        ("old-change", "cannot depend on 'old-change': it is already archived"),
+        ("add-a", "dependency cycle: add-b -> add-a -> add-b"),
+    ] {
+        let (status, error) =
+            protocol_error(post_depends(&f, &f.editor_pat, "add-b", &[on], false));
+        assert_eq!(status, 409, "--on {on}");
+        assert_eq!(error.reason, ErrorReason::Refused, "--on {on}");
+        assert_eq!(error.message, message, "--on {on}: the engine's line verbatim");
+    }
+    assert_eq!(stored(&f, &change_meta("add-b")), meta_before, "a refusal writes nothing");
+    assert_eq!(revision(&f), before);
+    assert_eq!(outbox_names(&f), events, "a refusal publishes no event");
+}
+
+#[test]
+fn re_adding_a_declared_prerequisite_is_an_idempotent_200() {
+    // Scenario「幂等重加」。
+    let f = fixture(&[
+        ("add-a", meta("2026-09-01", None)),
+        ("add-b", meta("2026-09-02", Some("add-a"))),
+    ]);
+    let before = revision(&f);
+    let events = outbox_names(&f);
+    let response = post_depends(&f, &f.editor_pat, "add-b", &["add-a"], false)
+        .expect("idempotent POST succeeds");
+    assert_eq!(response.status(), 200);
+    let body = response.into_json::<Value>().expect("JSON body");
+    assert_eq!(body["dependsOn"], json!(["add-a"]));
+    assert_eq!(revision(&f), before, "an idempotent pass commits nothing");
+    assert_eq!(outbox_names(&f), events, "an idempotent pass publishes no event");
+}
+
+// --- 规格「变更 schema 写入端点」---
+
+fn post_schema(f: &Fixture, pat: &str, change: &str, schema: &str) -> Result<ureq::Response, ureq::Error> {
+    request("POST", f, pat, &format!("changes/{change}/schema")).send_json(json!({ "schema": schema }))
+}
+
+#[test]
+fn an_editor_switches_the_schema_and_the_commit_publishes_an_event() {
+    // Scenario「editor 切换 schema」。
+    let f = fixture(&[("tidy", meta("2026-09-01", None))]);
+    let before = revision(&f);
+    let response = post_schema(&f, &f.editor_pat, "tidy", "no-spec-change").expect("editor POST succeeds");
+    assert_eq!(response.status(), 200);
+    let etag = response.header("ETag").expect("ETag present").to_string();
+    let body = response.into_json::<Value>().expect("JSON body");
+    assert_eq!(
+        body,
+        json!({
+            "change": "tidy",
+            "schema": "no-spec-change",
+            "previous": "spec-driven",
+            "changed": true,
+            "verifyStampCleared": false,
+        })
+    );
+    let (text, _) = stored(&f, &change_meta("tidy")).expect("meta present");
+    assert_eq!(text, "schema: no-spec-change\ncreated: 2026-09-01\n", "only the schema line changes");
+    let after = revision(&f);
+    assert!(after > before, "the write advances the scope revision");
+    assert_eq!(etag, format!("\"{after}\""), "the response carries the post-commit ETag");
+    assert_eq!(outbox_names(&f).last().map(String::as_str), Some("change-schema-changed"));
+}
+
+#[test]
+fn a_switch_that_removes_the_verify_stamp_says_so() {
+    let stamped = format!(
+        "{}verified_at: 2026-09-03T10:00:00+08:00\nverified_tasks_total: 1\nverified_rounds: 2\n",
+        meta("2026-09-01", None)
+    );
+    let f = fixture(&[("tidy", stamped)]);
+    let response = post_schema(&f, &f.editor_pat, "tidy", "no-spec-change").expect("editor POST succeeds");
+    let body = response.into_json::<Value>().expect("JSON body");
+    assert_eq!(body["verifyStampCleared"], json!(true));
+    let (text, _) = stored(&f, &change_meta("tidy")).expect("meta present");
+    assert_eq!(text, "schema: no-spec-change\ncreated: 2026-09-01\nverified_rounds: 2\n");
+}
+
+#[test]
+fn a_reader_cannot_switch_the_schema() {
+    // Scenario「reader 被拒」。
+    let f = fixture(&[("tidy", meta("2026-09-01", None))]);
+    let meta_before = stored(&f, &change_meta("tidy"));
+    let (status, error) = protocol_error(post_schema(&f, &f.reader_pat, "tidy", "no-spec-change"));
+    assert_eq!(status, 403);
+    assert_eq!(error.reason, ErrorReason::PermissionDenied);
+    assert_eq!(stored(&f, &change_meta("tidy")), meta_before);
+}
+
+#[test]
+fn switching_an_unknown_change_is_a_404() {
+    // Scenario「不存在的 change」。
+    let f = fixture(&[("tidy", meta("2026-09-01", None))]);
+    let before = revision(&f);
+    let (status, error) = protocol_error(post_schema(&f, &f.editor_pat, "ghost", "spec-driven"));
+    assert_eq!(status, 404);
+    assert_eq!(error.reason, ErrorReason::NotFound);
+    assert_eq!(revision(&f), before);
+}
+
+#[test]
+fn schema_guard_refusals_are_refused_409s_with_the_engine_line() {
+    // Scenario「守门失败 409」：message 是引擎原文，与 fs 模式 stderr 同一句。
+    // 三种守门各一次：解析不到与带 delta 排在验证工单之前（守门顺序），切到有
+    // specs 的 spec-driven 才轮到未结的验证工单。
+    let f = fixture(&[("c", meta("2026-09-01", None))]);
+    seed(
+        &f.store,
+        &[
+            (
+                DocumentId::ChangeArtifact { change: "c".into(), artifact: "specs/auth/spec.md".into() },
+                "## ADDED Requirements\n".to_string(),
+            ),
+            (
+                DocumentId::ChangeArtifact { change: "c".into(), artifact: "verify.md".into() },
+                "# Verify\n".to_string(),
+            ),
+        ],
+    );
+    let meta_before = stored(&f, &change_meta("c"));
+    let before = revision(&f);
+    let events = outbox_names(&f);
+    for (schema, message) in [
+        (
+            "no-spec-change",
+            "cannot switch 'c' to 'no-spec-change': 'no-spec-change' has no specs, but the change \
+             has delta specs (auth) — remove them first",
+        ),
+        (
+            "no-such-flow",
+            "Schema not found: Schema 'no-such-flow' not found in project, user, or built-in locations",
+        ),
+        (
+            "spec-driven",
+            "cannot switch 'c' while its verify ticket is open — abandon it first: specseal verify discard c",
+        ),
+    ] {
+        let (status, error) = protocol_error(post_schema(&f, &f.editor_pat, "c", schema));
+        assert_eq!(status, 409, "{schema}");
+        assert_eq!(error.reason, ErrorReason::Refused, "{schema}");
+        assert_eq!(error.message, message, "{schema}: the engine's line verbatim");
+    }
+    assert_eq!(stored(&f, &change_meta("c")), meta_before, "a refusal writes nothing");
+    assert_eq!(revision(&f), before);
+    assert_eq!(outbox_names(&f), events, "a refusal publishes no event");
+}
+
+#[test]
+fn switching_to_the_current_schema_is_an_idempotent_200() {
+    // Scenario「幂等切换」。
+    let f = fixture(&[("c", meta("2026-09-01", None))]);
+    let before = revision(&f);
+    let events = outbox_names(&f);
+    let response = post_schema(&f, &f.editor_pat, "c", "spec-driven").expect("idempotent POST succeeds");
+    assert_eq!(response.status(), 200);
+    let body = response.into_json::<Value>().expect("JSON body");
+    assert_eq!(body["changed"], json!(false));
+    assert_eq!(revision(&f), before, "an idempotent pass commits nothing");
+    assert_eq!(outbox_names(&f), events, "an idempotent pass publishes no event");
+}
+
+// --- 规格「排序请求与回应」（skills-verbs-first-wave）---
+
+fn post_rank(f: &Fixture, pat: &str, change: &str, body: Value) -> Result<ureq::Response, ureq::Error> {
+    request("POST", f, pat, &format!("changes/{change}/rank")).send_json(body)
+}
+
+/// add-a ranked `n` on the board, add-c unranked: both proposed.
+fn rank_fixture(board: &str) -> Fixture {
+    let f = fixture(&[("add-a", meta("2026-09-01", None)), ("add-c", meta("2026-09-02", None))]);
+    seed(&f.store, &[(DocumentId::BoardOrder, board.to_string())]);
+    f
+}
+
+#[test]
+fn an_editor_ranks_a_change_on_the_board_resource() {
+    // Scenario「排序成功」：200、三个字段（camelCase、字符串）、新的范围版本；顺序键
+    // 只写进 board resource，metadata 逐比特不变，推送分类归到该变更。
+    let f = rank_fixture(r#"{"changes":{"add-a":"n"},"discussions":{}}"#);
+    let metas = (stored(&f, &change_meta("add-a")), stored(&f, &change_meta("add-c")));
+    let before = revision(&f);
+    let response = post_rank(&f, &f.editor_pat, "add-c", json!({ "anchor": "add-a", "position": "before" }))
+        .expect("editor POST succeeds");
+    assert_eq!(response.status(), 200);
+    let etag = response.header("ETag").expect("ETag present").to_string();
+    let body = response.into_json::<Value>().expect("JSON body");
+    assert_eq!(body, json!({ "change": "add-c", "anchor": "add-a", "position": "before" }));
+
+    let after = revision(&f);
+    assert_eq!(after, before + 1, "one commit");
+    assert_eq!(etag, format!("\"{after}\""), "the response carries the post-commit ETag");
+    let (board, _) = stored(&f, &DocumentId::BoardOrder).expect("board present");
+    let ranks = BoardOrderDoc::from_content(Some(&board)).changes;
+    assert_eq!(ranks["add-a"], "n");
+    assert!(ranks["add-c"].as_str() < "n", "{ranks:?}");
+    assert_eq!((stored(&f, &change_meta("add-a")), stored(&f, &change_meta("add-c"))), metas);
+    assert_eq!(outbox_names(&f).last().map(String::as_str), Some("change-ranked"));
+    let (plan, _) = get_plan(&f, &f.reader_pat);
+    assert_eq!(order(&plan), ["add-c", "add-a"]);
+}
+
+#[test]
+fn an_absent_force_reads_as_false() {
+    // Scenario「force 缺席读作 false」。
+    let f = rank_fixture(r#"{"changes":{"add-a":"n","add-c":"t"},"discussions":{}}"#);
+    let board = stored(&f, &DocumentId::BoardOrder);
+    let (status, error) =
+        protocol_error(post_rank(&f, &f.editor_pat, "add-c", json!({ "anchor": "add-a", "position": "after" })));
+    assert_eq!(status, 409);
+    assert_eq!(error.reason, ErrorReason::Refused);
+    assert!(error.message.contains("already has a board rank"), "{}", error.message);
+    assert_eq!(stored(&f, &DocumentId::BoardOrder), board, "a refusal writes nothing");
+}
+
+#[test]
+fn a_position_other_than_before_or_after_is_an_invalid_argument() {
+    // Scenario「不合法的 position」。
+    let f = rank_fixture(r#"{"changes":{"add-a":"n"},"discussions":{}}"#);
+    let board = stored(&f, &DocumentId::BoardOrder);
+    let before = revision(&f);
+    let (status, error) =
+        protocol_error(post_rank(&f, &f.editor_pat, "add-c", json!({ "anchor": "add-a", "position": "first" })));
+    assert_eq!(status, 400);
+    assert_eq!(error.reason, ErrorReason::InvalidArgument);
+    assert_eq!(stored(&f, &DocumentId::BoardOrder), board);
+    assert_eq!(revision(&f), before);
+}
+
+#[test]
+fn a_reader_cannot_rank() {
+    // Scenario「没有编辑权限」。
+    let f = rank_fixture(r#"{"changes":{"add-a":"n"},"discussions":{}}"#);
+    let board = stored(&f, &DocumentId::BoardOrder);
+    let (status, error) =
+        protocol_error(post_rank(&f, &f.reader_pat, "add-c", json!({ "anchor": "add-a", "position": "before" })));
+    assert_eq!(status, 403);
+    assert_eq!(error.reason, ErrorReason::PermissionDenied);
+    assert_eq!(stored(&f, &DocumentId::BoardOrder), board);
+}
+
+#[test]
+fn ranking_an_unknown_change_is_a_404() {
+    // Scenario「变更不存在」。
+    let f = rank_fixture(r#"{"changes":{"add-a":"n"},"discussions":{}}"#);
+    let (status, error) =
+        protocol_error(post_rank(&f, &f.editor_pat, "ghost", json!({ "anchor": "add-a", "position": "before" })));
+    assert_eq!(status, 404);
+    assert_eq!(error.reason, ErrorReason::NotFound);
+}
+
+#[test]
+fn a_rank_request_prunes_orphans_and_keeps_the_discussion_section() {
+    // remote-board-order Scenario「排序请求修剪孤儿条目并带回讨论那一段」。
+    let f = rank_fixture(r#"{"changes":{"add-a":"n","gone":"c"},"discussions":{"topic":"f"}}"#);
+    post_rank(&f, &f.editor_pat, "add-c", json!({ "anchor": "add-a", "position": "before" }))
+        .expect("editor POST succeeds");
+    let (board, _) = stored(&f, &DocumentId::BoardOrder).expect("board present");
+    let doc: Value = serde_json::from_str(&board).expect("JSON board");
+    let changes = doc["changes"].as_object().expect("a change section");
+    assert_eq!(changes.keys().map(String::as_str).collect::<Vec<_>>(), ["add-a", "add-c"]);
+    assert_eq!(changes["add-a"], "n");
+    assert!(changes["add-c"].as_str().unwrap() < "n");
+    assert_eq!(doc["discussions"], json!({ "topic": "f" }));
+}

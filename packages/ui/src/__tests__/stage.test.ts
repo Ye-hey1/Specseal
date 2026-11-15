@@ -1,5 +1,5 @@
-// spec 需求「看板欄位由生命週期標記驅動」：全完成＝已就緒 ＞ started_at 或任務
-// 完成數>0＝進行中 ＞ 其餘＝提案中。矩陣值取自 spec 的 Example「欄位判定矩陣」表。
+// spec 需求「看板字段由生命周期标记驱动」：全完成＝已就绪 ＞ started_at 或任务
+// 完成数>0＝进行中 ＞ 其余＝提案中。矩阵值取自 spec 的 Example「字段判定矩阵」表。
 import { describe, it, expect } from "vitest";
 import {
   awaitingManualCount,
@@ -26,26 +26,26 @@ function ci(total: number, done: number, startedAt?: string): ChangeItem {
   return { name: "c", status: "x", totalTasks: total, completedTasks: done, startedAt };
 }
 
-describe("changeStage（標記驅動）", () => {
+describe("changeStage（标记驱动）", () => {
   it.each([
     // [totalTasks, completedTasks, startedAt, expected]
-    [0, 0, undefined, "proposed"], // 無 | 0 任務 | 提案中
-    [28, 0, undefined, "proposed"], // 無 | 0/28 | 提案中——剛 propose 完不錯置
-    [28, 3, undefined, "in-progress"], // 無 | 3/28 | 進行中——任務進度涵蓋繞過工具的寫入路徑
-    [28, 0, "2026-07-06", "in-progress"], // 有 | 0/28 | 進行中
-    [28, 13, "2026-07-06", "in-progress"], // 有 | 13/28 | 進行中
-    [28, 28, undefined, "ready"], // 無 | 28/28 | 已就緒（全完成優先）
-    [28, 28, "2026-07-06", "ready"], // 有 | 28/28 | 已就緒
-    [0, 0, "2026-07-06", "in-progress"], // 有標記、0 任務——已開工
+    [0, 0, undefined, "proposed"], // 无 | 0 任务 | 提案中
+    [28, 0, undefined, "proposed"], // 无 | 0/28 | 提案中——刚 propose 完不错置
+    [28, 3, undefined, "in-progress"], // 无 | 3/28 | 进行中——任务进度涵盖绕过工具的写入路径
+    [28, 0, "2026-07-06", "in-progress"], // 有 | 0/28 | 进行中
+    [28, 13, "2026-07-06", "in-progress"], // 有 | 13/28 | 进行中
+    [28, 28, undefined, "ready"], // 无 | 28/28 | 已就绪（全完成优先）
+    [28, 28, "2026-07-06", "ready"], // 有 | 28/28 | 已就绪
+    [0, 0, "2026-07-06", "in-progress"], // 有标记、0 任务——已开工
   ] as const)("total=%i done=%i started=%s → %s", (total, done, startedAt, expected) => {
     expect(changeStage(ci(total, done, startedAt))).toBe(expected);
   });
 });
 
-// 生命週期與討論的色相單一來源（design D4）：每階一色相，色值只在 theme.css 的
-// stage-* token；看板與系統匣共用這幾張表，表內只保存「階段→token class」對照。
-describe("STAGE_* / DISCUSSION_TONE（生命週期每階一色相）", () => {
-  it("計數徽章：提案中與進行中為淡底實色字、已就緒為實心", () => {
+// 生命周期与讨论的色相单一来源（design D4）：每阶一色相，色值只在 theme.css 的
+// stage-* token；看板与系统匣共用这几张表，表内只保存「阶段→token class」对照。
+describe("STAGE_* / DISCUSSION_TONE（生命周期每阶一色相）", () => {
+  it("计数徽章：提案中与进行中为淡底实色字、已就绪为实心", () => {
     expect(STAGE_BADGE).toEqual({
       proposed: "bg-stage-proposed/10 text-stage-proposed",
       "in-progress": "bg-stage-in-progress/10 text-stage-in-progress",
@@ -53,7 +53,7 @@ describe("STAGE_* / DISCUSSION_TONE（生命週期每階一色相）", () => {
     });
   });
 
-  it("進度條填色取各階段 token", () => {
+  it("进度条填色取各阶段 token", () => {
     expect(STAGE_BAR).toEqual({
       proposed: "bg-stage-proposed",
       "in-progress": "bg-stage-in-progress",
@@ -61,7 +61,7 @@ describe("STAGE_* / DISCUSSION_TONE（生命週期每階一色相）", () => {
     });
   });
 
-  it("圖示色取各階段 token", () => {
+  it("图标色取各阶段 token", () => {
     expect(STAGE_ICON).toEqual({
       proposed: "text-stage-proposed",
       "in-progress": "text-stage-in-progress",
@@ -69,7 +69,7 @@ describe("STAGE_* / DISCUSSION_TONE（生命週期每階一色相）", () => {
     });
   });
 
-  it("討論欄與系統匣討論分區共用桃紫 token", () => {
+  it("讨论栏与系统匣讨论分区共用桃紫 token", () => {
     expect(DISCUSSION_TONE).toEqual({
       icon: "text-stage-discussion",
       badge: "bg-stage-discussion/10 text-stage-discussion",
@@ -77,16 +77,16 @@ describe("STAGE_* / DISCUSSION_TONE（生命週期每階一色相）", () => {
   });
 });
 
-// 狀態→token class 對照（design D1）：集中常數檔只保存對照，深色由 theme.css 的
-// 深色 token 承擔，表內不得出現 dark: 成對寫法或原生色階。
-describe("語意色對照表只含 token class", () => {
-  it("SEMANTIC_TONE／SEMANTIC_SURFACE 取 status token 與 destructive", () => {
+// 状态→token class 对照（design D1）：集中常数档只保存对照，深色由 theme.css 的
+// 深色 token 承担，表内不得出现 dark: 成对写法或原生色阶。
+describe("语意色对照表只含 token class", () => {
+  it("SEMANTIC_TONE／SEMANTIC_SURFACE 取 status token 与 destructive", () => {
     expect(SEMANTIC_TONE).toEqual({
       inProgress: "text-status-progress",
       success: "text-status-success",
       warning: "text-status-warning",
       danger: "text-destructive",
-      // 待手動為暖黃（desktop-change-doc-views design D14；spec「介面狀態語意色分層」）。
+      // 待手动为暖黄（desktop-change-doc-views design D14；spec「接口状态语意色分层」）。
       manual: "text-status-manual",
     });
     expect(SEMANTIC_SURFACE).toEqual({
@@ -98,7 +98,7 @@ describe("語意色對照表只含 token class", () => {
     });
   });
 
-  it("審查與驗證章：蓋章取 stamp，其餘三態取 status token", () => {
+  it("审查与验证章：盖章取 stamp，其余三态取 status token", () => {
     expect(REVIEW_TONE).toEqual({
       inReview: "text-status-progress",
       reviewed: "text-stamp",
@@ -113,12 +113,12 @@ describe("語意色對照表只含 token class", () => {
     });
   });
 
-  it("改進標示取 improve token", () => {
+  it("改进标示取 improve token", () => {
     expect(IMPROVE_TONE).toBe("text-improve");
     expect(IMPROVE_CHIP_TONE).toBe("bg-improve/10");
   });
 
-  it("delta 四色：新增＝成功、修改＝警示、移除＝destructive、更名＝進行中", () => {
+  it("delta 四色：添加＝成功、修改＝警示、移除＝destructive、更名＝进行中", () => {
     expect(DELTA_COLORS).toEqual({
       added: "text-status-success",
       modified: "text-status-warning",
@@ -128,8 +128,8 @@ describe("語意色對照表只含 token class", () => {
   });
 });
 
-// spec desktop-app「看板卡片的待手動標示」:判定收斂於階段派生模組單一入口。
-describe("awaitingManualCount(待手動判定)", () => {
+// spec desktop-app「看板卡片的待手动标示」:判定收敛于阶段派生模块单一入口。
+describe("awaitingManualCount(待手动判定)", () => {
   const c = (codeTotal: number | undefined, codeRemaining: number | undefined, remaining: number): ChangeItem => ({
     name: "c",
     status: "in-progress",
@@ -138,14 +138,14 @@ describe("awaitingManualCount(待手動判定)", () => {
     ...(codeTotal !== undefined ? { codeTotal, codeComplete: codeTotal - (codeRemaining ?? 0), codeRemaining } : {}),
   });
 
-  it("spec Example「浮現判定」表逐列", () => {
-    // | codeTotal | codeRemaining | remaining | 待手動章 |
+  it("spec Example「浮现判定」表逐列", () => {
+    // | codeTotal | codeRemaining | remaining | 待手动章 |
     const rows: [number, number, number, number][] = [
       [9, 0, 1, 1],
       [7, 0, 3, 3],
       [8, 2, 3, 0],
       [10, 0, 0, 0],
-      [0, 0, 2, 0], // 尚無寫碼任務:空真值不浮現
+      [0, 0, 2, 0], // 尚无写码任务:空真值不浮现
     ];
     for (const [codeTotal, codeRemaining, remaining, want] of rows) {
       expect(
@@ -155,55 +155,55 @@ describe("awaitingManualCount(待手動判定)", () => {
     }
   });
 
-  it("remote 缺寫碼進度欄位一律 0(章缺席)", () => {
+  it("remote 缺写码进度字段一律 0(章缺席)", () => {
     expect(awaitingManualCount(c(undefined, undefined, 1))).toBe(0);
   });
 });
 
-// spec desktop-app「看板卡片的波次與阻擋標示」：判定收斂於單一入口，欄位缺席
-// （remote 摘要、plan 成環、壞 meta）一律回 null／空陣列，卡片只讀結果。
-describe("planWave / planBlockedBy（排程欄位讀取入口）", () => {
+// spec desktop-app「看板卡片的波次与阻挡标示」：判定收敛于单一入口，字段缺席
+// （remote 摘要、plan 成环、坏 meta）一律回 null／空数组，卡片只读结果。
+describe("planWave / planBlockedBy（调度字段读取入口）", () => {
   const base: ChangeItem = { name: "c", status: "proposed", totalTasks: 3, completedTasks: 0 };
 
-  it("wave 存在時回傳波次，缺席回 null", () => {
+  it("wave 存在时回传波次，缺席回 null", () => {
     expect(planWave({ ...base, wave: 2, blockedBy: [], dependsOn: [], overlaps: [] })).toBe(2);
     expect(planWave({ ...base, wave: 1 })).toBe(1);
     expect(planWave(base)).toBeNull();
     expect(planWave({ ...base, wave: undefined })).toBeNull();
   });
 
-  it("blockedBy 只在 wave 存在時回傳，其餘回空陣列", () => {
+  it("blockedBy 只在 wave 存在时回传，其余回空数组", () => {
     expect(planBlockedBy({ ...base, wave: 2, blockedBy: ["a", "b"] })).toEqual(["a", "b"]);
     expect(planBlockedBy({ ...base, wave: 1, blockedBy: [] })).toEqual([]);
     expect(planBlockedBy({ ...base, wave: 1 })).toEqual([]);
     expect(planBlockedBy(base)).toEqual([]);
-    // 缺 wave 的不合法組合：blockedBy 不單獨成立。
+    // 缺 wave 的不合法组合：blockedBy 不单独成立。
     expect(planBlockedBy({ ...base, blockedBy: ["a"] })).toEqual([]);
   });
 });
 
-// spec desktop-app「詳情抽屜的排程分頁」：requirement 級重疊與封存順序同走單一入口——
-// wave 缺席（remote 未取得 plan、plan 成環、壞 meta）即空陣列；wave 在而新欄位缺席
-// （舊 server）同為空陣列，分頁據此顯示空態。
-describe("planRequirementOverlap / planArchiveAfter（排程新欄位讀取入口）", () => {
+// spec desktop-app「详情抽屉的调度分页」：requirement 级重叠与封存顺序同走单一入口——
+// wave 缺席（remote 未取得 plan、plan 成环、坏 meta）即空数组；wave 在而新字段缺席
+// （旧 server）同为空数组，分页据此显示空态。
+describe("planRequirementOverlap / planArchiveAfter（调度新字段读取入口）", () => {
   const base: ChangeItem = { name: "c", status: "proposed", totalTasks: 3, completedTasks: 0 };
   const row = {
     change: "add-b",
     capability: "desktop-app",
-    requirement: "看板與任務",
+    requirement: "看板与任务",
     ownOperation: "MODIFIED",
     otherOperation: "MODIFIED",
     conflict: false,
   } as const;
 
-  it("requirementOverlap 只在 wave 存在時回傳，其餘回空陣列", () => {
+  it("requirementOverlap 只在 wave 存在时回传，其余回空数组", () => {
     expect(planRequirementOverlap({ ...base, wave: 1, requirementOverlap: [row] })).toEqual([row]);
     expect(planRequirementOverlap({ ...base, wave: 1 })).toEqual([]);
     expect(planRequirementOverlap(base)).toEqual([]);
     expect(planRequirementOverlap({ ...base, requirementOverlap: [row] })).toEqual([]);
   });
 
-  it("archiveAfter 只在 wave 存在時回傳，其餘回空陣列", () => {
+  it("archiveAfter 只在 wave 存在时回传，其余回空数组", () => {
     expect(planArchiveAfter({ ...base, wave: 2, archiveAfter: ["add-b"] })).toEqual(["add-b"]);
     expect(planArchiveAfter({ ...base, wave: 2 })).toEqual([]);
     expect(planArchiveAfter(base)).toEqual([]);
@@ -211,8 +211,8 @@ describe("planRequirementOverlap / planArchiveAfter（排程新欄位讀取入�
   });
 });
 
-describe("planWaveLabel / planBlockedLabel（排程文字的單一組裝點）", () => {
-  // 審查 Round 1：卡片 tooltip、面板列首與排程分頁各自 replace 佔位符——收成一處。
+describe("planWaveLabel / planBlockedLabel（调度文本的单一组装点）", () => {
+  // 审查 Round 1：卡片 tooltip、面板列首与调度分页各自 replace 占位符——收成一处。
   const dict: Record<string, string> = {
     "card.wave": "第 {n} 波",
     "card.blockedTitle": "等待：{names}",
@@ -220,11 +220,11 @@ describe("planWaveLabel / planBlockedLabel（排程文字的單一組裝點）",
   };
   const t = (key: string) => dict[key] ?? key;
 
-  it("波次文字套 card.wave 的 {n}", () => {
+  it("波次文本套 card.wave 的 {n}", () => {
     expect(planWaveLabel(2, t)).toBe("第 2 波");
   });
 
-  it("前置文字以語系分隔符相連", () => {
+  it("前置文本以语系分隔符相连", () => {
     expect(planBlockedLabel(["add-a", "add-b"], t)).toBe("等待：add-a、add-b");
     expect(planBlockedLabel(["add-a"], t)).toBe("等待：add-a");
   });

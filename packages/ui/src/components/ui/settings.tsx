@@ -1,6 +1,6 @@
-// 設定頁的五個零件（desktop-settings-mode design D3）：應用程式設定與專案設定的每一頁都以
-// 頁標題、卡、列、列右側下拉排版；群組標題由分類欄群組與卡的小標共用。另有外開連結列
-// （desktop-about-page design D2），版面同列但整列可點。
+// 设置页的五个零件（desktop-settings-mode design D3）：应用程序设置与项目设置的每一页都以
+// 页标题、卡、列、列右侧下拉排版；群组标题由分类栏群组与卡的小标共用。另有外开链接列
+// （desktop-about-page design D2），版面同列但整列可点。
 import { Fragment, useId, type ReactNode } from "react";
 import { ExternalLink } from "lucide-react";
 
@@ -19,8 +19,8 @@ import {
   SelectValue,
 } from "./select";
 
-/** 頁標題：包 PageHeader；`note` 為其下一行 12px 灰字（本機頁的「僅存於此裝置」、
- *  專案設定的等寬檔案鍵或 policy revision）。 */
+/** 页标题：包 PageHeader；`note` 为其下一行 12px 灰字（本机页的「仅存于此设备」、
+ *  项目设置的等宽文件键或 policy revision）。 */
 export function SettingsPageHeader({
   title,
   description,
@@ -44,8 +44,8 @@ export function SettingsPageHeader({
   );
 }
 
-/** 群組標題：分類欄的群組（12px 粗體灰字）與卡的小標（`size="card"`，14px）共用；
- *  圖示與計數徽章選配。 */
+/** 群组标题：分类栏的群组（12px 粗体灰字）与卡的小标（`size="card"`，14px）共用；
+ *  图标与计数徽章选配。 */
 export function SettingsGroupHeader({
   icon,
   label,
@@ -77,8 +77,8 @@ export function SettingsGroupHeader({
   );
 }
 
-/** 卡：14px 小標＋16px 圓角卡，卡內一列一筆、列間細線；以小標為區域名。`aside` 放在小標同一列
- *  右端（連結或 12px 灰字說明；server-web-list-pages design D1）。 */
+/** 卡：14px 小标＋16px 圆角卡，卡内一列一笔、列间细线；以小标为区域名。`aside` 放在小标同一列
+ *  右端（链接或 12px 灰字说明；server-web-list-pages design D1）。 */
 export function SettingsCard({
   title,
   count,
@@ -111,10 +111,10 @@ export function SettingsCard({
   );
 }
 
-/** 列：左 14px 標籤＋12px 灰字說明、右控制項；`warning` 時說明改警示色；`children` 渲染在
- *  列下方（展開的細節、行內錯誤）。以標籤為群組名，呼叫端可就列找控制項；給了 `htmlFor`
- *  時標籤只標註該控制項，不再兼作群組名（同一個名字不指向兩個元素）。根節點帶 `group`，
- *  控制項可用 `group-hover:` 依列滑過顯示。 */
+/** 列：左 14px 标签＋12px 灰字说明、右控制项；`warning` 时说明改警示色；`children` 渲染在
+ *  列下方（展开的细节、行内错误）。以标签为群组名，调用端可就列找控制项；给了 `htmlFor`
+ *  时标签只标注该控制项，不再兼作群组名（同一个名字不指向两个元素）。根节点带 `group`，
+ *  控制项可用 `group-hover:` 依列滑过显示。 */
 export function SettingsRow({
   label,
   description,
@@ -123,7 +123,7 @@ export function SettingsRow({
   warning,
   children,
 }: {
-  /** 群組名取自標籤的文字內容；可放等寬版號之類的行內標記。 */
+  /** 群组名取自标签的文本内容；可放等宽版号之类的行内标记。 */
   label: ReactNode;
   description?: ReactNode;
   control: ReactNode;
@@ -151,8 +151,8 @@ export function SettingsRow({
   );
 }
 
-/** 外開連結列（desktop-about-page design D2）：版面同 `SettingsRow`，但整列是按鈕——hover
- *  灰底、右端固定外開圖示，不放控制項。 */
+/** 外开链接列（desktop-about-page design D2）：版面同 `SettingsRow`，但整列是按钮——hover
+ *  灰底、右端固定外开图标，不放控制项。 */
 export function SettingsLinkRow({
   label,
   description,
@@ -183,7 +183,7 @@ export interface SettingsChoiceOption {
   disabled?: boolean;
 }
 
-/** 下拉的分組項：分組標籤＋組內選項。 */
+/** 下拉的分组项：分组标签＋组内选项。 */
 export interface SettingsChoiceGroup {
   label: string;
   options: SettingsChoiceOption[];
@@ -201,9 +201,9 @@ function ChoiceItem({ option }: { option: SettingsChoiceOption }) {
   );
 }
 
-/** 列右側下拉：包 Select，觸發鈕 h-8、13px 字。值不得為空字串（Radix 限制），
- *  「未設定」之類的狀態由呼叫端映射成哨兵值。`options` 可放分組項：每組渲染分組標籤，
- *  組與組、組與單項之間以分隔線隔開；值在所有項目間不得重複。 */
+/** 列右侧下拉：包 Select，触发钮 h-8、13px 字。值不得为空字符串（Radix 限制），
+ *  「未设置」之类的状态由调用端映射成哨兵值。`options` 可放分组项：每组渲染分组标签，
+ *  组与组、组与单项之间以分隔线隔开；值在所有项目间不得重复。 */
 export function SettingsChoice({
   value,
   options,

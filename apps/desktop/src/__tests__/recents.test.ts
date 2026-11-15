@@ -1,6 +1,6 @@
-// 最近開啟清單的純函式面（design D1／D3）：localStorage 獨立鍵持久化（locator＋
-// 顯示名、最新在前、上限 20）、同 locator key 去重上移、移除、鍵缺席回 null、
-// 壞資料歸零且逐條驗證、顯示期濾掉分頁列上已開著的項目。
+// 最近打开清单的纯函数面（design D1／D3）：localStorage 独立键持久化（locator＋
+// 显示名、最新在前、上限 20）、同 locator key 去重上移、移除、键缺席回 null、
+// 坏数据归零且逐条验证、显示期滤掉分页列上已开着的项目。
 import { describe, it, expect } from "vitest";
 
 import {
@@ -50,7 +50,7 @@ function memStorage(): Storage {
   } as Storage;
 }
 
-describe("upsertRecent（spec「去重上移與上限截尾」）", () => {
+describe("upsertRecent（spec「去重上移与上限截尾」）", () => {
   it("a new workspace goes to the front", () => {
     const next = upsertRecent([entry("A")], entry("B"));
     expect(keys(next)).toEqual(["local:B", "local:A"]);
@@ -87,7 +87,7 @@ describe("removeRecent", () => {
   });
 });
 
-describe("最近開啟持久化（design D1）", () => {
+describe("最近打开持久化（design D1）", () => {
   it("an absent key reads as null so the caller can seed", () => {
     expect(readPersistedRecents(memStorage())).toBeNull();
   });
@@ -111,7 +111,7 @@ describe("最近開啟持久化（design D1）", () => {
     expect(readPersistedRecents(st)).toEqual([remote, entry("A", "a")]);
   });
 
-  it("garbage JSON reads as an empty list（spec「壞資料歸零且不補種」）", () => {
+  it("garbage JSON reads as an empty list（spec「坏数据归零且不补种」）", () => {
     const st = memStorage();
     st.setItem(RECENTS_STORAGE_KEY, "{not json");
     expect(readPersistedRecents(st)).toEqual([]);
@@ -148,7 +148,7 @@ describe("最近開啟持久化（design D1）", () => {
   });
 });
 
-describe("visibleRecents（spec「記錄全在分頁列上時不顯示區段」的過濾面）", () => {
+describe("visibleRecents（spec「记录全在分页列上时不显示区段」的过滤面）", () => {
   it("hides entries whose locator key is on the tab bar and keeps order", () => {
     const list = [entry("C"), entry("B"), entry("A")];
     const tabs = [tab("A"), tab("C")];
@@ -162,7 +162,7 @@ describe("visibleRecents（spec「記錄全在分頁列上時不顯示區段」�
   });
 });
 
-describe("讀取時的收斂（review 第 1 輪 SUGGESTION）", () => {
+describe("读取时的收敛（review 第 1 轮 SUGGESTION）", () => {
   it("drops duplicate locators, keeping the first occurrence", () => {
     const st = memStorage();
     st.setItem(

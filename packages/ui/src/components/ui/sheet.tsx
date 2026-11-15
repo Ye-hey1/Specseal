@@ -25,7 +25,7 @@ export const SheetOverlay = React.forwardRef<
 ));
 SheetOverlay.displayName = "SheetOverlay";
 
-// 滑出方向：抽屜貼右（預設），窄螢幕導覽貼左（server-web-shell-alignment design D6）。
+// 滑出方向：抽屉贴右（缺省），窄屏幕导览贴左（server-web-shell-alignment design D6）。
 const SHEET_SIDE = {
   right:
     "right-0 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right",
@@ -36,8 +36,8 @@ export const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SheetPrimitive.Content> & { side?: "left" | "right" }
 >(({ className, children, side = "right", ...props }, ref) => {
-  // 抽屜內的浮層要 portal 進抽屜自己（見 portal-container.tsx）：portal 到 body 會落在
-  // focus trap 外面，與 Dialog 的 FocusScope 互推焦點。
+  // 抽屉内的浮层要 portal 进抽屉自己（见 portal-container.tsx）：portal 到 body 会落在
+  // focus trap 外面，与 Dialog 的 FocusScope 互推焦点。
   const [content, setContent] = React.useState<HTMLElement | null>(null);
   return (
     <SheetPortal>
@@ -49,8 +49,8 @@ export const SheetContent = React.forwardRef<
           else if (ref) ref.current = node;
         }}
         className={cn(
-          // overflow-x-hidden 為必要而非贅述：CSS 規定 overflow-x: visible 搭配
-          // overflow-y: auto 時，x 軸會被計算為 auto——單一過長子項即讓面板長出水平捲軸。
+          // overflow-x-hidden 为必要而非赘述：CSS 规定 overflow-x: visible 搭配
+          // overflow-y: auto 时，x 轴会被计算为 auto——单一过长子项即让面板长出水平滚动条。
           "fixed z-50 inset-y-0 h-full w-[440px] max-w-[92vw] bg-card border-border shadow-lg p-5 overflow-y-auto overflow-x-hidden flex flex-col gap-4 duration-300 ease-out data-[state=open]:animate-in data-[state=closed]:animate-out motion-reduce:animate-none",
           SHEET_SIDE[side],
           className,
@@ -58,7 +58,7 @@ export const SheetContent = React.forwardRef<
         {...props}
       >
         <PortalContainerProvider value={content}>{children}</PortalContainerProvider>
-        {/* shadcn ghost icon 同款樣式：帶 hover 底色回饋（desktop-ux-polish 統一按鈕 hover）。 */}
+        {/* shadcn ghost icon 同款样式：带 hover 底色回馈（desktop-ux-polish 统一按钮 hover）。 */}
         <SheetPrimitive.Close className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
           <X className="h-4 w-4" />
           <span className="sr-only">Close</span>

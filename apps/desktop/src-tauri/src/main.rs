@@ -1,6 +1,6 @@
-// Windows release build 不開 console 視窗。
+// Windows release build 不开 console 窗口。
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    speclink_desktop_lib::run()
+    specseal_desktop_lib::run()
 }

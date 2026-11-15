@@ -1,13 +1,13 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 import { useClient, useSession } from "../app/context";
 import { WebApiError } from "../api/client";
 import { Field } from "../components/Field";
 import { FocusFooter, FocusHeader } from "../layouts/FocusLayout";
 
-// 本機密碼登入。提交期間停用避免重複；失敗保留輸入、把錯誤放欄位旁並以 role=alert
-// 宣告；成功依 Server 回傳的 destination 導向（D3）。
+// 本机密码登录。提交期间停用避免重复；失败保留输入、把错误放字段旁并以 role=alert
+// 声明；成功依 Server 回传的 destination 导向（D3）。
 export function LoginPage() {
   const { t } = useI18n();
   const client = useClient();
@@ -45,7 +45,7 @@ export function LoginPage() {
   }
 
   const hasFieldErrors = Object.keys(fieldErrors).length > 0;
-  // 說明點名這台主機（等寬字），讓使用者確認自己登入的是哪一台 server。
+  // 说明点名这台主机（等宽字），让用户确认自己登录的是哪一台 server。
   const [beforeHost, afterHost] = t("login.description").split("{host}");
 
   return (

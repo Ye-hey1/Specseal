@@ -1,6 +1,6 @@
-// 唯一 raw HTTP 呼叫入口（D2 Implementation Contract）：route／page 只呼叫其
-// typed operations，絕不散落 fetch。成功回 `{data}`、失敗拋 WebApiError；同源
-// cookie 由瀏覽器隨附。
+// 唯一 raw HTTP 调用入口（D2 Implementation Contract）：route／page 只调用其
+// typed operations，绝不散落 fetch。成功回 `{data}`、失败抛 WebApiError；同源
+// cookie 由浏览器随附。
 
 export type SessionUser = {
   id: string;
@@ -24,7 +24,7 @@ export type LoginBody = {
 
 export type AdminConnection = { publicUrl: string; projectKey: string; repoKey: string };
 
-/** 一則待處理事項：kind 為封閉集合（文案由前端對應），destination 是處理它的路由。 */
+/** 一则待处理事项：kind 为封闭集合（文案由前端对应），destination 是处理它的路由。 */
 export type AdminTodo = { kind: string; destination: string; count: number };
 
 export type AdminOverview = {
@@ -54,7 +54,7 @@ export type AdminUser = {
   canSuspend: boolean;
   canRemoveAdmin: boolean;
 };
-/** 已寄出但尚未接受的邀請；受邀者此時還沒有 user row。不含 token。 */
+/** 已寄出但尚未接受的邀请；受邀者此时还没有 user row。不含 token。 */
 export type AdminPendingInvitation = {
   id: string;
   email: string;
@@ -95,7 +95,7 @@ export type AdminScope = { project: string; repo: string; exportPath: string };
 
 export type AdminBacklog = { project: string; repo: string; backlog: number | null };
 
-/** 系統頁的單一 view model：原「資料操作」與「系統狀態」兩份合併為一份。 */
+/** 系统页的单一 view model：原「数据操作」与「系统状态」两份合并为一份。 */
 export type AdminSystem = {
   engineVersion: string;
   apiVersion: string;
@@ -119,18 +119,18 @@ export type AdminAuditEntry = {
   source: string;
   createdAt: string;
 };
-/** `total`＝符合篩選的事件總筆數，與頁碼及每頁筆數無關（換頁列的「共 N 筆」）。 */
+/** `total`＝符合筛选的事件总笔数，与页码及每页笔数无关（换页列的「共 N 笔」）。 */
 export type AdminAudit = { entries: AdminAuditEntry[]; totalPages: number; total: number };
 
-/** 稽核篩選與分頁參數——伺服器套用後只回當頁事件、總頁數與總筆數，前端不自行裁切。 */
+/** 稽核筛选与分页参数——服务器套用后只回当页事件、总页数与总笔数，前端不自行裁切。 */
 export type AdminAuditParams = {
   q?: string;
   action?: string;
   source?: string;
-  /** `YYYY-MM-DD` 或 RFC3339；伺服器把純日期讀成該日的起訖。 */
+  /** `YYYY-MM-DD` 或 RFC3339；服务器把纯日期读成该日的起讫。 */
   from?: string;
   to?: string;
-  /** 1-based。小於 1 由伺服器回 400 `invalid_argument`。 */
+  /** 1-based。小于 1 由服务器回 400 `invalid_argument`。 */
   page?: number;
   limit?: number;
 };
@@ -276,7 +276,7 @@ export interface WebClient {
   adminMigrate(): Promise<void>;
 }
 
-const BASE = "/api/speclink/v1/web";
+const BASE = "/api/specseal/v1/web";
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const resp = await fetch(`${BASE}${path}`, {
@@ -291,7 +291,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   };
   if (!resp.ok) {
     const err = payload.error ?? {};
-    throw new WebApiError(resp.status, err.code ?? "error", err.message ?? "發生錯誤", err.fieldErrors);
+    throw new WebApiError(resp.status, err.code ?? "error", err.message ?? "发生错误", err.fieldErrors);
   }
   return payload.data as T;
 }
@@ -299,7 +299,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 /** The production client — every method is a typed call over the same-origin API. */
 export function createHttpClient(): WebClient {
   const q = (token: string) => `?token=${encodeURIComponent(token)}`;
-  // 只把有值的參數送出：空字串代表「未篩選」，不該變成 `?q=` 這種空條件。
+  // 只把有值的参数送出：空字符串代表「未筛选」，不该变成 `?q=` 这种空条件。
   const qs = (params?: Record<string, string | number | undefined>) => {
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries(params ?? {})) {

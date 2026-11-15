@@ -50,37 +50,37 @@ import { isImproveKind } from "./improveStyle";
 
 export interface DiscussionDetailPageProps {
   discussion: DiscussionItem | null;
-  /** 刷新世代——遞增即重載討論記錄內容（未傳＝0，行為等同僅開啟時載入）。 */
+  /** 刷新世代——递增即重载讨论记录内容（未传＝0，行为等同仅打开时加载）。 */
   refreshGen?: number;
-  /** 記錄全文與引擎解析的刀（slug 定址）。 */
+  /** 记录全文与引擎解析的刀（slug 寻址）。 */
   loadDocument: (slug: string) => Promise<DiscussionDocument | null>;
-  /** active change 清單（衍生變更現況派生）。 */
+  /** active change 清单（衍生变更现况派生）。 */
   changes: ChangeItem[];
-  /** 已封存 change 清單（衍生變更已封存態派生）。 */
+  /** 已封存 change 清单（衍生变更已封存态派生）。 */
   archivedChanges: ArchivedItem[];
-  /** 衍生變更籤與分頁的跳轉（開該變更的詳情頁）。 */
+  /** 衍生变更签与分页的跳转（开该变更的详情页）。 */
   onOpenChangeCard?: (name: string) => void;
-  /** 開已封存的變更（封存目錄名）：衍生列、分刀卡與背景的已封存變更籤；缺席時這些不可開。 */
+  /** 开已封存的变更（封存目录名）：衍生列、分刀卡与背景的已封存变更签；缺席时这些不可开。 */
   onOpenArchivedChange?: (datedName: string) => void;
-  /** 正式規格名（背景的名稱籤、記錄去向籤）。 */
+  /** 正式规格名（背景的名称签、记录去向签）。 */
   specNames?: string[];
-  /** 全部討論的 slug（背景的名稱籤與先前討論）。 */
+  /** 全部讨论的 slug（背景的名称签与先前讨论）。 */
   discussionSlugs?: string[];
-  /** 開規格詳情頁。 */
+  /** 开规格详情页。 */
   onOpenSpec?: (capability: string) => void;
-  /** 開討論詳情頁。 */
+  /** 开讨论详情页。 */
   onOpenDiscussion?: (slug: string) => void;
-  /** 封存動詞——與討論卡同一確認流程（宿主接確認對話框）。未提供時不渲染（宿主以此表達
+  /** 封存动词——与讨论卡同一确认流程（宿主接确认对话框）。未提供时不渲染（宿主以此表达
    * 「已封存」或 capability 缺口）。 */
   onArchiveDiscussion?: (slug: string) => void;
-  /** 內容卡標頭右端的文件動作（design D4「開啟 ▾」）：各分頁皆為討論記錄檔，原文未載完為 null。 */
+  /** 内容卡标头右端的文档动作（design D4「打开 ▾」）：各分页皆为讨论记录档，原文未载完为 null。 */
   renderDocumentActions?: (target: DocumentTarget | null) => ReactNode;
-  /** 規格資料夾（資料來源帶出的相對路徑）：記錄路徑由它組成；缺席時用 speclink。 */
+  /** 规格文件夹（数据源带出的相对路径）：记录路径由它组成；缺席时用 specseal。 */
   specDir?: string;
 }
 
-/** 標題列狀態籤（design D7）：判準與看板討論卡一致——尚無結論的已轉出、保留中的已轉出
- * 同為警示色；其餘已轉出與已結論為主色；討論中為中性。 */
+/** 标题列状态签（design D7）：判准与看板讨论卡一致——尚无结论的已转出、保留中的已转出
+ * 同为警示色；其余已转出与已结论为主色；讨论中为中性。 */
 function statusPill(d: DiscussionItem): { labelKey: string; tone: StatusPillTone } {
   if (d.status === "promoted") {
     if (d.concluded === false) return { labelKey: "discussion.statusPromotedUnconcluded", tone: "warning" };
@@ -91,12 +91,12 @@ function statusPill(d: DiscussionItem): { labelKey: string; tone: StatusPillTone
   return { labelKey: "discussion.statusOpen", tone: "neutral" };
 }
 
-/** 討論詳情頁派生的步驟列站序；「已封存」站（序 3）只用在已封存討論頁。 */
+/** 讨论详情页派生的步骤列站序；「已封存」站（序 3）只用在已封存讨论页。 */
 const STATION = { open: 0, concluded: 1, promoted: 2 } as const;
 
-/** 狀態卡的階段步驟列（討論中 → 已結論 → 已轉出 → 已封存）：現站籤（色調與身分區狀態籤一致）、已過站打勾、
- * 未到站灰圈；尚無結論（`concluded` 為 false）時「已結論」站為未到站。討論詳情頁與已封存討論頁共用（後者
- * 現站恆為「已封存」、不傳色調與結論）。 */
+/** 状态卡的阶段步骤列（讨论中 → 已结论 → 已转出 → 已封存）：现站签（色调与身分区状态签一致）、已过站打勾、
+ * 未到站灰圈；尚无结论（`concluded` 为 false）时「已结论」站为未到站。讨论详情页与已封存讨论页共用（后者
+ * 现站恒为「已封存」、不传色调与结论）。 */
 export function DiscussionStageRow({
   current,
   tone = "primary",
@@ -139,27 +139,27 @@ export function DiscussionStageRow({
   );
 }
 
-/** 預設分頁＝讀者第一想看的：結論非空（去除鷹架註解後有內容）開結論，否則背景。 */
+/** 缺省分页＝读者第一想看的：结论非空（去除鹰架注解后有内容）开结论，否则背景。 */
 function defaultDiscussionTab(sections: DiscussionSections | null): "conclusion" | "context" {
   const hasConclusion = !!sections && sections.conclusion.replace(/<!--[\s\S]*?-->/g, "").trim().length > 0;
   return hasConclusion ? "conclusion" : "context";
 }
 
-/** 受控文件的實際值：所選文件不在目前的節點組（記錄切分前後不同）時退回預設——切分成功取
- * `defaultDiscussionTab`，失敗取「記錄」。討論詳情頁與已封存討論頁共用。 */
+/** 受控文档的实际值：所选文档不在目前的节点组（记录切分前后不同）时退回缺省——切分成功取
+ * `defaultDiscussionTab`，失败取「记录」。讨论详情页与已封存讨论页共用。 */
 export function discussionDoc(picked: string | null, sections: DiscussionSections | null): DiscussionTab {
   const docs: DiscussionTab[] = sections ? ["conclusion", "rounds", "context", "promote"] : ["record", "promote"];
   return docs.find((d) => d === picked) ?? (sections ? defaultDiscussionTab(sections) : "record");
 }
 
-/** 衍生變更（列與籤共用）：變更名、狀態標示；`onOpen` 缺席＝不可開啟。 */
+/** 衍生变更（列与签共用）：变更名、状态标示；`onOpen` 缺席＝不可打开。 */
 interface PromotedChangeProps {
   name: string;
   badge: ReactNode;
   onOpen?: () => void;
 }
 
-/** 狀態卡「衍生變更」列的一顆籤：變更名鈕（不可開啟時停用）＋狀態標示。討論詳情頁與已封存討論頁共用。 */
+/** 状态卡「衍生变更」列的一颗签：变更名钮（不可打开时停用）＋状态标示。讨论详情页与已封存讨论页共用。 */
 export function PromotedChangeChip({ name, badge, onOpen }: PromotedChangeProps) {
   return (
     <span data-promoted-chip={name} className="inline-flex items-center gap-1">
@@ -178,7 +178,7 @@ export function PromotedChangeChip({ name, badge, onOpen }: PromotedChangeProps)
   );
 }
 
-/** 背景的已封存變更籤以變更名開啟：換成封存目錄名再交給宿主。 */
+/** 背景的已封存变更签以变更名打开：换成封存目录名再交给宿主。 */
 export function openArchivedByName(archived: ArchivedItem[], open: (datedName: string) => void) {
   return (name: string) => {
     const hit = archived.find((a) => a.name === name);
@@ -187,9 +187,9 @@ export function openArchivedByName(archived: ArchivedItem[], open: (datedName: s
 }
 
 /**
- * 討論記錄四份文件的閱讀卡內文（desktop-discussion-doc-views design D7）：記錄切分成功時結論、討論過程、背景
- * 各自的渲染器，失敗時「記錄」整篇 Markdown（載入中畫骨架）；衍生變更一律 PromotedDoc。討論詳情頁與已封存
- * 討論頁共用。
+ * 讨论记录四份文档的阅读卡内文（desktop-discussion-doc-views design D7）：记录切分成功时结论、讨论过程、背景
+ * 各自的渲染器，失败时「记录」整篇 Markdown（加载中画骨架）；衍生变更一律 PromotedDoc。讨论详情页与已封存
+ * 讨论页共用。
  */
 export function DiscussionDocs({
   doc,
@@ -201,10 +201,10 @@ export function DiscussionDocs({
 }: {
   doc: DiscussionDocument | null | undefined;
   data: DiscussionDocData;
-  /** 背景文件的身分與開啟回呼；推導、建立日與記錄路徑取自 `data`。 */
+  /** 背景文档的身分与打开回呼；推导、创建日与记录路径取自 `data`。 */
   context: Omit<ContextDocProps, "model" | "empty" | "created" | "recordPath">;
   empty: { conclusion: string; rounds: string; context: string };
-  /** 結論刀卡的「前往」請求（只有討論詳情頁有）。 */
+  /** 结论刀卡的「前往」请求（只有讨论详情页有）。 */
   jump?: ConclusionDocProps["jump"];
   onJumped?: () => void;
 }) {
@@ -227,7 +227,7 @@ export function DiscussionDocs({
             />
           </TabsContent>
           <TabsContent value="rounds">
-            {/* 換討論時展開狀態歸零。 */}
+            {/* 换讨论时展开状态归零。 */}
             <RoundsDoc key={model.names.self} text={sections.rounds} empty={empty.rounds} />
           </TabsContent>
           <TabsContent value="context">
@@ -241,7 +241,7 @@ export function DiscussionDocs({
           </TabsContent>
         </>
       ) : (
-        // 區段缺失或格式非預期：整篇以單一檢視退回（不報錯）；載入中畫骨架、空態文案只在載入完成後出。
+        // 区段缺失或格式非预期：整篇以单一查看退回（不报错）；加载中画骨架、空态文案只在加载完成后出。
         <TabsContent value="record">
           {doc === undefined ? <DocSkeleton /> : <Markdown content={doc?.content ?? null} empty={t("common.noContent")} />}
         </TabsContent>
@@ -254,11 +254,11 @@ export function DiscussionDocs({
 }
 
 /**
- * 討論詳情頁（design D5；spec「詳情頁的文件樹、閱讀卡與本頁目錄」）：左欄身分區（slug＋複製＋
- * 狀態籤＋改進籤、topic、出身、「關聯」列）、「文件」節點 結論／討論過程 N／背景／衍生變更 N
- * （結論非空時預設開結論）、「狀態」列（階段步驟列、保留在途、衍生變更籤）；封存動作經
- * `DetailActions` 進標題列。衍生變更唯讀——無轉出動作（promote 已自 GUI 撤除，轉出改由
- * CLI／agent）。記錄格式非預期時整篇單一檢視退回（節點為 記錄／衍生變更）。
+ * 讨论详情页（design D5；spec「详情页的文档树、阅读卡与本页目录」）：左栏身分区（slug＋拷贝＋
+ * 状态签＋改进签、topic、出身、「关联」列）、「文档」节点 结论／讨论过程 N／背景／衍生变更 N
+ * （结论非空时缺省开结论）、「状态」列（阶段步骤列、保留在途、衍生变更签）；封存动作经
+ * `DetailActions` 进标题列。衍生变更唯读——无转出动作（promote 已自 GUI 撤除，转出改由
+ * CLI／agent）。记录格式非预期时整篇单一查看退回（节点为 记录／衍生变更）。
  */
 export function DiscussionDetailPage({
   discussion,
@@ -278,14 +278,14 @@ export function DiscussionDetailPage({
 }: DiscussionDetailPageProps) {
   const { t, tn } = useI18n();
   const [doc, setDoc] = useState<DiscussionDocument | null | undefined>();
-  // 使用者選的文件；null＝依預設規則（記錄載入前後、結論有無都跟著走）。
+  // 用户选的文档；null＝依缺省规则（记录加载前后、结论有无都跟着走）。
   const [picked, setPicked] = useState<string | null>(null);
-  // 未轉出提示框「前往」的捲動請求（seq 遞增，同一刀可重複跳）；結論文件處理完即清除。
+  // 未转出提示框「前往」的卷动请求（seq 递增，同一刀可重复跳）；结论文档处理完即清除。
   const [cutJump, setCutJump] = useState<ConclusionDocProps["jump"]>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const slug = discussion?.slug ?? null;
   const gen = refreshGen ?? 0;
-  // latest-wins：回應帶發起序號，落後即丟棄（涵蓋世代與換討論的交錯）。
+  // latest-wins：回应带发起序号，落后即丢弃（涵盖世代与换讨论的交错）。
   const requestSeq = useRef(0);
   const loadedGen = useRef(-1);
 
@@ -297,14 +297,14 @@ export function DiscussionDetailPage({
       .then((v) => {
         if (requestSeq.current === seq) setDoc(v);
       })
-      // 失敗收斂：還沒有東西可顯示才落終態空文案（undefined 停著＝永久骨架）；
-      // 已有內容維持前值——重載的短暫失敗不得抹成假空態。
+      // 失败收敛：还没有东西可显示才落终态空文案（undefined 停着＝永久骨架）；
+      // 已有内容维持前值——重载的短暂失败不得抹成假空态。
       .catch(() => {
         if (requestSeq.current === seq) setDoc((prev) => (prev === undefined ? null : prev));
       });
   };
 
-  // 開啟／換討論：清空後載入，文件回到預設。
+  // 打开／换讨论：清空后加载，文档回到缺省。
   useEffect(() => {
     if (!slug) return;
     setPicked(null);
@@ -312,7 +312,7 @@ export function DiscussionDetailPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
-  // 外部世代重載（add-round／conclude／轉出後）：不清空、回應到達後就地替換，分頁選擇不重置。
+  // 外部世代重载（add-round／conclude／转出后）：不清空、回应到达后就地替换，分页选择不重置。
   useEffect(() => {
     if (!slug) return;
     if (gen <= loadedGen.current) return;
@@ -322,7 +322,7 @@ export function DiscussionDetailPage({
 
   if (!discussion) return null;
 
-  // 衍生列與背景的已封存變更籤都以變更名開啟：換成封存目錄名再交給宿主。
+  // 衍生列与背景的已封存变更签都以变更名打开：换成封存目录名再交给宿主。
   const openArchivedName = onOpenArchivedChange && openArchivedByName(archivedChanges, onOpenArchivedChange);
   const rows = promotedRows(discussion.promotedTo, changes, archivedChanges, t, onOpenChangeCard, openArchivedName);
   const recordPath = `${specDir}/discussions/${discussion.slug}.md`;
@@ -347,7 +347,7 @@ export function DiscussionDetailPage({
     if (archivedChanges.some((a) => a.name === name)) return { label, tone: "neutral", alive: false };
     return { label, tone: "destructive", alive: false };
   };
-  // 衍生列與衍生籤共用：階段籤，與只有作用中的子變更可開啟。
+  // 衍生列与衍生签共用：阶段签，与只有作用中的子变更可打开。
   const stageBadge = (name: string) => {
     const stage = childStage(name);
     return (
@@ -358,7 +358,7 @@ export function DiscussionDetailPage({
   };
   const openChild = (name: string) => (childStage(name).alive ? () => onOpenChangeCard?.(name) : undefined);
 
-  // 階段步驟列：現站由 status 派生；「已封存」站留給已封存討論頁。
+  // 阶段步骤列：现站由 status 派生；「已封存」站留给已封存讨论页。
   const stationIndex =
     discussion.status === "promoted"
       ? STATION.promoted
@@ -366,7 +366,7 @@ export function DiscussionDetailPage({
         ? STATION.concluded
         : STATION.open;
 
-  // 封存動詞：concluded 才可及；保留在途（hold）時停用並說明最後一刀轉出後自動封存。
+  // 封存动词：concluded 才可及；保留在途（hold）时停用并说明最后一刀转出后自动封存。
   const archiveAction =
     onArchiveDiscussion && (discussion.status === "concluded" || hold) ? (
       hold ? (
@@ -388,7 +388,7 @@ export function DiscussionDetailPage({
     ) : undefined;
 
   const promoteCount = discussion.promotedTo.length;
-  // 受控文件：關聯列要能切到背景。
+  // 受控文档：关联列要能切到背景。
   const tab = discussionDoc(picked, sections);
   const summary = discussionDocSummary(tab, data, { t, tn });
   const prior = sections ? countPriorDiscussions(sections.context) : null;
@@ -420,8 +420,8 @@ export function DiscussionDetailPage({
 
   const tree = (
     <>
-      {/* slug（檔名）為題＋複製鈕——與變更詳情頁「名稱＋複製鈕」對稱（LANGUAGE.md 受控例外）；
-          topic 為其下最多三行。 */}
+      {/* slug（文件名）为题＋拷贝钮——与变更详情页「名称＋拷贝钮」对称（LANGUAGE.md 受控例外）；
+          topic 为其下最多三行。 */}
       <DetailIdentity
         title={discussion.slug}
         copyLabel={t("discussion.copySlug")}
@@ -430,7 +430,7 @@ export function DiscussionDetailPage({
             <StatusPill data-discussion-status tone={pill.tone}>
               {t(pill.labelKey)}
             </StatusPill>
-            {/* 改進標示（spec「討論詳情頁的改進標示」）：與卡片小章同一詞條。 */}
+            {/* 改进标示（spec「讨论详情页的改进标示」）：与卡片小章同一词条。 */}
             {isImproveKind(discussion.kind) && <ImproveChip />}
           </>
         }
@@ -470,7 +470,7 @@ export function DiscussionDetailPage({
 
       <DetailTreeLabel>{t("detail.status")}</DetailTreeLabel>
       <DetailStatus>
-        {/* 只映射 warning：open 討論的狀態籤是 neutral，現站維持主色。 */}
+        {/* 只映射 warning：open 讨论的状态签是 neutral，现站维持主色。 */}
         <DiscussionStageRow
           current={stationIndex}
           tone={pill.tone === "warning" ? "warning" : "primary"}

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
-/** 欄的色相組（圖示、色相條、圖示色、計數徽章色），全部取 stage.ts 的 stage-* token。 */
+/** 栏的色相组（图标、色相条、图标色、计数徽章色），全部取 stage.ts 的 stage-* token。 */
 export interface ColumnTone {
   icon: LucideIcon;
   bar: string;
@@ -10,12 +10,12 @@ export interface ColumnTone {
 }
 
 /**
- * 看板欄的容器卡（desktop-board-reskin design D1）：白底細框 16px 圓角，頂端 3px 色相條、
- * 白底標頭（色相圖示、欄名、計數）下細線、卡片區鋪側欄淡灰並於欄內縱向捲動——與設定頁、
- * 系統匣面板同一套容器規則。階段欄與討論欄共用，欄外觀只在這裡定義。
+ * 看板栏的容器卡（desktop-board-reskin design D1）：白底细框 16px 圆角，顶端 3px 色相条、
+ * 白底标头（色相图标、栏名、计数）下细线、卡片区铺侧栏淡灰并于栏内纵向卷动——与设置页、
+ * 系统匣面板同一套容器规则。阶段栏与讨论栏共用，栏外观只在这里定义。
  *
- * 欄容器不作 droppable：跨欄放開為彈回＋零寫入（spec「跨欄拖曳不改變變更階段」），
- * isOver 高亮會假示可跨欄放置；唯一的欄外落點是封存浮層。
+ * 栏容器不作 droppable：跨栏放开为弹回＋零写入（spec「跨栏拖曳不改变变更阶段」），
+ * isOver 高亮会假示可跨栏放置；唯一的栏外落点是封存浮层。
  */
 export function BoardColumn({
   id,
@@ -26,15 +26,15 @@ export function BoardColumn({
   footer,
   children,
 }: {
-  /** data-column 值：階段名或 "discussions"。 */
+  /** data-column 值：阶段名或 "discussions"。 */
   id: string;
   title: string;
   tone: ColumnTone;
-  /** 計數徽章；null＝計數未知（首訪載入中或失敗），顯示 0 會謊報空，徽章整個不出。 */
+  /** 计数徽章；null＝计数未知（首访加载中或失败），显示 0 会谎报空，徽章整个不出。 */
   count: number | null;
-  /** 卡片區頂端的置中灰字空文案；null＝不顯示。 */
+  /** 卡片区顶端的置中灰字空文案；null＝不显示。 */
   empty: string | null;
-  /** 欄底固定區（討論欄的已轉出展開區與收合列），不隨卡片區捲動。 */
+  /** 栏底固定区（讨论栏的已转出展开区与收合列），不随卡片区卷动。 */
   footer?: ReactNode;
   children: ReactNode;
 }) {
@@ -58,7 +58,7 @@ export function BoardColumn({
           </span>
         )}
       </div>
-      {/* relative：卡片內的 absolute 元素以本捲動區為定位容器、受它裁切，不跳出去撐高外層。 */}
+      {/* relative：卡片内的 absolute 元素以本卷动区为定位容器、受它裁切，不跳出去撑高外层。 */}
       <div className="relative flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 p-2">
         {empty !== null && <p className="px-2 py-6 text-center text-xs text-muted-foreground">{empty}</p>}
         {children}

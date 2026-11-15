@@ -1,7 +1,7 @@
-// remote workspace 開啟與恢復（remote-data-source design 決策 6；規格
-// 「handshake 成功後才建立 remote session」）：openRemoteWorkspace 成功開分頁
-// 設 active、失敗上拋不留分頁；重啟恢復（activateTab 無 session）重走
-// handshake、失敗轉分頁錯誤態不消失；remote refresh 依 capability 直接讀取
+// remote workspace 打开与恢复（remote-data-source design 决策 6；规格
+// 「handshake 成功后才创建 remote session」）：openRemoteWorkspace 成功开分页
+// 设 active、失败上抛不留分页；重启恢复（activateTab 无 session）重走
+// handshake、失败转分页错误态不消失；remote refresh 依 capability 直接读取
 // server truth（listArchived）。
 import { describe, it, expect, vi } from "vitest";
 
@@ -42,7 +42,7 @@ function fakeConnections(
     patLogin: vi.fn(),
     logout: vi.fn(),
     scopes: vi.fn(),
-    // 既有 marker 的預設：帶一個 built-in 選集，走自動 reconciliation 路徑。
+    // 既有 marker 的缺省：带一个 built-in 选集，走自动 reconciliation 路径。
     inspectCheckout: vi
       .fn()
       .mockImplementation(async (path: string) => ({ root: path, tools: ["claude"] })),
@@ -85,7 +85,7 @@ function storeWith(
 ) {
   return createAppStore({
     createSession: () => {
-      throw new Error("local 工廠不應被 remote 流程觸發");
+      throw new Error("local 工厂不应被 remote 流程触发");
     },
     workspace: options.workspace ?? fakeWorkspace(),
     connections: options.connections,
@@ -104,7 +104,7 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
-describe("openRemoteWorkspace（決策 6：handshake fail-closed）", () => {
+describe("openRemoteWorkspace（决策 6：handshake fail-closed）", () => {
   it("success opens a tab, activates it, and refreshes through the remote dataSource", async () => {
     const ds = fakeRemoteDs();
     const session = fakeRemoteSession(ds);
@@ -168,8 +168,8 @@ describe("remote_open structured failure normalization", () => {
   });
 });
 
-describe("local migration 分頁原地轉換", () => {
-  it("chooser 入口先建立 local 分頁，再開 MigrationDialog", async () => {
+describe("local migration 分页原地转换", () => {
+  it("chooser 入口先创建 local 分页，再开 MigrationDialog", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "project",
@@ -190,7 +190,7 @@ describe("local migration 分頁原地轉換", () => {
     ]);
   });
 
-  it("handshake 成功後以 checkout remote 分頁取代原 local 分頁", async () => {
+  it("handshake 成功后以 checkout remote 分页取代原 local 分页", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "project",
@@ -219,7 +219,7 @@ describe("local migration 分頁原地轉換", () => {
     expect(state.activeKey).toBe(KEY);
   });
 
-  it("handshake 失敗時保留原 local 分頁與 session", async () => {
+  it("handshake 失败时保留原 local 分页与 session", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "project",
@@ -248,7 +248,7 @@ describe("local migration 分頁原地轉換", () => {
 });
 
 describe("remote marker probe 分流", () => {
-  const markerUrl = "https://spec.example.test/api/speclink/v1/projects/demo";
+  const markerUrl = "https://spec.example.test/api/specseal/v1/projects/demo";
   const loggedIn: ConnectionView = {
     id: "c1",
     origin: "https://spec.example.test",
@@ -256,7 +256,7 @@ describe("remote marker probe 分流", () => {
     loggedIn: true,
   };
 
-  it("僅 remote marker、已登入且有工具選集：先 reconciliation 後 handshake", async () => {
+  it("仅 remote marker、已登录且有工具选集：先 reconciliation 后 handshake", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -286,7 +286,7 @@ describe("remote marker probe 分流", () => {
 
     await store.getState().openProjectAt("/work/backend");
 
-    // 先補齊既有選集的受管產物，成功後才 handshake。
+    // 先补齐既有选集的受管产物，成功后才 handshake。
     expect(bindCheckout).toHaveBeenCalledWith(
       "/work/backend",
       "https://spec.example.test",
@@ -300,7 +300,7 @@ describe("remote marker probe 分流", () => {
     expect(store.getState().workspaceChooser).toBeNull();
   });
 
-  it("僅 remote marker、已登入但缺工具選集：導向 chooser checkout 並預填 scope／path，不 handshake", async () => {
+  it("仅 remote marker、已登录但缺工具选集：导向 chooser checkout 并预填 scope／path，不 handshake", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -330,7 +330,7 @@ describe("remote marker probe 分流", () => {
     });
   });
 
-  it("僅 remote marker、已登入且有選集：reconciliation 失敗不建 tab／session且不 handshake", async () => {
+  it("仅 remote marker、已登录且有选集：reconciliation 失败不建 tab／session且不 handshake", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -338,7 +338,7 @@ describe("remote marker probe 分流", () => {
       repo: "backend",
       hasLocalOpenspec: false,
     });
-    const bindCheckout = vi.fn().mockRejectedValue(new Error("同步技能時檔案系統錯誤"));
+    const bindCheckout = vi.fn().mockRejectedValue(new Error("同步技能时文件系统错误"));
     const openRemote = vi.fn();
     const store = storeWith(openRemote, {
       workspace,
@@ -355,7 +355,7 @@ describe("remote marker probe 分流", () => {
     expect(store.getState().tabs).toHaveLength(0);
   });
 
-  it("無已登入 connection：不 handshake，改開 chooser 並預填 marker origin", async () => {
+  it("无已登录 connection：不 handshake，改开 chooser 并预填 marker origin", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -377,7 +377,7 @@ describe("remote marker probe 分流", () => {
     });
   });
 
-  it("marker 與 openspec 並存：停在強制選擇，繼續本機可用且不 handshake", async () => {
+  it("marker 与 openspec 并存：停在强制选择，继续本机可用且不 handshake", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -409,7 +409,7 @@ describe("remote marker probe 分流", () => {
     expect(openRemote).not.toHaveBeenCalled();
   });
 
-  it("以 server 為準：先 handshake、再備份本機且不 import，最後開 checkout remote 分頁", async () => {
+  it("以 server 为准：先 handshake、再备份本机且不 import，最后开 checkout remote 分页", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -433,7 +433,7 @@ describe("remote marker probe 分流", () => {
       adoptRemote: vi.fn().mockImplementation(async (root: string) => {
         order.push("backup");
         return {
-          backupPath: `${root}/speclink.migrated-2026-07-21`,
+          backupPath: `${root}/specseal.migrated-2026-07-21`,
           checkoutRoot: root,
         };
       }),
@@ -452,7 +452,7 @@ describe("remote marker probe 分流", () => {
 
     await store.getState().useServerFromConflict();
 
-    // 先同步（reconcile）受管產物，再備份本機，最後開啟——建 tab 前工具已收斂。
+    // 先同步（reconcile）受管产物，再备份本机，最后打开——建 tab 前工具已收敛。
     expect(order).toEqual(["reconcile", "handshake", "backup"]);
     expect(migration.migrate).not.toHaveBeenCalled();
     expect(migration.adoptRemote).toHaveBeenCalledWith("/work/coexists");
@@ -463,7 +463,7 @@ describe("remote marker probe 分流", () => {
     );
   });
 
-  it("遷移本機內容：關閉並存衝突並把同一路徑交給 MigrationDialog", async () => {
+  it("迁移本机内容：关闭并存冲突并把同一路径交给 MigrationDialog", async () => {
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
@@ -489,7 +489,7 @@ describe("remote marker probe 分流", () => {
   });
 });
 
-describe("remote refresh（規格「capability 驅動停用且不偽造缺口」）", () => {
+describe("remote refresh（规格「capability 驱动停用且不伪造缺口」）", () => {
   it("loads archived server truth when the read capability is on", async () => {
     const ds = fakeRemoteDs();
     const openRemote = vi.fn().mockResolvedValue(fakeRemoteSession(ds));
@@ -508,7 +508,7 @@ describe("remote refresh（規格「capability 驅動停用且不偽造缺口」
   });
 });
 
-describe("重啟恢復（規格「重啟後 remote 分頁恢復需重驗」）", () => {
+describe("重启恢复（规格「重启后 remote 分页恢复需重验」）", () => {
   it("activating a restored remote tab re-runs the handshake and adopts the session", async () => {
     const ds = fakeRemoteDs();
     const session = fakeRemoteSession(ds);
@@ -531,7 +531,7 @@ describe("重啟恢復（規格「重啟後 remote 分頁恢復需重驗」）",
     expect(store.getState().sessions[KEY]).toBe(session);
   });
 
-  it("重啟恢復會把持久化 checkoutRoot 帶回 handshake session", async () => {
+  it("重启恢复会把持久化 checkoutRoot 带回 handshake session", async () => {
     const openRemote = vi.fn().mockResolvedValue(fakeRemoteSession(fakeRemoteDs()));
     const store = storeWith(openRemote);
     store.setState({
@@ -557,7 +557,7 @@ describe("重啟恢復（規格「重啟後 remote 分頁恢復需重驗」）",
 
   it("a failed re-handshake keeps the remote tab selected as an error destination", async () => {
     const openRemote = vi.fn().mockRejectedValue({
-      message: "登入已失效——請重新登入",
+      message: "登录已失效——请重新登录",
       reason: "permission_denied",
       status: 401,
     });
@@ -575,7 +575,7 @@ describe("重啟恢復（規格「重啟後 remote 分頁恢復需重驗」）",
     await store.getState().activateTab(KEY);
 
     const st = store.getState();
-    expect(st.tabErrors[KEY]).toContain("重新登入");
+    expect(st.tabErrors[KEY]).toContain("重新登录");
     expect(st.tabs).toHaveLength(1);
     expect(st.activeKey).toBe(KEY);
     expect(st.sessions[KEY]).toBeUndefined();
@@ -741,8 +741,8 @@ describe("重啟恢復（規格「重啟後 remote 分頁恢復需重驗」）",
   });
 });
 
-describe("最近開啟清單的 remote 記入（spec 需求「最近開啟清單」；design D2 成功開啟即記入）", () => {
-  it("openRemoteWorkspace 成功後把 remote workspace 記入最前並寫入 localStorage", async () => {
+describe("最近打开清单的 remote 记入（spec 需求「最近打开清单」；design D2 成功打开即记入）", () => {
+  it("openRemoteWorkspace 成功后把 remote workspace 记入最前并写入 localStorage", async () => {
     localStorage.clear();
     const ds = fakeRemoteDs();
     const session = fakeRemoteSession(ds);
@@ -757,8 +757,8 @@ describe("最近開啟清單的 remote 記入（spec 需求「最近開啟清單
   });
 });
 
-describe("最近開啟清單的本機轉 remote（design D2：移除 local 條目、記入 remote）", () => {
-  it("replaceLocalWorkspaceWithRemote 後該 root 的 local 條目消失、remote 條目在最前", async () => {
+describe("最近打开清单的本机转 remote（design D2：移除 local 条目、记入 remote）", () => {
+  it("replaceLocalWorkspaceWithRemote 后该 root 的 local 条目消失、remote 条目在最前", async () => {
     localStorage.clear();
     const workspace = fakeWorkspace();
     vi.mocked(workspace.openProject).mockResolvedValue({
@@ -787,8 +787,8 @@ describe("最近開啟清單的本機轉 remote（design D2：移除 local 條�
   });
 });
 
-describe("最近開啟清單的其餘 remote 記入路徑（review／verify 第 1 輪 WARNING）", () => {
-  it("marker 分流把本機資料夾轉成 remote 分頁時同樣移除 local 條目", async () => {
+describe("最近打开清单的其余 remote 记入路径（review／verify 第 1 轮 WARNING）", () => {
+  it("marker 分流把本机文件夹转成 remote 分页时同样移除 local 条目", async () => {
     localStorage.clear();
     const workspace = fakeWorkspace();
     const session = fakeRemoteSession(fakeRemoteDs());
@@ -802,7 +802,7 @@ describe("最近開啟清單的其餘 remote 記入路徑（review／verify 第 
       openRemote: vi.fn().mockResolvedValue(session),
     });
 
-    // 先以本機開啟同一資料夾（記入 local 條目）。
+    // 先以本机打开同一文件夹（记入 local 条目）。
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "project",
       root: "/work/repo",
@@ -813,10 +813,10 @@ describe("最近開啟清單的其餘 remote 記入路徑（review／verify 第 
       "local:/work/repo",
     ]);
 
-    // 該資料夾之後長出 remote marker，再次開啟走 marker 分流。
+    // 该文件夹之后长出 remote marker，再次打开走 marker 分流。
     vi.mocked(workspace.openProject).mockResolvedValue({
       status: "remoteBinding",
-      url: "https://spec.example.test/api/speclink/v1/projects/demo",
+      url: "https://spec.example.test/api/specseal/v1/projects/demo",
       repo: "backend",
       hasLocalOpenspec: false,
     });
@@ -826,11 +826,11 @@ describe("最近開啟清單的其餘 remote 記入路徑（review／verify 第 
     expect(readPersistedRecents()?.map((r) => locatorKey(r.locator))).toEqual([KEY]);
   });
 
-  it("remote 分頁重連成功後把該 workspace 記入清單最前", async () => {
+  it("remote 分页重连成功后把该 workspace 记入清单最前", async () => {
     localStorage.clear();
     const session = fakeRemoteSession(fakeRemoteDs());
     const store = storeWith(vi.fn().mockResolvedValue(session));
-    // 先開一個本機分頁佔住清單最前，再放一個尚無 session 的 remote 分頁。
+    // 先开一个本机分页占住清单最前，再放一个尚无 session 的 remote 分页。
     store.setState({
       tabs: [{ locator: session.locator, name: session.descriptor.name }],
       recents: [{ locator: { kind: "local", root: "/other" }, name: "other" }],
@@ -848,7 +848,7 @@ describe("最近開啟清單的其餘 remote 記入路徑（review／verify 第 
     ]);
   });
 
-  it("點既有 session 的 remote 分頁把它移到清單最前", async () => {
+  it("点既有 session 的 remote 分页把它移到清单最前", async () => {
     localStorage.clear();
     const session = fakeRemoteSession(fakeRemoteDs());
     const store = storeWith(vi.fn().mockResolvedValue(session));

@@ -4,11 +4,11 @@ import { z } from "zod";
 //
 // 原则：
 // - 只暴露白名单动词；每个工具的 argv 由 buildArgs 从已校验的参数拼出，
-//   runSpeclink 用 spawn(不走 shell)，命令注入没有入口。
+//   runSpecseal 用 spawn(不走 shell)，命令注入没有入口。
 // - --json 只标在实测支持结构化输出的动词上（validate/plan/list/show/verify scope/
 //   verify show）；status/trace/drift 的输出保持引擎原文。
 
-export const BIN = "speclink";
+export const BIN = "specseal";
 
 /** 变更名合法性：kebab-case/字母数字 + 点、下划线；拒绝路径段、空白、引号 */
 export function isValidChangeName(name) {
@@ -17,14 +17,14 @@ export function isValidChangeName(name) {
 
 export const WORKFLOW_GUIDE = `Specseal 规格驱动开发（SDD）工作流指南
 
-目录：speclink/ 下 specs/<capability>/spec.md 是现行规格，changes/<name>/ 是每个变更的
+目录：specseal/ 下 specs/<capability>/spec.md 是现行规格，changes/<name>/ 是每个变更的
 proposal、规格 delta 与 tasks.md（复选框任务），changes/archive/ 是封存历史。
 
 环路：propose → apply ⇄ ingest → review? ∥ verify? → archive
 （带 ? 的站点可选，按风险裁剪；低风险变更可两站都跳过）
 
 你（agent）在各阶段的职责：
-1. propose：先写 changes/<name>/ 下的 proposal.md（为什么/问题/摘要）、规格 delta
+1. propose：先写 changes/<name>/ 下的 proposal.md（为什幺/问题/摘要）、规格 delta
    （## ADDED/MODIFIED/REMOVED Requirements + WHEN/THEN 场景）和 tasks.md
    （- [ ] 1.1 短标题），然后用 specseal_register_change 登记，再跑 specseal_validate，
    把错误修完再交给人审。
@@ -95,7 +95,7 @@ export const TOOL_DEFS = [
   {
     name: "specseal_register_change",
     description:
-      "Register a new change AFTER you wrote its folder (proposal.md, spec delta, tasks.md with checkboxes) under speclink/changes/<name>/. Then run specseal_validate.",
+      "Register a new change AFTER you wrote its folder (proposal.md, spec delta, tasks.md with checkboxes) under specseal/changes/<name>/. Then run specseal_validate.",
     inputSchema: {
       name: z.string().describe("Change name (kebab-case), e.g. mcp-server"),
       description: z.string().optional().describe("One-line description of the change"),

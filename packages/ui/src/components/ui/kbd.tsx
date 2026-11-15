@@ -7,15 +7,15 @@ const kbdVariants = cva("font-mono text-[11px] tracking-wide", {
   variants: {
     variant: {
       default: "text-muted-foreground",
-      /** 跟隨所在元素的字色：放在按鈕內（如「儲存 ⌘S」）。 */
+      /** 跟随所在元素的字色：放在按钮内（如「保存 ⌘S」）。 */
       inherit: "opacity-80",
     },
   },
   defaultVariants: { variant: "default" },
 });
 
-/** 鍵盤快捷鍵（design D5）：等寬 11px；預設灰字，給選單項右端的快捷鍵槽用；`inherit` 跟隨
- *  所在元素的字色，給按鈕內的快捷鍵提示用。 */
+/** 键盘快捷键（design D5）：等宽 11px；缺省灰字，给菜单项右端的快捷键槽用；`inherit` 跟随
+ *  所在元素的字色，给按钮内的快捷键提示用。 */
 function Kbd({
   className,
   variant,
@@ -24,7 +24,7 @@ function Kbd({
   return <kbd className={cn(kbdVariants({ variant }), className)} {...props} />;
 }
 
-/** 選單項右端的快捷鍵槽（下拉選單與右鍵選單共用）。 */
+/** 菜单项右端的快捷键槽（下拉列表与右键菜单共用）。 */
 function MenuShortcut({ className, ...props }: React.ComponentProps<"kbd">) {
   return <Kbd className={cn("ml-auto", className)} {...props} />;
 }

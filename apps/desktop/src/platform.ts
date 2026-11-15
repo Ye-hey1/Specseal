@@ -1,6 +1,6 @@
 export type Platform = "macos" | "windows" | "linux";
 
-/** 平台偵測（design D1）：以 UA 判定——無 os plugin，前端自足且可測；非瀏覽器環境回 linux。 */
+/** 平台侦测（design D1）：以 UA 判定——无 os plugin，前端自足且可测；非浏览器环境回 linux。 */
 export function detectPlatform(ua?: string): Platform {
   const source =
     ua ??
@@ -12,5 +12,5 @@ export function detectPlatform(ua?: string): Platform {
   return "linux";
 }
 
-/** 快捷鍵標籤的修飾鍵：macOS 為 ⌘，其餘為 Ctrl+（選單與按鈕的快捷鍵提示共用）。 */
+/** 快捷键标签的修饰键：macOS 为 ⌘，其余为 Ctrl+（菜单与按钮的快捷键提示共用）。 */
 export const modKey = (platform: Platform) => (platform === "macos" ? "⌘" : "Ctrl+");

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 import { useClient, useSession } from "../app/context";
 import { useAsync } from "../lib/useAsync";
 import { readFormError } from "../lib/formError";
@@ -8,16 +8,16 @@ import { Field } from "../components/Field";
 import { FocusFooter, FocusHeader, FocusNotice } from "../layouts/FocusLayout";
 import type { SetupState } from "../api/client";
 
-// 開箱流程（server-setup「setup 流程完成開箱四要素」, D2／D3／D8 第三階段）。token 由
-// URL query 帶入；兩個提交節點分別建立第一位 Admin 與第一組 Project／Repo，最後節點
-// 完成後 Server 已建立 session 並回 `/admin?welcome=1`，SPA 站內導向。
+// 开箱流程（server-setup「setup 流程完成开箱四要素」, D2／D3／D8 第三阶段）。token 由
+// URL query 带入；两个提交节点分别创建第一位 Admin 与第一组 Project／Repo，最后节点
+// 完成后 Server 已创建 session 并回 `/admin?welcome=1`，SPA 站内导向。
 export function SetupPage() {
   const { t } = useI18n();
   const client = useClient();
   const [params] = useSearchParams();
   const token = params.get("token") ?? "";
   const { loading, data } = useAsync(() => client.getSetupState(token), [token]);
-  // 建立管理員後前進至 registry 步驟：後續狀態覆蓋初載狀態。
+  // 创建管理员后前进至 registry 步骤：后续状态覆盖初载状态。
   const [advanced, setAdvanced] = useState<SetupState | null>(null);
 
   const state = advanced ?? data;
@@ -30,7 +30,7 @@ export function SetupPage() {
         </p>
       );
     }
-    // 無效／過期／已耗用 token：不可區分的固定訊息，不回顯內部原因。
+    // 无效／过期／已耗用 token：不可区分的固定消息，不回显内部原因。
     return <FocusNotice title={t("setup.invalidTitle")} body={t("setup.invalidBody")} />;
   }
 
@@ -41,7 +41,7 @@ export function SetupPage() {
   );
 }
 
-// 節點一：建立第一位管理員（active 且帶 admin 旗標）。成功前進至 registry 步驟。
+// 节点一：创建第一位管理员（active 且带 admin 旗标）。成功前进至 registry 步骤。
 function AdminStep({
   token,
   onAdvance,
@@ -115,8 +115,8 @@ function AdminStep({
   );
 }
 
-// 節點二：建立第一組 Project／Repo，完成 setup。成功後 Server 已建立 admin session，
-// SPA 導向回傳的 `/admin?welcome=1`。
+// 节点二：创建第一组 Project／Repo，完成 setup。成功后 Server 已创建 admin session，
+// SPA 导向回传的 `/admin?welcome=1`。
 function RegistryStep({ token }: { token: string }) {
   const { t } = useI18n();
   const client = useClient();

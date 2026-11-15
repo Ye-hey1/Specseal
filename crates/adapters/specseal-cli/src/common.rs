@@ -1,0 +1,235 @@
+//! Cross-family plumbing: the pieces two or more verb families share, plus
+//! the dispatch-level preamble main.rs runs before any family is entered
+//! (warn_leftover_remote_file, warn_spec_layout).
+//!
+//! Admission rule (design D3): a symbol lands here when two or more families
+//! use it, or when dispatch itself does. Single-family helpers stay private
+//! to their family file.
+
+use anyhow::Result;
+use specseal_core as core;
+use std::io::{IsTerminal, Read};
+
+use core::store::Store;
+use core::workspace::Workspace;
+
+/// Migration signal for the abolished connection file: exactly one fixed-prefix stderr
+/// line per invocation while `.specseal.remote.yaml` lingers in the project root. The
+/// file is never parsed and never affects the store mode — an unmigrated project runs
+/// in fs mode until the fields move. stdout and exit codes stay untouched.
+pub(crate) fn warn_leftover_remote_file() {
+    let Ok(Some(ws)) = Workspace::discover_cwd() else {
+        return;
+    };
+    if !ws.has_leftover_remote_file() {
+        return;
+    }
+    eprintln!(
+        "specseal: warning: .specseal.remote.yaml is no longer read and does not affect the store mode — move its url/repo into the `remote:` section of .specseal.yaml and delete the old file"
+    );
+}
+
+/// Layout signal for a project whose spec directory is not settled yet: one
+/// fixed-prefix stderr line per invocation (spec-dir-migration D3). An explicit
+/// `spec_dir`, the default layout and remote mode stay silent; `init` and
+/// `update` skip it because they act on the layout themselves. stdout and exit
+/// codes stay untouched.
+pub(crate) fn warn_spec_layout() {
+    use core::workspace::SpecLayout;
+    let Ok(Some(ws)) = Workspace::discover_cwd() else {
+        return;
+    };
+    let remote = core::config::AppConfig::load(&ws.app_config()).map(|c| c.remote.is_some());
+    if remote.unwrap_or(true) {
+        return;
+    }
+    let line = match ws.spec_layout() {
+        SpecLayout::Legacy => {
+            "this project keeps its specs in openspec/ — run `specseal update` to move them to specseal/"
+        }
+        SpecLayout::OpenSpec => {
+            "openspec/ is an OpenSpec project — run `specseal init` to import it into specseal/"
+        }
+        SpecLayout::Both => {
+            "openspec/ is not read because specseal/ exists — an older specseal may have created it; upgrade specseal, then move its contents into specseal/"
+        }
+        SpecLayout::Explicit | SpecLayout::Default => return,
+    };
+    eprintln!("specseal: warning: {line}");
+}
+
+/// Route a command through the engine runtime and convert the outcome into
+/// the payload type the caller binds — the engine owns the Command→outcome
+/// invariant, so a WrongOutcome is unreachable in practice and surfaces as a
+/// plain anyhow error. The typed CommandError converts into the anyhow error
+/// main() prints — `Error: {message}`, text frozen by the regression
+/// baseline. Events are not consumed by the CLI (yet).
+pub(crate) fn run<T>(
+    store: &dyn Store,
+    ws: Option<&core::workspace::Workspace>,
+    cmd: core::command::Command,
+) -> Result<T>
+where
+    T: TryFrom<core::command::CommandOutcome, Error = core::command::WrongOutcome>,
+{
+    // Host boundary: identity and the SPECSEAL_* env layer are resolved here
+    // and injected — the engine runtime only ever consumes the context.
+    let ctx = core::command::ExecutionContext {
+        actor: ws.and_then(|w| specseal_host::context::git_identity(&w.root)),
+        actor_id: None,
+        repo: Some(specseal_host::binding::local_default_binding().repo.as_str().to_string()),
+        env: specseal_host::policy::process_env_overrides(),
+        workspace: ws.cloned(),
+        user_config_dir: Some(specseal_host::context::global_config_dir()),
+    };
+    let (outcome, _events) = core::command::execute(store, &ctx, cmd).map_err(anyhow::Error::new)?;
+    Ok(T::try_from(outcome)?)
+}
+
+/// The engine command a shared verb converts to. The CLI routes every
+/// LocalOnly verb (drift, `instructions --skill`, …) before it reaches an fs
+/// arm; one that slips through is an error, not a panic.
+pub(crate) fn engine_command(
+    target: Result<specseal_verbs::CommandTarget, core::command::CommandError>,
+) -> Result<core::command::Command> {
+    match target? {
+        specseal_verbs::CommandTarget::Command(cmd) => Ok(cmd),
+        specseal_verbs::CommandTarget::LocalOnly { verb, .. } => {
+            anyhow::bail!("'{verb}' has no engine command — the CLI runs it before this point")
+        }
+    }
+}
+
+/// The branch the checkout at `root` is on. `None` on a detached HEAD and
+/// outside a git checkout: there is then no branch to report. Guarded on
+/// `.git` like `core::tasks::head_commit`: a project nested inside an ancestor
+/// repo must not report the ancestor's branch. The user did not type this
+/// value, so a name the engine would refuse (git allows some that the engine's
+/// shape rule or the change's metadata does not) is left out instead of
+/// failing the verb: `checked_branch` is the engine's whole test.
+pub(crate) fn git_branch(root: &std::path::Path) -> Option<String> {
+    if !root.join(".git").exists() {
+        return None;
+    }
+    core::util::git(root, &["branch", "--show-current"])
+        .filter(|branch| core::model::checked_branch(branch).is_ok())
+}
+
+/// The engine command of a verb that needs no caller data (no stdin, no
+/// worktree facts, no git facts).
+pub(crate) fn plain_command(verb: &impl specseal_verbs::ToCommand) -> Result<core::command::Command> {
+    engine_command(verb.to_command(specseal_verbs::VerbInputs::default()))
+}
+
+/// For read/analysis commands: when no change name is given and no changes exist, print the
+/// informational message and signal exit-0 (returns true = handled).
+pub(crate) fn info_if_no_changes(store: &dyn Store, name: Option<&str>) -> bool {
+    if name.is_none() && core::model::list_changes(store).is_empty() {
+        emit(specseal_verbs::render::no_active_changes());
+        true
+    } else {
+        false
+    }
+}
+
+pub(crate) fn read_stdin() -> String {
+    let mut buf = String::new();
+    let _ = std::io::stdin().read_to_string(&mut buf);
+    buf
+}
+
+/// Read stdin when a shared verb's policy says so; "piped" here means stdin is
+/// not an interactive terminal.
+pub(crate) fn stdin_for(policy: specseal_verbs::StdinPolicy) -> Option<String> {
+    policy.reads(!std::io::stdin().is_terminal()).then(read_stdin)
+}
+
+/// Read stdin for a content-taking verb. Reads when the caller passed `--stdin`
+/// OR stdin is piped/redirected (not an interactive terminal) — so a forgotten `--stdin`
+/// with piped content still lands instead of silently becoming empty. An interactive
+/// terminal with no pipe yields an empty string, which the core content guard rejects
+/// with a helpful message. `--stdin` is kept for back-compat but is no longer required.
+pub(crate) fn read_stdin_content(flag: bool) -> String {
+    stdin_for(specseal_verbs::StdinPolicy::FlagOrPiped { flagged: flag }).unwrap_or_default()
+}
+
+pub(crate) fn print_json<T: serde::Serialize>(v: &T) -> Result<()> {
+    println!("{}", serde_json::to_string_pretty(v)?);
+    Ok(())
+}
+
+/// The options the shared output functions take: `--json` as the verb parsed
+/// it, and the process's color switch.
+pub(crate) fn render_options(json: bool) -> specseal_verbs::render::RenderOptions {
+    specseal_verbs::render::RenderOptions { json, color: crate::color::paint().enabled }
+}
+
+/// Print a shared verb's output: its stdout text, then its stderr text.
+pub(crate) fn emit(rendered: specseal_verbs::render::Rendered) {
+    print!("{}", rendered.stdout);
+    eprint!("{}", rendered.stderr);
+}
+
+/// Discover the host workspace, or fail with the standard not-initialized error.
+/// A `.specseal.yaml` that exists but cannot parse is its own (fail-closed) error.
+pub(crate) fn require_workspace() -> Result<core::workspace::Workspace> {
+    core::workspace::Workspace::discover_cwd()?
+        .ok_or_else(|| anyhow::anyhow!("Not initialized. Run 'specseal init' to initialize."))
+}
+
+/// The CLI assembly point: discover the workspace and build the filesystem
+/// storage adapter for it. Core flows receive the store as `&dyn Store`.
+pub(crate) fn open_project() -> Result<(core::workspace::Workspace, specseal_fs::FsStore)> {
+    let ws = require_workspace()?;
+    let store = specseal_fs::FsStore::new(&ws.root, &ws.spec_dir_name);
+    Ok((ws, store))
+}
+
+/// The change → worktree facts of this checkout. Only a local MAIN checkout
+/// with the policy on yields any — everywhere else the map is empty and git is
+/// never spawned.
+pub(crate) fn worktree_facts(
+    ws: &Workspace,
+    fs_store: &specseal_fs::FsStore,
+) -> specseal_host::worktree::WorktreeFacts {
+    specseal_host::worktree::observed_facts(ws, fs_store, |key| std::env::var(key).ok())
+}
+
+/// The worktree observation surface of a batch read (`list`, `plan`): the
+/// facts plus the overlay store built from them. With no facts, callers read
+/// `fs_store` directly so the output is exactly what it was before the
+/// overlay existed.
+pub(crate) fn worktree_overlay<'a>(
+    ws: &Workspace,
+    fs_store: &'a specseal_fs::FsStore,
+) -> (
+    specseal_host::worktree::WorktreeFacts,
+    specseal_host::worktree::WorktreeOverlay<'a>,
+) {
+    let facts = worktree_facts(ws, fs_store);
+    let overlaid = specseal_host::worktree::WorktreeOverlay::new(
+        fs_store,
+        facts
+            .iter()
+            .map(|(name, e)| {
+                let store: Box<dyn Store> =
+                    Box::new(specseal_fs::FsStore::new(&e.path, &ws.spec_dir_name));
+                (name.clone(), store)
+            })
+            .collect(),
+    );
+    (facts, overlaid)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn a_local_only_verb_is_an_error_not_a_panic() {
+        let target = Ok(specseal_verbs::CommandTarget::LocalOnly {
+            verb: "drift",
+            reason: specseal_verbs::LocalOnlyReason::NeedsCheckout,
+        });
+        let err = super::engine_command(target).expect_err("LocalOnly has no engine command");
+        assert!(err.to_string().contains("drift"), "{err}");
+    }
+}

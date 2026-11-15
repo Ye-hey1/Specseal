@@ -1,19 +1,19 @@
-//! CredentialStore 與 connection registry 的契約測試（design 決策 2「credential
-//! 唯一落點 OS Keychain，Rust 側進出」、決策 4「connection registry 檔案形狀與
-//! 位置」；規格「connection registry 不含 secret 且跨重啟保留」）。
+//! CredentialStore 与 connection registry 的契约测试（design 决策 2「credential
+//! 唯一落点 OS Keychain，Rust 侧进出」、决策 4「connection registry 文件形状与
+//! 位置」；规格「connection registry 不含 secret 且跨重启保留」）。
 //!
-//! CI 無 headless Keychain 可用——trait 注入是唯一可測形狀：此處測 in-memory
-//! 實作的逐 origin＋種類語意；keyring 生產實作走同一 trait，於手動驗收
-//! （security find-generic-password）確認。registry 檔的序列化欄位全集在此
-//! 釘死：無任何 token 欄位是規格鐵律。
+//! CI 无 headless Keychain 可用——trait 注入是唯一可测形状：此处测 in-memory
+//! 实作的逐 origin＋种类语意；keyring 生产实作走同一 trait，于手动验收
+//! （security find-generic-password）确认。registry 档的串行化字段全集在此
+//! 钉死：无任何 token 字段是规格铁律。
 
-use speclink_desktop_lib::connections::{
+use specseal_desktop_lib::connections::{
     add_connection, read_registry, remove_connection, upsert_connection, write_registry,
     ConnectionEntry,
 };
-use speclink_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
+use specseal_remote::credentials::{CredentialKind, CredentialStore, MemoryCredentialStore};
 
-// --- CredentialStore：逐 origin＋種類（refresh/pat）語意 ---
+// --- CredentialStore：逐 origin＋种类（refresh/pat）语意 ---
 
 #[test]
 fn credentials_are_keyed_by_origin_and_kind() {
@@ -22,7 +22,7 @@ fn credentials_are_keyed_by_origin_and_kind() {
         .set("http://a.example:8080", CredentialKind::Refresh, "spk_rt_a")
         .expect("set");
 
-    // 同 origin 不同種類、不同 origin 同種類，互不可見。
+    // 同 origin 不同种类、不同 origin 同种类，互不可见。
     assert_eq!(
         store
             .get("http://a.example:8080", CredentialKind::Refresh)
@@ -59,7 +59,7 @@ fn set_overwrites_the_previous_secret_for_the_same_slot() {
             .expect("get")
             .as_deref(),
         Some("spk_rt_new"),
-        "rotation 回寫後最新 refresh credential 生效"
+        "rotation 回写后最新 refresh credential 生效"
     );
 }
 
@@ -78,13 +78,13 @@ fn delete_removes_the_slot_and_is_idempotent() {
             .expect("get"),
         None
     );
-    // 登出時 Keychain 已空不該是錯誤——刪除不存在的 entry 冪等成功。
+    // 注销时 Keychain 已空不该是错误——删除不存在的 entry 幂等成功。
     store
         .delete("http://a.example", CredentialKind::Pat)
         .expect("double delete is idempotent");
 }
 
-// --- registry：序列化欄位全集，無任何 token 欄位 ---
+// --- registry：串行化字段全集，无任何 token 字段 ---
 
 #[test]
 fn registry_round_trips_and_serializes_exactly_the_secret_free_field_set() {
@@ -107,10 +107,10 @@ fn registry_round_trips_and_serializes_exactly_the_secret_free_field_set() {
     ];
     write_registry(&path, &entries).expect("write");
     let back = read_registry(&path);
-    assert_eq!(back, entries, "registry 跨重啟保留（往返不變）");
+    assert_eq!(back, entries, "registry 跨重启保留（往返不变）");
 
-    // 欄位全集釘死：id、origin、name、lastActorDisplay——沒有其他欄位，
-    // 特別是沒有任何 token/credential 欄位。
+    // 字段全集钉死：id、origin、name、lastActorDisplay——没有其他字段，
+    // 特别是没有任何 token/credential 字段。
     let json: serde_json::Value = serde_json::to_value(&entries[0]).expect("serialize an entry");
     let keys: Vec<&str> = json
         .as_object()
@@ -121,10 +121,10 @@ fn registry_round_trips_and_serializes_exactly_the_secret_free_field_set() {
     assert_eq!(
         keys,
         ["id", "lastActorDisplay", "name", "origin"],
-        "欄位全集（依序排序後）：{json}"
+        "字段全集（依序排序后）：{json}"
     );
 
-    // 身分未知時該欄位整個省略，而不是落 null。
+    // 身分未知时该字段整个省略，而不是落 null。
     let bare: serde_json::Value = serde_json::to_value(&entries[1]).expect("serialize");
     let bare_keys: Vec<&str> = bare
         .as_object()
@@ -134,10 +134,10 @@ fn registry_round_trips_and_serializes_exactly_the_secret_free_field_set() {
         .collect();
     assert_eq!(bare_keys, ["id", "name", "origin"]);
 
-    // 檔案內容整體掃一遍：不含任何 secret 樣式字面。
+    // 文件内容整体扫一遍：不含任何 secret 样式字面。
     let raw = std::fs::read_to_string(&path).expect("read raw");
     for needle in ["token", "secret", "spk_rt_", "spk_at_", "spk_pat_"] {
-        assert!(!raw.contains(needle), "registry 檔不含 {needle}：{raw}");
+        assert!(!raw.contains(needle), "registry 档不含 {needle}：{raw}");
     }
 }
 
@@ -148,18 +148,18 @@ fn upserting_the_same_origin_updates_the_display_name_in_place() {
     assert_eq!(entries.len(), 1);
     assert_eq!(
         entries[0].origin, "http://localhost:8080",
-        "baseUrl 正規化為 origin（去尾斜線/路徑）"
+        "baseUrl 范式为 origin（去尾斜线/路径）"
     );
-    assert!(!entries[0].id.is_empty(), "條目有識別 id");
+    assert!(!entries[0].id.is_empty(), "条目有识别 id");
 
-    // 同 origin（即使寫法不同）重複新增＝更新顯示名，不長第二條，id 穩定。
+    // 同 origin（即使写法不同）重复添加＝更新显示名，不长第二条，id 稳定。
     let second = upsert_connection(&mut entries, "HTTP://localhost:8080/some/path?q=1", "改名")
         .expect("upsert");
-    assert_eq!(entries.len(), 1, "一 origin 一條目");
+    assert_eq!(entries.len(), 1, "一 origin 一条目");
     assert_eq!(entries[0].name, "改名");
-    assert_eq!(first, second, "更新顯示名不換 id");
+    assert_eq!(first, second, "更新显示名不换 id");
 
-    // 不同 origin 才新增第二條。
+    // 不同 origin 才添加第二条。
     upsert_connection(&mut entries, "http://other.example:9000", "另一台").expect("add other");
     assert_eq!(entries.len(), 2);
 }
@@ -167,15 +167,15 @@ fn upserting_the_same_origin_updates_the_display_name_in_place() {
 #[test]
 fn an_invalid_base_url_is_refused() {
     let mut entries = Vec::new();
-    upsert_connection(&mut entries, "not-a-url", "壞").expect_err("無 scheme 的輸入被拒");
+    upsert_connection(&mut entries, "not-a-url", "坏").expect_err("无 scheme 的输入被拒");
     assert!(entries.is_empty());
 }
 
 #[test]
 fn concurrent_adds_serialize_and_lose_no_entries() {
-    // async 化後 connection_add 不再由主執行緒天然序列化：無鎖的
-    // read→upsert→write 併行時會互相蓋寫。add_connection 的行程內鎖必須
-    // 讓每一筆都留下來。
+    // async 化后 connection_add 不再由主线程天然串行化：无锁的
+    // read→upsert→write 并行时会互相盖写。add_connection 的行程内锁必须
+    // 让每一笔都留下来。
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("connections.json");
     let handles: Vec<_> = (0..8)
@@ -193,7 +193,7 @@ fn concurrent_adds_serialize_and_lose_no_entries() {
     assert_eq!(
         read_registry(&path).len(),
         8,
-        "併行 add 一筆都不得丟失"
+        "并行 add 一笔都不得丢失"
     );
 }
 
@@ -206,9 +206,9 @@ fn remove_connection_deletes_the_entry_and_is_idempotent() {
 
     let removed = remove_connection(&path, &entry.id, &credentials).expect("remove");
     assert_eq!(removed.as_deref(), Some("http://gone.example:8080"));
-    assert!(read_registry(&path).is_empty(), "條目已刪");
+    assert!(read_registry(&path).is_empty(), "条目已删");
 
-    // 冪等：不存在的 id 是 no-op。
+    // 幂等：不存在的 id 是 no-op。
     let missing = remove_connection(&path, &entry.id, &credentials).expect("idempotent");
     assert_eq!(missing, None);
 }
@@ -218,7 +218,7 @@ fn a_corrupt_registry_file_reads_as_an_empty_list() {
     let dir = tempfile::tempdir().expect("tempdir");
     let path = dir.path().join("connections.json");
     std::fs::write(&path, "{{{ not json").expect("write corrupt bytes");
-    assert!(read_registry(&path).is_empty(), "壞 JSON 歸零清單、不崩潰");
-    // 檔案不存在同樣是空清單。
+    assert!(read_registry(&path).is_empty(), "坏 JSON 归零清单、不崩溃");
+    // 文件不存在同样是空清单。
     assert!(read_registry(&dir.path().join("missing.json")).is_empty());
 }

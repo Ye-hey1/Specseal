@@ -4,18 +4,18 @@
 
 ## <a id="audience"></a>Who this document is for
 
-Read this document if you write your own client, run your own server, or call Speclink over HTTP. If you only use the desktop app or the CLI, skip it. The [Complete SDD Workflow](workflow.md) covers daily use.
+Read this document if you write your own client, run your own server, or call Specseal over HTTP. If you only use the desktop app or the CLI, skip it. The [Complete SDD Workflow](workflow.md) covers daily use.
 
 This document answers three questions:
 
-- Which CLI verbs work in local mode and in remote mode, and how their output differs. Local mode keeps the documents in the repo's `speclink/` (or `openspec/`, for a project that an older version created). Remote mode keeps them on a server; `.speclink.yaml` then has a `remote:` section.
+- Which CLI verbs work in local mode and in remote mode, and how their output differs. Local mode keeps the documents in the repo's `specseal/` (or `openspec/`, for a project that an older version created). Remote mode keeps them on a server; `.specseal.yaml` then has a `remote:` section.
 - What the shared rules, error codes, and endpoints of the remote HTTP API are.
 - What the request and response bodies look like.
 
-The official `speclink-server` is a reference implementation. You can use this document to build your own server. If this document and the canonical specs disagree, the canonical specs win:
+The official `specseal-server` is a reference implementation. You can use this document to build your own server. If this document and the canonical specs disagree, the canonical specs win:
 
-- [Canonical verb-contract spec](../speclink/specs/verb-contract/spec.md)
-- [Canonical client-protocol spec](../speclink/specs/client-protocol/spec.md)
+- [Canonical verb-contract spec](../specseal/specs/verb-contract/spec.md)
+- [Canonical client-protocol spec](../specseal/specs/client-protocol/spec.md)
 
 To start a server and make an access key (PAT), see [Remote Getting Started](remote-getting-started.md).
 
@@ -32,8 +32,8 @@ All verbs work in both modes, except the "Local only" and "Remote only" rows bel
 
 Why some verbs are local only:
 
-- `demo` writes a demo change into the local `speclink/`.
-- `trace` builds the provenance chain from the archived changes and discussion files in the local `speclink/`.
+- `demo` writes a demo change into the local `specseal/`.
+- `trace` builds the provenance chain from the archived changes and discussion files in the local `specseal/`.
 - `change rank` writes the order of the local cards. In remote mode, the board order lives at `/board-order`.
 - `plan --strict-overlap` finds overlap by capability directory. The server finds overlap by requirement only.
 
@@ -67,21 +67,21 @@ The `--json` field set and its camelCase names are a frozen contract. Fields do 
 The API of each project lives under this URL:
 
 ```text
-https://<server>/api/speclink/v1/projects/<project-key>
+https://<server>/api/specseal/v1/projects/<project-key>
 ```
 
-All paths in the endpoint tables below follow this URL. The CLI keeps this URL in `remote.url` in `.speclink.yaml`. `speclink link <url>` writes it.
+All paths in the endpoint tables below follow this URL. The CLI keeps this URL in `remote.url` in `.specseal.yaml`. `specseal link <url>` writes it.
 
 ### Headers on every request
 
 | Header | Value | When it is missing or wrong |
 | --- | --- | --- |
 | `Authorization` | `Bearer <credential>` | 401 `permission_denied` |
-| `X-Speclink-Api-Version` | `1` | 409 `refused` (incompatible version) |
-| `X-Speclink-Repo` | The repo key | Optional when the project has one repo. With several repos, a missing header gives 409 `refused`. An unregistered repo gives 404 `not_found`. |
+| `X-Specseal-Api-Version` | `1` | 409 `refused` (incompatible version) |
+| `X-Specseal-Repo` | The repo key | Optional when the project has one repo. With several repos, a missing header gives 409 `refused`. An unregistered repo gives 404 `not_found`. |
 | `Content-Type` | `application/json` (when a body is sent) | 415 with a plain-text body |
 
-You can use two kinds of credential. One is an access key (PAT) that starts with `spk_pat_`; you make it on the account page of the server. The other is the device login credential from `speclink auth login`; it starts with `spk_at_`. A valid credential of a user who is not a project member gives 403.
+You can use two kinds of credential. One is an access key (PAT) that starts with `spk_pat_`; you make it on the account page of the server. The other is the device login credential from `specseal auth login`; it starts with `spk_at_`. A valid credential of a user who is not a project member gives 403.
 
 ### Roles
 
@@ -138,11 +138,11 @@ A stale version gives 409 `revision_conflict`, and the server writes nothing. Th
 
 Each change belongs to exactly one repo. Split a requirement that touches two repos into several changes.
 
-- When remote mode creates a change (`POST /changes`), the change belongs to the repo in `X-Speclink-Repo`. In a project with one repo, the server uses that repo. The `repo` field of the response shows the owner.
+- When remote mode creates a change (`POST /changes`), the change belongs to the repo in `X-Specseal-Repo`. In a project with one repo, the server uses that repo. The `repo` field of the response shows the owner.
 - The change list (`GET /changes`) shows only the changes of the request's repo. Changes of other repos do not appear.
 - If a requirement changes two repos (for example backend and frontend), make two changes. Make each one in its own repo. The contract has no change that spans repos.
 - Discussions, canonical specs, archives, the workflow config, and the board order are also stored per repo.
-- The CLI takes the repo name from `remote.repo` in `.speclink.yaml`. Set it with `speclink link <url> --repo <name>`.
+- The CLI takes the repo name from `remote.repo` in `.specseal.yaml`. Set it with `specseal link <url> --repo <name>`.
 
 ## <a id="errors"></a>Error envelope and error codes
 
@@ -188,30 +188,30 @@ All paths follow the [project URL](#request-rules). `{name}` is a change name, a
 
 | Method | Path | Minimum role | Purpose |
 | --- | --- | --- | --- |
-| GET | `/changes` | reader | List the changes of this repo (`speclink list`) |
-| POST | `/changes` | editor | Create a change (`speclink new change`) |
-| GET | `/changes/{name}` | reader | Status and metadata of one change (`speclink status`, `show`) |
-| DELETE | `/changes/{name}?force=<bool>` | editor | Discard a change (`speclink discard`) |
-| GET | `/changes/{name}/drift` | reader | Drift data from the spec side (`speclink drift`) |
-| GET | `/changes/{name}/validate` | reader | Validate one change (`speclink validate`) |
-| GET | `/changes/{name}/analyze` | reader | Cross-artifact analysis report (`speclink analyze`) |
-| GET | `/changes/{name}/instructions/{kind}` | reader | Artifact instructions. `{kind}` is `proposal`, `design`, `specs`, or `tasks`; `apply` gives the implementation progress (`speclink instructions`). |
-| GET | `/changes/{name}/artifacts/{artifact}` | reader | Read an artifact and its `version` (`speclink artifact cat`) |
+| GET | `/changes` | reader | List the changes of this repo (`specseal list`) |
+| POST | `/changes` | editor | Create a change (`specseal new change`) |
+| GET | `/changes/{name}` | reader | Status and metadata of one change (`specseal status`, `show`) |
+| DELETE | `/changes/{name}?force=<bool>` | editor | Discard a change (`specseal discard`) |
+| GET | `/changes/{name}/drift` | reader | Drift data from the spec side (`specseal drift`) |
+| GET | `/changes/{name}/validate` | reader | Validate one change (`specseal validate`) |
+| GET | `/changes/{name}/analyze` | reader | Cross-artifact analysis report (`specseal analyze`) |
+| GET | `/changes/{name}/instructions/{kind}` | reader | Artifact instructions. `{kind}` is `proposal`, `design`, `specs`, or `tasks`; `apply` gives the implementation progress (`specseal instructions`). |
+| GET | `/changes/{name}/artifacts/{artifact}` | reader | Read an artifact and its `version` (`specseal artifact cat`) |
 | PUT | `/changes/{name}/artifacts/{artifact}` | editor | Write an artifact. It needs `If-Match`. |
 | GET | `/changes/{name}/evidence` | reader | Completion evidence: the files that `task done` records for each task |
-| POST | `/changes/{name}/in-progress` | editor | Mark the change as started (`speclink in-progress add`) |
-| DELETE | `/changes/{name}/in-progress` | editor | Remove the start marker (`speclink in-progress remove`) |
-| POST | `/changes/{name}/claim` | editor | Claim the change (`speclink claim`) |
-| POST | `/changes/{name}/depends` | editor | Declare or remove prerequisite changes (`speclink change depends`) |
-| POST | `/changes/{name}/schema` | editor | Switch the schema of the change (`speclink change schema`) |
-| POST | `/changes/{name}/archive?carryReview=<bool>&carryVerify=<bool>` | editor | Archive (`speclink archive`) |
+| POST | `/changes/{name}/in-progress` | editor | Mark the change as started (`specseal in-progress add`) |
+| DELETE | `/changes/{name}/in-progress` | editor | Remove the start marker (`specseal in-progress remove`) |
+| POST | `/changes/{name}/claim` | editor | Claim the change (`specseal claim`) |
+| POST | `/changes/{name}/depends` | editor | Declare or remove prerequisite changes (`specseal change depends`) |
+| POST | `/changes/{name}/schema` | editor | Switch the schema of the change (`specseal change schema`) |
+| POST | `/changes/{name}/archive?carryReview=<bool>&carryVerify=<bool>` | editor | Archive (`specseal archive`) |
 
 ### Tasks
 
 | Method | Path | Minimum role | Purpose |
 | --- | --- | --- | --- |
-| POST | `/changes/{name}/tasks/{taskId}/done` | editor | Check a task (`speclink task done`). `{taskId}` is a task number or a stable ID that starts with `tsk_`. |
-| POST | `/changes/{name}/tasks/{taskId}/undone` | editor | Uncheck a task (`speclink task undone`) |
+| POST | `/changes/{name}/tasks/{taskId}/done` | editor | Check a task (`specseal task done`). `{taskId}` is a task number or a stable ID that starts with `tsk_`. |
+| POST | `/changes/{name}/tasks/{taskId}/undone` | editor | Uncheck a task (`specseal task undone`) |
 | POST | `/changes/{name}/tasks/move` | editor | Move a task and renumber the list (drag in the desktop app) |
 
 ### Quality gates
@@ -220,42 +220,42 @@ All paths follow the [project URL](#request-rules). `{name}` is a change name, a
 
 | Method | Path | Minimum role | Purpose |
 | --- | --- | --- | --- |
-| GET | `/changes/{name}/{station}` | reader | Read the ticket (`speclink review show`) |
-| POST | `/changes/{name}/{station}/rounds` | editor | Add a round (`speclink review add-round`) |
-| POST | `/changes/{name}/{station}/stamp` | editor | Stamp (`speclink review stamp`) |
-| DELETE | `/changes/{name}/{station}` | editor | Discard the ticket (`speclink review discard`) |
+| GET | `/changes/{name}/{station}` | reader | Read the ticket (`specseal review show`) |
+| POST | `/changes/{name}/{station}/rounds` | editor | Add a round (`specseal review add-round`) |
+| POST | `/changes/{name}/{station}/stamp` | editor | Stamp (`specseal review stamp`) |
+| DELETE | `/changes/{name}/{station}` | editor | Discard the ticket (`specseal review discard`) |
 
 ### Discussions
 
 | Method | Path | Minimum role | Purpose |
 | --- | --- | --- | --- |
 | GET | `/discussions?archived=<bool>` | reader | List discussions. `archived=true` lists the archived ones. |
-| POST | `/discussions` | editor | Create a discussion (`speclink discuss new`) |
-| GET | `/discussions/search?q=<keywords>` | reader | Search discussions. Separate keywords with spaces (`speclink discuss search`). |
-| GET | `/discussions/{slug}` | reader | Read one discussion and its full text (`speclink discuss show`) |
-| DELETE | `/discussions/{slug}?force=<bool>` | editor | Delete a discussion (`speclink discuss discard`) |
-| PUT | `/discussions/{slug}/context` | editor | Write the Context section (`speclink discuss context`) |
-| POST | `/discussions/{slug}/rounds` | editor | Add a round (`speclink discuss add-round`) |
-| POST | `/discussions/{slug}/conclude` | editor | Write the conclusion (`speclink discuss conclude`) |
-| POST | `/discussions/{slug}/archive` | editor | Archive the discussion (`speclink discuss archive`) |
-| POST | `/discussions/{slug}/promote` | editor | Turn the discussion into a change (`speclink discuss promote`) |
-| POST | `/discussions/{slug}/link` | editor | Link an existing change to the discussion (`speclink discuss link`) |
-| POST | `/discussions/{slug}/seal` | editor | Mark the discussion as promoted after its content lands (`speclink discuss seal`) |
+| POST | `/discussions` | editor | Create a discussion (`specseal discuss new`) |
+| GET | `/discussions/search?q=<keywords>` | reader | Search discussions. Separate keywords with spaces (`specseal discuss search`). |
+| GET | `/discussions/{slug}` | reader | Read one discussion and its full text (`specseal discuss show`) |
+| DELETE | `/discussions/{slug}?force=<bool>` | editor | Delete a discussion (`specseal discuss discard`) |
+| PUT | `/discussions/{slug}/context` | editor | Write the Context section (`specseal discuss context`) |
+| POST | `/discussions/{slug}/rounds` | editor | Add a round (`specseal discuss add-round`) |
+| POST | `/discussions/{slug}/conclude` | editor | Write the conclusion (`specseal discuss conclude`) |
+| POST | `/discussions/{slug}/archive` | editor | Archive the discussion (`specseal discuss archive`) |
+| POST | `/discussions/{slug}/promote` | editor | Turn the discussion into a change (`specseal discuss promote`) |
+| POST | `/discussions/{slug}/link` | editor | Link an existing change to the discussion (`specseal discuss link`) |
+| POST | `/discussions/{slug}/seal` | editor | Mark the discussion as promoted after its content lands (`specseal discuss seal`) |
 
 ### Project data
 
 | Method | Path | Minimum role | Purpose |
 | --- | --- | --- | --- |
-| GET | `/plan` | reader | Execution order of the changes (`speclink plan`) |
+| GET | `/plan` | reader | Execution order of the changes (`specseal plan`) |
 | GET | `/specs` | reader | List of canonical specs |
 | GET | `/specs/{capability}/document` | reader | Full text of one canonical spec |
 | GET | `/archived` | reader | List of archived changes |
 | GET | `/archived/{datedName}/artifacts/{path}` | reader | One document of an archived change. `{path}` is, for example, `proposal.md`. |
 | GET | `/archived/{datedName}/capabilities` | reader | Capability names that the archive changed |
 | GET | `/search?q=<text>` | reader | Full-text search of the desktop app (live changes and discussions only) |
-| GET | `/language` | reader | Shared vocabulary document (`speclink language show`) |
+| GET | `/language` | reader | Shared vocabulary document (`specseal language show`) |
 | GET | `/config` | reader | Workflow config text and revision |
-| PUT | `/config` | editor | Write the workflow config (`speclink workflow-config set`) |
+| PUT | `/config` | editor | Write the workflow config (`specseal workflow-config set`) |
 | GET | `/board-order` | reader | Board order |
 | PUT | `/board-order` | editor | Replace the full board order. It needs `If-Match`. |
 | POST | `/import` | editor | Move a complete local project to the server (the desktop app uses it). The target repo must be empty. |
@@ -269,9 +269,9 @@ These endpoints follow `https://<server>` directly:
 | GET | `/healthz` | Nothing | 200 while the process runs |
 | GET | `/readyz` | Nothing | 200 when the store can serve, else 503 |
 | GET | `/auth/whoami` | A credential only | The owner of the credential (use it before you select a project) |
-| GET | `/api/speclink/v1/scopes` | A credential only | The projects and repos that this account can see |
+| GET | `/api/specseal/v1/scopes` | A credential only | The projects and repos that this account can see |
 
-`/auth/device`, `/auth/device/token`, `/auth/refresh`, and `/auth/revoke` are the device login flow of `speclink auth login`.
+`/auth/device`, `/auth/device/token`, `/auth/refresh`, and `/auth/revoke` are the device login flow of `specseal auth login`.
 
 ### <a id="events"></a>Event stream
 
@@ -321,7 +321,7 @@ First, read the artifact to get its `version`:
 
 ```text
 GET /changes/add-login/artifacts/tasks
-→ {"artifact":"tasks","content":"## 1. Login\n\n- [ ] 1.1 Add the login form <!-- speclink-task:tsk_01M4… -->\n…","version":2}
+→ {"artifact":"tasks","content":"## 1. Login\n\n- [ ] 1.1 Add the login form <!-- specseal-task:tsk_01M4… -->\n…","version":2}
 ```
 
 Then write it back with that `version`:
@@ -334,7 +334,7 @@ If-Match: 2
 ```
 
 - To create an artifact that does not exist yet, use `If-Match: 0`.
-- When you write `tasks.md`, the server adds a stable ID comment (`<!-- speclink-task:tsk_… -->`) to the end of each task line.
+- When you write `tasks.md`, the server adds a stable ID comment (`<!-- specseal-task:tsk_… -->`) to the end of each task line.
 
 ### Quality gates
 
@@ -344,7 +344,7 @@ If-Match: 2
 | `POST /changes/{name}/review/stamp` | `{"accept":false,"agent":"claude-code","scope":[{"path":"src/login.rs","hash":"<64 characters>"}],"missing":[]}` | `{"change":"add-login"}` |
 | `DELETE /changes/{name}/review` | None | `{"change":"add-login"}` |
 
-- A round uses the same format as the stdin of `speclink review add-round`. It must have a `**Scope**:` line.
+- A round uses the same format as the stdin of `specseal review add-round`. It must have a `**Scope**:` line.
 - `GET /changes/{name}/review` gives `change`, `rounds`, `lastRound`, and `content` (the ticket text). Each round has `index`, `phase`, `patchHash`, `rules`, `scope`, and `findings`. Each finding has `severity`, `path`, and `text`. `rules` is null, or an object with `baseline` (`extend` or `replace`) and the lists `critical`, `warning`, and `suggestion`; only a discovery round that recorded its applied rules has the object.
 - The `scope` of a stamp holds content fingerprints from your working tree. It covers the files that the Scope lines of the ticket list. `hash` is the SHA-256 of the file content in lowercase hex. For UTF-8 text files, change CRLF to LF before you hash.
 - Put files that no longer exist in your working tree into `missing`. `scope` plus `missing` must be exactly the files that the ticket lists. The server does not hash files again; it only compares the file sets.
@@ -378,7 +378,7 @@ If-Match: 2
 | `PUT /board-order` (with `If-Match: "16"`) | `{"content":"{\"changes\":{\"add-logout\":\"a\"}}"}` | `{"revision":17}` |
 
 - `PUT /config` takes the full config document. The server parses it first and answers 422 `invalid_config` when it cannot.
-- `POST /context` can take `change` in the body to get only the documents of that change. Send `{}` to get all documents. The response has `snapshotId`, `digest`, and `documents`. Each document has `path`, `content`, `revision`, and `digest`. The CLI uses it to mirror the server documents into the read-only local folder `.speclink/context/`.
+- `POST /context` can take `change` in the body to get only the documents of that change. Send `{}` to get all documents. The response has `snapshotId`, `digest`, and `documents`. Each document has `path`, `content`, `revision`, and `digest`. The CLI uses it to mirror the server documents into the read-only local folder `.specseal/context/`.
 - The board-order `content` is JSON text in the form `{"changes":{"<change>":"<rank key>"},"discussions":{…}}`. The server stores it but does not parse it. `GET /plan` reads it and treats unreadable content as "no order".
 
 The response of `GET /changes/{name}/validate`:
@@ -449,15 +449,15 @@ Optional: `createdBy`, `kind` (`improve` for an improve discussion), and `promot
 { "slug": "board-search-bar", "topic": "看板搜索列", "status": "promoted", "rounds": 1, "created": "2026-10-07", "createdBy": "Demo <demo@example.com>", "promotedTo": ["add-search-bar"], "concluded": true, "hold": true, "path": "discussions/board-search-bar.md", "archived": false }
 ```
 
-### The local `worktree` field of `speclink list --json`
+### The local `worktree` field of `specseal list --json`
 
 In local mode, `list --json` can add a `worktree` object to a change. It shows that a git worktree holds the implementation of the change:
 
 ```json
-{ "completedTasks": 3, "name": "add-dark-mode", "status": "in-progress", "totalTasks": 5, "worktree": { "path": "/path/to/speclink.worktrees/add-dark-mode", "branch": "speclink/add-dark-mode" } }
+{ "completedTasks": 3, "name": "add-dark-mode", "status": "in-progress", "totalTasks": 5, "worktree": { "path": "/path/to/specseal.worktrees/add-dark-mode", "branch": "specseal/add-dark-mode" } }
 ```
 
-- `path` is the absolute path of the worktree folder. `branch` is the full branch name (`speclink/<change>`).
+- `path` is the absolute path of the worktree folder. `branch` is the full branch name (`specseal/<change>`).
 - The field appears only when all these conditions are true: local mode, a run from the main checkout, the `worktree` policy on, and a worktree that matches the change. In all other cases, the key does not appear.
 - Remote-mode `list` never has this field, because the server does not know your local checkout. Without worktrees, both modes therefore give the same fields.
 - When the field appears, `completedTasks`, `totalTasks`, `status`, and `metaError` of the item come from the copy in the worktree, not from the main checkout.

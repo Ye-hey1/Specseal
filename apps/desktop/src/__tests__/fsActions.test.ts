@@ -1,5 +1,5 @@
-// 「開啟 ▾」的文件定位（desktop-readonly-detail-pages design D7；desktop-spec-manual-pages design D8）：
-// 依文件參照型別分派到 core 的定位指令——變更 artifact、討論記錄、正式規格、封存變更 artifact、手冊頁。
+// 「打开 ▾」的文档定位（desktop-readonly-detail-pages design D7；desktop-spec-manual-pages design D8）：
+// 依文档参照类型分派到 core 的定位指令——变更 artifact、讨论记录、正式规格、封存变更 artifact、手册页。
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn().mockResolvedValue(null) }));
@@ -9,7 +9,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { tauriFsActionsAdapter } from "../adapter/fsActions";
 
 describe("tauriFsActionsAdapter.locate", () => {
-  it("依參照型別呼叫對應的定位指令", async () => {
+  it("依参照类型调用对应的定位指令", async () => {
     const { locate } = tauriFsActionsAdapter();
     await locate("/r", { change: "add-auth", artifact: "tasks.md" });
     expect(invoke).toHaveBeenLastCalledWith("document_location", { root: "/r", change: "add-auth", artifact: "tasks.md" });

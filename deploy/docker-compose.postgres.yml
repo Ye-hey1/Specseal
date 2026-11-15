@@ -1,42 +1,42 @@
-# Speclink server — PostgreSQL profile（server ＋ postgres 两服务）：
+# Specseal server — PostgreSQL profile（server ＋ postgres 两服务）：
 #
 #   cp .env.example .env    # 填入密码；.env 不入版本控制
 #   docker compose -f docker-compose.postgres.yml up -d
 #
 # secret 纪律：密码只经环境变量注入——store url 不含密码，
-# server 由 SPECLINK_POSTGRES_PASSWORD 补全；postgres 服务用同源的变量初始化。
+# server 由 SPECSEAL_POSTGRES_PASSWORD 补全；postgres 服务用同源的变量初始化。
 # 版本控制内（本档与 .env.example）没有任何明文密码。
 #
 # identity 数据库维持 /data 下的 SQLite 档（identity 独立于 TeamStore driver 选择）。
 
-name: speclink-postgres
+name: specseal-postgres
 
 configs:
   server-config:
     # server 的组态 YAML 不做环境变量展开，改由 compose 在 up 时插值产生本档。
-    # url 刻意不含密码：postgres driver 会以 SPECLINK_POSTGRES_PASSWORD 补全。
+    # url 刻意不含密码：postgres driver 会以 SPECSEAL_POSTGRES_PASSWORD 补全。
     content: |
       store:
         driver: postgres
-        url: postgres://speclink@postgres:5432/speclink
+        url: postgres://specseal@postgres:5432/specseal
       identity:
         driver: sqlite
         path: /data/identity.db
-      # 缺省与 SPECLINK_PORT 连动（同 docker-compose.yml）。
-      public_url: ${SPECLINK_PUBLIC_URL:-http://localhost:${SPECLINK_PORT:-8080}}
+      # 缺省与 SPECSEAL_PORT 连动（同 docker-compose.yml）。
+      public_url: ${SPECSEAL_PUBLIC_URL:-http://localhost:${SPECSEAL_PORT:-8080}}
 
 services:
   postgres:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: speclink
-      POSTGRES_DB: speclink
-      POSTGRES_PASSWORD: ${SPECLINK_POSTGRES_PASSWORD:?请拷贝 .env.example 为 .env 并设置密码}
+      POSTGRES_USER: specseal
+      POSTGRES_DB: specseal
+      POSTGRES_PASSWORD: ${SPECSEAL_POSTGRES_PASSWORD:?请拷贝 .env.example 为 .env 并设置密码}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U speclink -d speclink"]
+      test: ["CMD-SHELL", "pg_isready -U specseal -d specseal"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,21 +46,21 @@ services:
     # 同 docker-compose.yml：本机无映像时就地建置。要用官方映像先 docker compose pull。
     build:
       context: ..
-      dockerfile: crates/host/speclink-server/Dockerfile
+      dockerfile: crates/host/specseal-server/Dockerfile
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     environment:
-      SPECLINK_POSTGRES_PASSWORD: ${SPECLINK_POSTGRES_PASSWORD:?请拷贝 .env.example 为 .env 并设置密码}
+      SPECSEAL_POSTGRES_PASSWORD: ${SPECSEAL_POSTGRES_PASSWORD:?请拷贝 .env.example 为 .env 并设置密码}
     ports:
-      - "${SPECLINK_PORT:-8080}:8080"
+      - "${SPECSEAL_PORT:-8080}:8080"
     configs:
       - source: server-config
-        target: /etc/speclink/config.yaml
+        target: /etc/specseal/config.yaml
     volumes:
-      - speclink-data:/data
+      - specseal-data:/data
 
 volumes:
-  speclink-data:
+  specseal-data:
   postgres-data:

@@ -1,10 +1,10 @@
-// CLI 佈署接線面（design D5）：Tauri 殼收集環境事實、執行佈署計畫；決策歸
-// core/cliInstall。store 只依賴此介面，測試以假 adapter 注入。
+// CLI 布署接线面（design D5）：Tauri 壳收集环境事实、运行布署计划；决策归
+// core/cliInstall。store 只依赖此接口，测试以假 adapter 注入。
 import { invoke } from "@tauri-apps/api/core";
 
 import type { CliDeployPlan, CliPlatform } from "../core/cliInstall";
 
-/** Rust 殼一次收齊的環境事實（cli_install_probe）。 */
+/** Rust 壳一次收齐的环境事实（cli_install_probe）。 */
 export interface CliInstallProbe {
   platform: CliPlatform;
   home: string | null;
@@ -12,17 +12,17 @@ export interface CliInstallProbe {
   pathDelimiter: ":" | ";";
   bundledCliPath: string | null;
   appVersion: string;
-  /** 已佈署 CLI 的 --version 原始輸出；null＝未偵測到。 */
+  /** 已布署 CLI 的 --version 原始输出；null＝未侦测到。 */
   deployedVersionOutput: string | null;
-  /** ~/.zprofile 現有內容（macOS；讀不到或非 macOS 為 null）——PATH 冪等追加
-   * 的判定輸入（design D12）。 */
+  /** ~/.zprofile 现有内容（macOS；读不到或非 macOS 为 null）——PATH 幂等追加
+   * 的判定输入（design D12）。 */
   zprofile: string | null;
 }
 
 export interface CliInstallAdapter {
   probe: () => Promise<CliInstallProbe>;
   deploy: (plan: Exclude<CliDeployPlan, { action: "none" }>) => Promise<void>;
-  /** 追加一行至 ~/.zprofile（macOS PATH 自動設定；冪等判定歸 core）。 */
+  /** 追加一行至 ~/.zprofile（macOS PATH 自动设置；幂等判定归 core）。 */
   appendZprofile: (line: string) => Promise<void>;
 }
 

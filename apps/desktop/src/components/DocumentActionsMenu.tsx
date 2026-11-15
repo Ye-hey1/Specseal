@@ -1,6 +1,6 @@
-// 詳情頁閱讀卡標題列右端的「開啟 ▾」（design D4）：對目前分頁的檔案提供以預設 App
-// 開啟、在檔案管理員顯示、複製路徑；remote 無本機 checkout、或分頁沒有可定位的檔案
-// （已封存討論）時只剩「複製內容」。
+// 详情页阅读卡标题列右端的「打开 ▾」（design D4）：对目前分页的文件提供以缺省 App
+// 打开、在文件管理员显示、拷贝路径；remote 无本机 checkout、或分页没有可定位的文件
+// （已封存讨论）时只剩「拷贝内容」。
 import { useRef, useState } from "react";
 import { ChevronDown, Copy, ExternalLink, FileText, FolderOpen } from "lucide-react";
 import {
@@ -13,7 +13,7 @@ import {
   useI18n,
   type DocumentRef,
   type DocumentTarget,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { DocumentLocation } from "../adapter/fsActions";
 import type { Platform } from "../platform";
@@ -28,13 +28,13 @@ export function DocumentActionsMenu({
   onCopyPath,
   onCopyContent,
 }: {
-  /** 分頁對應的文件與已載入原文；null＝此分頁沒有檔案（排程），整個選單缺席；
-   * `doc` 為 null＝只帶原文（已封存討論），選單只有「複製內容」。 */
+  /** 分页对应的文档与已加载原文；null＝此分页没有文件（调度），整个菜单缺席；
+   * `doc` 为 null＝只带原文（已封存讨论），菜单只有「拷贝内容」。 */
   target: DocumentTarget | null;
-  /** 專案有本機目錄（local 或已綁 checkout 的 remote）。 */
+  /** 项目有本机目录（local 或已绑 checkout 的 remote）。 */
   local: boolean;
   platform: Platform;
-  /** 文件的磁碟位置（宿主向 core 查詢）；找不到為 null。 */
+  /** 文档的磁盘位置（宿主向 core 查找）；找不到为 null。 */
   locate: (doc: DocumentRef) => Promise<DocumentLocation | null>;
   onOpenDefault: (location: DocumentLocation) => void;
   onReveal: (location: DocumentLocation) => void;
@@ -42,12 +42,12 @@ export function DocumentActionsMenu({
   onCopyContent: (text: string) => void;
 }) {
   const { t } = useI18n();
-  // 展開時才查位置（文件可能剛被封存搬走）；序號擋掉較早一次展開的過期回應。
+  // 展开时才查位置（文档可能刚被封存搬走）；序号挡掉较早一次展开的过期回应。
   const [location, setLocation] = useState<DocumentLocation | null>(null);
   const seq = useRef(0);
   if (target === null) return null;
   const { content } = target;
-  // 沒有本機目錄或沒有可定位的檔案時唯一的動作是複製原文；分頁不載原文（工單）就沒有可做的事。
+  // 没有本机目录或没有可定位的文件时唯一的动作是拷贝原文；分页不载原文（工单）就没有可做的事。
   const fileDoc = local ? target.doc : null;
   if (!fileDoc && content === undefined) return null;
 

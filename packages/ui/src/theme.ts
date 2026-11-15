@@ -1,13 +1,13 @@
-// 外觀偏好（desktop-settings-mode design D4）：localStorage 單鍵，null 表跟隨系統。明示淺色／
-// 深色以根元素的 data-theme 屬性觸發 theme.css 的對應區塊；server-web 不讀此鍵、不設屬性。
+// 外观偏好（desktop-settings-mode design D4）：localStorage 单键，null 表跟随系统。明示浅色／
+// 深色以根元素的 data-theme 属性触发 theme.css 的对应区块；server-web 不读此键、不设属性。
 
-/** null＝跟隨系統的淺色／深色偏好。 */
+/** null＝跟随系统的浅色／深色偏好。 */
 export type ThemePreference = "light" | "dark" | null;
 
-/** 偏好鍵；desktop 的 index.html 開機腳本讀同一個鍵（首次繪製前先套，避免先閃系統主題）。 */
-export const THEME_STORAGE_KEY = "speclink.theme";
+/** 偏好键；desktop 的 index.html 开机脚本读同一个键（首次绘制前先套，避免先闪系统主题）。 */
+export const THEME_STORAGE_KEY = "specseal.theme";
 
-/** 讀取偏好；缺鍵、非法值（手改 localStorage）或儲存區不可用一律視為跟隨系統。 */
+/** 读取偏好；缺键、非法值（手改 localStorage）或保存区不可用一律视为跟随系统。 */
 export function readThemePreference(storage: Storage = localStorage): ThemePreference {
   try {
     const v = storage.getItem(THEME_STORAGE_KEY);
@@ -17,17 +17,17 @@ export function readThemePreference(storage: Storage = localStorage): ThemePrefe
   }
 }
 
-/** 寫入偏好；儲存區不可用（停用、配額滿）時靜默略過——本次照常套用，只是不跨啟動保留。 */
+/** 写入偏好；保存区不可用（停用、配额满）时静默略过——本次照常套用，只是不跨启动保留。 */
 export function writeThemePreference(pref: ThemePreference, storage: Storage = localStorage): void {
   try {
     if (pref === null) storage.removeItem(THEME_STORAGE_KEY);
     else storage.setItem(THEME_STORAGE_KEY, pref);
   } catch {
-    /* 見上 */
+    /* 见上 */
   }
 }
 
-/** 套用偏好：明示值設 data-theme，跟隨系統移除屬性（交回 prefers-color-scheme）。 */
+/** 套用偏好：明示值设 data-theme，跟随系统移除属性（交回 prefers-color-scheme）。 */
 export function applyThemePreference(
   pref: ThemePreference,
   root: HTMLElement = document.documentElement,

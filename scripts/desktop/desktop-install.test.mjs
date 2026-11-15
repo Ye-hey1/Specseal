@@ -1,6 +1,6 @@
-// 本機安裝入口的斷言鏈（desktop-release spec「本機安裝的新鮮度斷言」）。
-// 覆蓋純函式部分：源碼版號讀取、--version 的引擎版號解析、版號斷言的失敗形狀，
-// 以及 --install 的平台限定與簽章環境變數檢查。實際建置與安裝為手動驗證。
+// 本机安装入口的断言链（desktop-release spec「本机安装的新鲜度断言」）。
+// 覆盖纯函数部分：源码版号读取、--version 的引擎版号解析、版号断言的失败形状，
+// 以及 --install 的平台限定与签章环境变量检查。实际建置与安装为手动验证。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -22,26 +22,26 @@ const SIGNED = {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-test('源碼版號取自 speclink-core 的 ASSET_VERSION 常數', () => {
-  const text = readFileSync(path.join(root, 'crates/engine/speclink-core/src/workspace/init.rs'), 'utf8');
+test('源码版号取自 specseal-core 的 ASSET_VERSION 常数', () => {
+  const text = readFileSync(path.join(root, 'crates/engine/specseal-core/src/workspace/init.rs'), 'utf8');
   const version = sourceAssetVersion(text);
   assert.match(version, /^v\d+\.\d+\.\d+$/);
-  assert.ok(text.includes(`"${version}"`), '讀出的版號須確實出現在源碼中');
+  assert.ok(text.includes(`"${version}"`), '读出的版号须确实出现在源码中');
 });
 
-test('讀不到 ASSET_VERSION 常數時明確失敗，不回空字串', () => {
-  assert.throws(() => sourceAssetVersion('沒有常數的檔案\n'), /ASSET_VERSION/);
+test('读不到 ASSET_VERSION 常数时明确失败，不回空字符串', () => {
+  assert.throws(() => sourceAssetVersion('没有常数的文件\n'), /ASSET_VERSION/);
 });
 
-test('--version 輸出的引擎版號可解析', () => {
-  assert.equal(engineVersionOf('speclink 0.1.0 (arm64, engine v1.14.0)\n'), 'v1.14.0');
+test('--version 输出的引擎版号可解析', () => {
+  assert.equal(engineVersionOf('specseal 0.1.0 (arm64, engine v1.14.0)\n'), 'v1.14.0');
 });
 
-test('--version 不含引擎版號時明確失敗（舊 binary 的形狀）', () => {
-  assert.throws(() => engineVersionOf('speclink 0.1.0 (arm64)\n'), /engine/);
+test('--version 不含引擎版号时明确失败（旧 binary 的形状）', () => {
+  assert.throws(() => engineVersionOf('specseal 0.1.0 (arm64)\n'), /engine/);
 });
 
-test('版號不符的斷言印出兩邊版號', () => {
+test('版号不符的断言印出两边版号', () => {
   assert.throws(
     () => assertSameEngineVersion('bundle', 'v1.11.0', 'v1.14.0'),
     (error) => {
@@ -54,7 +54,7 @@ test('版號不符的斷言印出兩邊版號', () => {
   assert.doesNotThrow(() => assertSameEngineVersion('bundle', 'v1.14.0', 'v1.14.0'));
 });
 
-test('簽章環境變數缺失時點名缺的變數，齊備時回空', () => {
+test('签章环境变量缺失时点名缺的变量，齐备时回空', () => {
   assert.deepEqual(missingSigningEnv({}), [
     'TAURI_SIGNING_PRIVATE_KEY',
     'TAURI_SIGNING_PRIVATE_KEY_PASSWORD',
@@ -68,23 +68,23 @@ test('簽章環境變數缺失時點名缺的變數，齊備時回空', () => {
   );
 });
 
-test('preflight：非 macOS 帶 --install 即拒絕，點名平台', () => {
+test('preflight：非 macOS 带 --install 即拒绝，点名平台', () => {
   assert.throws(() => preflight({ env: SIGNED, platform: 'linux', install: true }), /macOS/);
   assert.throws(() => preflight({ env: SIGNED, platform: 'win32', install: true }), /win32/);
 });
 
-test('preflight：簽章環境變數缺失即拒絕並點名變數', () => {
+test('preflight：签章环境变量缺失即拒绝并点名变量', () => {
   assert.throws(
     () => preflight({ env: {}, platform: 'darwin', install: false }),
     /TAURI_SIGNING_PRIVATE_KEY/,
   );
 });
 
-test('preflight：macOS 且簽章 env 齊備即通過（帶不帶 --install 皆然）', () => {
+test('preflight：macOS 且签章 env 齐备即通过（带不带 --install 皆然）', () => {
   assert.doesNotThrow(() => preflight({ env: SIGNED, platform: 'darwin', install: false }));
   assert.doesNotThrow(() => preflight({ env: SIGNED, platform: 'darwin', install: true }));
 });
 
-test('preflight：不帶 --install 時平台不設限（建置步驟平台中立）', () => {
+test('preflight：不带 --install 时平台不设限（建置步骤平台中立）', () => {
   assert.doesNotThrow(() => preflight({ env: SIGNED, platform: 'linux', install: false }));
 });

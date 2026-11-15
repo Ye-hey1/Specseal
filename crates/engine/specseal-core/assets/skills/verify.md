@@ -1,0 +1,307 @@
+**Project principles**: if `specseal/principles.md` exists, read it and include a principles check in the verification round: record which numbered principles were checked and any violations — a violation is a **must-fix finding** citing the principle number.
+
+**Convergence loop**: when a verification round surfaces must-fix findings, the station is not done — fix them, freeze the scope again if files moved, and append the next round (discovery first, then validation) instead of treating one round as final. Stamp only when the last validation round is clean. A change that cannot converge within three rounds goes back to the user with the recorded findings instead of a stamp.
+
+**Steps**
+
+1. **If no change name provided, prompt for selection**
+
+   Run `specseal list --json` to get available changes. Use the **AskUserQuestion tool** to let the user select (if this tool is not available, ask as plain text and wait for the user's response).
+
+   Show changes that have implementation tasks (tasks artifact exists).
+   Include the schema used for each change if available.
+   Mark changes with incomplete tasks as "(In Progress)".
+
+   Do NOT guess or auto-select a change — always let the user choose, and wait for the answer.
+
+2. **Check status to understand the schema**
+
+   ```bash
+   specseal status --change "<name>" --json
+   ```
+
+   Parse the JSON to understand:
+   - `schemaName`: The workflow being used (e.g., "spec-driven"). Remember it: when `schemaName` is `no-spec-change`, step 8 runs the behavior check in place of the delta-spec checks
+   - Which artifacts exist for this change
+
+3. **Load the artifacts and read the task progress**
+
+   ```bash
+   specseal instructions apply --change "<name>" --json
+   ```
+
+   This returns the change directory and context files. Read all available artifacts from `contextFiles`, and note `progress` (complete vs total tasks).
+
+   **Remote mode**: when the workspace is connected to a remote store, `contextFiles` points into the read-only Context Projection (`.specseal/context/`) — a local snapshot of the remote canon. Read, search, and grep it freely, but never edit projection files: a direct edit is not a remote write and the next command will reject the projection as modified. Any spec or artifact change goes through specseal verbs. If a `STALE` marker file exists at the projection root or a command reports the projection as modified, re-run `specseal instructions apply` to refresh it.
+
+   The payload also carries `locale` — the resolved language for AI output (e.g., "Traditional Chinese (繁体中文)"). Remember it: the verification report is written in this language (see Output Format).
+
+   Then read the sub-agent model:
+
+   ```bash
+   specseal workflow-config show --json
+   ```
+
+   Keep its `subagentModel.verify.{{TOOL}}` cell: it sets the model of the checking sub-agent, by the **Sub-agent model** rules above the steps. Always read the workflow config through this command, never from the config file — in remote mode the same command returns the server's config. If the command fails (for example, the config does not parse), report its error verbatim and stop: do not send the sub-agent and do not write the ticket.
+
+4. **Branch on the call: mid-flight check-in, closing stamp re-entry, or finished-work verification**
+
+   **Not every code task is done (`codeRemaining > 0`) → mid-flight progress check-in.** Run the three dimensions as a conversation report only (steps 6–9 below, reading whatever artifacts and code you need). Do not run `specseal verify scope`, do not run `specseal verify add-round`, and do NOT stamp. The verify ticket records the verification of finished work — a check-in round landing in it would make "open ticket" stop meaning "the product's verification is unfinished" and would trip the archive gate for nothing. Report and STOP after step 9.
+
+   **The `/specseal:quality` timeline's closing stamp call, and the ticket's last round's must-fix set is empty** (`specseal verify show "<name>" --json` — `lastRound.findings` has no CRITICAL/WARNING entries; SUGGESTION-only counts as empty) → branch at the entry, do not walk the full flow: run `specseal verify scope "<name>" --json`. An empty movement patch (nothing moved since that round) → skip the checking pass entirely, run `specseal verify stamp "<name>" --agent {{TOOL}}` directly and report — do not record another empty round. A non-empty patch → continue from step 6 as a normal validation pass; on this call step 13's defer exception is off, so the cleared round stamps immediately. `needsInput` or a scope failure here follows step 5's disposals unchanged — never guess past them.
+
+   **Every code task is done (`codeRemaining` is 0) → finished-work verification.** Continue to step 5. `[M]` manual tasks do not hold this back — they are work only the user can do by hand, and the stamp deliberately does not wait for it. When `remaining` is still above 0, name the open manual tasks in the report: the verification covers the code, and archive is what waits for the manual runs.
+
+5. **Freeze the verification scope**
+
+   ```bash
+   specseal verify scope "<name>" --json
+   ```
+
+   The payload's `phase` decides this round:
+
+   - `state: "resolved"` → use `phase`, `patchHash`, `paths`, `files` (with their old/new hunk ranges) and `patch`. This frozen patch is the code evidence for this round; the unchanged remainder of a touched file is context, never verification surface.
+   - `state: "needsInput"` → the scope is ambiguous and nothing was frozen. Read the stderr disposals and pick one WITH the user: a trusted `--base <rev>`, a hash-pinned selection (`--candidate-hash <sha256>` plus repeatable `--include-hunk <id>`), or an isolated worktree. Never guess past it.
+   - The command fails because a referenced snapshot is gone (a legacy ticket, or a cleared sidecar) → STOP. Keep the ticket, say the remediation delta cannot be rebuilt precisely, and wait for the user to explicitly `specseal verify discard "<name>"` and re-run discovery. Never fall back to re-verifying touched whole files.
+
+6. **Branch on `phase`**
+
+   Run the checking pass (steps 7–10) in ONE read-only sub-agent call (e.g. the Agent tool with a read-only agent) so its exploration stays out of the main thread's context. The call carries the model step 3's `subagentModel.verify.{{TOOL}}` cell names (the **Sub-agent model** rules). The report that follows — the step 10 report, or the conversation report of a mid-flight check-in — opens with the **Sub-agent model** line for this cell, right under its title, written in the `locale` language; in English it reads, for example, `Sub-agent model: sonnet (subagent_model.verify.{{TOOL}})`. The sub-agent MUST NOT modify any file. If your harness cannot spawn sub-agents, run the checking pass yourself and keep its report separate from the triage that follows. The brief carries the resolved `locale` (step 3): finding descriptions are written in that language; severity labels, dimension prefixes, file paths, and command lines stay in English. It also carries step 2's `schemaName`, so the checking pass knows whether step 8's behavior check applies. When accepted findings exist in the ticket's last round (the `(accepted)` token), the brief also carries that list with a hard instruction: do NOT re-report these items or near-variants of them — they are already adjudicated.
+
+   Inside the `/specseal:quality` timeline, compose the brief exactly as this step says; `/specseal:quality` sends it in one message together with the review station's two briefs, so three sub-agents run at once. Continue with step 10 once it reports.
+
+   **Brief discipline** — discovery and validation alike: the brief follows the **Brief discipline** rules above the steps.
+
+   **Discovery (`phase: discovery`) — the one and only exploration pass.** Run the full three dimensions (steps 7–9) against every change artifact, using the frozen patch and the callers/tests needed to judge its direct impact as the code evidence.
+
+   **Validation (`phase: validation`) — remediation validation, never re-discovery.** Take ONLY the last round's unresolved findings (verbatim), the accepted list, the remediation patch frozen in step 5, the artifact passages the last fix edited (the **Verification gate**'s second artifact case — the patch leaves the spec directory out, so the brief is the only place the edit shows; judge the original finding against them), and the adjacent callers/tests needed to judge it. Decide per original finding: resolved or unresolved. Report only regressions the remediation patch directly introduces. Do not re-scan the whole change, the finding's whole file, or any unmodified area; do not raise new SUGGESTIONs or pre-existing issues in unchanged areas.
+
+   **Segments marked `attribution: "adjacent"`** are files the remediation moved that no finding named — a caller, a test, a regenerated artifact, or a parallel session's edit leaking in. Confirm segment by segment that each genuinely belongs to THIS remediation, and report anything that does not as a regression. Never adopt an adjacent segment silently.
+
+   **Unrelated late findings during validation**: something new that the remediation patch did not cause must not be added to the current round and must not reopen discovery. Only when it carries evidence — a realistic trigger path plus one of a reproduction, a failing test, or a clear invariant violation — AND it affects security, data loss, or wrong behavior, end this station as **scope changed / failed**: keep the ticket, do not stamp, and recommend a separate discovery or a spun-off change. Anything below that bar is a note for later, never a blocker.
+
+7. **Verify Completeness**
+
+   **Task Completion**:
+   - If tasks.md exists in contextFiles, read it
+   - Parse checkboxes: `- [ ]` (incomplete) vs `- [x]` (complete)
+   - Count complete vs total tasks
+   - If incomplete tasks exist:
+     - Add CRITICAL issue for each incomplete task
+     - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
+
+   **Spec Coverage** (skip it when `schemaName` is `no-spec-change` — step 8's behavior check takes its place):
+   - If the change's `deltaCapabilities` in `specseal list --json` names a capability (the field is absent or empty when the change has no delta spec), take each delta from `specseal artifact cat specs/<capability> --change "<name>"`:
+     - Extract all requirements (marked with "### Requirement:")
+     - For each requirement:
+       - Look for its implementation in the frozen patch first
+       - Only when the patch holds no implementation at all (for example, code that existed before the change satisfies it), search outside the patch for concrete function, type or file names — never a keyword sweep of the whole codebase — and say in the report that the evidence lies outside the patch
+       - Assess if implementation likely exists
+     - If requirements appear unimplemented:
+       - Add CRITICAL issue: "Requirement not found: <requirement name>"
+       - Recommendation: "Implement requirement X: <description>"
+
+8. **Verify Correctness**
+
+   **Behavior check** (only when `schemaName` is `no-spec-change` — the change has no delta specs, so it replaces Requirement Implementation Mapping, Scenario Coverage and Example Traceability below):
+   - Start from the canonical specs the proposal's Why lists as checked.
+   - Take the concrete names in the frozen patch — commands, flags, `--json` fields, file names, screen text — and find the requirements that cover those code areas in the canonical specs: `specseal list --specs --json` names them, and `specseal show <capability> --item-type spec` prints one.
+   - For each such requirement, compare: does the patch change the observable behavior the requirement promises?
+   - A promised behavior changed:
+     - Add WARNING: "Behavior change in a no-spec-change change: <capability> / <requirement>" — it is must-fix (step 11) and blocks a clean stamp
+     - Recommendation, in this order: abandon this verify ticket with `specseal verify discard <name>`; switch the change back with `specseal change schema <name> spec-driven`; add the delta spec for this requirement with `/specseal:ingest <name>`; then run verify again. Do not suggest `--accept` to pass this WARNING — the change would archive with no delta for a behavior it changed
+   - No behavior change found → list the canonical specs you compared in the report.
+
+   **Requirement Implementation Mapping**:
+   - For each requirement from delta specs:
+     - Find implementation evidence in the same order as step 7: the frozen patch first, then a search by concrete names only when the patch holds none
+     - If found, note file paths and line ranges
+     - Assess if implementation matches requirement intent
+     - If divergence detected:
+       - Add WARNING: "Implementation may diverge from spec: <details>"
+       - Recommendation: "Review <file>:<lines> against requirement X"
+
+   **Scenario Coverage**:
+   - For each scenario in delta specs (marked with "#### Scenario:"):
+     - Check if conditions are handled in code
+     - Check if tests exist covering the scenario
+     - If scenario appears uncovered:
+       - Add WARNING: "Scenario not covered: <scenario name>"
+       - Recommendation: "Add test or implementation for scenario: <description>"
+
+   **Example Traceability**:
+   - For each `##### Example:` in delta specs:
+     - Check if a test exists that uses the same input values from the example's GIVEN/WHEN/THEN
+     - If the example has a table, check if parameterized tests cover all rows
+     - If examples appear untested, add WARNING: "Spec example not covered by test: <example name>" with recommendation to add a test using the GIVEN/WHEN/THEN from the example
+
+9. **Verify Coherence**
+
+   **Design Adherence**:
+   - If design.md exists in contextFiles:
+     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
+     - Verify implementation follows those decisions
+     - If contradiction detected:
+       - Add WARNING: "Design decision not followed: <decision>"
+       - Recommendation: "Update implementation or revise design.md to match reality"
+   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+
+   **Code Pattern Consistency**:
+   - Review new code for consistency with project patterns
+   - Check file naming, directory structure, coding style
+   - If significant deviations found:
+     - Add SUGGESTION: "Code pattern deviation: <details>"
+     - Recommendation: "Consider following project pattern: <example>"
+
+10. **Generate the verification report**
+
+    **Summary Scorecard**:
+
+    ```
+    ## Verification Report: <change-name>
+    <the Sub-agent model line from step 6>
+
+    ### Summary
+    | Dimension    | Status           |
+    |--------------|------------------|
+    | Completeness | X/Y tasks, N reqs|
+    | Correctness  | M/N reqs covered |
+    | Coherence    | Followed/Issues  |
+    ```
+
+    **Issues by Priority**:
+    1. **CRITICAL** (Must fix before archive):
+       - Incomplete tasks
+       - Missing requirement implementations
+       - Each with specific, actionable recommendation
+
+    2. **WARNING** (Must fix — blocks the stamp):
+       - Spec/design divergences
+       - Missing scenario coverage
+       - Each with specific recommendation
+
+    3. **SUGGESTION** (Nice to fix — never blocks the stamp):
+       - Pattern inconsistencies
+       - Minor improvements
+       - Each with specific recommendation
+
+    **Unfinished checks**: when the sub-agent says it did not finish checking something, list that verbatim here — it is not confirmed clean, and the user decides whether to check it further.
+
+    **Final Assessment**:
+    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
+    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+    - If all clear: "All checks passed. Ready for archive."
+
+11. **Triage every finding**
+
+    Classify each finding into one of two buckets and show the result as its own list. The triage drives step 13 — it never changes the ticket format:
+
+    - **Must-fix** — CRITICAL findings; Correctness findings with a realistic trigger path (WARNING included); requirements or scenarios with no implementation at all.
+    - **Discretionary** — pattern-consistency observations and other nice-to-fix items. Give each one line: the cost of fixing weighed against the benefit.
+
+    Severity IS the blocking boundary: must-fix findings are recorded as CRITICAL or WARNING; discretionary findings are always recorded as SUGGESTION — never WARNING. SUGGESTION-level findings do not block the stamp, need nobody's approval, and never enter the acceptance mechanism.
+
+    The **blocking set** of a round is its must-fix findings the user has not accepted — step 13's loop rule runs on its size.
+
+12. **Record the round**
+
+    ```bash
+    specseal verify add-round "<name>" --stdin
+    ```
+
+    Feed via stdin, in order:
+    - one `**Phase**:` line — step 5's `phase` (`discovery` or `validation`);
+    - one `**Patch**:` line — step 5's `patchHash` (`sha256:<hex>`);
+    - one `**Scope**:` line — this round's verified files, comma-separated repo-root relative paths (the frozen patch's `paths`);
+    - zero or more findings lines `- [SEVERITY] path — description`; start each description with its dimension (`Completeness:` / `Correctness:` / `Coherence:`).
+
+    Findings descriptions go in as reported — same language, never translated by the main thread; severity labels and dimension prefixes stay in English.
+
+    **Validation rounds**: every unresolved original finding is carried into the new round verbatim — never reworded; a reworded line fakes the shrinking the loop rule depends on. Resolved findings are dropped. Regressions the remediation patch directly introduced enter as new findings lines. Every accepted, still-unfixed **must-fix** finding is appended verbatim ending with the structural token `(accepted)` — the token stays English like the severity labels. Unfixed SUGGESTIONs carry forward as plain unresolved lines without the token (the step 11 boundary). The last round must reflect all outstanding reservations — that is what keeps an `--accept` stamp honest.
+
+    NEVER hand-write or edit the verify ticket — it is verb-owned; a malformed round, or a finding path with a `:line` suffix or outside the ticket's scope, is rejected by the verb: fix the stdin content (anchor the finding on the in-scope file) and retry.
+
+13. **Branch on the blocking set**
+
+    Let Bn be this round's blocking set (step 11). Compare its size with the previous round's Bn-1 (a first round has nothing to compare against):
+
+    - **Bn is empty and no accepted must-fix findings remain** → stamp and report **passed clean** (leftover SUGGESTIONs stay recorded — list them in the report):
+
+      ```bash
+      specseal verify stamp "<name>" --agent {{TOOL}}
+      ```
+
+      If the stamp refuses (e.g. tasks regressed meanwhile), report the reason and stop — the next session retries the stamp through step 5.
+
+      **Exception — inside the `/specseal:quality` timeline, before its closing stamp call**: when this station runs as a checking or re-validation step of `/specseal:quality`, do NOT stamp on a cleared round — neither a DISCOVERY round with no must-fix findings nor a VALIDATION round whose blocking set has just cleared. The round is already recorded (step 12); take the **stop without stamping** ending (the same exit as option 3 below: the verification ticket and its snapshot stay). The stamp lands at that skill's **closing stamp call**, which enters through step 4's closing-stamp branch — and on that call this exception is OFF: an untouched round whose must-fix set is empty stamps directly without a new round, a moved one clears its validation pass and stamps immediately. Called directly as a single station, a cleared round still stamps on the spot; this exception is only about the two-station ordering.
+
+    - **Bn is empty but accepted must-fix findings remain** → recommend the user explicitly stamp with reservations — `specseal verify stamp "<name>" --accept --agent {{TOOL}}` — and report **passed with reservations**. Never run `--accept` unprompted.
+
+    - **Bn is strictly smaller than Bn-1** (or this is the first round with must-fix findings) → use the **AskUserQuestion tool** (plain text + wait if unavailable) with three options, the recommended one first and labelled "(Recommended)": recommend option 1 — outstanding must-fix findings are what brought the loop here. SUGGESTION-only rounds never reach this menu: they stamp directly through the first bullet.
+      1. **Fix and re-verify** — fixes happen HERE in the main thread, following the project's TDD discipline; the checking pass never edits files. Fix the must-fix list; discretionary items only when the user asks. A must-fix finding the user chooses not to fix is accepted and carried with the `(accepted)` token (step 12); unfixed SUGGESTIONs just carry forward (step 12). Then pass the **Verification gate** above the steps BEFORE looping back to step 5; step 5 then freezes the validation patch for the next round.
+      2. **Accept as-is and stamp** — `specseal verify stamp "<name>" --accept --agent {{TOOL}}` (stamps with reservations; the round's findings stay on record in the change history).
+      3. **Stop without stamping** — end the session; the ticket and its frozen snapshot stay for a later session or another verifier (`specseal verify show <name> --json` hands them the last round).
+
+    - **Bn is not strictly smaller than Bn-1** (equal or larger) → the round is already recorded; report **failed** immediately: keep the ticket, do NOT stamp, do not start another round automatically. The user decides what happens next (more work outside this loop, `--accept`, or discard).
+
+    The shrinking blocking set only decides whether the automatic loop may continue — it is never a quality score and never described as "passed". There is no fixed maximum round count; every automatic continuation must strictly shrink the blocking set.
+
+**Verification Heuristics**
+
+- **Completeness**: Focus on objective checklist items (checkboxes, requirements list)
+- **Correctness**: Use the frozen patch first, then searches for concrete names, file path analysis, reasonable inference - don't require perfect certainty
+- **Coherence**: Look for glaring inconsistencies, don't nitpick style
+- **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
+- **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
+
+**Graceful Degradation**
+
+- If only tasks.md exists: verify task completion only, skip spec/design checks
+- If the schema is `no-spec-change`: the missing delta specs are by design — run the behavior check (step 8) instead of skipping the spec checks
+- If tasks + specs exist: verify completeness and correctness, skip design
+- If full artifacts: verify all three dimensions
+- Always note which checks were skipped and why
+
+**Output Format**
+
+Use clear markdown with:
+
+- Write the report in the `locale` language from step 3's payload — prose, headings, and table labels included. Keep severity labels (CRITICAL/WARNING/SUGGESTION), structural spec markers, command lines, and code references in English. If `locale` is absent, write in English.
+- Table for summary scorecard
+- Grouped lists for issues (CRITICAL/WARNING/SUGGESTION)
+- Code references in the report in format: `file.ts:123` (a ticket finding's path stays file-only — step 12)
+- Specific, actionable recommendations
+- No vague suggestions like "consider reviewing"
+
+**Guardrails**
+
+Check these before you report:
+
+- [ ] `/specseal:verify` judges spec compliance; the review station judges craft — never issue craft verdicts here
+- [ ] The mid-flight check-in never touches the ticket: no `verify scope`, no `verify add-round`, no stamp
+- [ ] Round 1 is the only discovery pass; validation rounds judge the original findings and the remediation patch's direct regressions — nothing else
+- [ ] The frozen patch from `specseal verify scope` is the code evidence; touched file lists and worktree state never substitute for it
+- [ ] needsInput and scope failures wait for an explicit disposal (trusted `--base`, hash-pinned selection, isolated worktree, or discard) — never guess past them
+- [ ] The checking pass is read-only; every fix returns to the main thread
+- [ ] The sub-agent model comes from `subagentModel.verify.{{TOOL}}` of `specseal workflow-config show --json`; a refused model name ends the station before a round is recorded
+- [ ] The ticket is verb-owned: create, append, and close it only through `specseal verify` verbs
+- [ ] Unresolved findings travel verbatim between rounds — rewording fakes progress
+- [ ] The verification gate is hard: no next round starts on a failing build or affected tests, and the report names what ran and what CI guards
+- [ ] The brief follows the **Brief discipline** and looks for evidence in the frozen patch first; unfinished checks are listed, never counted as clean
+- [ ] Accepted findings are carried, never re-reported
+- [ ] Thin artifacts: verify what exists, never invent requirements
+- [ ] Stop on errors and report — don't guess past a failing verb
+
+## Next steps
+
+{{NEXT_STEPS_LEAD}}
+
+- The verify stamp landed in the main checkout → `/specseal:archive <change-name>`
+{{#SPEC_IN_CHECKOUT}}
+- The verify stamp landed inside a worktree → commit the stamp's meta changes first, then `/specseal:worktree-merge <change-name>` (archive runs only from the main checkout)
+{{/SPEC_IN_CHECKOUT}}
+{{^SPEC_IN_CHECKOUT}}
+- The verify stamp landed inside a worktree → `/specseal:worktree-merge <change-name>` (the stamp is on the Server — nothing to commit for it; archive runs only from the main checkout)
+{{/SPEC_IN_CHECKOUT}}
+- Findings were left unfixed on purpose → they stay in the ticket; say which ones before suggesting anything downstream
+- A no-spec-change change got a behavior-change WARNING → the repair steps in its recommendation: `specseal verify discard <change-name>`, `specseal change schema <change-name> spec-driven`, `/specseal:ingest <change-name>`, then verify again — not `--accept`

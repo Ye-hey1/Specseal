@@ -1,0 +1,931 @@
+//! The single request layer plus the per-verb path mapping.
+//!
+//! Every project-bound request carries the contract headers (`Authorization`,
+//! `X-Specseal-Api-Version`, and `X-Specseal-Repo` when selected); the
+//! pre-binding `/scopes` request carries only its bearer. Every non-2xx response
+//! goes through the protocol registry mapping. Requests and responses are
+//! specseal-protocol DTOs end to end — no verb assembles or picks apart raw JSON,
+//! and no verb re-implements transport or error handling.
+
+use crate::{translate_protocol_error, translate_transport, RemoteError};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+use specseal_protocol::binding::BindingResponse;
+use specseal_protocol::command::{
+    AddDiscussionRoundRequest, AddDiscussionRoundResponse, AddReviewRoundRequest,
+    AddReviewRoundResponse, ArchiveDiscussionResponse, ArchiveResponse, BindDiscussionRequest,
+    BindDiscussionResponse, ClaimResponse, ConcludeDiscussionRequest, ConcludeDiscussionResponse,
+    CreateChangeRequest, CreateChangeResponse, CreateDiscussionRequest, CreateDiscussionResponse,
+    FreeFields, SetFieldsRequest, SetFieldsResponse,
+    DiscardDiscussionResponse, DiscardResponse, DiscardReviewResponse, InProgressRemoveResponse,
+    MarkInProgressRequest, MoveTaskRequest, MoveTaskResponse, PromoteDiscussionRequest, PromoteDiscussionResponse,
+    PutArtifactRequest, PutArtifactResponse, RankChangeRequest, RankChangeResponse,
+    ReportLandedRequest, ReportLandedResponse, ReviewScopeEntryDto, ReviewTicketResponse,
+    SetDependsRequest, SetDependsResponse, SetDiscussionContextRequest, SetSchemaRequest,
+    SetSchemaResponse, StampReviewRequest, StampReviewResponse, TaskDoneRequest, TaskDoneResponse,
+    TaskUndoneResponse,
+};
+use specseal_protocol::skills::{SkillsRequest, SkillsResponse};
+use specseal_protocol::context::{ContextSnapshot, ContextSnapshotRequest};
+use specseal_protocol::drift::SpecDriftResponse;
+use specseal_protocol::query::{
+    AnalyzeReportResponse, ApplyInstructions, ArchivedListResponse, ArtifactContent,
+    ArtifactInstructions, BoardOrderResponse, ChangeEvidenceResponse, ChangeStatus,
+    ConfigResponse, ImportBundle,
+    ImportReportResponse, LanguageResponse, ListChangesResponse, ListDiscussionsResponse,
+    ListSpecsResponse, PlanResponse, PutBoardOrderRequest, PutBoardOrderResponse, PutConfigRequest,
+    PutConfigResponse, ScopesResponse, SearchDiscussionsResponse, SearchResponse,
+    ShowDiscussionResponse,
+    SpecDocumentResponse, TraceResponse, ValidateChangeResponse, WhoamiResponse,
+};
+
+/// What [`Client::plan_strict`] says of a server that answered the plain plan.
+const STRICT_PLAN_UNSUPPORTED: &str =
+    "this server does not support plan --strict-overlap — update the server, or run the plan without the flag";
+
+/// `text` percent-encoded as one path segment: every byte outside RFC 3986's
+/// unreserved set is encoded, so a `/`, `?`, `#` or space in a name stays
+/// inside its segment and the server answers for the name as it was typed.
+/// Three names cannot travel as a segment: the two dot names are left as they
+/// are — no encoding keeps them from being read as path steps — and the empty
+/// name leaves no segment at all. The server has no route for what the path
+/// becomes, so they end as its 404, not as the Engine's own line.
+fn encode_segment(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    for byte in text.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => out.push(byte as char),
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// The contract major version this client speaks (`X-Specseal-Api-Version`)
+/// — the protocol crate's constant is the single source.
+pub const API_VERSION: &str = specseal_protocol::API_VERSION;
+
+/// The bare-object body for verbs whose request carries no fields.
+#[derive(Serialize)]
+struct Empty {}
+
+/// The outcome of a context snapshot request: the scope was unchanged since the
+/// caller's known snapshot id (a 304 with no body), or a fresh snapshot. The
+/// two-valued shape lets a projection refresh skip rewriting when nothing moved.
+#[derive(Debug)]
+pub enum ContextSnapshotOutcome {
+    /// The scope state token still matches the caller's known snapshot id.
+    Unchanged,
+    /// A fresh consistent snapshot of the scope's context documents.
+    Fresh(ContextSnapshot),
+}
+
+/// A client bound to one project-scoped base URL, one token, and (optionally)
+/// one repo identity.
+pub struct Client {
+    base: String,
+    api_root: String,
+    token: String,
+    repo: Option<String>,
+    agent: ureq::Agent,
+}
+
+impl Client {
+    /// `base_url` is the project-scoped connection URL (a trailing slash is
+    /// tolerated); `repo` is the registered repo name from the connection
+    /// file, when declared.
+    pub fn new(base_url: &str, token: &str, repo: Option<&str>) -> Client {
+        let base = base_url.trim_end_matches('/').to_string();
+        let api_root = base
+            .rsplit_once("/projects/")
+            .map(|(root, _project)| root.to_string())
+            .unwrap_or_else(|| base.clone());
+        Client {
+            base,
+            api_root,
+            token: token.to_string(),
+            repo: repo.map(str::to_string),
+            agent: ureq::AgentBuilder::new()
+                .timeout(std::time::Duration::from_secs(30))
+                .build(),
+        }
+    }
+
+    /// One project-bound request skeleton with the contract headers — every
+    /// bound call, handshake included, goes through here exactly once.
+    fn request(&self, method: &str, path: &str) -> ureq::Request {
+        let mut req = self
+            .agent
+            .request(method, &format!("{}{}", self.base, path))
+            .set("Authorization", &format!("Bearer {}", self.token))
+            .set("X-Specseal-Api-Version", API_VERSION);
+        if let Some(repo) = &self.repo {
+            req = req.set("X-Specseal-Repo", repo);
+        }
+        req
+    }
+
+    /// Identity-scoped request before a project/repo is chosen. `/scopes`
+    /// deliberately carries only its bearer: sending a fabricated repo header
+    /// would make the chooser prerequisite depend on the choice it must return.
+    fn identity_request(&self, method: &str, path: &str) -> ureq::Request {
+        self.agent
+            .request(method, &format!("{}{}", self.api_root, path))
+            .set("Authorization", &format!("Bearer {}", self.token))
+    }
+
+    /// One request through the contract's header and error rules. Every verb
+    /// funnels through here — the body is the request DTO's serialization,
+    /// the response parses into the response DTO, and translation exists
+    /// exactly once.
+    fn send<T: DeserializeOwned, B: Serialize>(
+        &self,
+        method: &str,
+        path: &str,
+        body: Option<&B>,
+        extra_headers: &[(&str, &str)],
+    ) -> Result<T, RemoteError> {
+        let mut req = self.request(method, path);
+        for (k, v) in extra_headers {
+            req = req.set(k, v);
+        }
+        self.send_request(req, body)
+    }
+
+    /// Execute an already-built request through the one response/error
+    /// translation path. This supports the identity-only and query-parameter
+    /// variants without duplicating protocol handling.
+    fn send_request<T: DeserializeOwned, B: Serialize>(
+        &self,
+        req: ureq::Request,
+        body: Option<&B>,
+    ) -> Result<T, RemoteError> {
+        let result = match body {
+            Some(payload) => req.send_json(payload),
+            None => req.call(),
+        };
+        match result {
+            Ok(resp) => resp.into_json().map_err(|_| RemoteError {
+                message: "unexpected server response — the server did not return valid JSON".into(),
+                reason: None,
+                status: None,
+                evidence: None,
+            }),
+            Err(ureq::Error::Status(status, resp)) => {
+                let body = resp.into_string().unwrap_or_default();
+                Err(translate_protocol_error(status, &body))
+            }
+            Err(ureq::Error::Transport(_)) => Err(translate_transport()),
+        }
+    }
+
+    fn get<T: DeserializeOwned>(&self, path: &str) -> Result<T, RemoteError> {
+        self.send::<T, Empty>("GET", path, None, &[])
+    }
+
+    fn post<T: DeserializeOwned, B: Serialize>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T, RemoteError> {
+        self.send("POST", path, Some(body), &[])
+    }
+
+    // --- binding handshake (the connection precondition, fail closed) ---
+
+    /// `GET /binding` — the handshake that precedes any verb flow. The only
+    /// client-side judgment is API version compatibility; a missing,
+    /// unauthorized, or ambiguous binding arrives as the server's registry
+    /// refusal and is relayed, never resolved by probing or picking a
+    /// candidate. Capability declarations (events transports, polling) are
+    /// parsed and kept — no event connection is opened here.
+    pub fn handshake(&self) -> Result<BindingResponse, RemoteError> {
+        let binding: BindingResponse = self.get("/binding")?;
+        if binding.api_version != API_VERSION {
+            return Err(RemoteError {
+                message:
+                    "server does not support this CLI's API version — upgrade the CLI or the server"
+                        .into(),
+                reason: Some("api_version_unsupported".into()),
+                status: None,
+                evidence: None,
+            });
+        }
+        Ok(binding)
+    }
+
+    // --- read path ---
+
+    /// `GET /scopes` — identity-only membership discovery. The client is
+    /// usually constructed from one project URL, so this call derives the API
+    /// root and intentionally omits repo/version binding headers.
+    pub fn list_scopes(&self) -> Result<ScopesResponse, RemoteError> {
+        self.send_request::<ScopesResponse, Empty>(self.identity_request("GET", "/scopes"), None)
+    }
+
+    /// `GET /changes`
+    pub fn list_changes(&self) -> Result<ListChangesResponse, RemoteError> {
+        self.get("/changes")
+    }
+
+    /// `GET /changes/{name}`
+    pub fn get_change(&self, name: &str) -> Result<ChangeStatus, RemoteError> {
+        self.get(&format!("/changes/{name}"))
+    }
+
+    /// `GET /changes/{name}/instructions/apply`
+    pub fn apply_instructions(&self, name: &str) -> Result<ApplyInstructions, RemoteError> {
+        self.get(&format!("/changes/{name}/instructions/apply"))
+    }
+
+    /// `GET /changes/{name}/instructions/{artifact}`
+    pub fn artifact_instructions(
+        &self,
+        name: &str,
+        artifact: &str,
+    ) -> Result<ArtifactInstructions, RemoteError> {
+        self.get(&format!("/changes/{name}/instructions/{artifact}"))
+    }
+
+    /// `GET /changes/{name}/artifacts/{artifact}`
+    pub fn get_artifact(&self, name: &str, artifact: &str) -> Result<ArtifactContent, RemoteError> {
+        self.get(&format!("/changes/{name}/artifacts/{artifact}"))
+    }
+
+    /// `GET /changes/{name}/drift` — the change's spec-side drift and the basis
+    /// digests of the snapshot it was computed at. The workspace side is the
+    /// caller's own to collect: it is not on the wire and never was.
+    pub fn spec_drift(&self, name: &str) -> Result<SpecDriftResponse, RemoteError> {
+        self.get(&format!("/changes/{name}/drift"))
+    }
+
+    /// `GET /specs`
+    pub fn list_specs(&self) -> Result<ListSpecsResponse, RemoteError> {
+        self.get("/specs")
+    }
+
+    /// `GET /specs/{capability}/document`
+    pub fn spec_document(&self, capability: &str) -> Result<SpecDocumentResponse, RemoteError> {
+        self.get(&format!("/specs/{capability}/document"))
+    }
+
+    /// `GET /archived`
+    pub fn archived_list(&self) -> Result<ArchivedListResponse, RemoteError> {
+        self.get("/archived")
+    }
+
+    /// `GET /archived/{datedName}/artifacts/{artifact}`
+    pub fn archived_artifact(
+        &self,
+        dated_name: &str,
+        artifact: &str,
+    ) -> Result<SpecDocumentResponse, RemoteError> {
+        self.get(&format!("/archived/{dated_name}/artifacts/{artifact}"))
+    }
+
+    /// `GET /archived/{datedName}/capabilities`
+    pub fn archived_capabilities(&self, dated_name: &str) -> Result<Vec<String>, RemoteError> {
+        self.get(&format!("/archived/{dated_name}/capabilities"))
+    }
+
+    /// `GET /search?q=...`; ureq owns query encoding so whitespace and
+    /// non-ASCII search text are transmitted without raw URL assembly.
+    pub fn search(&self, query: &str) -> Result<SearchResponse, RemoteError> {
+        let request = self.request("GET", "/search").query("q", query);
+        self.send_request::<SearchResponse, Empty>(request, None)
+    }
+
+    /// `GET /language`
+    pub fn language(&self) -> Result<LanguageResponse, RemoteError> {
+        self.get("/language")
+    }
+
+    /// `GET /config`
+    pub fn config(&self) -> Result<ConfigResponse, RemoteError> {
+        self.get("/config")
+    }
+
+    /// `GET /board-order` — the scope's opaque board-order document; an
+    /// absent document is a normal state (`content` null).
+    pub fn board_order(&self) -> Result<BoardOrderResponse, RemoteError> {
+        self.get("/board-order")
+    }
+
+    /// `GET /plan` — the scope's change-level execution order, ranked by the
+    /// scope's board resource. A dependency cycle comes back as a `refused`
+    /// 409 carrying the engine's cycle line verbatim.
+    pub fn plan(&self) -> Result<PlanResponse, RemoteError> {
+        self.get("/plan")
+    }
+
+    /// `GET /plan?strictOverlap=true` — the plan before requirement-level
+    /// overlap, in the payload of [`Client::plan`] with its `strictOverlap`
+    /// mark. A server from before the strict plan ignores the query and
+    /// answers the plain plan without the mark: that is an error here, never
+    /// a plan handed back as the strict one.
+    pub fn plan_strict(&self) -> Result<PlanResponse, RemoteError> {
+        let request = self.request("GET", "/plan").query("strictOverlap", "true");
+        let plan = self.send_request::<PlanResponse, Empty>(request, None)?;
+        if !plan.strict_overlap {
+            return Err(RemoteError {
+                message: STRICT_PLAN_UNSUPPORTED.to_string(),
+                reason: None,
+                status: None,
+                evidence: None,
+            });
+        }
+        Ok(plan)
+    }
+
+    /// `GET /trace/{capability}` — the capability's provenance chain. An
+    /// unknown capability comes back as a `not_found` 404 carrying the
+    /// engine's line with its near names.
+    pub fn trace(&self, capability: &str) -> Result<TraceResponse, RemoteError> {
+        self.get(&format!("/trace/{}", encode_segment(capability)))
+    }
+
+    /// `GET /changes/{name}/evidence` — the recorded completion evidence of
+    /// the change the name stands for: an active one, else the newest archived
+    /// one (the response then names it). A change that never recorded any
+    /// answers with an empty set; a name that is no change is a `not_found`.
+    pub fn change_evidence(&self, name: &str) -> Result<ChangeEvidenceResponse, RemoteError> {
+        self.get(&format!("/changes/{}/evidence", encode_segment(name)))
+    }
+
+    /// `GET /whoami`
+    pub fn whoami(&self) -> Result<WhoamiResponse, RemoteError> {
+        self.get("/whoami")
+    }
+
+    // --- context snapshot ---
+
+    /// `POST /context` with the request body and, when the caller already holds
+    /// a snapshot, its id as `If-None-Match`. A 304 (the scope state token still
+    /// matches) is [`ContextSnapshotOutcome::Unchanged`]; a 200 is a fresh
+    /// snapshot. Every other status goes through the registry translation like
+    /// any verb — this is the only conditional path that reads a 304, so it does
+    /// not funnel through `send` (which has no not-modified outcome). A 304 is a
+    /// non-redirect 3xx: ureq surfaces it as `Ok` with status 304, not an error.
+    pub fn context_snapshot(
+        &self,
+        request: &ContextSnapshotRequest,
+        known_snapshot_id: Option<&str>,
+    ) -> Result<ContextSnapshotOutcome, RemoteError> {
+        let mut req = self.request("POST", "/context");
+        if let Some(id) = known_snapshot_id {
+            req = req.set("If-None-Match", id);
+        }
+        match req.send_json(request) {
+            Ok(resp) if resp.status() == 304 => Ok(ContextSnapshotOutcome::Unchanged),
+            Ok(resp) => {
+                let snapshot: ContextSnapshot = resp.into_json().map_err(|_| RemoteError {
+                    message: "unexpected server response — the server did not return valid JSON"
+                        .into(),
+                    reason: None,
+                    status: None,
+                    evidence: None,
+                })?;
+                Ok(ContextSnapshotOutcome::Fresh(snapshot))
+            }
+            Err(ureq::Error::Status(status, resp)) => {
+                let body = resp.into_string().unwrap_or_default();
+                Err(translate_protocol_error(status, &body))
+            }
+            Err(ureq::Error::Transport(_)) => Err(translate_transport()),
+        }
+    }
+
+    /// `POST /skills` — the skills this scope's checkouts install for the
+    /// requested tools. It only reads; a caller who cannot write still uses it.
+    pub fn skills(&self, request: &SkillsRequest) -> Result<SkillsResponse, RemoteError> {
+        self.post("/skills", request)
+    }
+
+    // --- write path ---
+
+    /// `POST /import` — atomically migrate a complete local workspace bundle
+    /// into the empty bound scope. The request DTO deliberately has no mode,
+    /// so callers cannot select the store's maintenance-only Overwrite path.
+    pub fn import(&self, bundle: &ImportBundle) -> Result<ImportReportResponse, RemoteError> {
+        self.post("/import", bundle)
+    }
+
+    /// `PUT /config` with the complete workflow policy source and the scope
+    /// revision returned by [`Client::config`]. There is deliberately no
+    /// overload without `expected_revision` and therefore no force-write path.
+    pub fn put_config(
+        &self,
+        content: &str,
+        expected_revision: u64,
+    ) -> Result<PutConfigResponse, RemoteError> {
+        self.send(
+            "PUT",
+            "/config",
+            Some(&PutConfigRequest {
+                content: content.to_string(),
+                expected_revision,
+            }),
+            &[],
+        )
+    }
+
+    /// `PUT /board-order` with the full replacement text and `If-Match` = the
+    /// scope revision returned by [`Client::board_order`]. There is
+    /// deliberately no force-write path.
+    pub fn put_board_order(
+        &self,
+        content: &str,
+        expected_revision: u64,
+    ) -> Result<PutBoardOrderResponse, RemoteError> {
+        self.send(
+            "PUT",
+            "/board-order",
+            Some(&PutBoardOrderRequest {
+                content: content.to_string(),
+            }),
+            &[("If-Match", &expected_revision.to_string())],
+        )
+    }
+
+    /// `POST /changes`
+    pub fn create_change(
+        &self,
+        request: CreateChangeRequest,
+    ) -> Result<CreateChangeResponse, RemoteError> {
+        self.post("/changes", &request)
+    }
+
+    /// `PUT /changes/{name}/artifacts/{artifact}` with `If-Match: <version>`
+    /// (`0` = create-only). The version must always be the one obtained when
+    /// the content was read — there is no force-write.
+    pub fn put_artifact(
+        &self,
+        name: &str,
+        artifact: &str,
+        content: &str,
+        if_match: u64,
+    ) -> Result<PutArtifactResponse, RemoteError> {
+        self.send(
+            "PUT",
+            &format!("/changes/{name}/artifacts/{artifact}"),
+            Some(&PutArtifactRequest {
+                content: content.to_string(),
+            }),
+            &[("If-Match", &if_match.to_string())],
+        )
+    }
+
+    /// `POST /changes/{name}/tasks/{taskId}/done`
+    pub fn task_done(
+        &self,
+        name: &str,
+        task_id: &str,
+        touched_files: &[String],
+        head_commit: Option<&str>,
+    ) -> Result<TaskDoneResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/tasks/{task_id}/done"),
+            &TaskDoneRequest {
+                touched_files: touched_files.to_vec(),
+                head_commit: head_commit.map(str::to_string),
+            },
+        )
+    }
+
+    /// `POST /changes/{name}/tasks/{taskId}/undone` — unchecking records no
+    /// touched files, so the body is always the bare object.
+    pub fn task_undone(
+        &self,
+        name: &str,
+        task_id: &str,
+    ) -> Result<TaskUndoneResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/tasks/{task_id}/undone"),
+            &Empty {},
+        )
+    }
+
+    /// `POST /changes/{name}/claim`
+    pub fn claim(&self, name: &str) -> Result<ClaimResponse, RemoteError> {
+        self.post(&format!("/changes/{name}/claim"), &Empty {})
+    }
+
+    /// `POST /changes/{name}/depends` — declare (or with `remove`, drop) the
+    /// change's prerequisites. Guard refusals come back as `refused` 409s
+    /// carrying the engine's line verbatim.
+    pub fn set_depends(
+        &self,
+        name: &str,
+        on: &[String],
+        remove: bool,
+    ) -> Result<SetDependsResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/depends"),
+            &SetDependsRequest { on: on.to_vec(), remove },
+        )
+    }
+
+    /// `POST /changes/{name}/rank` — move the change right `position`
+    /// (`before` or `after`) of `anchor` in its stage's column; the server
+    /// writes the scope's board resource. Guard refusals come back as
+    /// `refused` 409s carrying the engine's line verbatim.
+    pub fn rank_change(
+        &self,
+        name: &str,
+        anchor: &str,
+        position: &str,
+        force: bool,
+    ) -> Result<RankChangeResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/rank"),
+            &RankChangeRequest { anchor: anchor.to_string(), position: position.to_string(), force },
+        )
+    }
+
+    /// `POST /changes/{name}/schema` — switch the change's schema. Guard
+    /// refusals come back as `refused` 409s carrying the engine's line verbatim.
+    pub fn set_schema(&self, name: &str, schema: &str) -> Result<SetSchemaResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/schema"),
+            &SetSchemaRequest { schema: schema.to_string() },
+        )
+    }
+
+    /// `POST /changes/{name}/archive?carryReview=<bool>&carryVerify=<bool>` —
+    /// 两个旗标各自带着该站的未结工单一起封存（design D4／D5 的第三处置）。
+    /// 带走哪种工单是两个独立决定，故两个参数恒上 wire。
+    pub fn archive(
+        &self,
+        name: &str,
+        carry_review: bool,
+        carry_verify: bool,
+    ) -> Result<ArchiveResponse, RemoteError> {
+        self.post(
+            &format!(
+                "/changes/{name}/archive?carryReview={carry_review}&carryVerify={carry_verify}"
+            ),
+            &Empty {},
+        )
+    }
+
+    /// `GET /changes/{name}/validate` — 唯读衍生查找；端点固定单 change，
+    /// CLI 的聚合语意由调用端逐 change 组合（server-verb-api 决策 2）。
+    pub fn validate_change(&self, name: &str) -> Result<ValidateChangeResponse, RemoteError> {
+        self.get(&format!("/changes/{name}/validate"))
+    }
+
+    /// `GET /changes/{name}/analyze` — 唯读衍生查找，完整 AnalyzeReport。
+    pub fn analyze_change(&self, name: &str) -> Result<AnalyzeReportResponse, RemoteError> {
+        self.get(&format!("/changes/{name}/analyze"))
+    }
+
+    /// `DELETE /changes/{name}?force=` — Command::Discard 全语意；force=false
+    /// 对已开工 change 的 guard 拒绝以 `refused` 回来，由调用端翻译呈现。
+    pub fn discard(&self, name: &str, force: bool) -> Result<DiscardResponse, RemoteError> {
+        self.send::<DiscardResponse, Empty>(
+            "DELETE",
+            &format!("/changes/{name}?force={force}"),
+            None,
+            &[],
+        )
+    }
+
+    /// `POST /changes/{name}/tasks/move` — 1-based checkbox ordinal 寻址的
+    /// 搬移＋重编号（镜射 UI moveTask 签名）。
+    pub fn move_task(
+        &self,
+        name: &str,
+        from: usize,
+        to: usize,
+        before: Option<bool>,
+    ) -> Result<MoveTaskResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/tasks/move"),
+            &MoveTaskRequest { from, to, before },
+        )
+    }
+
+    // --- discussions ---
+
+    /// `GET /discussions?archived=`
+    pub fn list_discussions(&self, archived: bool) -> Result<ListDiscussionsResponse, RemoteError> {
+        if archived {
+            self.get("/discussions?archived=true")
+        } else {
+            self.get("/discussions")
+        }
+    }
+
+    /// `POST /discussions` — `slug` is the caller's override; `None` keeps the
+    /// body byte-identical to the pre-slug client's (server derives the slug).
+    /// `kind` rides the same way; the engine owns its whitelist.
+    pub fn new_discussion(
+        &self,
+        topic: &str,
+        slug: Option<&str>,
+        kind: Option<&str>,
+    ) -> Result<CreateDiscussionResponse, RemoteError> {
+        self.new_discussion_with_fields(topic, slug, kind, &FreeFields::new())
+    }
+
+    /// [`Client::new_discussion`] with free fields the record starts with
+    /// (`discuss new --field`). The call without fields keeps its signature:
+    /// the desktop app and the server's tests call it. No field keeps the
+    /// body what it was. A server from before free fields
+    /// creates the record and drops them: the handshake's
+    /// `capabilities.fields` says whether it keeps them.
+    pub fn new_discussion_with_fields(
+        &self,
+        topic: &str,
+        slug: Option<&str>,
+        kind: Option<&str>,
+        fields: &FreeFields,
+    ) -> Result<CreateDiscussionResponse, RemoteError> {
+        self.post(
+            "/discussions",
+            &CreateDiscussionRequest {
+                topic: topic.to_string(),
+                slug: slug.map(str::to_string),
+                kind: kind.map(str::to_string),
+                fields: fields.clone(),
+            },
+        )
+    }
+
+    /// `PUT /changes/{name}/fields` — set and remove free fields of a change
+    /// in one write. A server from before this route answers 404.
+    pub fn set_change_fields(
+        &self,
+        name: &str,
+        set: &FreeFields,
+        unset: &[String],
+    ) -> Result<SetFieldsResponse, RemoteError> {
+        self.put_fields(&format!("/changes/{name}/fields"), set, unset)
+    }
+
+    /// `PUT /discussions/{slug}/fields` — the same write for a live discussion.
+    pub fn set_discussion_fields(
+        &self,
+        slug: &str,
+        set: &FreeFields,
+        unset: &[String],
+    ) -> Result<SetFieldsResponse, RemoteError> {
+        self.put_fields(&format!("/discussions/{slug}/fields"), set, unset)
+    }
+
+    fn put_fields(&self, path: &str, set: &FreeFields, unset: &[String]) -> Result<SetFieldsResponse, RemoteError> {
+        self.send("PUT", path, Some(&SetFieldsRequest { set: set.clone(), unset: unset.to_vec() }), &[])
+    }
+
+    /// `DELETE /discussions/{slug}?force=` — Command::DiscussDiscard 直通；
+    /// 有轮的 guard 拒绝以 `refused` 回来，由调用端翻译呈现（镜射 change 侧
+    /// DELETE 的 force query 形式）。
+    pub fn discard_discussion(
+        &self,
+        slug: &str,
+        force: bool,
+    ) -> Result<DiscardDiscussionResponse, RemoteError> {
+        self.send::<DiscardDiscussionResponse, Empty>(
+            "DELETE",
+            &format!("/discussions/{slug}?force={force}"),
+            None,
+            &[],
+        )
+    }
+
+    /// `POST /discussions/{slug}/link`
+    pub fn link_discussion(
+        &self,
+        slug: &str,
+        change: &str,
+    ) -> Result<BindDiscussionResponse, RemoteError> {
+        self.post(
+            &format!("/discussions/{slug}/link"),
+            &BindDiscussionRequest { change: change.to_string(), last: false },
+        )
+    }
+
+    /// `POST /discussions/{slug}/seal`
+    pub fn seal_discussion(
+        &self,
+        slug: &str,
+        change: &str,
+        last: bool,
+    ) -> Result<BindDiscussionResponse, RemoteError> {
+        self.post(
+            &format!("/discussions/{slug}/seal"),
+            &BindDiscussionRequest { change: change.to_string(), last },
+        )
+    }
+
+    /// `GET /changes/{name}/{station}` — the parsed ticket of one quality
+    /// station (`station` ∈ review｜verify), mirroring the CLI
+    /// `<station> show --json` shape. The wire shape is station-agnostic: the
+    /// two stations differ only in which document the engine reads.
+    pub fn station_ticket(
+        &self,
+        station: &str,
+        name: &str,
+    ) -> Result<ReviewTicketResponse, RemoteError> {
+        self.get(&format!("/changes/{name}/{station}"))
+    }
+
+    /// [`station_ticket`](Self::station_ticket) for scope assembly: a 404 is
+    /// the normal "no ticket → discovery" branch, every other error stays an
+    /// error (offline must never read as "no ticket").
+    pub fn station_ticket_if_any(
+        &self,
+        station: &str,
+        name: &str,
+    ) -> Result<Option<ReviewTicketResponse>, RemoteError> {
+        match self.station_ticket(station, name) {
+            Ok(ticket) => Ok(Some(ticket)),
+            Err(e) if e.reason.as_deref() == Some("not_found") => Ok(None),
+            Err(e) => Err(e),
+        }
+    }
+
+    /// `POST /changes/{name}/{station}/rounds`
+    pub fn station_add_round(
+        &self,
+        station: &str,
+        name: &str,
+        content: &str,
+    ) -> Result<AddReviewRoundResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/{station}/rounds"),
+            &AddReviewRoundRequest { content: content.to_string() },
+        )
+    }
+
+    /// `POST /changes/{name}/{station}/stamp` — the scope fingerprints are
+    /// computed by the caller from its work tree (design D4a); the server
+    /// validates the path set against the ticket and never re-hashes.
+    /// `head_commit` is the commit the caller's checkout is on, when it has one.
+    #[allow(clippy::too_many_arguments)]
+    pub fn station_stamp(
+        &self,
+        station: &str,
+        name: &str,
+        accept: bool,
+        agent: Option<&str>,
+        head_commit: Option<&str>,
+        scope: &[ReviewScopeEntryDto],
+        missing: &[String],
+    ) -> Result<StampReviewResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/{station}/stamp"),
+            &StampReviewRequest {
+                accept,
+                agent: agent.map(str::to_string),
+                scope: scope.to_vec(),
+                missing: missing.to_vec(),
+                head_commit: head_commit.map(str::to_string),
+            },
+        )
+    }
+
+    /// `DELETE /changes/{name}/{station}`
+    pub fn station_discard(
+        &self,
+        station: &str,
+        name: &str,
+    ) -> Result<DiscardReviewResponse, RemoteError> {
+        self.send::<DiscardReviewResponse, Empty>(
+            "DELETE",
+            &format!("/changes/{name}/{station}"),
+            None,
+            &[],
+        )
+    }
+
+    /// `POST /changes/{name}/in-progress` — silent parity verb: the response
+    /// body carries nothing the client consumes. `branch` is the branch the
+    /// caller's checkout is on; without one the body is the bare `{}`.
+    pub fn in_progress_add(&self, name: &str, branch: Option<&str>) -> Result<(), RemoteError> {
+        self.post::<serde::de::IgnoredAny, _>(
+            &format!("/changes/{name}/in-progress"),
+            &MarkInProgressRequest { branch: branch.map(str::to_string) },
+        )
+        .map(|_| ())
+    }
+
+    /// `POST /changes/{name}/landed` — report the commit the change's code
+    /// landed on. A server from before this route answers 404.
+    pub fn change_landed(
+        &self,
+        name: &str,
+        commit: &str,
+        branch: Option<&str>,
+    ) -> Result<ReportLandedResponse, RemoteError> {
+        self.post(
+            &format!("/changes/{name}/landed"),
+            &ReportLandedRequest { commit: commit.to_string(), branch: branch.map(str::to_string) },
+        )
+    }
+
+    /// `DELETE /changes/{name}/in-progress` — the reverse verb, gated on zero
+    /// work traces. A 200 Ack covers both the actual removal and the
+    /// not-started idempotent pass; a 409 refusal carries the work-trace
+    /// evidence structurally on [`RemoteError::evidence`].
+    pub fn in_progress_remove(
+        &self,
+        name: &str,
+    ) -> Result<InProgressRemoveResponse, RemoteError> {
+        self.send::<InProgressRemoveResponse, Empty>(
+            "DELETE",
+            &format!("/changes/{name}/in-progress"),
+            None,
+            &[],
+        )
+    }
+
+    /// `GET /discussions/{slug}`
+    pub fn show_discussion(&self, slug: &str) -> Result<ShowDiscussionResponse, RemoteError> {
+        self.get(&format!("/discussions/{slug}"))
+    }
+
+    /// `GET /discussions/search?q=<keywords>` — the keywords travel
+    /// space-joined in one `q`; the server splits on whitespace again.
+    pub fn search_discussions(
+        &self,
+        terms: &[String],
+    ) -> Result<SearchDiscussionsResponse, RemoteError> {
+        let request = self.request("GET", "/discussions/search").query("q", &terms.join(" "));
+        self.send_request::<SearchDiscussionsResponse, Empty>(request, None)
+    }
+
+    /// `PUT /discussions/{slug}/context` — the response body carries nothing
+    /// the client consumes.
+    pub fn discussion_context(&self, slug: &str, content: &str) -> Result<(), RemoteError> {
+        self.send::<serde::de::IgnoredAny, _>(
+            "PUT",
+            &format!("/discussions/{slug}/context"),
+            Some(&SetDiscussionContextRequest {
+                content: content.to_string(),
+            }),
+            &[],
+        )
+        .map(|_| ())
+    }
+
+    /// `POST /discussions/{slug}/rounds`
+    pub fn discussion_add_round(
+        &self,
+        slug: &str,
+        mode: &str,
+        content: &str,
+    ) -> Result<AddDiscussionRoundResponse, RemoteError> {
+        self.post(
+            &format!("/discussions/{slug}/rounds"),
+            &AddDiscussionRoundRequest {
+                mode: mode.to_string(),
+                content: content.to_string(),
+            },
+        )
+    }
+
+    /// `POST /discussions/{slug}/conclude` — the response names the changes a
+    /// re-conclude flagged for re-ingest. `hold` keeps the record live past its
+    /// conclusion; the response's `held` reports what the store recorded.
+    pub fn discussion_conclude(
+        &self,
+        slug: &str,
+        content: &str,
+        hold: bool,
+    ) -> Result<ConcludeDiscussionResponse, RemoteError> {
+        self.post(
+            &format!("/discussions/{slug}/conclude"),
+            &ConcludeDiscussionRequest {
+                content: content.to_string(),
+                hold,
+            },
+        )
+    }
+
+    /// `POST /discussions/{slug}/archive`
+    pub fn discussion_archive(&self, slug: &str) -> Result<ArchiveDiscussionResponse, RemoteError> {
+        self.post(&format!("/discussions/{slug}/archive"), &Empty {})
+    }
+
+    /// `POST /discussions/{slug}/promote` — `last` marks the spun-out change as
+    /// the final cut the conclusion planned (the record's hold flag is dropped in
+    /// the same write); `false` keeps the body byte-identical to an old client's.
+    pub fn discussion_promote(
+        &self,
+        slug: &str,
+        name: Option<&str>,
+        last: bool,
+    ) -> Result<PromoteDiscussionResponse, RemoteError> {
+        self.post(
+            &format!("/discussions/{slug}/promote"),
+            &PromoteDiscussionRequest {
+                name: name.map(str::to_string),
+                last,
+                // No caller sends fields with a promotion: the CLI has no flag
+                // for it. The request type carries them for a host's own client.
+                fields: FreeFields::new(),
+            },
+        )
+    }
+}

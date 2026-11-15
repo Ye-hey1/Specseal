@@ -18,25 +18,25 @@ import { CALLOUT_BOX_CLS, CALLOUT_TITLE_CLS, CALLOUT_TONE, type CalloutTone } fr
 
 export interface MarkdownProps {
   content: string | null;
-  /** 空狀態文案；省略時用 i18n 預設「（無內容）」。 */
+  /** 空状态文案；省略时用 i18n 缺省「（无内容）」。 */
   empty?: string;
-  /** 以等寬灰底標示 SHALL／MUST 關鍵字（規格詳情頁的需求文與 Scenario）。 */
+  /** 以等宽灰底标示 SHALL／MUST 关键字（规格详情页的需求文与 Scenario）。 */
   specKeywords?: boolean;
-  /** 合進外層 `.markdown` 容器（如列內行內排版的 `[&_p]:my-0`）；與預設衝突的 class 以後者為準。 */
+  /** 合进外层 `.markdown` 容器（如列内行内排版的 `[&_p]:my-0`）；与缺省冲突的 class 以后者为准。 */
   className?: string;
-  /** 文中名稱籤（討論背景）：與名單完全相同的字詞換成 `span.name-chip[data-name-chip="<kind>:<name>"]`；
-   * 款式與點擊由呼叫端容器負責。缺席或空陣列時管線不變。 */
+  /** 文中名称签（讨论背景）：与名单完全相同的字词换成 `span.name-chip[data-name-chip="<kind>:<name>"]`；
+   * 款式与点击由调用端容器负责。缺席或空数组时管线不变。 */
   nameChips?: NameChip[];
 }
 
-/** 一顆名稱籤的來源：種類（spec／change／archived／discussion 等，呼叫端自訂）與名稱。 */
+/** 一颗名称签的来源：种类（spec／change／archived／discussion 等，调用端自订）与名称。 */
 export interface NameChip {
   kind: string;
   name: string;
 }
 
 /** GitHub Alert 四型（desktop-manual-page spec「Markdown 的 GitHub Alert 提示框」）
- * → i18n 標籤鍵；款式與語意色取自 Callout 原語（design D6）。 */
+ * → i18n 标签键；款式与语意色取自 Callout 原语（design D6）。 */
 type AlertType = CalloutTone;
 const ALERT_LABEL_KEYS: Record<AlertType, string> = {
   note: "markdown.alertNote",
@@ -44,11 +44,11 @@ const ALERT_LABEL_KEYS: Record<AlertType, string> = {
   warning: "markdown.alertWarning",
   caution: "markdown.alertCaution",
 };
-// 標記須獨占首段第一行（與 GitHub 同：`[!NOTE]` 後只能接換行或段落結束；大小寫不拘）。
+// 标记须独占首段第一行（与 GitHub 同：`[!NOTE]` 后只能接换行或段落结束；大小写不拘）。
 const ALERT_MARKER_RE = /^\[!(NOTE|TIP|WARNING|CAUTION)\][ \t]*(?:\r?\n|$)/i;
 
-/** 提示框用到的全部 class token。Streamdown 的 sanitize 預設剝掉 div 的 class，這裡
- * 只放行這份清單——文件裡的 raw HTML 不能借道塞任意 class。 */
+/** 提示框用到的全部 class token。Streamdown 的 sanitize 缺省剥掉 div 的 class，这里
+ * 只放行这份清单——文档里的 raw HTML 不能借道塞任意 class。 */
 const ALERT_CLASS_TOKENS = [
   ...new Set([
     "markdown-alert",
@@ -65,10 +65,10 @@ const ALERT_CLASS_TOKENS = [
 type Pluggable = NonNullable<StreamdownProps["rehypePlugins"]>[number];
 type SanitizeSchema = { attributes?: Record<string, unknown[]> };
 
-/** Streamdown 預設 rehype 管線只取 sanitize 一段，schema 多放行提示框的 class（傳自訂
- * rehypePlugins 後 Streamdown 不再自動擴充 schema）。不接 raw：原始 HTML 由 remarkDropHtml
- * 整段丟棄。不接 harden：它在沒有 defaultOrigin 時把 `editor.md` 這類裸相對連結換成 [blocked]，而手冊
- * 的跨頁連結正是這種寫法；協定把關由 sanitize（擋 javascript: 等）承擔。 */
+/** Streamdown 缺省 rehype 管线只取 sanitize 一段，schema 多放行提示框的 class（传自订
+ * rehypePlugins 后 Streamdown 不再自动扩充 schema）。不接 raw：原始 HTML 由 remarkDropHtml
+ * 整段丢弃。不接 harden：它在没有 defaultOrigin 时把 `editor.md` 这类裸相对链接换成 [blocked]，而手册
+ * 的跨页链接正是这种写法；协定把关由 sanitize（挡 javascript: 等）承担。 */
 const [sanitize, baseSchema] = defaultRehypePlugins.sanitize as unknown as [Pluggable, SanitizeSchema];
 const REHYPE_PLUGINS: Pluggable[] = [
   [
@@ -82,10 +82,10 @@ const REHYPE_PLUGINS: Pluggable[] = [
     },
   ] as Pluggable,
 ];
-// 關鍵字外掛接在 sanitize 之後：它產生的 spec-kw class 不經放行清單。
+// 关键字插件接在 sanitize 之后：它产生的 spec-kw class 不经放行清单。
 const SPEC_REHYPE_PLUGINS: Pluggable[] = [...REHYPE_PLUGINS, rehypeSpecKeywords as Pluggable];
 
-/** 最小 hast 節點視圖。 */
+/** 最小 hast 节点视图。 */
 interface HastNode {
   type: string;
   value?: string;
@@ -94,9 +94,9 @@ interface HastNode {
   children?: HastNode[];
 }
 
-/** 名稱籤外掛（design D10）：接在 sanitize 之後，產生的 class 與 data 屬性不經放行清單（與 rehypeSpecKeywords
- * 同一路）。名單以選項物件傳入——Streamdown 以「外掛函式名＋選項 JSON」快取 processor，閉包式外掛會讓不同
- * 文件共用同一份。行內 code、程式碼區塊與連結內不處理；命中規則與 matchNames 同一條邊界、長名優先。 */
+/** 名称签插件（design D10）：接在 sanitize 之后，产生的 class 与 data 属性不经放行清单（与 rehypeSpecKeywords
+ * 同一路）。名单以选项对象传入——Streamdown 以「插件函数名＋选项 JSON」缓存 processor，闭包式插件会让不同
+ * 文档共用同一份。行内 code、代码区块与链接内不处理；命中规则与 matchNames 同一条边界、长名优先。 */
 function rehypeNameChips({ names }: { names: NameChip[] }) {
   const kindOf = new Map<string, string>();
   for (const chip of names) if (!kindOf.has(chip.name)) kindOf.set(chip.name, chip.kind);
@@ -136,15 +136,15 @@ const CONTROLS: StreamdownProps["controls"] = { code: { copy: true, download: fa
 const ICONS: StreamdownProps["icons"] = { CopyIcon: Copy, CheckIcon: Check };
 const LINK_SAFETY: StreamdownProps["linkSafety"] = { enabled: false };
 const SHIKI_THEME: StreamdownProps["shikiTheme"] = ["github-light", "github-dark"];
-/** Streamdown 內建控制鈕（程式碼複製鈕、圖片下載鈕）寫死手指與停用禁止游標的 class，屬 utilities 層、
- * 蓋過 theme.css 的 base 層全域規則。容器的任意變體選擇器權重較高，把游標蓋回共用設定；程式碼區塊的
- * 無外框圖示鈕另補圓角與 hover 淡底，圖片下載鈕自帶底色、保留它的 hover 底色
- * （desktop-app「可點元素的游標與 hover 回饋」）。 */
+/** Streamdown 内置控制钮（代码拷贝钮、图片下载钮）写死手指与停用禁止光标的 class，属 utilities 层、
+ * 盖过 theme.css 的 base 层全域规则。容器的任意变体选择器权重较高，把光标盖回共用设置；代码区块的
+ * 无外框图标钮另补圆角与 hover 淡底，图片下载钮自带底色、保留它的 hover 底色
+ * （desktop-app「可点元素的光标与 hover 回馈」）。 */
 const CONTROL_BUTTON_CLS =
   "[&_button]:cursor-(--cursor-interaction) [&_button:disabled]:cursor-default [&_[data-streamdown=code-block-actions]_button]:rounded-md [&_[data-streamdown=code-block-actions]_button:enabled]:hover:bg-foreground/5";
 
-/** 最小 mdast 節點視圖——只用到 type／value／children 與 hast 覆寫資料，不引入
- * 型別套件相依。 */
+/** 最小 mdast 节点视图——只用到 type／value／children 与 hast 覆写数据，不引入
+ * 类型套件相依。 */
 interface MdNode {
   type: string;
   value?: string;
@@ -152,9 +152,9 @@ interface MdNode {
   data?: { hName?: string; hProperties?: Record<string, unknown> };
 }
 
-/** 原始 HTML（含註解）整段丟棄，與改版前的 skipHtml 一致：文件正文常把 `<summary>`、
- * `<template>` 這類佔位字當字面寫，解析成標籤會把後文藏進收合區塊或整段吞掉。
- * 必須在 mdast 階段拿掉——rehype 管線不含 raw 時，Streamdown 會把 html 節點轉成字面文字。 */
+/** 原始 HTML（含注解）整段丢弃，与改版前的 skipHtml 一致：文档正文常把 `<summary>`、
+ * `<template>` 这类占位字当字面写，解析成标签会把后文藏进收合区块或整段吞掉。
+ * 必须在 mdast 阶段拿掉——rehype 管线不含 raw 时，Streamdown 会把 html 节点转成字面文本。 */
 function remarkDropHtml() {
   const walk = (node: MdNode) => {
     if (!node.children) return;
@@ -164,13 +164,13 @@ function remarkDropHtml() {
   return walk;
 }
 
-/** 拆成單一 class token：sanitize 逐 token 比對放行清單，含空白的整串會被整個剝掉。 */
+/** 拆成单一 class token：sanitize 逐 token 比对放行清单，含空白的整串会被整个剥掉。 */
 const classTokens = (...classes: string[]) => classes.flatMap((cls) => cls.split(" "));
 
-/** 內建 remark 轉換（design：三十行內、不新增相依）：首段以四型標記開頭的
- * blockquote 改渲染為帶類型 class 與類型標籤的提示框、移除標記文字；其餘
- * blockquote 不觸碰。標籤以 unified 外掛選項傳入（`[remarkGithubAlerts, labels]`）：
- * Streamdown 以「外掛函式名＋選項 JSON」快取 processor，閉包式外掛會讓不同語系共用同一份。 */
+/** 内置 remark 转换（design：三十行内、不添加相依）：首段以四型标记开头的
+ * blockquote 改渲染为带类型 class 与类型标签的提示框、移除标记文本；其余
+ * blockquote 不触碰。标签以 unified 插件选项传入（`[remarkGithubAlerts, labels]`）：
+ * Streamdown 以「插件函数名＋选项 JSON」缓存 processor，闭包式插件会让不同语系共用同一份。 */
 function remarkGithubAlerts(labels: Record<AlertType, string>) {
   const transform = (quote: MdNode) => {
     const first = quote.children?.[0];
@@ -183,7 +183,7 @@ function remarkGithubAlerts(labels: Record<AlertType, string>) {
     text.value = text.value.slice(match[0].length);
     if (!text.value) {
       first.children!.shift();
-      // 標記行以硬換行結尾（行尾兩空格）時，剩下的 break 節點也一併拿掉。
+      // 标记行以硬换行结尾（行尾两空格）时，剩下的 break 节点也一并拿掉。
       if (first.children![0]?.type === "break") first.children!.shift();
     }
     if (first.children!.length === 0) quote.children!.shift();
@@ -211,15 +211,15 @@ function remarkGithubAlerts(labels: Record<AlertType, string>) {
   return walk;
 }
 
-/** 富文本 markdown 渲染（Streamdown static 模式；GFM：表格、checkbox 任務清單、刪除線；
- * 單換行＝換行）。原始 HTML（含註解）整段丟棄、不以原文呈現，code fence 內文字照常。程式碼區塊以 Shiki 上色（淺色 github-light、深色 github-dark）並帶
- * 複製鈕；表格與程式碼區塊不設高度上限（維持整份展開閱讀）。.markdown 為薄覆寫掛鉤。
- * 行寬上限 96ch（≈48 全形字 @16px）——抽屜全螢幕時行寬不隨之增長（spec
- * 「markdown 文件內容行寬有上限」）；寬表格由 Streamdown 的表格容器橫捲。
- * GitHub Alert（`> [!NOTE]` 等四型）恆開、對所有 Markdown 檢視生效。 */
+/** 富文本 markdown 渲染（Streamdown static 模式；GFM：表格、checkbox 任务清单、删除线；
+ * 单换行＝换行）。原始 HTML（含注解）整段丢弃、不以原文呈现，code fence 内文本照常。代码区块以 Shiki 上色（浅色 github-light、深色 github-dark）并带
+ * 拷贝钮；表格与代码区块不设高度上限（维持整份展开阅读）。.markdown 为薄覆写挂钩。
+ * 行宽上限 96ch（≈48 全角字 @16px）——抽屉全屏幕时行宽不随之增长（spec
+ * 「markdown 文档内容行宽有上限」）；宽表格由 Streamdown 的表格容器横卷。
+ * GitHub Alert（`> [!NOTE]` 等四型）恒开、对所有 Markdown 查看生效。 */
 export function Markdown({ content, empty, specKeywords = false, className, nameChips }: MarkdownProps) {
   const { t } = useI18n();
-  // Streamdown 的區塊 memo 逐一比對屬性物件是否同一個：固定設定放模組層，隨語系變動的用 useMemo。
+  // Streamdown 的区块 memo 逐一比对属性对象是否同一个：固定设置放模块层，随语系变动的用 useMemo。
   const remarkPlugins = useMemo(
     () => [
       ...Object.values(defaultRemarkPlugins),
@@ -238,7 +238,7 @@ export function Markdown({ content, empty, specKeywords = false, className, name
     [t],
   );
   const translations = useMemo(() => ({ copyCode: t("markdown.copyCode"), copied: t("markdown.copied") }), [t]);
-  // 名單以內容為鍵：呼叫端每次渲染給新陣列時不重建管線。
+  // 名单以内容为键：调用端每次渲染给新数组时不重建管线。
   const chipKey = JSON.stringify(nameChips ?? []);
   const rehypePlugins = useMemo(() => {
     const base = specKeywords ? SPEC_REHYPE_PLUGINS : REHYPE_PLUGINS;

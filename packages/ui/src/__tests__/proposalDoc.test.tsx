@@ -1,4 +1,4 @@
-// spec「提案與設計章節以中文標籤呈現」提案側（desktop-change-doc-views design D3）。
+// spec「提案与设计章节以中文标签呈现」提案侧（desktop-change-doc-views design D3）。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
@@ -8,13 +8,13 @@ import { changeDocSummary } from "../components/changeDocSummary";
 import { DesignDoc } from "../components/DesignDoc";
 import { ProposalDoc } from "../components/ProposalDoc";
 
-const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider locale="zh-TW">{children}</I18nProvider>;
+const wrapper = ({ children }: { children: ReactNode }) => <I18nProvider locale="zh-CN">{children}</I18nProvider>;
 const render = (ui: ReactElement) => rtlRender(ui, { wrapper });
 
 const FEATURE_MD = [
   "## Why",
   "",
-  "- 看不出層次",
+  "- 看不出层次",
   "- 散文太多",
   "",
   "## What Changes",
@@ -34,7 +34,7 @@ const FEATURE_MD = [
   "",
   "### Modified Capabilities",
   "",
-  "- `desktop-app`: 詳情頁改版",
+  "- `desktop-app`: 详情页改版",
   "- `server-api`: 不在 delta",
   "",
   "## Impact",
@@ -49,23 +49,23 @@ const FEATURE_MD = [
 const headings = (container: HTMLElement, selector = "h2[data-doc-heading]") =>
   Array.from(container.querySelectorAll(selector)).map((h) => h.textContent);
 
-// spec Example「章節對照與畫法」：一列一案（提案章節用 ProposalDoc、設計章節用 DesignDoc）。
-describe("章節對照與畫法", () => {
-  const CAPS = "### Modified Capabilities\n\n- `desktop-app`: 說明\n";
+// spec Example「章节对照与画法」：一列一案（提案章节用 ProposalDoc、设计章节用 DesignDoc）。
+describe("章节对照与画法", () => {
+  const CAPS = "### Modified Capabilities\n\n- `desktop-app`: 说明\n";
   const IMPACT = "- Affected specs: desktop-app\n- Affected code:\n  - New: a.ts\n  - Modified: (none)\n  - Removed: (none)\n";
   const rows: Array<[string, string, "proposal" | "design", string, string]> = [
-    ["Summary", "摘要", "proposal", "一句話。", ".bg-muted"],
-    ["Why", "為什麼", "proposal", "- 甲\n- 乙\n", "[data-row-list]"],
-    ["What Changes", "變更內容", "proposal", "- 甲\n- 乙\n", "[data-numbered-steps]"],
+    ["Summary", "摘要", "proposal", "一句话。", ".bg-muted"],
+    ["Why", "为什幺", "proposal", "- 甲\n- 乙\n", "[data-row-list]"],
+    ["What Changes", "变更内容", "proposal", "- 甲\n- 乙\n", "[data-numbered-steps]"],
     ["Proposed Solution", "解法", "proposal", "1. 甲\n2. 乙\n", "[data-numbered-steps]"],
-    ["Non-Goals", "非目標", "proposal", "- 甲\n", "[data-row-list] svg"],
-    ["Alternatives Considered", "曾考慮的替代案", "proposal", "- 方案——理由\n", "[data-alternative-reason]"],
+    ["Non-Goals", "非目标", "proposal", "- 甲\n", "[data-row-list] svg"],
+    ["Alternatives Considered", "曾考虑的替代案", "proposal", "- 方案——理由\n", "[data-alternative-reason]"],
     ["Capabilities", "能力", "proposal", CAPS, "[data-capability-chip]"],
-    ["Impact", "影響", "proposal", IMPACT, "[data-impact-specs] + [data-impact-group]"],
+    ["Impact", "影响", "proposal", IMPACT, "[data-impact-specs] + [data-impact-group]"],
     ["Context", "背景", "design", "- 甲\n- 乙\n", "[data-row-list]"],
-    ["Decisions", "決策", "design", "### D1 標題\n\n- 點\n", "[data-decision]"],
-    ["Implementation Contract", "實作契約", "design", "- **Behavior**：值\n", "dl dt"],
-    ["Risks / Trade-offs", "風險與取捨", "design", "- [風險] → 對策\n", "[data-risk]"],
+    ["Decisions", "决策", "design", "### D1 标题\n\n- 点\n", "[data-decision]"],
+    ["Implementation Contract", "实作契约", "design", "- **Behavior**：值\n", "dl dt"],
+    ["Risks / Trade-offs", "风险与取舍", "design", "- [风险] → 对策\n", "[data-risk]"],
   ];
   it.each(rows)("## %s → 「%s」", (heading, label, doc, body, anchor) => {
     const md = `## ${heading}\n\n${body}`;
@@ -81,9 +81,9 @@ describe("章節對照與畫法", () => {
   });
 });
 
-// spec Scenario「替代方案與影響段的逐項降級」與 Example「影響段不符形狀時當一般列」的數字磚。
-describe("提案數字磚「影響的檔案」", () => {
-  const i18n = translatorFor("zh-TW");
+// spec Scenario「替代方案与影响段的逐项降级」与 Example「影响段不符形状时当一般列」的数字砖。
+describe("提案数字砖「影响的文档」", () => {
+  const i18n = translatorFor("zh-CN");
   const tiles = (proposal: string) =>
     changeDocSummary(
       "proposal",
@@ -91,11 +91,11 @@ describe("提案數字磚「影響的檔案」", () => {
       i18n,
     ).tiles.map((x) => `${x.label} ${x.value}`);
 
-  it("New 兩個、Modified 一個、Removed (none) 時為 3", () => {
+  it("New 两个、Modified 一个、Removed (none) 时为 3", () => {
     const md = [
       "## Alternatives Considered",
       "",
-      "- 保留舊畫法——討論裁定改掉",
+      "- 保留旧画法——讨论裁定改掉",
       "- 只有方案",
       "",
       "## Impact",
@@ -105,25 +105,25 @@ describe("提案數字磚「影響的檔案」", () => {
       "  - Modified: b/three.tsx",
       "  - Removed: (none)",
     ].join("\n");
-    expect(tiles(md)).toContain("影響的檔案 3");
+    expect(tiles(md)).toContain("影响的文档 3");
   });
 
-  it("影響段只有散文列點時不出「影響的檔案」格", () => {
-    const md = "## Impact\n\n- 影響看板與詳情頁\n- 無 CLI 變動\n";
-    expect(tiles(md).some((x) => x.startsWith("影響的檔案"))).toBe(false);
+  it("影响段只有散文列点时不出「影响的文档」格", () => {
+    const md = "## Impact\n\n- 影响看板与详情页\n- 无 CLI 变动\n";
+    expect(tiles(md).some((x) => x.startsWith("影响的文档"))).toBe(false);
   });
 });
 
 describe("ProposalDoc", () => {
-  it("模板章節成中文段標題、依序進本頁目錄，英文標題不直出", () => {
+  it("模板章节成中文段标题、依序进本页目录，英文标题不直出", () => {
     const { container } = render(<ProposalDoc content={FEATURE_MD} deltaCaps={[]} />);
-    expect(headings(container)).toEqual(["為什麼", "變更內容", "非目標", "能力", "影響"]);
-    expect(headings(container, "h3[data-doc-heading]")).toEqual(["新增能力", "修改能力"]);
+    expect(headings(container)).toEqual(["为什幺", "变更内容", "非目标", "能力", "影响"]);
+    expect(headings(container, "h3[data-doc-heading]")).toEqual(["添加能力", "修改能力"]);
     expect(screen.queryByText("Why")).toBeNull();
     expect(screen.queryByText("What Changes")).toBeNull();
   });
 
-  it("變更內容為編號步驟、非目標為帶禁止圖示的細線列，列式章節標題右端有列點數籤", () => {
+  it("变更内容为编号步骤、非目标为带禁止图标的细线列，列式章节标题右端有列点数签", () => {
     const { container } = render(<ProposalDoc content={FEATURE_MD} deltaCaps={[]} />);
     const steps = container.querySelector('[data-section="sections.whatChanges"] [data-numbered-steps]')!;
     expect(steps.querySelectorAll("li")).toHaveLength(2);
@@ -131,87 +131,87 @@ describe("ProposalDoc", () => {
     const nonGoals = container.querySelector('[data-section="sections.nonGoals"]')!;
     expect(nonGoals.querySelector("[data-row-list] svg")).toBeTruthy();
     const why = container.querySelector('[data-section="sections.why"]')!;
-    expect(why.querySelector("h2")!.parentElement!.textContent).toBe("為什麼2");
+    expect(why.querySelector("h2")!.parentElement!.textContent).toBe("为什幺2");
   });
 
-  it("白名單外的二級標題以原文成段，不整篇退回", () => {
-    const { container } = render(<ProposalDoc content={"## Why\n\n動機。\n\n## Rollout\n\n第一段。\n\n第二段。\n"} deltaCaps={[]} />);
-    expect(headings(container)).toEqual(["為什麼", "Rollout"]);
+  it("白名单外的二级标题以原文成段，不整篇退回", () => {
+    const { container } = render(<ProposalDoc content={"## Why\n\n动机。\n\n## Rollout\n\n第一段。\n\n第二段。\n"} deltaCaps={[]} />);
+    expect(headings(container)).toEqual(["为什幺", "Rollout"]);
     expect(container.querySelector('[data-section="custom"]')!.textContent).toContain("第二段。");
   });
 
-  it("沒有二級標題時整篇照 Markdown，無章節段", () => {
-    const { container } = render(<ProposalDoc content={"# 自由文件\n\n段落而已。\n"} deltaCaps={[]} />);
+  it("没有二级标题时整篇照 Markdown，无章节段", () => {
+    const { container } = render(<ProposalDoc content={"# 自由文档\n\n段落而已。\n"} deltaCaps={[]} />);
     expect(screen.getByText("段落而已。")).toBeTruthy();
     expect(container.querySelectorAll("[data-section]")).toHaveLength(0);
   });
 
   it("摘要成灰底引言段", () => {
-    const { container } = render(<ProposalDoc content={"## Summary\n\n一句話摘要。\n"} deltaCaps={[]} />);
+    const { container } = render(<ProposalDoc content={"## Summary\n\n一句话摘要。\n"} deltaCaps={[]} />);
     const lead = container.querySelector('[data-section="sections.summary"]')!;
     expect(lead.textContent).toContain("摘要");
-    expect(lead.querySelector(".bg-muted")!.textContent).toContain("一句話摘要。");
+    expect(lead.querySelector(".bg-muted")!.textContent).toContain("一句话摘要。");
   });
 
-  it("替代方案含「——」的列拆成方案與落敗理由，不含的整條為一般列", () => {
-    const md = "## Alternatives Considered\n\n- 保留舊畫法——討論裁定改掉\n- 只有方案沒有理由\n";
+  it("替代方案含「——」的列拆成方案与落败理由，不含的整条为一般列", () => {
+    const md = "## Alternatives Considered\n\n- 保留旧画法——讨论裁定改掉\n- 只有方案没有理由\n";
     const { container } = render(<ProposalDoc content={md} deltaCaps={[]} />);
     const rows = container.querySelectorAll("[data-alternative]");
     expect(rows).toHaveLength(2);
-    expect(rows[0].querySelector("[data-alternative-option]")!.textContent).toBe("保留舊畫法");
-    expect(rows[0].querySelector("[data-alternative-reason]")!.textContent).toBe("討論裁定改掉");
+    expect(rows[0].querySelector("[data-alternative-option]")!.textContent).toBe("保留旧画法");
+    expect(rows[0].querySelector("[data-alternative-reason]")!.textContent).toBe("讨论裁定改掉");
     expect(rows[1].querySelector("[data-alternative-reason]")).toBeNull();
-    expect(rows[1].textContent).toBe("只有方案沒有理由");
+    expect(rows[1].textContent).toBe("只有方案没有理由");
   });
 
-  it("影響段成規格列與新增／修改／移除三組等寬路徑籤，(none) 顯示「無」", () => {
+  it("影响段成规格列与添加／修改／移除三组等宽路径签，(none) 显示「无」", () => {
     const { container } = render(<ProposalDoc content={FEATURE_MD} deltaCaps={[]} />);
     const groups = Array.from(container.querySelectorAll("[data-impact-group]"));
-    expect(groups.map((g) => g.firstElementChild!.textContent)).toEqual(["新增 2", "修改 1", "移除 無"]);
+    expect(groups.map((g) => g.firstElementChild!.textContent)).toEqual(["添加 2", "修改 1", "移除 无"]);
     expect(Array.from(container.querySelectorAll("[data-path-chip]")).map((c) => c.firstElementChild!.textContent)).toEqual([
       "a/one.ts",
       "a/two.ts",
       "b/three.tsx",
     ]);
-    // hover 出的複製鈕；沒有宿主路徑動作時沒有顯示鈕（每顆籤只有複製鈕）。
-    expect(container.querySelectorAll('[data-path-chip] button[aria-label="複製"]')).toHaveLength(3);
+    // hover 出的拷贝钮；没有宿主路径动作时没有显示钮（每颗签只有拷贝钮）。
+    expect(container.querySelectorAll('[data-path-chip] button[aria-label="拷贝"]')).toHaveLength(3);
     expect(container.querySelectorAll("[data-path-chip] button")).toHaveLength(3);
   });
 
-  it("宿主提供路徑動作時路徑籤多一顆宿主文案的顯示鈕，點擊回報路徑", () => {
+  it("宿主提供路径动作时路径签多一颗宿主文案的显示钮，点击回报路径", () => {
     const reveal = vi.fn();
-    render(<ProposalDoc content={FEATURE_MD} deltaCaps={[]} pathReveal={{ label: "在 Finder 顯示", reveal }} />);
-    const buttons = screen.getAllByRole("button", { name: "在 Finder 顯示" });
+    render(<ProposalDoc content={FEATURE_MD} deltaCaps={[]} pathReveal={{ label: "在 Finder 显示", reveal }} />);
+    const buttons = screen.getAllByRole("button", { name: "在 Finder 显示" });
     expect(buttons).toHaveLength(3);
     fireEvent.click(buttons[2]);
     expect(reveal).toHaveBeenCalledWith("b/three.tsx");
   });
 
-  it("「移除」組的路徑籤沒有顯示鈕（檔案已不存在），只有複製鈕", () => {
+  it("「移除」组的路径签没有显示钮（文档已不存在），只有拷贝钮", () => {
     const md = "## Impact\n\n- Affected code:\n  - New: a/new.ts\n  - Modified: (none)\n  - Removed: c/gone.ts\n";
-    const { container } = render(<ProposalDoc content={md} deltaCaps={[]} pathReveal={{ label: "在 Finder 顯示", reveal: vi.fn() }} />);
+    const { container } = render(<ProposalDoc content={md} deltaCaps={[]} pathReveal={{ label: "在 Finder 显示", reveal: vi.fn() }} />);
     const removed = container.querySelector('[data-impact-group="removed"]')!;
-    expect(removed.querySelector('button[aria-label="複製"]')).toBeTruthy();
-    expect(removed.querySelector('button[aria-label="在 Finder 顯示"]')).toBeNull();
-    expect(container.querySelector('[data-impact-group="new"] button[aria-label="在 Finder 顯示"]')).toBeTruthy();
+    expect(removed.querySelector('button[aria-label="拷贝"]')).toBeTruthy();
+    expect(removed.querySelector('button[aria-label="在 Finder 显示"]')).toBeNull();
+    expect(container.querySelector('[data-impact-group="new"] button[aria-label="在 Finder 显示"]')).toBeTruthy();
   });
 
-  it("能力列說明為空時不畫「無內容」占位", () => {
+  it("能力列说明为空时不画「无内容」占位", () => {
     const md = "## Capabilities\n\n### Modified Capabilities\n\n- `desktop-app`:\n";
     const { container } = render(<ProposalDoc content={md} deltaCaps={[]} />);
     const section = container.querySelector('[data-section="sections.capabilities"]')!;
     expect(section.querySelector("[data-capability-chip]")!.textContent).toBe("desktop-app");
-    expect(section.textContent).not.toContain("（無內容）");
+    expect(section.textContent).not.toContain("（无内容）");
   });
 
-  it("影響段不符形狀時整段當一般細線列、無路徑籤", () => {
-    const md = "## Impact\n\n- 影響看板與詳情頁\n- 無 CLI 變動\n";
+  it("影响段不符形状时整段当一般细线列、无路径签", () => {
+    const md = "## Impact\n\n- 影响看板与详情页\n- 无 CLI 变动\n";
     const { container } = render(<ProposalDoc content={md} deltaCaps={[]} />);
     expect(container.querySelectorAll("[data-path-chip]")).toHaveLength(0);
     expect(container.querySelectorAll('[data-section="sections.impact"] [data-row-list] li')).toHaveLength(2);
   });
 
-  it("delta 已載入的能力籤可點並回報能力名，其餘為不可點的籤；能力段之下接頁給的提示框", () => {
+  it("delta 已加载的能力签可点并回报能力名，其余为不可点的签；能力段之下接页给的提示框", () => {
     const onOpenCapability = vi.fn();
     const { container } = render(
       <ProposalDoc
@@ -228,7 +228,7 @@ describe("ProposalDoc", () => {
     ]);
     fireEvent.click(chips[0]);
     expect(onOpenCapability).toHaveBeenCalledWith("desktop-app");
-    expect(container.querySelector('[data-section="sections.capabilities"]')!.textContent).toContain("無");
+    expect(container.querySelector('[data-section="sections.capabilities"]')!.textContent).toContain("无");
     expect(container.querySelector('[data-section="sections.capabilities"] [data-testid="cap-note"]')).toBeTruthy();
   });
 });

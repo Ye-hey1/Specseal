@@ -1,9 +1,9 @@
-// 更新日誌對話框（desktop-app spec「更新日誌彈窗」）：同一個對話框兩種模式——
-// whatsNew（版號變更後首次啟動自動彈出，標題「X.Y.Z 更新內容」、主鈕「知道了」）與
-// browse（設定頁按鈕開啟，標題「更新日誌」、列出全部條目、主鈕「關閉」）。看過即止的
-// 記錄由 App 層在 onOpenChange 決定，這裡只呈現（MigrationDialog 先例）。browse 模式可帶
-// focusVersion：開啟後把該版捲到捲動區頂端（desktop-about-page design D8）。條目、分組標題與
-// 版號小標依介面語言呈現（spec「更新日誌依介面語言呈現」），切換語言即重繪。
+// 更新日志对话框（desktop-app spec「更新日志弹窗」）：同一个对话框两种模式——
+// whatsNew（版号变更后首次启动自动弹出，标题「X.Y.Z 更新内容」、主钮「知道了」）与
+// browse（设置页按钮打开，标题「更新日志」、列出全部条目、主钮「关闭」）。看过即止的
+// 记录由 App 层在 onOpenChange 决定，这里只呈现（MigrationDialog 先例）。browse 模式可带
+// focusVersion：打开后把该版卷到卷动区顶端（desktop-about-page design D8）。条目、分组标题与
+// 版号小标依接口语言呈现（spec「更新日志依接口语言呈现」），切换语言即重绘。
 import { useCallback } from "react";
 import {
   AlertDialog,
@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
   Button,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { entryText, type ReleaseNotesEntry } from "../release-notes/release-notes";
 
@@ -20,15 +20,15 @@ export interface ReleaseNotesDialogProps {
   open: boolean;
   mode: "whatsNew" | "browse";
   entries: ReleaseNotesEntry[];
-  /** browse 模式開啟後捲到的版號（更新頁舊版本列的「檢視」）；不帶或不在清單內時自頂端呈現。 */
+  /** browse 模式打开后卷到的版号（更新页旧版本列的「查看」）；不带或不在清单内时自顶端呈现。 */
   focusVersion?: string;
   onOpenChange: (open: boolean) => void;
 }
 
 export function ReleaseNotesDialog({ open, mode, entries, focusVersion, onOpenChange }: ReleaseNotesDialogProps) {
   const { t, locale } = useI18n();
-  // callback ref：Radix 的 Portal 在開啟後下一輪才掛上內容，effect 那時還拿不到節點；捲動區
-  // 掛上（每次開啟）時才找該版並捲到頂端。
+  // callback ref：Radix 的 Portal 在打开后下一轮才挂上内容，effect 那时还拿不到节点；卷动区
+  // 挂上（每次打开）时才找该版并卷到顶端。
   const listRef = useCallback(
     (list: HTMLDivElement | null) => {
       if (!list || !focusVersion) return;
@@ -46,7 +46,7 @@ export function ReleaseNotesDialog({ open, mode, entries, focusVersion, onOpenCh
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      {/* 寬度沿 markdown 行寬上限（Markdown.tsx 的 96ch）；內容區可捲動。 */}
+      {/* 宽度沿 markdown 行宽上限（Markdown.tsx 的 96ch）；内容区可卷动。 */}
       <AlertDialogContent
         className="max-w-[96ch] gap-4"
         aria-describedby={undefined}

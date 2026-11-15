@@ -1,7 +1,7 @@
 ---
 type: tool_used
 tool: Write
-input_match: 'speclink/specs'
+input_match: 'specseal/specs'
 min: 0
 max: 0
 ---

@@ -14,7 +14,7 @@ function Probe() {
 }
 
 describe("useCopied", () => {
-  it("觸發後亮起，1.5 秒自動復原", () => {
+  it("触发后亮起，1.5 秒自动复原", () => {
     vi.useFakeTimers();
     render(<Probe />);
     fireEvent.click(screen.getByRole("button"));
@@ -29,7 +29,7 @@ describe("useCopied", () => {
     expect(screen.getByRole("button").textContent).toBe("idle");
   });
 
-  it("重複觸發重新計時，不被前一次的到期提早熄燈", () => {
+  it("重复触发重新计时，不被前一次的到期提早熄灯", () => {
     vi.useFakeTimers();
     render(<Probe />);
     fireEvent.click(screen.getByRole("button"));
@@ -47,7 +47,7 @@ describe("useCopied", () => {
     expect(screen.getByRole("button").textContent).toBe("idle");
   });
 
-  it("unmount 取消未到期的計時器，不留晚於拆除觸發的 setState", () => {
+  it("unmount 取消未到期的计时器，不留晚于拆除触发的 setState", () => {
     vi.useFakeTimers();
     const { unmount } = render(<Probe />);
     fireEvent.click(screen.getByRole("button"));

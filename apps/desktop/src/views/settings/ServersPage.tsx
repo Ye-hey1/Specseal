@@ -1,5 +1,5 @@
-// 伺服器頁（desktop-settings-mode design D7；spec「伺服器管理最小面」）：頁標題右側「新增連線」
-// 切換頁頂新增卡；連線卡（ServersPanel）；預設卡（新增遠端專案時預設使用的連線）；登入方式卡（三列說明）。
+// 服务器页（desktop-settings-mode design D7；spec「服务器管理最小面」）：页标题右侧「添加连接」
+// 切换页顶添加卡；连接卡（ServersPanel）；缺省卡（添加远程项目时缺省使用的连接）；登录方式卡（三列说明）。
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import {
@@ -9,16 +9,16 @@ import {
   SettingsPageHeader,
   SettingsRow,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { defaultConnectionOf } from "../../adapter/connections";
 import { ServersPanel, type ServersPanelProps } from "../../components/ServersPanel";
 
-/** 「不預選」在偏好裡是 null，Radix Select 的值不接受空值：以哨兵值往返。 */
+/** 「不预选」在偏好里是 null，Radix Select 的值不接受空值：以哨兵值往返。 */
 const NO_DEFAULT = "__none__";
 
 export interface ServersPageProps extends Omit<ServersPanelProps, "addOpen" | "onAddOpenChange"> {
-  /** 新增遠端專案時預設使用的連線（null＝不預選）。 */
+  /** 添加远程项目时缺省使用的连接（null＝不预选）。 */
   defaultConnectionId: string | null;
   onDefaultConnectionChange: (connectionId: string | null) => void;
 }
@@ -27,7 +27,7 @@ export function ServersPage({ defaultConnectionId, onDefaultConnectionChange, ..
   const { t } = useI18n();
   const [addOpen, setAddOpen] = useState(false);
   const loggedIn = panel.connections.filter((c) => c.loggedIn);
-  // 指向的連線已登出或被移除：視同不預選（新增專案對話框同樣忽略它）。
+  // 指向的连接已注销或被移除：视同不预选（添加项目对话框同样忽略它）。
   const defaultValue = defaultConnectionOf(panel.connections, defaultConnectionId)?.id ?? NO_DEFAULT;
   const defaultLabel = t("servers.page.defaultForNew");
   return (

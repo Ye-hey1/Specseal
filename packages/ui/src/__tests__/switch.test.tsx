@@ -1,5 +1,5 @@
-// Switch 原語（desktop-settings-mode design D3）：Radix switch——role=switch、
-// aria-checked 隨切換、停用不觸發、空白鍵可切換；開為主色軌、關為 input 色軌。
+// Switch 原语（desktop-settings-mode design D3）：Radix switch——role=switch、
+// aria-checked 随切换、停用不触发、空白键可切换；开为主色轨、关为 input 色轨。
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -9,7 +9,7 @@ import { Switch } from "../components/ui/switch";
 const classes = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/);
 
 describe("Switch", () => {
-  it("以 role=switch 呈現，點擊切換 aria-checked 並回呼", async () => {
+  it("以 role=switch 呈现，点击切换 aria-checked 并回呼", async () => {
     const onCheckedChange = vi.fn();
     const user = userEvent.setup();
     render(<Switch aria-label="tdd" onCheckedChange={onCheckedChange} />);
@@ -20,7 +20,7 @@ describe("Switch", () => {
     expect(onCheckedChange).toHaveBeenCalledWith(true);
   });
 
-  it("停用時點擊不觸發", async () => {
+  it("停用时点击不触发", async () => {
     const onCheckedChange = vi.fn();
     const user = userEvent.setup();
     render(<Switch aria-label="audit" disabled onCheckedChange={onCheckedChange} />);
@@ -28,7 +28,7 @@ describe("Switch", () => {
     expect(onCheckedChange).not.toHaveBeenCalled();
   });
 
-  it("空白鍵切換", async () => {
+  it("空白键切换", async () => {
     const onCheckedChange = vi.fn();
     const user = userEvent.setup();
     render(<Switch aria-label="worktree" defaultChecked onCheckedChange={onCheckedChange} />);
@@ -37,7 +37,7 @@ describe("Switch", () => {
     expect(onCheckedChange).toHaveBeenCalledWith(false);
   });
 
-  it("軌 h-5 w-9、開主色關 input 色；thumb 16px；focus 環沿 Button", () => {
+  it("轨 h-5 w-9、开主色关 input 色；thumb 16px；focus 环沿 Button", () => {
     render(<Switch aria-label="x" checked onCheckedChange={() => {}} />);
     const sw = screen.getByRole("switch", { name: "x" });
     expect(classes(sw)).toEqual(

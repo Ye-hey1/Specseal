@@ -1,14 +1,14 @@
-// ServersPanel（規格「伺服器管理最小面」＋「device login 預設與 PAT fallback」
-// 的前端面；client-browser-login D7、D9）：假 adapter 驅動真 store——新增→清單
-// 即現、需要存取金鑰→PAT 輸入現身、登入成功→顯示身分、登出→回未登入、拒絕→
-// 可讀狀態、等待瀏覽器登入或裝置核准→就地的等待面。等待的迴圈在 Rust；假
-// adapter 以 onPhase 送出階段、以 loginCancel 結束等待。credential 全程不出現在
-// 任何斷言面（TS 只見狀態與顯示名）。
+// ServersPanel（规格「服务器管理最小面」＋「device login 缺省与 PAT fallback」
+// 的前端面；client-browser-login D7、D9）：假 adapter 驱动真 store——添加→清单
+// 即现、需要访问密钥→PAT 输入现身、登录成功→显示身分、注销→回未登录、拒绝→
+// 可读状态、等待浏览器登录或设备核准→就地的等待面。等待的循环在 Rust；假
+// adapter 以 onPhase 送出阶段、以 loginCancel 结束等待。credential 全程不出现在
+// 任何断言面（TS 只见状态与显示名）。
 import { describe, it, expect, vi } from "vitest";
 import { cleanup, render as rtlRender, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 
 import { ServersPanel } from "../components/ServersPanel";
 import { createAppStore, type AppState } from "../store";
@@ -24,7 +24,7 @@ import type { WorkspaceSession } from "../session";
 
 const DISPLAY = "Dev <dev@example.com>";
 
-/** 等待裝置核准的階段（Rust 送來的樣子）。 */
+/** 等待设备核准的阶段（Rust 送来的样子）。 */
 const APPROVAL: LoginPhase = {
   kind: "awaitingApproval",
   userCode: "ABCD-EFGH",
@@ -32,15 +32,15 @@ const APPROVAL: LoginPhase = {
   expiresAt: Date.now() + 900_000,
 };
 
-/** 等待瀏覽器登入的階段：授權網址只帶 state 與 challenge。 */
+/** 等待浏览器登录的阶段：授权网址只带 state 与 challenge。 */
 const BROWSER: LoginPhase = {
   kind: "awaitingBrowser",
-  url: "https://id.example.com/authorize?response_type=code&client_id=speclink&state=s1&code_challenge=c1&code_challenge_method=S256",
+  url: "https://id.example.com/authorize?response_type=code&client_id=specseal&state=s1&code_challenge=c1&code_challenge_method=S256",
   expiresAt: Date.now() + 300_000,
 };
 
-/** 停在等待面的登入：送出階段後一直等，直到 loginCancel 才以 cancelled 結束；
- * `finish` 讓測試代替使用者完成登入。 */
+/** 停在等待面的登录：送出阶段后一直等，直到 loginCancel 才以 cancelled 结束；
+ * `finish` 让测试代替用户完成登录。 */
 function waitingLogin(phase: LoginPhase) {
   let resolve: (result: LoginResult) => void = () => {};
   const loginStart = vi.fn(
@@ -58,12 +58,12 @@ const { writeText } = vi.hoisted(() => ({ writeText: vi.fn(async () => {}) }));
 vi.mock("@tauri-apps/plugin-clipboard-manager", () => ({ writeText }));
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
 
-/** 假 adapter：in-memory registry＋可覆寫的登入行為。 */
+/** 假 adapter：in-memory registry＋可覆写的登录行为。 */
 function fakeAdapter(over: Partial<ConnectionsAdapter> = {}) {
   const entries: Array<Omit<ConnectionView, "loggedIn">> = [];
   const loggedIn = new Set<string>();
@@ -96,7 +96,7 @@ function fakeAdapter(over: Partial<ConnectionsAdapter> = {}) {
     },
     loginCancel: async () => {},
     patLogin: async (origin, pat) => {
-      if (pat !== "spk_pat_good") throw new Error("PAT 無效或已被撤銷");
+      if (pat !== "spk_pat_good") throw new Error("PAT 无效或已被撤销");
       loggedIn.add(origin);
       const entry = entries.find((e) => e.origin === origin);
       if (entry) entry.lastActorDisplay = DISPLAY;
@@ -116,7 +116,7 @@ function fakeAdapter(over: Partial<ConnectionsAdapter> = {}) {
   return adapter;
 }
 
-/** 真 store＋面板：面板 props 全數接線 store 的 connections 分片。 */
+/** 真 store＋面板：面板 props 全数接线 store 的 connections 分片。 */
 function Harness({
   useStore,
   onOpenWorkspace,
@@ -137,22 +137,22 @@ function Harness({
       onRemove={s.removeConnection}
       onRefresh={s.refreshConnections}
       onOpenWorkspace={onOpenWorkspace}
-      // 伺服器頁的新增卡由頁標題「新增連線」展開；此處直接展開以走新增表單。
+      // 服务器页的添加卡由页标题「添加连接」展开；此处直接展开以走添加表单。
       addOpen
     />
   );
 }
 
-/** 連線列：狀態籤「已登入」與身分顯示名（desktop-settings-mode design D7）。 */
+/** 连接列：状态签「已登录」与身分显示名（desktop-settings-mode design D7）。 */
 async function expectLoggedInAs(display: string) {
   await waitFor(() => expect(screen.getByText(display)).toBeTruthy());
-  expect(screen.getByText("已登入")).toBeTruthy();
+  expect(screen.getByText("已登录")).toBeTruthy();
 }
 
-/** 連線列的「⋯」選單動作。 */
+/** 连接列的「⋯」菜单动作。 */
 async function rowMenu(item: string) {
   const user = userEvent.setup({ pointerEventsCheck: 0 });
-  await user.click(screen.getByRole("button", { name: "更多動作" }));
+  await user.click(screen.getByRole("button", { name: "更多动作" }));
   await user.click(await screen.findByRole("menuitem", { name: item }));
 }
 
@@ -165,73 +165,73 @@ function renderPanel(adapter: ConnectionsAdapter) {
   return useStore;
 }
 
-/** 走新增表單：填 URL＋顯示名、按新增。 */
+/** 走添加表单：填 URL＋显示名、按添加。 */
 function addServer(url: string, name: string) {
-  fireEvent.change(screen.getByPlaceholderText("伺服器位址（http://…）"), {
+  fireEvent.change(screen.getByPlaceholderText("服务器地址（http://…）"), {
     target: { value: url },
   });
-  fireEvent.change(screen.getByPlaceholderText("顯示名"), { target: { value: name } });
-  fireEvent.click(screen.getByRole("button", { name: "新增" }));
+  fireEvent.change(screen.getByPlaceholderText("显示名"), { target: { value: name } });
+  fireEvent.click(screen.getByRole("button", { name: "添加" }));
 }
 
 describe("ServersPanel", () => {
-  it("新增後清單即時反映並進入登入流程，登入成功顯示身分", async () => {
+  it("添加后清单即时反映并进入登录流程，登录成功显示身分", async () => {
     renderPanel(fakeAdapter());
     addServer("http://localhost:8080/", "本地");
 
-    // 清單即現條目（顯示名＋正規化 origin）。
+    // 清单即现条目（显示名＋范式 origin）。
     await waitFor(() => expect(screen.getByText("本地")).toBeTruthy());
     expect(screen.getByText("http://localhost:8080")).toBeTruthy();
 
-    // 隨即登入成功：呈現已登入與身分顯示名。
+    // 随即登录成功：呈现已登录与身分显示名。
     await expectLoggedInAs(DISPLAY);
   });
 
-  it("server 只收存取金鑰（或沒有 device flow）時就地現 PAT 輸入，有效 PAT 完成登入", async () => {
+  it("server 只收访问密钥（或没有 device flow）时就地现 PAT 输入，有效 PAT 完成登录", async () => {
     const adapter = fakeAdapter();
     renderPanel({ ...adapter, loginStart: async () => ({ status: "patRequired" }) });
-    addServer("http://legacy.example", "舊機");
+    addServer("http://legacy.example", "旧机");
 
-    // 需要存取金鑰 → PAT 輸入直接現身，沒有任何等待面。
+    // 需要访问密钥 → PAT 输入直接现身，没有任何等待面。
     const patInput = await screen.findByPlaceholderText("spk_pat_…");
     expect(screen.queryByTestId("awaiting-approval-http://legacy.example")).toBeNull();
     expect(screen.queryByTestId("awaiting-browser-http://legacy.example")).toBeNull();
     fireEvent.change(patInput, { target: { value: "spk_pat_good" } });
-    fireEvent.click(screen.getByRole("button", { name: "以 PAT 登入" }));
+    fireEvent.click(screen.getByRole("button", { name: "以 PAT 登录" }));
 
     await expectLoggedInAs(DISPLAY);
   });
 
-  it("無效 PAT 拒絕並留在輸入面", async () => {
+  it("无效 PAT 拒绝并留在输入面", async () => {
     const adapter = fakeAdapter();
     renderPanel({
       ...adapter,
       loginStart: async () => ({ status: "patRequired" }),
     });
-    addServer("http://legacy.example", "舊機");
+    addServer("http://legacy.example", "旧机");
 
     const patInput = await screen.findByPlaceholderText("spk_pat_…");
     fireEvent.change(patInput, { target: { value: "spk_pat_bad" } });
-    fireEvent.click(screen.getByRole("button", { name: "以 PAT 登入" }));
+    fireEvent.click(screen.getByRole("button", { name: "以 PAT 登录" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain("PAT 無效或已被撤銷"),
+      expect(screen.getByRole("alert").textContent).toContain("PAT 无效或已被撤销"),
     );
-    // 輸入面仍在，可重試。
+    // 输入面仍在，可重试。
     expect(screen.getByPlaceholderText("spk_pat_…")).toBeTruthy();
   });
 
-  it("登出後回未登入", async () => {
+  it("注销后回未登录", async () => {
     renderPanel(fakeAdapter());
     addServer("http://localhost:8080", "本地");
     await expectLoggedInAs(DISPLAY);
 
-    fireEvent.click(screen.getByRole("button", { name: "登出" }));
-    await waitFor(() => expect(screen.getByText("未登入")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "注销" }));
+    await waitFor(() => expect(screen.getByText("未登录")).toBeTruthy());
     expect(screen.queryByText(DISPLAY)).toBeNull();
   });
 
-  it("瀏覽器拒絕授權呈現可讀狀態", async () => {
+  it("浏览器拒绝授权呈现可读状态", async () => {
     const adapter = fakeAdapter();
     renderPanel({
       ...adapter,
@@ -242,12 +242,12 @@ describe("ServersPanel", () => {
     });
     addServer("http://localhost:8080", "本地");
 
-    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("已在瀏覽器拒絕授權"));
-    // 可讀狀態取代狀態行；絕不呈現已登入。
-    expect(screen.queryByText(/已登入/)).toBeNull();
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("已在浏览器拒绝授权"));
+    // 可读状态取代状态行；绝不呈现已登录。
+    expect(screen.queryByText(/已登录/)).toBeNull();
   });
 
-  it("探索失敗顯示連線錯誤，不出現 PAT 輸入", async () => {
+  it("探索失败显示连接错误，不出现 PAT 输入", async () => {
     const adapter = fakeAdapter();
     renderPanel({
       ...adapter,
@@ -261,9 +261,9 @@ describe("ServersPanel", () => {
     expect(screen.queryByPlaceholderText("spk_pat_…")).toBeNull();
   });
 
-  // --- 等待授權面（規格「device login 預設與 PAT fallback」的等待授權要求） ---
+  // --- 等待授权面（规格「device login 缺省与 PAT fallback」的等待授权要求） ---
 
-  /** 停在等待面的面板：登入送出 `phase` 後一直等，直到取消或測試代為完成。 */
+  /** 停在等待面的面板：登录送出 `phase` 后一直等，直到取消或测试代为完成。 */
   function renderAwaiting(phase: LoginPhase = APPROVAL) {
     const adapter = fakeAdapter();
     const login = waitingLogin(phase);
@@ -276,71 +276,71 @@ describe("ServersPanel", () => {
     return login;
   }
 
-  it("等待授權時顯示裝置碼、驗證網址、倒數與取消", async () => {
+  it("等待授权时显示设备码、验证网址、倒数与取消", async () => {
     renderAwaiting();
     const waiting = await screen.findByTestId("awaiting-approval-http://localhost:8080");
     expect(waiting.textContent).toContain("ABCD-EFGH");
     expect(waiting.textContent).toContain("http://localhost:8080/activate");
-    // 倒數（分:秒）與取消操作就在同一面。
+    // 倒数（分:秒）与取消操作就在同一面。
     expect(waiting.textContent).toMatch(/\d+:\d{2}/);
-    expect(screen.getByRole("button", { name: "取消登入" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "取消登录" })).toBeTruthy();
   });
 
-  it("裝置碼與驗證網址各附複製，複製後剪貼簿即為該內容", async () => {
+  it("设备码与验证网址各附拷贝，拷贝后剪贴板即为该内容", async () => {
     writeText.mockClear();
     renderAwaiting();
     await screen.findByTestId("awaiting-approval-http://localhost:8080");
 
-    fireEvent.click(screen.getByRole("button", { name: "複製裝置碼" }));
+    fireEvent.click(screen.getByRole("button", { name: "拷贝设备码" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("ABCD-EFGH"));
-    fireEvent.click(screen.getByRole("button", { name: "複製驗證網址" }));
+    fireEvent.click(screen.getByRole("button", { name: "拷贝验证网址" }));
     await waitFor(() => expect(writeText).toHaveBeenCalledWith("http://localhost:8080/activate"));
   });
 
-  it("取消等待即呼叫取消並回未登入", async () => {
+  it("取消等待即调用取消并回未登录", async () => {
     const login = renderAwaiting();
     await screen.findByTestId("awaiting-approval-http://localhost:8080");
 
-    fireEvent.click(screen.getByRole("button", { name: "取消登入" }));
-    await waitFor(() => expect(screen.getByText("未登入")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "取消登录" }));
+    await waitFor(() => expect(screen.getByText("未登录")).toBeTruthy());
     expect(login.loginCancel).toHaveBeenCalledWith("http://localhost:8080");
     expect(screen.queryByTestId("awaiting-approval-http://localhost:8080")).toBeNull();
   });
 
-  // --- 等待瀏覽器登入面（client-browser-login D9） ---
+  // --- 等待浏览器登录面（client-browser-login D9） ---
 
-  it("等待瀏覽器登入時就地顯示說明、可複製的授權網址、倒數與取消，沒有裝置碼", async () => {
+  it("等待浏览器登录时就地显示说明、可拷贝的授权网址、倒数与取消，没有设备码", async () => {
     writeText.mockClear();
     renderAwaiting(BROWSER);
     const waiting = await screen.findByTestId("awaiting-browser-http://localhost:8080");
-    expect(waiting.textContent).toContain("等待瀏覽器登入");
+    expect(waiting.textContent).toContain("等待浏览器登录");
     expect(waiting.textContent).toContain(BROWSER.kind === "awaitingBrowser" ? BROWSER.url : "");
     expect(waiting.textContent).toMatch(/\d+:\d{2}/);
-    expect(waiting.textContent).not.toContain("裝置碼");
+    expect(waiting.textContent).not.toContain("设备码");
     expect(screen.queryByTestId("awaiting-approval-http://localhost:8080")).toBeNull();
-    // 狀態籤是等待授權。
-    expect(screen.getByText("等待授權")).toBeTruthy();
+    // 状态签是等待授权。
+    expect(screen.getByText("等待授权")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: "複製登入網址" }));
+    fireEvent.click(screen.getByRole("button", { name: "拷贝登录网址" }));
     await waitFor(() =>
       expect(writeText).toHaveBeenCalledWith(BROWSER.kind === "awaitingBrowser" ? BROWSER.url : ""),
     );
   });
 
-  it("等待瀏覽器登入時取消即呼叫取消並回未登入", async () => {
+  it("等待浏览器登录时取消即调用取消并回未登录", async () => {
     const login = renderAwaiting(BROWSER);
     await screen.findByTestId("awaiting-browser-http://localhost:8080");
 
-    fireEvent.click(screen.getByRole("button", { name: "取消登入" }));
-    await waitFor(() => expect(screen.getByText("未登入")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "取消登录" }));
+    await waitFor(() => expect(screen.getByText("未登录")).toBeTruthy());
     expect(login.loginCancel).toHaveBeenCalledWith("http://localhost:8080");
     expect(screen.queryByTestId("awaiting-browser-http://localhost:8080")).toBeNull();
   });
 
-  it("瀏覽器登入被拒絕與逾時各有可讀狀態", async () => {
+  it("浏览器登录被拒绝与逾时各有可读状态", async () => {
     for (const [status, message] of [
-      ["denied", "已在登入服務拒絕登入"],
-      ["expired", "瀏覽器登入逾時"],
+      ["denied", "已在登录服务拒绝登录"],
+      ["expired", "浏览器登录逾时"],
     ] as const) {
       const login = renderAwaiting(BROWSER);
       await screen.findByTestId("awaiting-browser-http://localhost:8080");
@@ -351,9 +351,9 @@ describe("ServersPanel", () => {
     }
   });
 
-  // --- 登入成功的行動呼籲（規格「伺服器管理最小面」：聚焦開啟工作區入口） ---
+  // --- 登录成功的行动呼吁（规格「服务器管理最小面」：聚焦打开工作区入口） ---
 
-  it("登入成功後開啟工作區入口取得鍵盤焦點，且不自動開啟工作區選擇器——三種方式都是", async () => {
+  it("登录成功后打开工作区入口取得键盘焦点，且不自动打开工作区选择器——三种方式都是", async () => {
     for (const method of ["browser", "device", "pat"] as const) {
       const open = vi.fn();
       const adapter = fakeAdapter();
@@ -373,7 +373,7 @@ describe("ServersPanel", () => {
       addServer("http://localhost:8080", "本地");
       if (method === "pat") {
         fireEvent.change(await screen.findByPlaceholderText("spk_pat_…"), { target: { value: "spk_pat_good" } });
-        fireEvent.click(screen.getByRole("button", { name: "以 PAT 登入" }));
+        fireEvent.click(screen.getByRole("button", { name: "以 PAT 登录" }));
       }
 
       const entry = await screen.findByTestId("open-workspace-http://localhost:8080");
@@ -383,7 +383,7 @@ describe("ServersPanel", () => {
     }
   });
 
-  it("移除連線後清單消失", async () => {
+  it("移除连接后清单消失", async () => {
     renderPanel(fakeAdapter());
     addServer("http://localhost:8080", "本地");
     await waitFor(() => expect(screen.getByText("本地")).toBeTruthy());
@@ -393,7 +393,7 @@ describe("ServersPanel", () => {
     expect(screen.getByTestId("servers-empty")).toBeTruthy();
   });
 
-  // --- 開啟 workspace：退役文字輸入，匯流至統一 chooser ---
+  // --- 打开 workspace：退役文本输入，汇流至统一 chooser ---
 
   function renderLoggedInPanel(onOpenWorkspace: (id: string) => void) {
     rtlRender(
@@ -419,10 +419,10 @@ describe("ServersPanel", () => {
     );
   }
 
-  // 既有已登入條目的開啟專案在「⋯」選單；行動呼籲按鈕只給剛完成的登入。
-  const openWorkspaceChooser = () => rowMenu("開啟專案");
+  // 既有已登录条目的打开项目在「⋯」菜单；行动呼吁按钮只给刚完成的登录。
+  const openWorkspaceChooser = () => rowMenu("打开项目");
 
-  it("已登入條目開啟統一 chooser 並預選該 connection", async () => {
+  it("已登录条目打开统一 chooser 并预选该 connection", async () => {
     const open = vi.fn();
     renderLoggedInPanel(open);
 
@@ -431,7 +431,7 @@ describe("ServersPanel", () => {
     expect(screen.queryByPlaceholderText("project 或 project/repo")).toBeNull();
   });
 
-  it("不再呈現臨時 repo 文字輸入表單", async () => {
+  it("不再呈现临时 repo 文本输入表单", async () => {
     const open = vi.fn();
     renderLoggedInPanel(open);
 

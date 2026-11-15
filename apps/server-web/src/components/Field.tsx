@@ -1,8 +1,8 @@
 import type { HTMLInputTypeAttribute } from "react";
-import { Input, Label } from "@speclink/ui";
+import { Input, Label } from "@specseal/ui";
 
-// 一致的表單欄位：label ＋ input ＋ 選配的灰字說明 ＋ 鄰近欄位且以 role=alert 宣告的錯誤（D6）。
-// setup、invite 與登入等專注流程表單共用，避免重複 label／aria 接線。
+// 一致的表单字段：label ＋ input ＋ 选配的灰字说明 ＋ 邻近字段且以 role=alert 声明的错误（D6）。
+// setup、invite 与登录等专注流程表单共用，避免重复 label／aria 接线。
 export function Field({
   id,
   label,

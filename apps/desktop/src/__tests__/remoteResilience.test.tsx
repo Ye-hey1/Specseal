@@ -1,5 +1,5 @@
-// remote-resilience：Rust 廣播是連線狀態單一真相；offline 時保留最後 snapshot、
-// 呈現 stale/cloud-off 並以既有 capability 管線停用全部寫入。本地 session 不受影響。
+// remote-resilience：Rust 广播是连接状态单一真相；offline 时保留最后 snapshot、
+// 呈现 stale/cloud-off 并以既有 capability 管线停用全部写入。本地 session 不受影响。
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,8 +17,8 @@ import {
 import { changeList } from "./helpers/changeList";
 import { fakeRemoteDs, REMOTE_CAPS, REMOTE_KEY } from "./helpers/remoteFixtures";
 
-vi.mock("@speclink/ui", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@speclink/ui")>();
+vi.mock("@specseal/ui", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@specseal/ui")>();
   return { ...mod, Toaster: () => <div data-testid="app-toaster" /> };
 });
 
@@ -65,7 +65,7 @@ const INFO: RemoteOpenInfo = {
 function remoteInvoke() {
   let reachable = true;
   let changes = [
-    // 已就緒（2/2）：封存鈕的階段守門放行，離線測試聚焦連線狀態對寫入的影響。
+    // 已就绪（2/2）：封存钮的阶段守门放行，脱机测试聚焦连接状态对写入的影响。
     { name: "remote-change", status: "in-progress", totalTasks: 2, completedTasks: 2 },
   ];
   const invoke = vi.fn(async (command: string) => {
@@ -101,13 +101,13 @@ function remoteInvoke() {
 }
 
 beforeEach(() => {
-  localStorage.removeItem("speclink.projectTabs");
-  localStorage.setItem("speclink.uiLocale", "zh-TW");
+  localStorage.removeItem("specseal.projectTabs");
+  localStorage.setItem("specseal.uiLocale", "zh-CN");
 });
 
 function persistRemote() {
   localStorage.setItem(
-    "speclink.projectTabs",
+    "specseal.projectTabs",
     JSON.stringify({
       version: 2,
       tabs: [
@@ -122,7 +122,7 @@ function persistRemote() {
 }
 
 describe("remote offline stale snapshot", () => {
-  it("啟動時 handshake 失敗會以作用中分頁顯示復原目的地，不洩漏上一個 workspace 資料", async () => {
+  it("启动时 handshake 失败会以作用中分页显示复原目的地，不泄漏上一个 workspace 数据", async () => {
     persistRemote();
     const openRemote = vi.fn().mockRejectedValue({
       message: "server unreachable — internal transport diagnostics",
@@ -133,14 +133,14 @@ describe("remote offline stale snapshot", () => {
     render(
       <App
         createSession={() => {
-          throw new Error("remote 復原不得建立 local session");
+          throw new Error("remote 复原不得创建 local session");
         }}
         openRemote={openRemote}
         workspace={fakeWorkspace() as never}
       />,
     );
 
-    expect((await screen.findByRole("alert")).textContent).toContain("無法連線到伺服器");
+    expect((await screen.findByRole("alert")).textContent).toContain("无法连接到服务器");
     expect(
       screen.getByRole("tab", { name: /Demo\/Backend/ }).getAttribute("aria-selected"),
     ).toBe("true");
@@ -148,7 +148,7 @@ describe("remote offline stale snapshot", () => {
     expect(screen.queryByText("previous-workspace-change")).toBeNull();
   });
 
-  it("保留清單、呈現 stale/cloud-off，並停用任務與封存寫入", async () => {
+  it("保留清单、呈现 stale/cloud-off，并停用任务与封存写入", async () => {
     persistRemote();
     const events = fakeEvents();
     const network = remoteInvoke();
@@ -168,7 +168,7 @@ describe("remote offline stale snapshot", () => {
     render(
       <App
         createSession={() => {
-          throw new Error("remote 流程不得建立 local session");
+          throw new Error("remote 流程不得创建 local session");
         }}
         openRemote={openRemote}
         workspace={fakeWorkspace() as never}
@@ -179,7 +179,7 @@ describe("remote offline stale snapshot", () => {
     await waitFor(() => expect(events.count("remote-connection-state")).toBe(1));
     fireEvent.click(screen.getByText("remote-change"));
     const archive = (await screen.findByRole("button", { name: "封存" })) as HTMLButtonElement;
-    fireEvent.click(screen.getByRole("tab", { name: /任務/ }));
+    fireEvent.click(screen.getByRole("tab", { name: /任务/ }));
     await screen.findAllByRole("checkbox");
     expect(archive.disabled).toBe(false);
 
@@ -188,14 +188,14 @@ describe("remote offline stale snapshot", () => {
       events.emit("remote-connection-state", {
         connectionId: "c1",
         state: "offline",
-        message: "此連線目前離線——顯示最後成功載入的內容",
+        message: "此连接目前脱机——显示最后成功加载的内容",
       });
       events.emit("remote-workspace-changed", REMOTE_KEY);
     });
 
-    expect((await screen.findByTestId("remote-stale-banner")).textContent).toContain("離線");
+    expect((await screen.findByTestId("remote-stale-banner")).textContent).toContain("脱机");
     expect(screen.getAllByText("remote-change").length).toBeGreaterThan(0);
-    // 圖示列方塊：離線＝角落琥珀點。
+    // 图标列方块：脱机＝角落琥珀点。
     const square = Array.from(document.querySelectorAll("[data-tab]")).find(
       (el) => el.getAttribute("data-tab") === REMOTE_KEY,
     );
@@ -204,9 +204,9 @@ describe("remote offline stale snapshot", () => {
     expect((screen.getAllByRole("checkbox")[0] as HTMLInputElement).disabled).toBe(true);
   });
 
-  it("同一個 remote 狀態事件不改變本地分頁的內容與寫入能力", async () => {
+  it("同一个 remote 状态事件不改变本地分页的内容与写入能力", async () => {
     localStorage.setItem(
-      "speclink.projectTabs",
+      "specseal.projectTabs",
       JSON.stringify({
         version: 2,
         tabs: [{ locator: { kind: "local", root: "A" }, name: "Local" }],
@@ -220,7 +220,7 @@ describe("remote offline stale snapshot", () => {
       .mockResolvedValue({ status: "project", root: "A", name: "Local" });
     const ds = fakeRemoteDs({
       listChanges: vi.fn().mockResolvedValue(changeList([
-        // 已就緒（2/2）：封存鈕的階段守門放行，聚焦 remote 事件不影響本地寫入能力。
+        // 已就绪（2/2）：封存钮的阶段守门放行，聚焦 remote 事件不影响本地写入能力。
         { name: "local-change", status: "in-progress", totalTasks: 2, completedTasks: 2 },
       ])),
       changeCapabilities: vi.fn().mockResolvedValue([]),
@@ -249,7 +249,7 @@ describe("remote offline stale snapshot", () => {
     expect(archive.disabled).toBe(false);
   });
 
-  it("online 事件會自動全量重查、載入恢復期間的新 change 並清除 stale", async () => {
+  it("online 事件会自动全量重查、加载恢复期间的新 change 并清除 stale", async () => {
     persistRemote();
     const events = fakeEvents();
     const network = remoteInvoke();
@@ -260,7 +260,7 @@ describe("remote offline stale snapshot", () => {
     render(
       <App
         createSession={() => {
-          throw new Error("remote 流程不得建立 local session");
+          throw new Error("remote 流程不得创建 local session");
         }}
         openRemote={async () => session}
         workspace={fakeWorkspace() as never}
@@ -296,11 +296,11 @@ describe("remote offline stale snapshot", () => {
     expect(square?.querySelector("[data-tab-dot]")).toBeNull();
   });
 
-  it("needs-reauth 導向聚焦登入，成功後依序 re-handshake 全部 remote sessions、重查並重掛 worker", async () => {
+  it("needs-reauth 导向聚焦登录，成功后依序 re-handshake 全部 remote sessions、重查并重挂 worker", async () => {
     const backendKey = "remote:c1/demo/backend";
     const frontendKey = "remote:c1/demo/frontend";
     localStorage.setItem(
-      "speclink.projectTabs",
+      "specseal.projectTabs",
       JSON.stringify({
         version: 2,
         tabs: [
@@ -388,7 +388,7 @@ describe("remote offline stale snapshot", () => {
       bindCheckout: vi.fn(),
     } as ConnectionsAdapter;
     const createSession = vi.fn(() => {
-      throw new Error("重新認證不得建立 local session");
+      throw new Error("重新认证不得创建 local session");
     });
     render(
       <App
@@ -410,11 +410,11 @@ describe("remote offline stale snapshot", () => {
       events.emit("remote-connection-state", {
         connectionId: "c1",
         state: "needs-reauth",
-        message: "登入已失效",
+        message: "登录已失效",
       });
     });
-    const reauth = await screen.findByRole("button", { name: "重新登入" });
-    // stale 橫幅整條已是琥珀警示；按鈕再塗琥珀只會兩片顏色互搶，改中性 outline。
+    const reauth = await screen.findByRole("button", { name: "重新登录" });
+    // stale 横幅整条已是琥珀警示；按钮再涂琥珀只会两片颜色互抢，改中性 outline。
     expect(reauth.className).not.toContain("status-warning");
     expect(reauth.className).toContain("border");
     fireEvent.click(reauth);
@@ -445,9 +445,9 @@ describe("remote offline stale snapshot", () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 
-  it("session 回報 needs-reauth 後，從齒輪進伺服器頁也看得到該連線「登入過期」", async () => {
+  it("session 回报 needs-reauth 后，从齿轮进服务器页也看得到该连接「登录过期」", async () => {
     localStorage.setItem(
-      "speclink.projectTabs",
+      "specseal.projectTabs",
       JSON.stringify({
         version: 2,
         tabs: [
@@ -498,16 +498,16 @@ describe("remote offline stale snapshot", () => {
     );
     await screen.findByText("backend-change");
     act(() => {
-      events.emit("remote-connection-state", { connectionId: "c1", state: "needs-reauth", message: "登入已失效" });
+      events.emit("remote-connection-state", { connectionId: "c1", state: "needs-reauth", message: "登录已失效" });
     });
     await screen.findByTestId("remote-stale-banner");
 
     fireEvent.click(
-      (document.querySelector("[data-project-rail]") as HTMLElement).querySelector('[aria-label="設定"]') as HTMLElement,
+      (document.querySelector("[data-project-rail]") as HTMLElement).querySelector('[aria-label="设置"]') as HTMLElement,
     );
-    fireEvent.click(screen.getByRole("button", { name: "伺服器" }));
+    fireEvent.click(screen.getByRole("button", { name: "服务器" }));
     const row = await screen.findByTestId("server-row-http://server.test");
-    expect(row.textContent).toContain("登入過期");
-    expect(row.textContent).toContain("重新登入");
+    expect(row.textContent).toContain("登录过期");
+    expect(row.textContent).toContain("重新登录");
   });
 });

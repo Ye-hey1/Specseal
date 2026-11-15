@@ -1,7 +1,7 @@
-// 系統匣狀態選單（design D1/D3/D5）：前端擁有的呈現面。分兩層——
-// (1) buildTrayModel：store 快照 → 選單模型的純函式（本檔上半，無 Tauri 依賴、直測）；
-// (2) 接線層：訂閱 store、去抖重建、掛點擊 handler（本檔下半，以 Tauri JS tray/menu API）。
-import { changeStage, planWave, STAGES, type ChangeItem } from "@speclink/ui";
+// 系统匣状态菜单（design D1/D3/D5）：前端拥有的呈现面。分两层——
+// (1) buildTrayModel：store 快照 → 菜单模型的纯函数（本档上半，无 Tauri 依赖、直测）；
+// (2) 接线层：订阅 store、去抖重建、挂点击 handler（本档下半，以 Tauri JS tray/menu API）。
+import { changeStage, planWave, STAGES, type ChangeItem } from "@specseal/ui";
 import { TrayIcon } from "@tauri-apps/api/tray";
 import {
   Menu,
@@ -31,8 +31,8 @@ import {
 import { trayIconBytes } from "./trayIcon";
 import { detectPlatform, type Platform } from "./platform";
 
-/** 系統匣互動樣式：由平台決定（macOS 與 Windows＝panel、Linux＝native-menu），panel
-    建立失敗時退回 native-menu——執行期狀態、不持久化（tray-macos-panel-only 拆除偏好）。 */
+/** 系统匣交互样式：由平台决定（macOS 与 Windows＝panel、Linux＝native-menu），panel
+    创建失败时退回 native-menu——运行期状态、不持久化（tray-macos-panel-only 拆除偏好）。 */
 export type TrayStyle = "native-menu" | "panel";
 
 export type TrayTabSnapshot =
@@ -47,37 +47,37 @@ export type TrayTabSnapshot =
       name: string;
       source: "remote";
       status: RemoteWorkspaceStatus;
-      /** 僅 remote error 的封閉分類；不把 raw technical detail 帶入 Tray。 */
+      /** 仅 remote error 的封闭分类；不把 raw technical detail 带入 Tray。 */
       failureKind?: RemoteRecoveryKind;
       connectionId: string;
       serverLabel: string;
       serverOrigin?: string;
     };
 
-/** 組模型所需的 store 快照（自 AppState 收斂而來——與看板同源，design D3）。
- * 分頁項識別與切換把手皆為 locator key（workspace-session 決策 6）。 */
+/** 组模型所需的 store 快照（自 AppState 收敛而来——与看板同源，design D3）。
+ * 分页项识别与切换把手皆为 locator key（workspace-session 决策 6）。 */
 export interface TraySnapshot {
   tabs: TrayTabSnapshot[];
   activeKey: string | null;
   changes: ChangeItem[];
-  /** 進看板的 active 討論（slug 供點擊開啟；promoted＝已轉出、已有結論且未保留
-   * （hold 非 true），分流至「已轉出」分區——尚無結論或保留在途者留「討論」分區，
-   * 只有引擎會自動收走的討論才算已轉出）。 */
+  /** 进看板的 active 讨论（slug 供点击打开；promoted＝已转出、已有结论且未保留
+   * （hold 非 true），分流至「已转出」分区——尚无结论或保留在途者留「讨论」分区，
+   * 只有引擎会自动收走的讨论才算已转出）。 */
   discussions: Array<{ slug: string; topic: string; promoted: boolean }>;
-  /** 探測進行中的目標分頁 key（null＝無切換）：面板據此在該分頁出 spinner。 */
+  /** 探测进行中的目标分页 key（null＝无切换）：面板据此在该分页出 spinner。 */
   pendingTabKey: string | null;
-  /** 活躍 workspace 的首訪載入進行中（design D3）：整條骨架條件由 store 導出，
-   * 與主視窗看板同一個值——面板純渲染，不自行組合旗標。 */
+  /** 活跃 workspace 的首访加载进行中（design D3）：整条骨架条件由 store 导出，
+   * 与主窗口看板同一个值——面板纯渲染，不自行组合旗标。 */
   workspaceLoading: boolean;
-  /** 活躍 workspace 首訪載入以失敗收場：分區顯示載入失敗提示（非空態、非骨架）。
-   * 已有舊快取的重載失敗為 false——那條照舊沿用最後成功資料，不提示。 */
+  /** 活跃 workspace 首访加载以失败收场：分区显示加载失败提示（非空态、非骨架）。
+   * 已有旧缓存的重载失败为 false——那条照旧沿用最后成功数据，不提示。 */
   workspaceLoadFailed: boolean;
 }
 
-/** 變更子選單的動作項。 */
+/** 变更子菜单的动作项。 */
 export type TrayChangeAction = { kind: "open-change" | "copy-name"; label: string };
 
-/** 討論子選單的動作項。 */
+/** 讨论子菜单的动作项。 */
 export type TrayDiscussionAction = { kind: "open-discussion" | "copy-slug"; label: string };
 
 export type TrayRecoveryAction = {
@@ -85,10 +85,10 @@ export type TrayRecoveryAction = {
   label: string;
 };
 
-/** 分區溢出門檻（spec「分區溢出摺疊」）：各分區直列筆數上限，逾此收進溢出節點。 */
+/** 分区溢出门槛（spec「分区溢出折叠」）：各分区直列笔数上限，逾此收进溢出节点。 */
 export const OVERFLOW_LIMIT = 5;
 
-/** 選單項目模型（純資料；接線層據此建原生 menu item 並掛 action）。 */
+/** 菜单项目模型（纯数据；接线层据此建原生 menu item 并挂 action）。 */
 export type TrayMenuItem =
   | {
       kind: "project";
@@ -113,13 +113,13 @@ export type TrayMenuItem =
   | {
       kind: "discussion";
       slug: string;
-      /** 父項標籤＝slug（識別錨點直出）；topic 降為子選單首行描述。 */
+      /** 父项标签＝slug（识别锚点直出）；topic 降为子菜单首行描述。 */
       label: string;
       topic: string;
       actions: TrayDiscussionAction[];
     }
   | {
-      /** 分區溢出節點「還有 N 個…」：內嵌其餘項目的同構模型（接線層遞迴轉子選單）。 */
+      /** 分区溢出节点「还有 N 个…」：内嵌其余项目的同构模型（接线层递归转子菜单）。 */
       kind: "overflow";
       label: string;
       items: TrayMenuItem[];
@@ -135,16 +135,16 @@ export interface TrayModel {
   items: TrayMenuItem[];
 }
 
-/** unicode 方塊進度條（width 格）；total<=0 回空字串（無任務不畫）。 */
+/** unicode 方块进度条（width 格）；total<=0 回空字符串（无任务不画）。 */
 export function progressBar(completed: number, total: number, width = 8): string {
   if (total <= 0) return "";
   const filled = Math.max(0, Math.min(width, Math.round((completed / total) * width)));
   return "▓".repeat(filled) + "░".repeat(width - filled);
 }
 
-/** 變更列標籤：有任務時「名稱  ▓▓░ n/m」，無任務時僅名稱；清單項帶 wave 時前綴
- * 「N· 」（spec tray-status-menu「變更列的波次標示與順序同源」——原生選單無法變淡，
- * 只加波次數字）。name（複製來源）不帶前綴。 */
+/** 变更列标签：有任务时「名称  ▓▓░ n/m」，无任务时仅名称；清单项带 wave 时前缀
+ * 「N· 」（spec tray-status-menu「变更列的波次标示与顺序同源」——原生菜单无法变淡，
+ * 只加波次数字）。name（拷贝来源）不带前缀。 */
 function changeLabel(c: ChangeItem): string {
   const wave = planWave(c);
   const prefix = wave === null ? "" : `${wave}· `;
@@ -154,12 +154,12 @@ function changeLabel(c: ChangeItem): string {
 }
 
 /**
- * 由 store 快照組出選單模型。純函式、無平台分支。區段順序：
- * 專案區（作用中打勾）→ 分隔 → 生命週期分區（提案中/進行中/已就緒各一 header＋變更子選單，
- * 變更列帶進度條，子選單含「開啟此變更」「複製名稱」；全無變更則空狀態）→ 分隔 →
- * 討論區（header＋各討論子選單：父項標籤為 slug、topic 為子選單首行描述、
- * 含「開啟此討論」「複製 slug」；無則「討論 0」）→ 分隔 → 動作區（開啟 Speclink、專案設定、
- * 設定、結束——專案層動作在前、app 層在後，與主視窗側欄層次一致）。
+ * 由 store 快照组出菜单模型。纯函数、无平台分支。区段顺序：
+ * 项目区（作用中打勾）→ 分隔 → 生命周期分区（提案中/进行中/已就绪各一 header＋变更子菜单，
+ * 变更列带进度条，子菜单含「打开此变更」「拷贝名称」；全无变更则空状态）→ 分隔 →
+ * 讨论区（header＋各讨论子菜单：父项标签为 slug、topic 为子菜单首行描述、
+ * 含「打开此讨论」「拷贝 slug」；无则「讨论 0」）→ 分隔 → 动作区（打开 Specseal、项目设置、
+ * 设置、结束——项目层动作在前、app 层在后，与主窗口侧栏层次一致）。
  */
 export function buildTrayModel(
   snapshot: TraySnapshot,
@@ -183,7 +183,7 @@ export function buildTrayModel(
     return t("tray.recovery.unreachable");
   };
 
-  /** 分區切片：逾門檻收進「還有 N 個…」溢出節點（≤門檻原樣返回）。 */
+  /** 分区切片：逾门槛收进「还有 N 个…」溢出节点（≤门槛原样返回）。 */
   const withOverflow = (rows: TrayMenuItem[]): TrayMenuItem[] => {
     if (rows.length <= OVERFLOW_LIMIT) return rows;
     return [
@@ -196,7 +196,7 @@ export function buildTrayModel(
     ];
   };
 
-  // 專案區（識別＝locator key；顯示文字與行為不變）
+  // 项目区（识别＝locator key；显示文本与行为不变）
   for (const tab of snapshot.tabs) {
     if (tab.status === "ready" || tab.status === "offline") {
       items.push({
@@ -242,7 +242,7 @@ export function buildTrayModel(
   if (snapshot.tabs.length > 0) items.push({ kind: "separator" });
 
   if (!hideWorkspaceData) {
-    // 生命週期分區：每個非空階段一個 header＋變更子選單
+    // 生命周期分区：每个非空阶段一个 header＋变更子菜单
     let anyChange = false;
     for (const stage of STAGES) {
       const staged = snapshot.changes.filter((c) => changeStage(c) === stage);
@@ -267,7 +267,7 @@ export function buildTrayModel(
 
     items.push({ kind: "separator" });
 
-    // 討論區分流（spec「討論列表」）。
+    // 讨论区分流（spec「讨论列表」）。
     const discussionItem = (d: { slug: string; topic: string }): TrayMenuItem => ({
       kind: "discussion",
       slug: d.slug,
@@ -294,7 +294,7 @@ export function buildTrayModel(
     items.push({ kind: "separator" });
   }
   items.push({ kind: "open", label: t("tray.open") });
-  // 文案沿用主視窗側欄「專案設定」詞條——同概念同詞，不另造 tray 專屬鍵。
+  // 文案沿用主窗口侧栏「项目设置」词条——同概念同词，不另造 tray 专属键。
   items.push({ kind: "project-settings", label: t("app.navProjectSettings") });
   items.push({ kind: "settings", label: t("tray.settings") });
   items.push({ kind: "quit", label: t("tray.quit") });
@@ -302,20 +302,20 @@ export function buildTrayModel(
   return { items };
 }
 
-// ---- 接線層：訂閱 store、去抖重建、掛點擊 handler ----
+// ---- 接线层：订阅 store、去抖重建、挂点击 handler ----
 
-/** tray 訂閱所需的最小 store 介面（Zustand bound store 相容——AppState 的結構子集）。 */
+/** tray 订阅所需的最小 store 接口（Zustand bound store 兼容——AppState 的结构子集）。 */
 export interface TrayStoreApi {
   getState: () => {
     tabs: Array<{ locator: WorkspaceLocator; name: string }>;
     activeKey: string | null;
-    /** 探測進行中的目標分頁 key（store 的切換中標記）。 */
+    /** 探测进行中的目标分页 key（store 的切换中标记）。 */
     pendingTabKey: string | null;
-    /** 活躍 workspace 快照是否已完成首次載入。 */
+    /** 活跃 workspace 快照是否已完成首次加载。 */
     loaded: boolean;
-    /** 活躍 workspace 有整批載入在途（store 導出，非手動記帳）。 */
+    /** 活跃 workspace 有整批加载在途（store 导出，非手动记帐）。 */
     loadingActive: boolean;
-    /** 活躍 workspace 最近一次整批載入以失敗收場。 */
+    /** 活跃 workspace 最近一次整批加载以失败收场。 */
     loadFailed: boolean;
     changes: ChangeItem[];
     discussions: {
@@ -330,49 +330,49 @@ export interface TrayStoreApi {
     sessions: Record<string, WorkspaceSession>;
     remoteRecovery: Record<string, RemoteWorkspaceRecoveryState>;
     connections: ConnectionView[];
-    /** 系統匣樣式：native-menu 掛原生選單；panel 的點擊改走 action（Windows 右鍵仍是原生選單）。 */
+    /** 系统匣样式：native-menu 挂原生菜单；panel 的点击改走 action（Windows 右键仍是原生菜单）。 */
     trayStyle: TrayStyle;
-    /** 切換既有分頁；locator key 同時涵蓋 local 與 remote。 */
+    /** 切换既有分页；locator key 同时涵盖 local 与 remote。 */
     activateTab: (key: string) => void | Promise<void>;
     retryRemoteWorkspace: (key: string) => void | Promise<void>;
     showRemoteWorkspaceRecovery: (key: string) => void;
     openConnectionReauth: (connectionId: string) => void;
-    /** 開資料夾選擇器加入專案（面板 add-project 動作用；取消即無事）。 */
+    /** 开文件夹选择器加入项目（面板 add-project 动作用；取消即无事）。 */
     openProjectViaDialog: () => void | Promise<void>;
-    /** 開啟變更詳情抽屜（子選單「開啟此變更」用）。 */
+    /** 打开变更详情抽屉（子菜单「打开此变更」用）。 */
     openDetail: (name: string) => void;
-    /** 開啟討論抽屜（討論項點擊用）。 */
+    /** 打开讨论抽屉（讨论项点击用）。 */
     openDiscussion: (slug: string) => void;
-    /** 切換主頁面（動作區「專案設定」「設定」用；store 既有 BoardView 動作的結構子集）。 */
+    /** 切换主页面（动作区「项目设置」「设置」用；store 既有 BoardView 动作的结构子集）。 */
     setBoardView: (view: "settings" | "project-settings") => void;
   };
   subscribe: (listener: () => void) => () => void;
 }
 
 export interface TrayDeps {
-  /** 平台（可注入以利測試；預設由 navigator 偵測）：macOS 套 template 圖示；panel 樣式下
-   * macOS 左右鍵皆開閉面板、Windows 左鍵開閉面板且右鍵為原生選單。 */
+  /** 平台（可注入以利测试；缺省由 navigator 侦测）：macOS 套 template 图标；panel 样式下
+   * macOS 左右键皆开闭面板、Windows 左键开闭面板且右键为原生菜单。 */
   platform?: Platform;
-  /** 選單重建去抖延遲（ms）；預設與看板刷新同量級（400ms）。 */
+  /** 菜单重建去抖延迟（ms）；缺省与看板刷新同量级（400ms）。 */
   debounceMs?: number;
-  /** 面板樣式下點擊圖示的開閉回呼（面板實作由呼叫端注入；未注入即無動作）。 */
+  /** 面板样式下点击图标的开闭回呼（面板实作由调用端注入；未注入即无动作）。 */
   onPanelToggle?: () => void;
 }
 
 export interface TrayController {
-  /** 卸載時呼叫：取消訂閱、清去抖 timer、關閉 tray 圖示。 */
+  /** 卸载时调用：取消订阅、清去抖 timer、关闭 tray 图标。 */
   dispose: () => void;
 }
 
-/** 面板骨架條件（design D3）：探測中或整批載入在途，且尚無真值。與 App.tsx
- * 傳給看板的 loading 同式——快照導出與即推面共用這一份，不會各算各的。 */
+/** 面板骨架条件（design D3）：探测中或整批加载在途，且尚无真值。与 App.tsx
+ * 传给看板的 loading 同式——快照导出与即推面共用这一份，不会各算各的。 */
 function workspaceLoadingOf(
   state: Pick<ReturnType<TrayStoreApi["getState"]>, "pendingTabKey" | "loadingActive" | "loaded">,
 ): boolean {
   return (state.pendingTabKey !== null || state.loadingActive) && !state.loaded;
 }
 
-/** store 狀態 → 模型快照（與看板同源）。 */
+/** store 状态 → 模型快照（与看板同源）。 */
 export function buildTraySnapshot(state: ReturnType<TrayStoreApi["getState"]>): TraySnapshot {
   return {
     tabs: state.tabs.map((tab): TrayTabSnapshot => {
@@ -405,23 +405,23 @@ export function buildTraySnapshot(state: ReturnType<TrayStoreApi["getState"]>): 
     discussions: state.discussions.active.map((d) => ({
       slug: d.slug,
       topic: d.topic,
-      // 只有引擎會自動收走的討論才歸「已轉出」分區：已轉出、已有結論、未保留。
-      // concluded 缺席（舊 server）退回「轉出即已轉出」的既有判準，不把缺席當成
-      // 尚無結論；hold 缺席視同未保留，不把缺席當成保留。
+      // 只有引擎会自动收走的讨论才归「已转出」分区：已转出、已有结论、未保留。
+      // concluded 缺席（旧 server）退回「转出即已转出」的既有判准，不把缺席当成
+      // 尚无结论；hold 缺席视同未保留，不把缺席当成保留。
       promoted: d.promotedTo.length > 0 && d.concluded !== false && d.hold !== true,
     })),
     pendingTabKey: state.pendingTabKey,
-    // 骨架條件在此收斂成一欄（design D3）——面板與主視窗不會各自算出不同答案。
+    // 骨架条件在此收敛成一栏（design D3）——面板与主窗口不会各自算出不同答案。
     workspaceLoading: workspaceLoadingOf(state),
-    // 首訪失敗才是終態提示；有舊快取時照舊沿用最後成功資料，不提示。
+    // 首访失败才是终态提示；有旧缓存时照旧沿用最后成功数据，不提示。
     workspaceLoadFailed: state.loadFailed && !state.loaded,
   };
 }
 
 /**
- * 初始化系統匣原生選單：建圖示與首份選單、訂閱 store（去抖重建選單）。
- * 回傳 controller，其 dispose 於 app 卸載時清理。專案切換走 store 既有 activateTab
- * 且不動視窗焦點；變更子選單「開啟此變更」與討論項開主視窗並跳詳情；「結束」為原生 predefined Quit。
+ * 初始化系统匣原生菜单：建图标与首份菜单、订阅 store（去抖重建菜单）。
+ * 回传 controller，其 dispose 于 app 卸载时清理。项目切换走 store 既有 activateTab
+ * 且不动窗口焦点；变更子菜单「打开此变更」与讨论项开主窗口并跳详情；「结束」为原生 predefined Quit。
  */
 export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promise<TrayController> {
   const platform = deps.platform ?? detectPlatform();
@@ -433,16 +433,16 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
     | CheckMenuItemOptions
     | PredefinedMenuItemOptions
     | SubmenuOptions;
-  /** 開主視窗並執行 store 動作（子選單/討論項用）——tray 於主視窗 context，直接呼叫 store。 */
+  /** 开主窗口并运行 store 动作（子菜单/讨论项用）——tray 于主窗口 context，直接调用 store。 */
   const openIn = (fn: () => void) => {
     void openMainWindow();
     fn();
   };
-  /** 寫剪貼簿（Rust 端外掛——主視窗隱藏/無焦點仍成功）；失敗靜默、不彈窗不中斷選單。 */
+  /** 写剪贴板（Rust 端插件——主窗口隐藏/无焦点仍成功）；失败静默、不弹窗不中断菜单。 */
   const copy = (text: string) => {
     void writeText(text).catch(() => {});
   };
-  /** 動作聯集 → 子選單項：open-* 開主視窗執行 store 動作、copy-* 寫剪貼簿。 */
+  /** 动作联集 → 子菜单项：open-* 开主窗口运行 store 动作、copy-* 写剪贴板。 */
   const actionItems = (
     actions: Array<TrayChangeAction | TrayDiscussionAction>,
     open: () => void,
@@ -501,7 +501,7 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
         return {
           text: item.label,
           items: [
-            // topic 首行描述：disabled、不可選取，僅供辨識
+            // topic 首行描述：disabled、不可选取，仅供辨识
             { text: item.topic, enabled: false },
             ...actionItems(
               item.actions,
@@ -511,17 +511,17 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
           ],
         };
       case "overflow":
-        // 溢出節點 → 原生子選單（內嵌項目遞迴轉換；macOS 選單超高原生捲動）
+        // 溢出节点 → 原生子菜单（内嵌项目递归转换；macOS 菜单超高原生卷动）
         return { text: item.label, items: item.items.map(toOptions) };
       case "separator":
         return { item: "Separator" };
       case "open":
         return { text: item.label, action: () => openMainWindow() };
       case "project-settings":
-        // 喚起主視窗＋切至作用中專案的專案設定頁；recovery／stale 不特判——呈現交主視窗既有行為
+        // 唤起主窗口＋切至作用中项目的项目设置页；recovery／stale 不特判——呈现交主窗口既有行为
         return { text: item.label, action: () => openIn(() => store.getState().setBoardView("project-settings")) };
       case "settings":
-        // 喚起主視窗＋切設定頁（與「開啟此變更」同一喚起語意）
+        // 唤起主窗口＋切设置页（与「打开此变更」同一唤起语意）
         return { text: item.label, action: () => openIn(() => store.getState().setBoardView("settings")) };
       case "quit":
         return { item: "Quit", text: item.label };
@@ -534,38 +534,38 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
     return { menu };
   };
 
-  // 掛選單的時機：native-menu 樣式，或 Windows 的 panel 樣式（右鍵由系統顯示同一份
-  // 原生選單——spec「面板樣式」平台差異；tray-panel-windows design D5）。左鍵開選單
-  // 只屬 native-menu：panel 樣式的左鍵要留給 action 開閉面板。
+  // 挂菜单的时机：native-menu 样式，或 Windows 的 panel 样式（右键由系统显示同一份
+  // 原生菜单——spec「面板样式」平台差异；tray-panel-windows design D5）。左键开菜单
+  // 只属 native-menu：panel 样式的左键要留给 action 开闭面板。
   const menuAttached = () => styleOf() === "native-menu" || platform === "windows";
-  // macOS 的面板左右鍵等價；Windows 的右鍵已交給原生選單，只有左鍵開閉面板。
+  // macOS 的面板左右键等价；Windows 的右键已交给原生菜单，只有左键开闭面板。
   const panelButtons = platform === "windows" ? ["Left"] : ["Left", "Right"];
   const first = await render();
-  // 固定 id＋先移除同 id 孤兒：webview 重建（重載、視窗重開）會再跑 initTray，
-  // 前一個 context 的 tray 無人 dispose 時成為殭屍——其 title 永遠凍在最後值，
-  // 使用者看到的就是「徽章不更新」。同 id 至多一個 tray，殭屍在此被清掉。
+  // 固定 id＋先移除同 id 孤儿：webview 重建（重载、窗口重开）会再跑 initTray，
+  // 前一个 context 的 tray 无人 dispose 时成为僵尸——其 title 永远冻在最后值，
+  // 用户看到的就是「徽章不更新」。同 id 至多一个 tray，僵尸在此被清掉。
   try {
-    await TrayIcon.removeById("speclink-tray");
+    await TrayIcon.removeById("specseal-tray");
   } catch {
-    /* 無孤兒即略過 */
+    /* 无孤儿即略过 */
   }
   const tray = await TrayIcon.new({
-    // Windows 面板定位以此 id 找圖示位置（src-tauri/src/panel.rs 的 TRAY_ID），兩處須一致。
-    id: "speclink-tray",
+    // Windows 面板定位以此 id 找图标位置（src-tauri/src/panel.rs 的 TRAY_ID），两处须一致。
+    id: "specseal-tray",
     icon,
     iconAsTemplate: platform === "macos",
-    tooltip: "Speclink",
-    // 樣式分流：native-menu 掛選單（左鍵開選單）；panel 的點擊交給 action。
+    tooltip: "Specseal",
+    // 样式分流：native-menu 挂菜单（左键开菜单）；panel 的点击交给 action。
     menu: menuAttached() ? first.menu : undefined,
     showMenuOnLeftClick: styleOf() === "native-menu",
     action: (event) => {
-      // 面板樣式限定（原生選單樣式由選單接管點擊）。
+      // 面板样式限定（原生菜单样式由菜单接管点击）。
       if (styleOf() !== "panel") return;
-      // macOS 先餵 tray 事件座標給 positioner——面板顯示前的 tray 相對定位依此計算；
-      // Windows 的面板位置由 Tauri 殼讀圖示位置自算（tray-panel-windows design D3）。
+      // macOS 先喂 tray 事件座标给 positioner——面板显示前的 tray 相对定位依此计算；
+      // Windows 的面板位置由 Tauri 壳读图标位置自算（tray-panel-windows design D3）。
       if (platform === "macos") void handleIconState(event).catch(() => {});
       const e = event as { type?: string; button?: string; buttonState?: string };
-      // 放開才開閉；哪些鍵開閉面板依平台（spec「面板樣式」平台差異）。
+      // 放开才开闭；哪些键开闭面板依平台（spec「面板样式」平台差异）。
       if (
         e.type === "Click" &&
         panelButtons.includes(e.button ?? "") &&
@@ -576,8 +576,8 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
     },
   });
 
-  // 面板接線（design D5）：主視窗擁有資料——面板 ready 時補推快照（lazy 建窗的
-  // 首開空窗）、去抖訂閱時推送、面板動作事件回流 store 執行（與選單動作同語意）。
+  // 面板接线（design D5）：主窗口拥有数据——面板 ready 时补推快照（lazy 建窗的
+  // 首开空窗）、去抖订阅时推送、面板动作事件回流 store 运行（与菜单动作同语意）。
   const pushSnapshot = () => {
     void emit("tray-snapshot", buildTraySnapshot(store.getState()));
   };
@@ -593,8 +593,8 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
       } else if ((kind === "open-server-settings" || kind === "reauthenticate") && id) {
         openIn(() => store.getState().openConnectionReauth(id));
       }
-      // 快速加入專案（D7）：走 openIn 先喚起主視窗——主視窗位於另一桌面時
-      // macOS 隨聚焦切換 Space，資料夾選擇器才於前景可見；取消即無事。
+      // 快速加入项目（D7）：走 openIn 先唤起主窗口——主窗口位于另一桌面时
+      // macOS 随聚焦切换 Space，文件夹选择器才于前景可见；取消即无事。
       else if (kind === "add-project") openIn(() => void store.getState().openProjectViaDialog());
       else if (kind === "open-change" && id) openIn(() => store.getState().openDetail(id));
       else if (kind === "open-discussion" && id) openIn(() => store.getState().openDiscussion(id));
@@ -602,31 +602,31 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
       else if (kind === "open-project-settings") {
         openIn(() => store.getState().setBoardView("project-settings"));
       } else if (kind === "open-settings") openIn(() => store.getState().setBoardView("settings"));
-      // 結束走 Rust 命令（webview 無法自行結束行程）；失敗靜默——tray 無可浮出錯誤的介面。
+      // 结束走 Rust 命令（webview 无法自行结束行程）；失败静默——tray 无可浮出错误的接口。
       else if (kind === "quit") void invoke("quit_app").catch(() => {});
     },
   );
 
-  // 去抖訂閱：資料或樣式變動後依樣式分流——要掛選單者重建選單，其餘卸選單；
-  // 兩樣式皆推送快照給面板（面板未開時為無害廣播）。
+  // 去抖订阅：数据或样式变动后依样式分流——要挂菜单者重建菜单，其余卸菜单；
+  // 两样式皆推送快照给面板（面板未开时为无害广播）。
   let timer: ReturnType<typeof setTimeout> | null = null;
-  // 面板的「我在看哪個 workspace、它載完了沒」走即時推送，不進去抖：spec 要求
-  // 點下分頁當下就出 spinner，且 spinner 消失與高亮移轉須同批抵達。去抖每次 store
-  // 變動都重設計時器——這些欄位若跟著去抖，面板會閃一下 spinner 就回到切換前的
-  // 樣子。清單內容變動仍走去抖（原生選單重建的成本在那裡）。
-  // JSON 序列化而非字串拼接：locator key 內含路徑（可能有空白），拼接的欄位
-  // 邊界不明確，不同狀態組合能拼出同一字串而漏掉推送。
-  // 載入態納入此面（design D3，取代 desktop-loading-skeleton-ux D5 的去抖例外）：
-  // 首訪失敗時翻的是載入態而非 loaded，不納入就得等一個去抖週期才收掉骨架。
-  // 已訪 workspace 的週期性刷新恆為 false（有真值即非骨架），不會每輪翻兩次。
+  // 面板的「我在看哪个 workspace、它载完了没」走即时推送，不进去抖：spec 要求
+  // 点下分页当下就出 spinner，且 spinner 消失与高亮移转须同批抵达。去抖每次 store
+  // 变动都重设计时器——这些字段若跟着去抖，面板会闪一下 spinner 就回到切换前的
+  // 样子。清单内容变动仍走去抖（原生菜单重建的成本在那里）。
+  // JSON 串行化而非字符串拼接：locator key 内含路径（可能有空白），拼接的字段
+  // 边界不明确，不同状态组合能拼出同一字符串而漏掉推送。
+  // 加载态纳入此面（design D3，取代 desktop-loading-skeleton-ux D5 的去抖例外）：
+  // 首访失败时翻的是加载态而非 loaded，不纳入就得等一个去抖周期才收掉骨架。
+  // 已访 workspace 的周期性刷新恒为 false（有真值即非骨架），不会每轮翻两次。
   const surfaceKey = () => {
     const s = store.getState();
     return JSON.stringify([s.pendingTabKey, s.activeKey, workspaceLoadingOf(s)]);
   };
   let lastSurface = surfaceKey();
-  // 即推以 microtask 合併：翻頁入口在同一同步段內連續兩次 set（先翻 activeKey、
-  // 再由 refresh 的計數翻真），逐次即推會把中間那份「已翻頁、尚未起載入」的
-  // 假空態推給面板。同段變動只推一份最終快照；跨段（真正的先後事件）仍逐次即推。
+  // 即推以 microtask 合并：翻页入口在同一同步段内连续两次 set（先翻 activeKey、
+  // 再由 refresh 的计数翻真），逐次即推会把中间那份「已翻页、尚未起加载」的
+  // 假空态推给面板。同段变动只推一份最终快照；跨段（真正的先后事件）仍逐次即推。
   let pushQueued = false;
   const unsubscribe = store.subscribe(() => {
     const surface = surfaceKey();
@@ -646,8 +646,8 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
         pushSnapshot();
         try {
           await tray.setMenu(menuAttached() ? (await render()).menu : null);
-          // panel 樣式必關左鍵開選單：不關，左鍵仍被「開選單」路徑吃掉（macOS 選單
-          // 已空＝點了無事發生），點擊事件到不了 action／面板。
+          // panel 样式必关左键开菜单：不关，左键仍被「开菜单」路径吃掉（macOS 菜单
+          // 已空＝点了无事发生），点击事件到不了 action／面板。
           await tray.setShowMenuOnLeftClick(styleOf() === "native-menu");
         } catch (e) {
           console.error("tray menu update failed", e);
@@ -667,11 +667,11 @@ export async function initTray(store: TrayStoreApi, deps: TrayDeps = {}): Promis
   };
 }
 
-/** 顯示主視窗並取得焦點（自最小化亦還原）——選單、面板與 speclink 網址（deepLink.ts）
- * 所有喚起主視窗的動作共用。
- * 先收合面板再喚起（spec「面板交接主視窗後滑鼠互動完整」、design D2）：交接當下
- * 不再有面板與主視窗同拍互踩；命令冪等，面板已因失焦先收合亦無事、不會重開。
- * 收合失敗靜默——不阻斷後續 show 與 setFocus。 */
+/** 显示主窗口并取得焦点（自最小化亦还原）——菜单、面板与 specseal 网址（deepLink.ts）
+ * 所有唤起主窗口的动作共用。
+ * 先收合面板再唤起（spec「面板交接主窗口后鼠标交互完整」、design D2）：交接当下
+ * 不再有面板与主窗口同拍互踩；命令幂等，面板已因失焦先收合亦无事、不会重开。
+ * 收合失败静默——不阻断后续 show 与 setFocus。 */
 export async function openMainWindow(): Promise<void> {
   await invoke("hide_tray_panel").catch(() => {});
   const win = getCurrentWindow();

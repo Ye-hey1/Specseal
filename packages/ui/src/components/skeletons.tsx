@@ -1,14 +1,14 @@
-// 載入中佔位組件（design D4）：以 Skeleton 基元組合出三種形狀，模仿其所替代的
-// 真實內容輪廓——首訪空窗期看得出「有東西正在載」，與真空態文案可區分。
-// 全數 aria-busy，且不含任何文字（載入中不冒充空態文案）。
-// 同檔另收「載入失敗」的終態列：它替代的是同一塊卡片區，差別在載入已經結束。
+// 加载中占位组件（design D4）：以 Skeleton 基元组合出三种形状，模仿其所替代的
+// 真实内容轮廓——首访空窗期看得出「有东西正在载」，与真空态文案可区分。
+// 全数 aria-busy，且不含任何文本（加载中不冒充空态文案）。
+// 同档另收「加载失败」的终态列：它替代的是同一块卡片区，差别在加载已经结束。
 import { CloudOff } from "lucide-react";
 
 import { useI18n } from "../i18n";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
 
-/** 看板佔位卡：模仿 ChangeCard 的名稱列＋進度條輪廓。外框直接用 Card 而非自刻。 */
+/** 看板占位卡：模仿 ChangeCard 的名称列＋进度条轮廓。外框直接用 Card 而非自刻。 */
 export function CardSkeleton() {
   return (
     <Card aria-busy="true" size="nested" className="p-3 flex flex-col gap-2">
@@ -18,7 +18,7 @@ export function CardSkeleton() {
   );
 }
 
-/** 看板欄內的佔位卡組：兩張足以讀出「這欄有內容正在載」，不假裝知道實際筆數。 */
+/** 看板栏内的占位卡组：两张足以读出「这栏有内容正在载」，不假装知道实际笔数。 */
 export function ColumnSkeleton() {
   return (
     <>
@@ -28,8 +28,8 @@ export function ColumnSkeleton() {
   );
 }
 
-/** 看板欄內的載入失敗終態列（spec「首訪載入失敗終態呈現」）：讀不到 ≠ 確認是
-    空的，故取代空態文案；載入已結束，故不是 skeleton（無 aria-busy）。 */
+/** 看板栏内的加载失败终态列（spec「首访加载失败终态呈现」）：读不到 ≠ 确认是
+    空的，故取代空态文案；加载已结束，故不是 skeleton（无 aria-busy）。 */
 export function ColumnLoadFailed() {
   const { t } = useI18n();
   return (
@@ -44,7 +44,7 @@ export function ColumnLoadFailed() {
   );
 }
 
-/** 面板佔位列：模仿 tray 面板分區內單行變更／討論列。 */
+/** 面板占位列：模仿 tray 面板分区内单行变更／讨论列。 */
 export function RowSkeleton() {
   return (
     <div aria-busy="true" className="flex items-center gap-2 px-2 py-1.5">
@@ -54,7 +54,7 @@ export function RowSkeleton() {
   );
 }
 
-/** 文件佔位：標題條＋數行內文條，模仿 markdown 文件的段落輪廓。 */
+/** 文档占位：标题条＋数行内文条，模仿 markdown 文档的段落轮廓。 */
 export function DocSkeleton() {
   return (
     <div aria-busy="true" className="flex flex-col gap-2 py-2">

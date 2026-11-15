@@ -1,17 +1,17 @@
-// 「主套件＋五平台子套件」的 npm 物化共用層：CLI（cli-distribution spec「CLI 以 npm 套件發布」；
-// release-assets-trim 設計 D4）與 server（server-release spec「npm 套件一行啟動 server」；
-// 設計 D9）的套件形狀相同——repo 內只維護帶 private 的主套件，發布時產出去掉 private、蓋上
-// 版本、補 optionalDependencies 的主套件副本，以及五個只含對應平台 binary 的子套件。兩支
-// 入口腳本（npm-cli-package.mjs、npm-server-package.mjs）只負責解析參數，物化規則在這裡一份。
+// 「主套件＋五平台子套件」的 npm 物化共用层：CLI（cli-distribution spec「CLI 以 npm 套件发布」；
+// release-assets-trim 设计 D4）与 server（server-release spec「npm 套件一行启动 server」；
+// 设计 D9）的套件形状相同——repo 内只维护带 private 的主套件，发布时产出去掉 private、盖上
+// 版本、补 optionalDependencies 的主套件副本，以及五个只含对应平台 binary 的子套件。两支
+// 入口脚本（npm-cli-package.mjs、npm-server-package.mjs）只负责解析参数，物化规则在这里一份。
 //
-// 缺任一平台 binary 或版號不合形即丟錯，且在寫任何檔之前——不留下半套輸出。
+// 缺任一平台 binary 或版号不合形即丢错，且在写任何档之前——不留下半套输出。
 
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-// release build artifact（<name>-<target>，內容為 raw binary）→ npm 平台子套件（os／cpu）的對映契約。
-// Linux 的 binary 是 glibc 動態連結（*-unknown-linux-gnu），宣告 libc 讓 npm／pnpm 在 musl
-// （Alpine）跳過子套件，由 shim／launcher 報「找不到 binary」，而不是裝進去後 loader 缺席。
+// release build artifact（<name>-<target>，内容为 raw binary）→ npm 平台子套件（os／cpu）的映射契约。
+// Linux 的 binary 是 glibc 动态链接（*-unknown-linux-gnu），声明 libc 让 npm／pnpm 在 musl
+// （Alpine）跳过子套件，由 shim／launcher 报「找不到 binary」，而不是装进去后 loader 缺席。
 const TARGETS = [
   { target: 'aarch64-apple-darwin', os: 'darwin', cpu: 'arm64' },
   { target: 'x86_64-apple-darwin', os: 'darwin', cpu: 'x64' },
@@ -20,21 +20,21 @@ const TARGETS = [
   { target: 'x86_64-pc-windows-msvc', os: 'win32', cpu: 'x64' },
 ];
 
-/// 物化套件。name 是套件家族名（cli／server）：artifact 目錄叫 <name>-<target>，主套件叫
-/// <scope>/<name>，子套件叫 <scope>/<name>-<os>-<cpu>。binary 是 binary 的基底檔名（Windows
-/// 自動加 .exe）。sourceDir 是 repo 內的主套件目錄，其 package.json 的 files 就是要一併帶進
-/// 副本的檔案清單（bin 內的檔設為可執行）。回傳物化的套件數。
+/// 物化套件。name 是套件家族名（cli／server）：artifact 目录叫 <name>-<target>，主套件叫
+/// <scope>/<name>，子套件叫 <scope>/<name>-<os>-<cpu>。binary 是 binary 的基底文件名（Windows
+/// 自动加 .exe）。sourceDir 是 repo 内的主套件目录，其 package.json 的 files 就是要一并带进
+/// 副本的文件清单（bin 内的档设为可运行）。回传物化的套件数。
 export function materializePackages({ name, binary, description, sourceDir, version, binariesDir, outDir, scope }) {
-  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`版本「${version}」不符 X.Y.Z 格式（不帶 v 前綴）`);
+  if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`版本「${version}」不符 X.Y.Z 格式（不带 v 前缀）`);
 
   const binaryFor = (os) => (os === 'win32' ? `${binary}.exe` : binary);
   const artifactBinary = ({ target, os }) => path.join(binariesDir, `${name}-${target}`, binaryFor(os));
 
-  // fail closed：先驗五個 binary 全數到位，再開始物化。
+  // fail closed：先验五个 binary 全数到位，再开始物化。
   const missing = TARGETS.filter((entry) => !existsSync(artifactBinary(entry)));
   if (missing.length > 0) throw new Error(`缺少平台 binary：${missing.map((m) => m.target).join('、')}`);
 
-  // 平台子套件：os/cpu 圈定，內容物只有 binary。
+  // 平台子套件：os/cpu 圈定，内容物只有 binary。
   for (const entry of TARGETS) {
     const { os, cpu, libc } = entry;
     const pkgDir = path.join(outDir, `${name}-${os}-${cpu}`);
@@ -47,7 +47,7 @@ export function materializePackages({ name, binary, description, sourceDir, vers
       os: [os],
       cpu: [cpu],
       ...(libc ? { libc: [libc] } : {}),
-      // Yarn PnP 會把套件留在 zip 裡；binary 要真的落在磁碟上，主套件才 spawn 得到。
+      // Yarn PnP 会把套件留在 zip 里；binary 要真的落在磁盘上，主套件才 spawn 得到。
       preferUnplugged: true,
     });
     const dest = path.join(pkgDir, binaryFor(os));
@@ -55,8 +55,8 @@ export function materializePackages({ name, binary, description, sourceDir, vers
     chmodSync(dest, 0o755);
   }
 
-  // 主套件副本：以 repo 的主套件為底，去 private 與說明欄、蓋版本與 scope、補五組同版
-  // optionalDependencies；files 列的檔原樣帶上。
+  // 主套件副本：以 repo 的主套件为底，去 private 与说明栏、盖版本与 scope、补五组同版
+  // optionalDependencies；files 列的档原样带上。
   const source = JSON.parse(readFileSync(path.join(sourceDir, 'package.json'), 'utf8'));
   delete source.private;
   delete source['//'];

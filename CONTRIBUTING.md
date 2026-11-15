@@ -1,4 +1,4 @@
-# Contributing to Speclink
+# Contributing to Specseal
 
 Thank you for your help. This guide tells you how to set up the repo, which tests to run, and how to send a pull request.
 
@@ -38,20 +38,20 @@ Run the tests for each area that you change. CI runs the same commands.
 | `packages/ui` | `npm test -w packages/ui` |
 | `apps/desktop` | `npm test -w apps/desktop` |
 | `apps/server-web` | `npm test -w apps/server-web` |
-| The Node SDK | `npm --prefix crates/adapters/speclink-node run build`, then `npm --prefix crates/adapters/speclink-node test` |
+| The Node SDK | `npm --prefix crates/adapters/specseal-node run build`, then `npm --prefix crates/adapters/specseal-node test` |
 
 `npm run test:all` runs everything. It takes a long time, and a fresh clone needs three build steps first. See [Tests](docs/development.md#tests).
 
-If you change the human output or the `--json` output of a command, update the golden files in the same pull request. The golden tests are in `crates/engine/speclink-core/tests/golden`.
+If you change the human output or the `--json` output of a command, update the golden files in the same pull request. The golden tests are in `crates/engine/specseal-core/tests/golden`.
 
-## Describe a behavior change with Speclink
+## Describe a behavior change with Specseal
 
-Speclink builds Speclink. The specs of the project are in `speclink/specs/`, and each behavior change has a folder in `speclink/changes/`.
+Specseal builds Specseal. The specs of the project are in `specseal/specs/`, and each behavior change has a folder in `specseal/changes/`.
 
 - **A small fix** (a typo, a clear bug, a test): send a pull request with a test. You do not need a change folder.
-- **A new behavior, or a change to an existing behavior**: open an issue first, so that we agree on the direction. Then create a change with your agent (`/speclink-propose <change-name>`, or `$speclink-propose <change-name>` in Codex). The change holds the proposal, the delta specs, and the task list. Implement it with `/speclink-apply`.
+- **A new behavior, or a change to an existing behavior**: open an issue first, so that we agree on the direction. Then create a change with your agent (`/specseal-propose <change-name>`, or `$specseal-propose <change-name>` in Codex). The change holds the proposal, the delta specs, and the task list. Implement it with `/specseal-apply`.
 
-If you do not use an AI agent, the CLI does the same work: `speclink new change <change-name>`. See [Getting started](docs/getting-started.md) and the [SDD workflow](docs/workflow.md).
+If you do not use an AI agent, the CLI does the same work: `specseal new change <change-name>`. See [Getting started](docs/getting-started.md) and the [SDD workflow](docs/workflow.md).
 
 ## Write commit messages
 
@@ -63,7 +63,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/):
 
 - Common types: `feat`, `fix`, `docs`, `refactor`, `test`, `build`, `chore`.
 - The scope is the area that you change, for example `cli`, `desktop`, `server-web`, or `docs`.
-- A commit that belongs to a Speclink change uses the change name as the scope: `speclink(<change-name>): <description>`.
+- A commit that belongs to a Specseal change uses the change name as the scope: `specseal(<change-name>): <description>`.
 - The maintainers write descriptions in Simplified Chinese. English descriptions are welcome too.
 
 ## Send a pull request

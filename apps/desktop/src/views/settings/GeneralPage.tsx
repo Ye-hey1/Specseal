@@ -1,5 +1,5 @@
-// 一般頁（desktop-settings-mode design D5；desktop-about-page design D7）：「語言與外觀」卡（顯示
-// 語言列、外觀列）與「鍵盤快捷鍵」卡。更新、CLI 與版本資訊各在自己的分類頁，這裡不重複。
+// 一般页（desktop-settings-mode design D5；desktop-about-page design D7）：「语言与外观」卡（显示
+// 语言列、外观列）与「键盘快捷键」卡。更新、CLI 与版本信息各在自己的分类页，这里不重复。
 import { AlertTriangle } from "lucide-react";
 import {
   Kbd,
@@ -10,13 +10,13 @@ import {
   SettingsRow,
   useI18n,
   type ThemePreference,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { buildShortcutList } from "../../appMenu";
 import type { LocalePreference } from "../../i18n/locale";
 import type { Platform } from "../../platform";
 
-/** 「跟隨系統」在偏好裡是 null，Radix Select 的值不接受空值：以哨兵值往返。 */
+/** 「跟随系统」在偏好里是 null，Radix Select 的值不接受空值：以哨兵值往返。 */
 const FOLLOW_SYSTEM = "system";
 
 function LocaleRow({
@@ -38,10 +38,10 @@ function LocaleRow({
           value={localePref ?? FOLLOW_SYSTEM}
           options={[
             { value: FOLLOW_SYSTEM, label: t("settings.followSystem") },
-            { value: "zh-TW", label: "繁體中文" },
+            { value: "zh-CN", label: "繁体中文" },
             { value: "en", label: "English" },
           ]}
-          onChange={(v) => onLocalePrefChange(v === "zh-TW" || v === "en" ? v : null)}
+          onChange={(v) => onLocalePrefChange(v === "zh-CN" || v === "en" ? v : null)}
         />
       }
     />

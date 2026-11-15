@@ -4,7 +4,7 @@ export interface DocumentViewerProps {
   content: string | null;
 }
 
-/** 呈現文件內容。v1 以原始 markdown 純文字呈現；content 為 null 時顯示空狀態。 */
+/** 呈现文档内容。v1 以原始 markdown 纯文本呈现；content 为 null 时显示空状态。 */
 export function DocumentViewer({ content }: DocumentViewerProps) {
   const { t } = useI18n();
   if (content === null) {

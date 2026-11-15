@@ -4,13 +4,13 @@ Principles（项目原则）是一份短清单：本仓库中每一份规格、�
 
 这是 Specseal 的约定层。这个想法来自 spec-kit 的 "constitution"：一小份稳定的原则胜过一份又长又漂移的。
 
-**注入现状**：propose / apply / review / verify 四个技能文件已内置「读 `speclink/principles.md`」的指引（资产版本 v1.58.2 起）——agent 在这些阶段会被技能提示去读原则，违反编号原则即 must-fix。引擎指令上下文级的自动注入（把原则内容直接拼进指令）仍是路线图项（[REBRAND-NOTES.md](../REBRAND-NOTES.md)）。
+**注入现状**：propose / apply / review / verify 四个技能文档已内置「读 `specseal/principles.md`」的指引（资产版本 v1.58.2 起）——agent 在这些阶段会被技能提示去读原则，违反编号原则即 must-fix。引擎指令上下文级的自动注入（把原则内容直接拼进指令）仍是路线图项（[REBRAND-NOTES.md](../REBRAND-NOTES.md)）。
 
 ## 快速上手
 
-1. 把下面的模板复制成 `speclink/principles.md`。
+1. 把下面的模板复制成 `specseal/principles.md`。
 2. 删掉每一条你不会真正执行的原则。五条真规则胜过十五条愿望。
-3. 让 agent 去读它：在你的 agent 指令文档里加一句（「propose 或 review 之前先读 `speclink/principles.md`；违反编号原则的发现是 must-fix」）。如果你用[通用指令文档](../integrations/universal/SPECSEAL-AGENT-INSTRUCTIONS.md)，里面已经写了这条。
+3. 让 agent 去读它：在你的 agent 指令文档里加一句（「propose 或 review 之前先读 `specseal/principles.md`；违反编号原则的发现是 must-fix」）。如果你用[通用指令文档](../integrations/universal/SPECSEAL-AGENT-INSTRUCTIONS.md)，里面已经写了这条。
 4. 在 review 和 verify 轮次里引用它：一条引用了原则编号的发现是 must-fix，不是 suggestion。
 
 ## 模板

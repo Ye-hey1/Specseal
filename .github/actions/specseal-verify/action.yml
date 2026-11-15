@@ -1,7 +1,7 @@
 name: 'Specseal verify gate'
 description: >
   Fail a pull request when it touches Specseal changes that are not stamped.
-  Gate 1 runs `speclink validate` (workspace structure). Gate 2 reads each
+  Gate 1 runs `specseal validate` (workspace structure). Gate 2 reads each
   touched change's .meta.yaml and requires the verify stamp (verified_at);
   optionally also the review stamp (reviewed_at). Stamps come from the same
   source the desktop app and the Herdr panel read, and the engine re-checks
@@ -10,7 +10,7 @@ author: 'Specseal'
 
 inputs:
   install-engine:
-    description: 'Install the engine with npm (i -g @speclink/cli) before gating. Set to "false" when the runner already provides speclink.'
+    description: 'Install the engine with npm (i -g @specseal/cli) before gating. Set to "false" when the runner already provides specseal.'
     required: false
     default: 'true'
   require-reviewed:
@@ -29,12 +29,12 @@ runs:
       if: ${{ inputs.install-engine == 'true' }}
       shell: bash
       run: |
-        npm i -g @speclink/cli
-        speclink --version
+        npm i -g @specseal/cli
+        specseal --version
 
     - name: Validate workspace
       shell: bash
-      run: speclink validate
+      run: specseal validate
 
     - name: Stamp gate
       shell: bash

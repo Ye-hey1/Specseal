@@ -1,4 +1,4 @@
-// 下拉選單、右鍵選單與 Kbd 原語（design D5）：兩套選單共用同一組 class 常數。
+// 下拉列表、右键菜单与 Kbd 原语（design D5）：两套菜单共用同一组 class 常数。
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,31 +26,31 @@ import { Kbd, MenuShortcut } from "../components/ui/kbd";
 const classes = (el: Element) => (el.getAttribute("class") ?? "").split(/\s+/);
 
 describe("DropdownMenu", () => {
-  it("觸發後 Content 為 12px 圓角浮層、Item 8px 圓角、destructive 紅字、Shortcut 為 <kbd>、有分隔線", async () => {
+  it("触发后 Content 为 12px 圆角浮层、Item 8px 圆角、destructive 红字、Shortcut 为 <kbd>、有分隔线", async () => {
     const user = userEvent.setup();
     const onRefresh = vi.fn();
     render(
       <DropdownMenu>
-        <DropdownMenuTrigger>開</DropdownMenuTrigger>
+        <DropdownMenuTrigger>开</DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuLabel>標籤</DropdownMenuLabel>
+          <DropdownMenuLabel>标签</DropdownMenuLabel>
           <DropdownMenuItem onSelect={onRefresh}>
-            重新整理
+            刷新
             <MenuShortcut>⌘R</MenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">關閉專案</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive">关闭项目</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>,
     );
-    await user.click(screen.getByText("開"));
+    await user.click(screen.getByText("开"));
 
     const menu = screen.getByRole("menu");
     expect(classes(menu)).toEqual(expect.arrayContaining(["rounded-xl", "shadow-lg", "bg-card"]));
-    const refresh = screen.getByRole("menuitem", { name: /重新整理/ });
+    const refresh = screen.getByRole("menuitem", { name: /刷新/ });
     expect(classes(refresh)).toEqual(expect.arrayContaining(["rounded-lg", "h-8"]));
     expect(screen.getByText("⌘R").tagName).toBe("KBD");
-    expect(classes(screen.getByRole("menuitem", { name: "關閉專案" }))).toContain("text-destructive");
+    expect(classes(screen.getByRole("menuitem", { name: "关闭项目" }))).toContain("text-destructive");
     expect(classes(refresh)).not.toContain("text-destructive");
     expect(screen.getByRole("separator")).toBeTruthy();
 
@@ -58,23 +58,23 @@ describe("DropdownMenu", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("單選群組的項角色為 menuitemradio，選中項 aria-checked，選另一項觸發 onValueChange", async () => {
+  it("单选群组的项角色为 menuitemradio，选中项 aria-checked，选另一项触发 onValueChange", async () => {
     const user = userEvent.setup();
     const onValueChange = vi.fn();
     render(
       <DropdownMenu>
-        <DropdownMenuTrigger>語言</DropdownMenuTrigger>
+        <DropdownMenuTrigger>语言</DropdownMenuTrigger>
         <DropdownMenuContent>
-          <DropdownMenuRadioGroup value="zh-TW" onValueChange={onValueChange}>
-            <DropdownMenuRadioItem value="zh-TW">繁體中文</DropdownMenuRadioItem>
+          <DropdownMenuRadioGroup value="zh-CN" onValueChange={onValueChange}>
+            <DropdownMenuRadioItem value="zh-CN">繁体中文</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="en">English</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>
       </DropdownMenu>,
     );
-    await user.click(screen.getByText("語言"));
+    await user.click(screen.getByText("语言"));
 
-    const zh = screen.getByRole("menuitemradio", { name: "繁體中文" });
+    const zh = screen.getByRole("menuitemradio", { name: "繁体中文" });
     const en = screen.getByRole("menuitemradio", { name: "English" });
     expect(zh.getAttribute("aria-checked")).toBe("true");
     expect(en.getAttribute("aria-checked")).toBe("false");
@@ -86,32 +86,32 @@ describe("DropdownMenu", () => {
 });
 
 describe("ContextMenu", () => {
-  it("右鍵開啟，Content／Item／destructive 與下拉選單同一組 class", () => {
+  it("右键打开，Content／Item／destructive 与下拉列表同一组 class", () => {
     render(
       <ContextMenu>
-        <ContextMenuTrigger>方塊</ContextMenuTrigger>
+        <ContextMenuTrigger>方块</ContextMenuTrigger>
         <ContextMenuContent>
-          <ContextMenuLabel>錯誤</ContextMenuLabel>
-          <ContextMenuItem>在 Finder 顯示</ContextMenuItem>
+          <ContextMenuLabel>错误</ContextMenuLabel>
+          <ContextMenuItem>在 Finder 显示</ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive">
-            關閉專案
+            关闭项目
             <MenuShortcut>⌘W</MenuShortcut>
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>,
     );
-    fireEvent.contextMenu(screen.getByText("方塊"));
+    fireEvent.contextMenu(screen.getByText("方块"));
 
     expect(classes(screen.getByRole("menu"))).toEqual(
       expect.arrayContaining(["rounded-xl", "shadow-lg", "bg-card"]),
     );
-    expect(classes(screen.getByRole("menuitem", { name: "在 Finder 顯示" }))).toEqual(
+    expect(classes(screen.getByRole("menuitem", { name: "在 Finder 显示" }))).toEqual(
       expect.arrayContaining(["rounded-lg", "h-8"]),
     );
-    expect(classes(screen.getByRole("menuitem", { name: /^關閉專案/ }))).toContain("text-destructive");
+    expect(classes(screen.getByRole("menuitem", { name: /^关闭项目/ }))).toContain("text-destructive");
     expect(screen.getByRole("separator")).toBeTruthy();
-    // 快捷鍵槽兩套選單共用同一個元件：右端對齊的 <kbd>。
+    // 快捷键槽两套菜单共用同一个组件：右端对齐的 <kbd>。
     const shortcut = screen.getByText("⌘W");
     expect(shortcut.tagName).toBe("KBD");
     expect(classes(shortcut)).toContain("ml-auto");
@@ -119,7 +119,7 @@ describe("ContextMenu", () => {
 });
 
 describe("Kbd", () => {
-  it("等寬 11px 灰字", () => {
+  it("等宽 11px 灰字", () => {
     render(<Kbd>Ctrl+W</Kbd>);
     const kbd = screen.getByText("Ctrl+W");
     expect(kbd.tagName).toBe("KBD");
@@ -128,7 +128,7 @@ describe("Kbd", () => {
     );
   });
 
-  it("variant=inherit 跟隨所在元素的字色（放在按鈕內）", () => {
+  it("variant=inherit 跟随所在元素的字色（放在按钮内）", () => {
     render(<Kbd variant="inherit">Ctrl+S</Kbd>);
     const cls = classes(screen.getByText("Ctrl+S"));
     expect(cls).toEqual(expect.arrayContaining(["font-mono", "text-[11px]", "opacity-80"]));

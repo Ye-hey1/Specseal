@@ -3,16 +3,16 @@ import type { HTMLAttributes } from "react";
 import { cn } from "../lib/utils";
 import { SEMANTIC_SURFACE, SEMANTIC_TONE } from "../tone";
 
-/** 嚴重度色：CRITICAL 破壞色、WARNING 琥珀、SUGGESTION 中性；三紅分工（tone.ts 表頭）之外
- * 不另立一紅。以小寫比對——工單寫 CRITICAL、分析報告寫 Critical，同一級同一色。 */
+/** 严重度色：CRITICAL 破坏色、WARNING 琥珀、SUGGESTION 中性；三红分工（tone.ts 表头）之外
+ * 不另立一红。以小写比对——工单写 CRITICAL、分析报告写 Critical，同一级同一色。 */
 const SEVERITY_TONE: Record<string, string> = {
   critical: "bg-destructive/15 text-destructive",
   warning: `${SEMANTIC_SURFACE.warning} ${SEMANTIC_TONE.warning}`,
   suggestion: "bg-muted text-muted-foreground",
 };
 
-/** 嚴重度色章：審查／驗證工單、分析面板與 desktop 審查規則頁共用同一個元件與尺寸。
- * 預設顯示嚴重度名稱，`children` 可換成「WARNING 3」之類的內容；未知嚴重度走中性色。 */
+/** 严重度色章：审查／验证工单、分析面板与 desktop 审查规则页共用同一个组件与尺寸。
+ * 缺省显示严重度名称，`children` 可换成「WARNING 3」之类的内容；未知严重度走中性色。 */
 export function SeverityTag({
   severity,
   className,

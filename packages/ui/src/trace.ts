@@ -1,14 +1,14 @@
-// 前端解析正式規格 spec.md 內封存時注入的 @trace 註解（archive.rs trace_block 產生），
-// 抽出各區塊的 source 變更名，聚合至 spec 層級去重保序（design D1／D2）。
+// 前端解析正式规格 spec.md 内封存时注入的 @trace 注解（archive.rs trace_block 产生），
+// 抽出各区块的 source 变更名，聚合至 spec 层级去重保序（design D1／D2）。
 
-// 一個 @trace HTML 註解區塊：`<!-- @trace ... -->`（跨行、非貪婪至最近的 -->）。
+// 一个 @trace HTML 注解区块：`<!-- @trace ... -->`（跨行、非贪婪至最近的 -->）。
 const TRACE_BLOCK_RE = /<!--\s*@trace\b([\s\S]*?)-->/g;
-// 區塊內的 `source: <名>` 行（前後空白容忍；名取到行尾去空白）。
+// 区块内的 `source: <名>` 行（前后空白容忍；名取到行尾去空白）。
 const SOURCE_RE = /^\s*source:\s*(\S.*?)\s*$/m;
 
 /**
- * 解析 raw markdown：回傳所有 @trace 區塊的 source 名，去重且依文件首次出現順序。
- * 缺 source 的畸形區塊靜默略過；無 @trace 或空輸入回空陣列。
+ * 解析 raw markdown：回传所有 @trace 区块的 source 名，去重且依文档首次出现顺序。
+ * 缺 source 的畸形区块静默略过；无 @trace 或空输入回空数组。
  */
 export function parseTraceSources(markdown: string | null | undefined): string[] {
   if (!markdown) return [];

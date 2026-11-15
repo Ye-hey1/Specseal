@@ -1,5 +1,5 @@
 ---
 type: file_exists
-path: speclink/specs/**/spec.md
+path: specseal/specs/**/spec.md
 exists: false
 ---

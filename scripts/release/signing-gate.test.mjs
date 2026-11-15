@@ -1,8 +1,8 @@
-// OS 簽章 secrets 閘門的單元測試（desktop-release spec「OS 程式碼簽章為可插鑰匙開關」，
-// design D1）。以子行程執行 scripts/release/signing-gate.mjs，模擬三種 secrets 組合：
-// 全無（跳過簽章、綠燈）、全有（啟用對應路徑）、缺一（fail-closed 並點名缺項）。
+// OS 签章 secrets 闸门的单元测试（desktop-release spec「OS 代码签章为可插钥匙开关」，
+// design D1）。以子行程运行 scripts/release/signing-gate.mjs，仿真三种 secrets 组合：
+// 全无（跳过签章、绿灯）、全有（激活对应路径）、缺一（fail-closed 并点名缺项）。
 //
-// 閘門只讀「是否非空」，永不輸出 secret 值——洩漏面由專門案例守住。
+// 闸门只读「是否非空」，永不输出 secret 值——泄漏面由专门案例守住。
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -14,8 +14,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const script = path.join(root, 'scripts/release/signing-gate.mjs');
 
-/// 回傳 needle 在 haystack 的起始索引，找不到時以帶標籤的訊息 fail——把「缺片段」
-/// 與「順序錯」兩種失敗分開，避免 indexOf 回 -1 讓順序斷言假性通過。
+/// 回传 needle 在 haystack 的起始索引，找不到时以带标签的消息 fail——把「缺片段」
+/// 与「顺序错」两种失败分开，避免 indexOf 回 -1 让顺序断言假性通过。
 function requireIndex(haystack, needle, label) {
   const i = haystack.indexOf(needle);
   assert.notEqual(i, -1, `${label}: 找不到片段 ${JSON.stringify(needle)}`);
@@ -30,7 +30,7 @@ const MACOS_NAMES = [
   'APPLE_PASSWORD',
   'APPLE_TEAM_ID',
 ];
-// SIGNPATH_*：裁定不採用後不再受管，保留清單只為抹除環境與「被忽略」斷言。
+// SIGNPATH_*：裁定不采用后不再受管，保留清单只为抹除环境与「被忽略」断言。
 const SIGNPATH_NAMES = [
   'SIGNPATH_API_TOKEN',
   'SIGNPATH_ORGANIZATION_ID',
@@ -40,16 +40,16 @@ const SIGNPATH_NAMES = [
 const WINDOWS_CERT_NAMES = ['WINDOWS_CERTIFICATE', 'WINDOWS_CERTIFICATE_PASSWORD'];
 const ALL_NAMES = [...MACOS_NAMES, ...SIGNPATH_NAMES, ...WINDOWS_CERT_NAMES];
 
-// 可辨識的假值：一旦出現在 stdout／stderr／GITHUB_ENV，即為洩漏。
+// 可辨识的假值：一旦出现在 stdout／stderr／GITHUB_ENV，即为泄漏。
 const SECRET_VALUE = 'ZmFrZS1zZWNyZXQtdmFsdWU=';
 
-/// 把一組 secret 名稱全部填成假值。
+/// 把一组 secret 名称全部填成假值。
 function filled(names) {
   return Object.fromEntries(names.map((name) => [name, SECRET_VALUE]));
 }
 
-/// 以乾淨環境執行閘門：先抹掉全部受管名稱，再套用本案例的 overrides。
-/// 回傳結果附上 GITHUB_ENV 檔的內容（未寫入時為 null），供決策斷言使用。
+/// 以干净环境运行闸门：先抹掉全部受管名称，再套用本案例的 overrides。
+/// 回传结果附上 GITHUB_ENV 档的内容（未写入时为 null），供决策断言使用。
 function runGate(overrides = {}, t) {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'signing-gate-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -65,99 +65,99 @@ function runGate(overrides = {}, t) {
   return { ...result, githubEnv };
 }
 
-/// 從 GITHUB_ENV 內容取出某個鍵的值（`KEY=value` 逐行格式）。
+/// 从 GITHUB_ENV 内容取出某个键的值（`KEY=value` 逐行格式）。
 function envValue(content, key) {
   const line = (content ?? '').split('\n').find((row) => row.startsWith(`${key}=`));
   return line === undefined ? undefined : line.slice(key.length + 1);
 }
 
-// --- 全無：跳過簽章、workflow 照常全綠 ---
+// --- 全无：跳过签章、workflow 照常全绿 ---
 
-test('三組 secrets 全無時以零結束，兩平台決策皆為 none', (t) => {
+test('三组 secrets 全无时以零结束，两平台决策皆为 none', (t) => {
   const result = runGate({}, t);
 
-  assert.equal(result.status, 0, `全無 secrets 應成功結束\nstderr: ${result.stderr}`);
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_MACOS_SIGNING'), 'none');
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_WINDOWS_SIGNING'), 'none');
+  assert.equal(result.status, 0, `全无 secrets 应成功结束\nstderr: ${result.stderr}`);
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_MACOS_SIGNING'), 'none');
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_WINDOWS_SIGNING'), 'none');
 });
 
-// --- 全有：啟用對應簽章路徑 ---
+// --- 全有：激活对应签章路径 ---
 
-test('macOS 六項齊備時決策為 full（憑證半組＋公證半組）', (t) => {
+test('macOS 六项齐备时决策为 full（凭证半组＋公证半组）', (t) => {
   const result = runGate(filled(MACOS_NAMES), t);
 
-  assert.equal(result.status, 0, `六項齊備應成功結束\nstderr: ${result.stderr}`);
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_MACOS_SIGNING'), 'full');
+  assert.equal(result.status, 0, `六项齐备应成功结束\nstderr: ${result.stderr}`);
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_MACOS_SIGNING'), 'full');
 });
 
-// SignPath 裁定不採用（design D2）：SIGNPATH_* 不再是受管簽章組——存在、部分
-// 存在都不影響決策，也不觸發 fail-closed。
-test('SIGNPATH_* 即使齊備也不影響決策（裁定不採用）', (t) => {
+// SignPath 裁定不采用（design D2）：SIGNPATH_* 不再是受管签章组——存在、部分
+// 存在都不影响决策，也不触发 fail-closed。
+test('SIGNPATH_* 即使齐备也不影响决策（裁定不采用）', (t) => {
   const result = runGate(filled(SIGNPATH_NAMES), t);
 
-  assert.equal(result.status, 0, `SIGNPATH_* 不應觸發任何閘門行為\nstderr: ${result.stderr}`);
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_WINDOWS_SIGNING'), 'none');
+  assert.equal(result.status, 0, `SIGNPATH_* 不应触发任何闸门行为\nstderr: ${result.stderr}`);
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_WINDOWS_SIGNING'), 'none');
 });
 
-test('SIGNPATH_* 與本機憑證並存時決策仍為 certificate', (t) => {
+test('SIGNPATH_* 与本机凭证并存时决策仍为 certificate', (t) => {
   const result = runGate({ ...filled(SIGNPATH_NAMES), ...filled(WINDOWS_CERT_NAMES) }, t);
 
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_WINDOWS_SIGNING'), 'certificate');
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_WINDOWS_SIGNING'), 'certificate');
 });
 
-test('僅本機憑證兩項齊備時 Windows 決策為 certificate', (t) => {
+test('仅本机凭证两项齐备时 Windows 决策为 certificate', (t) => {
   const result = runGate(filled(WINDOWS_CERT_NAMES), t);
 
-  assert.equal(result.status, 0, `兩項齊備應成功結束\nstderr: ${result.stderr}`);
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_WINDOWS_SIGNING'), 'certificate');
+  assert.equal(result.status, 0, `两项齐备应成功结束\nstderr: ${result.stderr}`);
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_WINDOWS_SIGNING'), 'certificate');
 });
 
-// --- 缺一：fail-closed 並點名缺項 ---
+// --- 缺一：fail-closed 并点名缺项 ---
 
-test('macOS 憑證半組齊而公證半組缺一項時非零結束並點名該項', (t) => {
+test('macOS 凭证半组齐而公证半组缺一项时非零结束并点名该项', (t) => {
   const overrides = filled(MACOS_NAMES);
   delete overrides.APPLE_TEAM_ID;
 
   const result = runGate(overrides, t);
 
-  assert.notEqual(result.status, 0, 'macOS 簽章組部分存在時應非零結束');
-  assert.match(result.stderr, /APPLE_TEAM_ID/, '錯誤訊息應點名缺少的 APPLE_TEAM_ID');
+  assert.notEqual(result.status, 0, 'macOS 签章组部分存在时应非零结束');
+  assert.match(result.stderr, /APPLE_TEAM_ID/, '错误消息应点名缺少的 APPLE_TEAM_ID');
 });
 
-test('macOS 只設公證半組時非零結束並列出憑證半組三項缺項', (t) => {
+test('macOS 只设公证半组时非零结束并列出凭证半组三项缺项', (t) => {
   const result = runGate(
     filled(['APPLE_ID', 'APPLE_PASSWORD', 'APPLE_TEAM_ID']),
     t,
   );
 
-  assert.notEqual(result.status, 0, 'macOS 簽章組部分存在時應非零結束');
+  assert.notEqual(result.status, 0, 'macOS 签章组部分存在时应非零结束');
   for (const name of ['APPLE_CERTIFICATE', 'APPLE_CERTIFICATE_PASSWORD', 'APPLE_SIGNING_IDENTITY']) {
-    assert.match(result.stderr, new RegExp(name), `錯誤訊息應點名缺少的 ${name}`);
+    assert.match(result.stderr, new RegExp(name), `错误消息应点名缺少的 ${name}`);
   }
 });
 
-test('本機憑證只設憑證而缺密碼時非零結束並點名密碼', (t) => {
+test('本机凭证只设凭证而缺密码时非零结束并点名密码', (t) => {
   const result = runGate(filled(['WINDOWS_CERTIFICATE']), t);
 
-  assert.notEqual(result.status, 0, 'Windows 憑證組部分存在時應非零結束');
+  assert.notEqual(result.status, 0, 'Windows 凭证组部分存在时应非零结束');
   assert.match(
     result.stderr,
     /WINDOWS_CERTIFICATE_PASSWORD/,
-    '錯誤訊息應點名缺少的 WINDOWS_CERTIFICATE_PASSWORD',
+    '错误消息应点名缺少的 WINDOWS_CERTIFICATE_PASSWORD',
   );
 });
 
-test('只填空白字元視為未設定，與全無同義', (t) => {
+test('只填空白字符视为未设置，与全无同义', (t) => {
   const result = runGate({ APPLE_CERTIFICATE: '   ' }, t);
 
-  assert.equal(result.status, 0, '空白值應視為未設定而非部分存在');
-  assert.equal(envValue(result.githubEnv, 'SPECLINK_MACOS_SIGNING'), 'none');
+  assert.equal(result.status, 0, '空白值应视为未设置而非部分存在');
+  assert.equal(envValue(result.githubEnv, 'SPECSEAL_MACOS_SIGNING'), 'none');
 });
 
-// --- fail-closed 的兩個附帶保證 ---
+// --- fail-closed 的两个附带保证 ---
 
-test('缺項失敗時不寫入任何決策，避免下游沿用半套設定', (t) => {
+test('缺项失败时不写入任何决策，避免下游沿用半套设置', (t) => {
   const overrides = filled(MACOS_NAMES);
   delete overrides.APPLE_TEAM_ID;
 
@@ -165,69 +165,69 @@ test('缺項失敗時不寫入任何決策，避免下游沿用半套設定', (t
 
   assert.notEqual(result.status, 0);
   assert.equal(
-    envValue(result.githubEnv, 'SPECLINK_MACOS_SIGNING'),
+    envValue(result.githubEnv, 'SPECSEAL_MACOS_SIGNING'),
     undefined,
-    '失敗時不得寫出 macOS 決策',
+    '失败时不得写出 macOS 决策',
   );
   assert.equal(
-    envValue(result.githubEnv, 'SPECLINK_WINDOWS_SIGNING'),
+    envValue(result.githubEnv, 'SPECSEAL_WINDOWS_SIGNING'),
     undefined,
-    '失敗時不得寫出 Windows 決策',
+    '失败时不得写出 Windows 决策',
   );
 });
 
-test('輸出只含 secret 名稱，任何路徑都不得帶出 secret 值', (t) => {
+test('输出只含 secret 名称，任何路径都不得带出 secret 值', (t) => {
   const overrides = filled(MACOS_NAMES);
   delete overrides.APPLE_TEAM_ID;
 
   const result = runGate(overrides, t);
 
-  assert.doesNotMatch(result.stderr, new RegExp(SECRET_VALUE), 'stderr 洩漏了 secret 值');
-  assert.doesNotMatch(result.stdout, new RegExp(SECRET_VALUE), 'stdout 洩漏了 secret 值');
-  assert.doesNotMatch(result.githubEnv ?? '', new RegExp(SECRET_VALUE), 'GITHUB_ENV 洩漏了 secret 值');
+  assert.doesNotMatch(result.stderr, new RegExp(SECRET_VALUE), 'stderr 泄漏了 secret 值');
+  assert.doesNotMatch(result.stdout, new RegExp(SECRET_VALUE), 'stdout 泄漏了 secret 值');
+  assert.doesNotMatch(result.githubEnv ?? '', new RegExp(SECRET_VALUE), 'GITHUB_ENV 泄漏了 secret 值');
 });
 
-// --- release.yml 接線的靜態契約 ---
+// --- release.yml 接线的静态契约 ---
 //
-// 閘門本身綠燈不代表 workflow 有用它。以下斷言守住接線：閘門排在昂貴的桌面建置
-// 之前、簽章步驟改以閘門決策為條件、公證三項確實注入建置環境。
+// 闸门本身绿灯不代表 workflow 有用它。以下断言守住接线：闸门排在昂贵的桌面建置
+// 之前、签章步骤改以闸门决策为条件、公证三项确实注入建置环境。
 
-test('release.yml 的 desktop job 在 Tauri 建置前執行簽章閘門', () => {
+test('release.yml 的 desktop job 在 Tauri 建置前运行签章闸门', () => {
   const release = readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8');
 
   const gate = requireIndex(release, 'node scripts/release/signing-gate.mjs', 'release.yml');
   const build = requireIndex(release, 'tauri -- build', 'release.yml');
-  assert.ok(gate < build, 'release.yml：簽章閘門必須排在 Tauri 建置之前');
+  assert.ok(gate < build, 'release.yml：签章闸门必须排在 Tauri 建置之前');
 });
 
-test('release.yml 的簽章步驟以閘門決策為條件，不再自行推導 secrets 是否存在', () => {
+test('release.yml 的签章步骤以闸门决策为条件，不再自行推导 secrets 是否存在', () => {
   const release = readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8');
 
   assert.match(
     release,
-    /env\.SPECLINK_MACOS_SIGNING == 'full'/,
-    'release.yml：macOS 簽章步驟應以閘門的 SPECLINK_MACOS_SIGNING 決策為條件',
+    /env\.SPECSEAL_MACOS_SIGNING == 'full'/,
+    'release.yml：macOS 签章步骤应以闸门的 SPECSEAL_MACOS_SIGNING 决策为条件',
   );
   assert.match(
     release,
-    /env\.SPECLINK_WINDOWS_SIGNING == 'certificate'/,
-    'release.yml：Windows 憑證簽章步驟應以閘門的 SPECLINK_WINDOWS_SIGNING 決策為條件',
+    /env\.SPECSEAL_WINDOWS_SIGNING == 'certificate'/,
+    'release.yml：Windows 凭证签章步骤应以闸门的 SPECSEAL_WINDOWS_SIGNING 决策为条件',
   );
   assert.doesNotMatch(
     release,
     /HAS_APPLE_CERT|HAS_WINDOWS_CERT/,
-    'release.yml：舊的 secrets 存在旗標應由閘門決策取代，避免兩處各自推導',
+    'release.yml：旧的 secrets 存在旗标应由闸门决策取代，避免两处各自推导',
   );
 });
 
-test('release.yml 在 macOS 簽章啟用時注入公證三項，供 Tauri 完成公證與 staple', () => {
+test('release.yml 在 macOS 签章激活时注入公证三项，供 Tauri 完成公证与 staple', () => {
   const release = readFileSync(path.join(root, '.github/workflows/release.yml'), 'utf8');
 
   for (const name of ['APPLE_ID', 'APPLE_PASSWORD', 'APPLE_TEAM_ID']) {
     assert.match(
       release,
       new RegExp(`${name}=\\$\\{\\{ secrets\\.${name} \\}\\}`),
-      `release.yml：缺少公證所需的 ${name} 注入`,
+      `release.yml：缺少公证所需的 ${name} 注入`,
     );
   }
 });

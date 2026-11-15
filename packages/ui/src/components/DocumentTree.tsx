@@ -2,7 +2,7 @@ import type { ChangeItem, SpecItem } from "../adapter";
 import { Button } from "./ui/button";
 import { SectionHeader } from "./SectionHeader";
 
-/** 樹上被選取的節點：一個 change 或一個 spec。 */
+/** 树上被选取的节点：一个 change 或一个 spec。 */
 export interface TreeSelection {
   kind: "change" | "spec";
   id: string;
@@ -14,7 +14,7 @@ export interface DocumentTreeProps {
   onSelect?: (sel: TreeSelection) => void;
 }
 
-/** 導覽樹：change 與 spec 兩區，點選觸發 onSelect。純呈現，資料由 props 注入。 */
+/** 导览树：change 与 spec 两区，点击触发 onSelect。纯呈现，数据由 props 注入。 */
 export function DocumentTree({ changes, specs, onSelect }: DocumentTreeProps) {
   return (
     <nav className="flex flex-col gap-4">

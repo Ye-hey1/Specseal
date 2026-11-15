@@ -26,7 +26,7 @@ on:
 
 defaults:
   run:
-    working-directory: crates/adapters/speclink-node
+    working-directory: crates/adapters/specseal-node
 
 jobs:
   build:
@@ -78,11 +78,11 @@ jobs:
       - name: Build native module (release)
         run: npm run build:release -- --target ${{ matrix.settings.target }}
 
-      # engine.spec 的 CLI parity 测试需要 speclink binary；与 napi release build 共用编译产物。
+      # engine.spec 的 CLI parity 测试需要 specseal binary；与 napi release build 共用编译产物。
       - name: Build the CLI for parity tests (release)
         if: matrix.settings.test
         working-directory: .
-        run: cargo build --release -p speclink-cli --locked
+        run: cargo build --release -p specseal-cli --locked
 
       - name: Test against the native-arch build
         if: matrix.settings.test
@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: crates/adapters/speclink-node/*.node
+          path: crates/adapters/specseal-node/*.node
           if-no-files-found: error
 
       # binding.js 是 napi build 产生的 loader，被 .gitignore 忽略，但主套件的
@@ -103,7 +103,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: binding-js
-          path: crates/adapters/speclink-node/binding.js
+          path: crates/adapters/specseal-node/binding.js
           if-no-files-found: error
 
   package:
@@ -130,7 +130,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: bindings-*
-          path: crates/adapters/speclink-node/artifacts
+          path: crates/adapters/specseal-node/artifacts
 
       - name: Distribute binaries into sub-packages
         run: npx napi artifacts
@@ -141,7 +141,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: binding-js
-          path: crates/adapters/speclink-node
+          path: crates/adapters/specseal-node
 
       # 版号盖章（设计 D2）：只在 workflow_call 带 version 时运行，把 tag 版写进主
       # 套件与全部平台子套件并物化 optionalDependencies。push／PR 无此输入即跳过，
@@ -152,7 +152,7 @@ jobs:
         working-directory: .
         env:
           VERSION: ${{ inputs.version }}
-        run: node scripts/npm/npm-engine-package.mjs --version "$VERSION" --dir crates/adapters/speclink-node
+        run: node scripts/npm/npm-engine-package.mjs --version "$VERSION" --dir crates/adapters/specseal-node
 
       - name: Pack the main package and every platform sub-package
         run: |
@@ -165,7 +165,7 @@ jobs:
           main_tgz="$(ls ./*.tgz)"
           tar -tzf "$main_tgz" | grep -qx 'package/binding.js' \
             || { echo "::error::主套件 tarball 缺 binding.js（loader 未取回）"; exit 1; }
-          # 同一道保险要对称：napi artifacts 找不到相符文件名时是静默 return，
+          # 同一道保险要对称：napi artifacts 找不到相符文档名时是静默 return，
           # 少了这里就会打包出「只有 package.json」的子套件，全绿发上 npm。
           for tgz in npm/*/*.tgz; do
             tar -tzf "$tgz" | grep -q '\.node$' \
@@ -177,6 +177,6 @@ jobs:
         with:
           name: npm-tarballs
           path: |
-            crates/adapters/speclink-node/*.tgz
-            crates/adapters/speclink-node/npm/*/*.tgz
+            crates/adapters/specseal-node/*.tgz
+            crates/adapters/specseal-node/npm/*/*.tgz
           if-no-files-found: error

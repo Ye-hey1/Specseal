@@ -1,6 +1,6 @@
-// 子代理模型的草稿與儲存（desktop-subagent-model-page design「子代理模型的草稿與儲存」）：
-// 頁面與 hook 共用的純函式。草稿只涵蓋內建工具；存回以現值為底，其他工具名稱的格子與清單原樣帶回。
-import { isSettingsChoiceGroup, type SettingsChoiceGroup, type SettingsChoiceOption } from "@speclink/ui";
+// 子代理模型的草稿与保存（desktop-subagent-model-page design「子代理模型的草稿与保存」）：
+// 页面与 hook 共用的纯函数。草稿只涵盖内置工具；存回以现值为底，其他工具名称的格子与清单原样带回。
+import { isSettingsChoiceGroup, type SettingsChoiceGroup, type SettingsChoiceOption } from "@specseal/ui";
 
 import type { SubagentModelConfig } from "../../adapter/workspace";
 import { BUILTIN_TOOLS, type BuiltinTool } from "../../builtinTools";
@@ -9,27 +9,27 @@ import { entriesToText, keepUnedited } from "./lines";
 export const SUBAGENT_STATIONS = ["review", "verify"] as const;
 export type SubagentStation = (typeof SUBAGENT_STATIONS)[number];
 
-/** 下拉的哨兵值（Radix Select 的值不得為空字串）：沿用主對話、自行輸入…。 */
+/** 下拉的哨兵值（Radix Select 的值不得为空字符串）：沿用主对话、自行输入…。 */
 export const SUBAGENT_INHERIT = "__inherit__";
 export const SUBAGENT_CUSTOM = "__custom__";
 
-/** 一格的草稿：沿用主對話（沒有值）、從清單選、自行輸入（輸入框帶 value）。 */
+/** 一格的草稿：沿用主对话（没有值）、从清单选、自行输入（输入框带 value）。 */
 export type SubagentCell = { mode: "inherit" } | { mode: "pick" | "custom"; value: string };
 
-/** 編輯草稿：兩站各內建工具一格，各內建工具的自訂清單一份「一行一個」文字。 */
+/** 编辑草稿：两站各内置工具一格，各内置工具的自订清单一份「一行一个」文本。 */
 export interface SubagentDraft {
   cells: Record<SubagentStation, Record<BuiltinTool, SubagentCell>>;
   lists: Record<BuiltinTool, string>;
 }
 
-/** 一格現在的模型名稱（沿用主對話＝空字串）。 */
+/** 一格现在的模型名称（沿用主对话＝空字符串）。 */
 export const cellValue = (cell: SubagentCell) => (cell.mode === "inherit" ? "" : cell.value);
 
 export type ModelSource = "builtin" | "choices" | "custom";
 
 export const EMPTY_SUBAGENT_MODEL: SubagentModelConfig = { review: {}, verify: {}, choices: {} };
 
-/** 值的來源：在內建清單＝內建；否則在自訂清單＝自訂清單；否則＝自行輸入。 */
+/** 值的来源：在内置清单＝内置；否则在自订清单＝自订清单；否则＝自行输入。 */
 export function modelSource(value: string, builtin: readonly string[], choices: readonly string[]): ModelSource {
   if (builtin.includes(value)) return "builtin";
   if (choices.includes(value)) return "choices";
@@ -51,8 +51,8 @@ export function toDraft(config: SubagentModelConfig, builtin: Record<string, str
   };
 }
 
-/** 存回：只覆寫內建工具的格子與清單——沿用主對話與留空的自行輸入移除該格，自行輸入去頭尾
- * 空白；清單一行一條、沒改過的沿用現值，清空移除鍵。 */
+/** 存回：只覆写内置工具的格子与清单——沿用主对话与留空的自行输入移除该格，自行输入去头尾
+ * 空白；清单一行一条、没改过的沿用现值，清空移除键。 */
 export function fromDraft(draft: SubagentDraft, current: SubagentModelConfig): SubagentModelConfig {
   const next: SubagentModelConfig = {
     review: { ...current.review },
@@ -77,11 +77,11 @@ const sortedEntries = <T>(map: Record<string, T>) =>
 const canonical = (config: SubagentModelConfig) =>
   JSON.stringify([sortedEntries(config.review), sortedEntries(config.verify), sortedEntries(config.choices)]);
 
-/** 內容相同（不看鍵序）：存回結果與現值相同時不寫檔。 */
+/** 内容相同（不看键序）：存回结果与现值相同时不写档。 */
 export const sameSubagentModel = (a: SubagentModelConfig, b: SubagentModelConfig) => canonical(a) === canonical(b);
 
-/** 下拉選項：沿用主對話、內建組、自訂清單組、自行輸入…；空的組不出現。同名只留在內建組，
- * 重複名稱只列一次，撞到哨兵的名稱不列（Radix Select 的值不得重複）。 */
+/** 下拉选项：沿用主对话、内置组、自订清单组、自行输入…；空的组不出现。同名只留在内置组，
+ * 重复名称只列一次，撞到哨兵的名称不列（Radix Select 的值不得重复）。 */
 export function choiceOptions(
   builtin: readonly string[],
   custom: readonly string[],
@@ -102,7 +102,7 @@ export function choiceOptions(
   ];
 }
 
-/** 一格在下拉上的值：pick 的名稱已不在選項裡（從清單刪掉了）時改判自行輸入。 */
+/** 一格在下拉上的值：pick 的名称已不在选项里（从清单删掉了）时改判自行输入。 */
 export function cellChoice(cell: SubagentCell, options: (SettingsChoiceOption | SettingsChoiceGroup)[]): string {
   if (cell.mode === "inherit") return SUBAGENT_INHERIT;
   const listed = options.some((entry) => isSettingsChoiceGroup(entry) && entry.options.some((o) => o.value === cell.value));

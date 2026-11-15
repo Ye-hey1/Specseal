@@ -1,9 +1,9 @@
-// 最近開啟清單元件（workspace-chooser「最近開啟清單」，design D7）：對話框第一步與
-// 零專案空狀態共用同一份；兩個 variant 只差外框。
+// 最近打开清单组件（workspace-chooser「最近打开清单」，design D7）：对话框第一步与
+// 零项目空状态共用同一份；两个 variant 只差外框。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 
 import { RecentList, type RecentListProps } from "../components/RecentList";
 import type { ConnectionView } from "../adapter/connections";
@@ -11,7 +11,7 @@ import { APP_MESSAGES } from "../i18n/messages";
 import type { RecentEntry } from "../recents";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -22,13 +22,13 @@ function render(ui: ReactElement) {
 const CONNECTION: ConnectionView = {
   id: "conn_1",
   origin: "https://spec.example.test",
-  name: "團隊 Server",
+  name: "团队 Server",
   loggedIn: true,
 };
-const LOCAL: RecentEntry = { locator: { kind: "local", root: "/work/speclink" }, name: "speclink" };
+const LOCAL: RecentEntry = { locator: { kind: "local", root: "/work/specseal" }, name: "specseal" };
 const REMOTE: RecentEntry = {
   locator: { kind: "remote", connectionId: "conn_1", projectId: "prj_1", repoId: "repo_1" },
-  name: "Speclink/Desktop",
+  name: "Specseal/Desktop",
 };
 
 function renderList(over: Partial<RecentListProps> = {}) {
@@ -47,50 +47,50 @@ function renderList(over: Partial<RecentListProps> = {}) {
 }
 
 describe("RecentList", () => {
-  it("dialog：小標「最近開啟」與計數，列放在細框卡內", () => {
+  it("dialog：小标「最近打开」与计数，列放在细框卡内", () => {
     renderList();
     const section = document.querySelector('[data-recent-list="dialog"]') as HTMLElement;
-    expect(section.textContent).toContain("最近開啟");
+    expect(section.textContent).toContain("最近打开");
     expect(section.textContent).toContain("2");
     const box = section.querySelector("[data-recent-rows]") as HTMLElement;
     expect(box.className).toContain("rounded-xl");
     expect(box.className).toContain("border");
   });
 
-  it("card：整段包在卡片底色內（空狀態用）", () => {
+  it("card：整段包在卡片底色内（空状态用）", () => {
     renderList({ variant: "card" });
     const section = document.querySelector('[data-recent-list="card"]') as HTMLElement;
     expect(section.className).toContain("bg-card");
     expect(section.className).toContain("rounded-xl");
   });
 
-  it("本機列顯示名稱與路徑；remote 列顯示顯示名、連線名稱與「遠端」籤", () => {
+  it("本机列显示名称与路径；remote 列显示显示名、连接名称与「远程」签", () => {
     renderList();
-    const local = screen.getByRole("button", { name: /\/work\/speclink/ });
-    expect(local.textContent).toContain("speclink");
-    expect(local.textContent).not.toContain("遠端");
-    const remote = screen.getByRole("button", { name: /團隊 Server/ });
-    expect(remote.textContent).toContain("Speclink/Desktop");
-    expect(remote.textContent).toContain("遠端");
+    const local = screen.getByRole("button", { name: /\/work\/specseal/ });
+    expect(local.textContent).toContain("specseal");
+    expect(local.textContent).not.toContain("远程");
+    const remote = screen.getByRole("button", { name: /团队 Server/ });
+    expect(remote.textContent).toContain("Specseal/Desktop");
+    expect(remote.textContent).toContain("远程");
   });
 
-  it("點列以該條目呼叫 onOpen", () => {
+  it("点列以该条目调用 onOpen", () => {
     const { onOpen } = renderList();
-    fireEvent.click(screen.getByRole("button", { name: /\/work\/speclink/ }));
+    fireEvent.click(screen.getByRole("button", { name: /\/work\/specseal/ }));
     expect(onOpen).toHaveBeenCalledWith(LOCAL);
   });
 
-  it("開啟失敗的錯誤態：顯示原因、仍可再點重試，× 仍以該條目呼叫 onRemove", () => {
-    const { onOpen, onRemove } = renderList({ errors: { "local:/work/speclink": "目錄不存在" } });
-    const row = screen.getByRole("button", { name: /目錄不存在/ }) as HTMLButtonElement;
+  it("打开失败的错误态：显示原因、仍可再点重试，× 仍以该条目调用 onRemove", () => {
+    const { onOpen, onRemove } = renderList({ errors: { "local:/work/specseal": "目录不存在" } });
+    const row = screen.getByRole("button", { name: /目录不存在/ }) as HTMLButtonElement;
     expect(row.disabled).toBe(false);
     fireEvent.click(row);
     expect(onOpen).toHaveBeenCalledWith(LOCAL);
-    fireEvent.click(screen.getByRole("button", { name: "自最近開啟移除 speclink" }));
+    fireEvent.click(screen.getByRole("button", { name: "自最近打开移除 specseal" }));
     expect(onRemove).toHaveBeenCalledWith(LOCAL);
   });
 
-  it("連線清單就緒且連線已移除時 remote 列為錯誤態；未就緒時不判定", () => {
+  it("连接清单就绪且连接已移除时 remote 列为错误态；未就绪时不判定", () => {
     const { unmount } = rtlRender(
       <RecentList
         variant="dialog"
@@ -103,28 +103,28 @@ describe("RecentList", () => {
       />,
       { wrapper: zhWrapper },
     );
-    expect(screen.getByText("連線已移除")).toBeTruthy();
+    expect(screen.getByText("连接已移除")).toBeTruthy();
     unmount();
     renderList({ entries: [REMOTE], connections: [], connectionsReady: false });
-    expect(screen.queryByText("連線已移除")).toBeNull();
+    expect(screen.queryByText("连接已移除")).toBeNull();
   });
 
-  it("開啟進行中（busy）：列外層無 hover 底色、列按鈕停用游標為箭頭（design D4）", () => {
+  it("打开进行中（busy）：列外层无 hover 底色、列按钮停用光标为箭头（design D4）", () => {
     const { unmount } = renderList({ entries: [LOCAL] });
-    const idle = screen.getByRole("button", { name: /\/work\/speclink/ });
+    const idle = screen.getByRole("button", { name: /\/work\/specseal/ });
     expect(idle.parentElement!.className).toContain("hover:bg-foreground/5");
     unmount();
 
     renderList({ entries: [LOCAL], busy: true });
-    const row = screen.getByRole("button", { name: /\/work\/speclink/ }) as HTMLButtonElement;
+    const row = screen.getByRole("button", { name: /\/work\/specseal/ }) as HTMLButtonElement;
     expect(row.disabled).toBe(true);
     expect(row.className).toContain("disabled:cursor-default");
     expect(row.parentElement!.className).not.toContain("hover:");
   });
 
-  it("無條目時不渲染任何區段", () => {
+  it("无条目时不渲染任何区段", () => {
     renderList({ entries: [] });
     expect(document.querySelector("[data-recent-list]")).toBeNull();
-    expect(screen.queryByText("最近開啟")).toBeNull();
+    expect(screen.queryByText("最近打开")).toBeNull();
   });
 });

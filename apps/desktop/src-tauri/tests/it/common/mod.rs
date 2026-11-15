@@ -1,39 +1,39 @@
-//! remote 整合測試共用 harness：in-process speclink-server（memory identity＋
-//! memory store）＋registry 檔。使用者為 demo／multi 兩專案成員（multi 供
-//! 多 repo 多義案例）；credential 注入一律 in-memory store。
+//! remote 集成测试共用 harness：in-process specseal-server（memory identity＋
+//! memory store）＋registry 档。用户为 demo／multi 两项目成员（multi 供
+//! 多 repo 多义案例）；credential 注入一律 in-memory store。
 
 #![allow(dead_code)]
 
 use chrono::{Duration, Utc};
-use speclink_server::audit::AuditActor;
-use speclink_server::config::{IdentityConfig, ServerConfig, StoreConfig};
-use speclink_server::events::{EventHub, EventSettings};
-use speclink_server::identity::{IdentitySqlite, IdentityStore, MembershipRole, NewInvitation};
-use speclink_server::state::{AppState, SharedStore};
-use speclink_store::{CommandContext, DocumentId, ProjectId, RepoId, Scope, TeamStore};
+use specseal_server::audit::AuditActor;
+use specseal_server::config::{IdentityConfig, ServerConfig, StoreConfig};
+use specseal_server::events::{EventHub, EventSettings};
+use specseal_server::identity::{IdentitySqlite, IdentityStore, MembershipRole, NewInvitation};
+use specseal_server::state::{AppState, SharedStore};
+use specseal_store::{CommandContext, DocumentId, ProjectId, RepoId, Scope, TeamStore};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex, MutexGuard, Once};
 
-/// harness 使用者的顯示名。server 依 `Actor` 契約把它與 email 組成引擎面的
-/// 身分字串，蓋章比對看的是 [`ACTOR_IDENTITY`] 而不是這一個。
+/// harness 用户的显示名。server 依 `Actor` 契约把它与 email 组成引擎面的
+/// 身分字符串，盖章比对看的是 [`ACTOR_IDENTITY`] 而不是这一个。
 pub const DISPLAY: &str = "Dev";
 
-/// harness 使用者在引擎面的身分字串：「顯示名 <email>」。created_by、
-/// started_by、claimed_by 等蓋章都寫這個值。
+/// harness 用户在引擎面的身分字符串：「显示名 <email>」。created_by、
+/// started_by、claimed_by 等盖章都写这个值。
 pub const ACTOR_IDENTITY: &str = "Dev <dev@example.com>";
 
-/// 同一 test binary 內的 harness 互斥。多個 in-process loopback server 併行
-/// 且 CPU 吃緊時，macOS 核心偶發把回應中的連線整條重置——客端讀到一半收
-/// EINVAL，動詞已在 server 提交卻回報「server unreachable」（本機以 8 條
-/// 忙迴圈壓測可穩定重現；單 harness 序列跑同等壓力下不出現）。以 harness
-/// 生命週期互斥將 loopback server 序列化即根除觸發條件；測試內部的併發
-/// （多 session、proxy、worker）不受影響。
+/// 同一 test binary 内的 harness 互斥。多个 in-process loopback server 并行
+/// 且 CPU 吃紧时，macOS 内核偶发把回应中的连接整条重置——客端读到一半收
+/// EINVAL，动词已在 server 提交却回报「server unreachable」（本机以 8 条
+/// 忙循环压测可稳定重现；单 harness 串行跑同等压力下不出现）。以 harness
+/// 生命周期互斥将 loopback server 串行化即根除触发条件；测试内部的并发
+/// （多 session、proxy、worker）不受影响。
 static HARNESS_GATE: Mutex<()> = Mutex::new(());
 
 fn acquire_harness_gate() -> MutexGuard<'static, ()> {
-    // 前一個測試 panic 只代表該測試失敗，poison 不該連坐後續測試。
+    // 前一个测试 panic 只代表该测试失败，poison 不该连坐后续测试。
     HARNESS_GATE
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -47,7 +47,7 @@ pub struct Harness {
     pub registry: PathBuf,
     pub server: RestartableServer,
     _dir: tempfile::TempDir,
-    /// 最後宣告：server 完整收束後才釋放互斥。
+    /// 最后声明：server 完整收束后才释放互斥。
     _gate: MutexGuard<'static, ()>,
 }
 
@@ -82,7 +82,7 @@ impl RestartableServer {
             let runtime = tokio::runtime::Runtime::new().expect("runtime");
             runtime.block_on(async move {
                 let listener = tokio::net::TcpListener::from_std(listener).expect("adopt listener");
-                let server = axum::serve(listener, speclink_server::app::router(state));
+                let server = axum::serve(listener, specseal_server::app::router(state));
                 tokio::select! {
                     result = server => result.expect("serve"),
                     _ = shutdown_rx => {}
@@ -115,13 +115,13 @@ impl Drop for RestartableServer {
     }
 }
 
-/// Phase 3 全鏈劇本的兩個常駐 server。各自持有獨立 SQLite store、identity
-/// database 與隨機 loopback port；第一個 server 有 `pm`／`rd` 兩個 scope，
-/// 第二個 server 有 `main` scope。
+/// Phase 3 全链剧本的两个常驻 server。各自持有独立 SQLite store、identity
+/// database 与随机 loopback port；第一个 server 有 `pm`／`rd` 两个 scope，
+/// 第二个 server 有 `main` scope。
 pub struct Phase3Harness {
     pub first: Phase3Server,
     pub second: Phase3Server,
-    /// 最後宣告：兩台 server 都收束後才釋放互斥。
+    /// 最后声明：两台 server 都收束后才释放互斥。
     _gate: MutexGuard<'static, ()>,
 }
 
@@ -251,7 +251,7 @@ impl Phase3Server {
             .create_pat(&reader_id, "phase3-reader", None)
             .expect("phase3 reader PAT");
 
-        let store = speclink_server::build_store(&StoreConfig::Sqlite {
+        let store = specseal_server::build_store(&StoreConfig::Sqlite {
             path: store_path.clone(),
         })
         .expect("phase3 sqlite store");
@@ -278,9 +278,9 @@ impl Phase3Server {
         let origin = format!("http://{addr}");
         let registry = dir.path().join("connections.json");
         let mut entries = Vec::new();
-        speclink_desktop_lib::connections::upsert_connection(&mut entries, &origin, label)
+        specseal_desktop_lib::connections::upsert_connection(&mut entries, &origin, label)
             .expect("seed phase3 connection");
-        speclink_desktop_lib::connections::write_registry(&registry, &entries)
+        specseal_desktop_lib::connections::write_registry(&registry, &entries)
             .expect("write phase3 registry");
         let diagnostics = Arc::new(Mutex::new(vec![format!(
             "{label}: started at http://{addr} (sqlite {})",
@@ -307,7 +307,7 @@ impl Phase3Server {
     }
 
     pub fn project_url(&self) -> String {
-        format!("{}/api/speclink/v1/projects/{}", self.origin, self.project)
+        format!("{}/api/specseal/v1/projects/{}", self.origin, self.project)
     }
 
     pub fn scope(&self, repo: &str) -> Scope {
@@ -356,7 +356,7 @@ impl Phase3Server {
 
     pub fn device_login_editor(
         &self,
-        store: &dyn speclink_remote::credentials::CredentialStore,
+        store: &dyn specseal_remote::credentials::CredentialStore,
     ) -> String {
         let identity = self.identity.clone();
         let user_id = self.editor_id.clone();
@@ -454,13 +454,13 @@ impl RemoteCheckout {
         diagnostics: Arc<Mutex<Vec<String>>>,
     ) -> RemoteCheckout {
         let dir = tempfile::Builder::new()
-            .prefix(&format!("speclink-phase3-{tag}-"))
+            .prefix(&format!("specseal-phase3-{tag}-"))
             .tempdir()
             .expect("phase3 checkout tempdir");
         let root = dir.path().join("checkout");
         std::fs::create_dir_all(&root).expect("create phase3 checkout");
         std::fs::write(
-            root.join(".speclink.yaml"),
+            root.join(".specseal.yaml"),
             format!("remote:\n  url: {project_url}\n  repo: {repo}\n"),
         )
         .expect("write phase3 remote config");
@@ -513,12 +513,12 @@ impl RemoteCheckout {
         let output = Command::new(phase3_cli_bin())
             .args(args)
             .current_dir(&self.root)
-            .env_remove("SPECLINK_STORE_URL")
-            .env_remove("SPECLINK_LOCALE")
-            .env_remove("SPECLINK_SPEC_LOCALE")
-            .env_remove("SPECLINK_TDD")
-            .env_remove("SPECLINK_AUDIT")
-            .env("SPECLINK_TOKEN", &self.token)
+            .env_remove("SPECSEAL_STORE_URL")
+            .env_remove("SPECSEAL_LOCALE")
+            .env_remove("SPECSEAL_SPEC_LOCALE")
+            .env_remove("SPECSEAL_TDD")
+            .env_remove("SPECSEAL_AUDIT")
+            .env("SPECSEAL_TOKEN", &self.token)
             .env("HOME", self.dir.path())
             .env("USERPROFILE", self.dir.path())
             .env("XDG_CONFIG_HOME", self.dir.path())
@@ -540,12 +540,12 @@ impl RemoteCheckout {
         let mut child = Command::new(phase3_cli_bin())
             .args(args)
             .current_dir(&self.root)
-            .env_remove("SPECLINK_STORE_URL")
-            .env_remove("SPECLINK_LOCALE")
-            .env_remove("SPECLINK_SPEC_LOCALE")
-            .env_remove("SPECLINK_TDD")
-            .env_remove("SPECLINK_AUDIT")
-            .env("SPECLINK_TOKEN", &self.token)
+            .env_remove("SPECSEAL_STORE_URL")
+            .env_remove("SPECSEAL_LOCALE")
+            .env_remove("SPECSEAL_SPEC_LOCALE")
+            .env_remove("SPECSEAL_TDD")
+            .env_remove("SPECSEAL_AUDIT")
+            .env("SPECSEAL_TOKEN", &self.token)
             .env("HOME", self.dir.path())
             .env("USERPROFILE", self.dir.path())
             .env("XDG_CONFIG_HOME", self.dir.path())
@@ -610,17 +610,17 @@ fn phase3_cli_bin() -> PathBuf {
     BUILD_PHASE3_CLI.call_once(|| {
         let cargo = std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_string());
         let status = Command::new(cargo)
-            .args(["build", "-p", "speclink-cli", "--bin", "speclink"])
+            .args(["build", "-p", "specseal-cli", "--bin", "specseal"])
             .status()
             .expect("spawn cargo build for phase3 CLI");
         assert!(status.success(), "building the phase3 CLI failed");
     });
-    // 測試執行檔在輸出資料夾底下第幾層，隨 cargo 版本而變（1.100 起從 deps/ 改到
-    // build/<套件>/<雜湊>/out/）：往上找第一個放有 CLI 的資料夾，不寫死層數。
+    // 测试运行档在输出文件夹底下第几层，随 cargo 版本而变（1.100 起从 deps/ 改到
+    // build/<套件>/<哈希>/out/）：往上找第一个放有 CLI 的文件夹，不写死层数。
     let name = if cfg!(windows) {
-        "speclink.exe"
+        "specseal.exe"
     } else {
-        "speclink"
+        "specseal"
     };
     let test_bin = std::env::current_exe().expect("phase3 test executable");
     test_bin
@@ -636,7 +636,7 @@ pub fn scope() -> Scope {
     Scope::new(ProjectId::new("demo"), RepoId::new("backend"))
 }
 
-/// 事件測試用的快節奏設定：短心跳、充足 live buffer。
+/// 事件测试用的快节奏设置：短心跳、充足 live buffer。
 pub fn fast_events() -> EventSettings {
     EventSettings {
         retention: 1024,
@@ -646,12 +646,12 @@ pub fn fast_events() -> EventSettings {
 }
 
 /// 起 in-process server：demo（repo backend）＋multi（repos web、api）入
-/// registry，使用者為兩者成員。store 空白——各測試自行 seed。
+/// registry，用户为两者成员。store 空白——各测试自行 seed。
 pub fn harness() -> Harness {
     harness_with_events(EventSettings::default())
 }
 
-/// 同 [`harness`]，但以指定的 EventSettings 起 server（SSE／retention 測試用）。
+/// 同 [`harness`]，但以指定的 EventSettings 起 server（SSE／retention 测试用）。
 pub fn harness_with_events(settings: EventSettings) -> Harness {
     let gate = acquire_harness_gate();
     let identity = Arc::new(IdentitySqlite::open_memory().expect("memory identity"));
@@ -683,7 +683,7 @@ pub fn harness_with_events(settings: EventSettings) -> Harness {
         .accept_invitation(&invite, "pw-correct-horse")
         .expect("accept");
 
-    let store: SharedStore = Arc::new(speclink_store::memory::MemoryStore::new());
+    let store: SharedStore = Arc::new(specseal_store::memory::MemoryStore::new());
     let state = AppState::new(
         store.clone(),
         identity.clone(),
@@ -704,9 +704,9 @@ pub fn harness_with_events(settings: EventSettings) -> Harness {
     let registry = dir.path().join("connections.json");
     let origin = format!("http://{addr}");
     let mut entries = Vec::new();
-    speclink_desktop_lib::connections::upsert_connection(&mut entries, &origin, "本地")
+    specseal_desktop_lib::connections::upsert_connection(&mut entries, &origin, "本地")
         .expect("seed entry");
-    speclink_desktop_lib::connections::write_registry(&registry, &entries).expect("write registry");
+    specseal_desktop_lib::connections::write_registry(&registry, &entries).expect("write registry");
 
     Harness {
         origin,
@@ -720,12 +720,12 @@ pub fn harness_with_events(settings: EventSettings) -> Harness {
     }
 }
 
-/// 種 change `demo`（schema＋給定的 tasks.md 內容）進 demo/backend scope。
+/// 种 change `demo`（schema＋给定的 tasks.md 内容）进 demo/backend scope。
 pub fn seed_change(store: &dyn TeamStore, tasks: &str) {
     seed_named_change(store, "demo", tasks);
 }
 
-/// 在 demo/backend scope 種指定名稱的 change，供重啟期間外部寫入情境使用。
+/// 在 demo/backend scope 种指定名称的 change，供重启期间外部写入情境使用。
 pub fn seed_named_change(store: &dyn TeamStore, change: &str, tasks: &str) {
     let mut uow = store
         .begin_unit_of_work(
@@ -752,12 +752,12 @@ pub fn seed_named_change(store: &dyn TeamStore, change: &str, tasks: &str) {
     store.commit(uow, Vec::new()).expect("seed commit");
 }
 
-/// 以 device flow（假瀏覽器直接核准）登入，讓 credential store 只留下 refresh
-/// credential——登入會連 access token 一起快取，這裡把快取清掉，模擬「重啟後
-/// 快取已過期」：下一個請求要靠 refresh credential 換發。
+/// 以 device flow（假浏览器直接核准）登录，让 credential store 只留下 refresh
+/// credential——登录会连 access token 一起缓存，这里把缓存清掉，仿真「重启后
+/// 缓存已过期」：下一个请求要靠 refresh credential 换发。
 pub fn device_login_approved(
     h: &Harness,
-    store: &dyn speclink_remote::credentials::CredentialStore,
+    store: &dyn specseal_remote::credentials::CredentialStore,
 ) {
     let identity = h.identity.clone();
     let user_id = h.user_id.clone();
@@ -765,24 +765,24 @@ pub fn device_login_approved(
         let code = url
             .split("user_code=")
             .nth(1)
-            .expect("user_code 預填參數")
+            .expect("user_code 预填参数")
             .to_string();
         assert!(identity.approve_device(&code, &user_id).expect("approve"));
         Ok(())
     };
     approved_device_login(&h.origin, store, &h.registry, &opener).expect("device login");
-    speclink_remote::refresh::clear_cached_bearer(&h.origin, store);
+    specseal_remote::refresh::clear_cached_bearer(&h.origin, store);
 }
 
-/// 走完一次 device login（假開啟器就地核准，等待迴圈在 Rust 這一份）。回傳
-/// 登入當下快取的 access token。
+/// 走完一次 device login（假打开器就地核准，等待循环在 Rust 这一份）。回传
+/// 登录当下缓存的 access token。
 fn approved_device_login(
     origin: &str,
-    store: &dyn speclink_remote::credentials::CredentialStore,
+    store: &dyn specseal_remote::credentials::CredentialStore,
     registry: &std::path::Path,
     opener: &(dyn Fn(&str) -> Result<(), String> + Sync),
 ) -> Result<String, String> {
-    use speclink_desktop_lib::connections::{connection_login, ConnectionLogin, DesktopLoginIo};
+    use specseal_desktop_lib::connections::{connection_login, ConnectionLogin, DesktopLoginIo};
     let cancel = std::sync::atomic::AtomicBool::new(false);
     let io = DesktopLoginIo {
         origin,
@@ -796,7 +796,7 @@ fn approved_device_login(
     }
 }
 
-/// 給使用者簽一枚 PAT（資料面測試最短的 credential 路徑）。
+/// 给用户签一枚 PAT（数据面测试最短的 credential 路径）。
 pub fn pat_of(h: &Harness) -> String {
     let (_, pat) = h
         .identity

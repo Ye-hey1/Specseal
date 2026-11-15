@@ -20,10 +20,10 @@ import { REVIEW_ICON, REVIEW_LABEL_KEY, REVIEW_TONE } from "./reviewStyle";
 import { SearchField } from "./SearchField";
 import { VERIFY_ICON, VERIFY_LABEL_KEY, VERIFY_TONE } from "./verifyStyle";
 
-/** 封存變更列（spec「規格與封存卡片收合資訊」；design D4）：日期在最左、等寬標題＋
- * 複製鈕、Why 首句描述列（缺席時列退回單行）、meta 為任務徽章（全完成靜默、未全完成
- * 琥珀警示：「沒做完就封存」才是需要被看見的異常）、觸及規格數、審查／驗證結局、
- * createdBy 頭像圓點、來源討論標記。點整列開唯讀抽屜。 */
+/** 封存变更列（spec「规格与封存卡片收合信息」；design D4）：日期在最左、等宽标题＋
+ * 拷贝钮、Why 首句描述列（缺席时列退回单行）、meta 为任务徽章（全完成静默、未全完成
+ * 琥珀警示：「没做完就封存」才是需要被看见的异常）、触及规格数、审查／验证结局、
+ * createdBy 头像圆点、来源讨论标记。点整列开唯读抽屉。 */
 function ArchivedRow({ item, onOpen }: { item: ArchivedItem; onOpen: (target: ArchivedTarget) => void }) {
   const { t, tn } = useI18n();
   const badge =
@@ -62,8 +62,8 @@ function ArchivedRow({ item, onOpen }: { item: ArchivedItem; onOpen: (target: Ar
               <TooltipContent>{specLabel}</TooltipContent>
             </Tooltip>
           )}
-          {/* 審查結局標示（spec「已封存側的審查標示」）：帶章＝已審查、化石工單
-              ＝曾審查未通過（永久標示）、皆無＝無元素。 */}
+          {/* 审查结局标示（spec「已封存侧的审查标示」）：带章＝已审查、化石工单
+              ＝曾审查未通过（永久标示）、皆无＝无元素。 */}
           {(item.reviewStatus === "reviewed" || item.reviewStatus === "reviewedNotPassed") && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -77,7 +77,7 @@ function ArchivedRow({ item, onOpen }: { item: ArchivedItem; onOpen: (target: Ar
               <TooltipContent>{t(REVIEW_LABEL_KEY[item.reviewStatus])}</TooltipContent>
             </Tooltip>
           )}
-          {/* 驗證結局標示（spec「已封存側的驗證標示」）：與審查結局並存，順序固定在其後。 */}
+          {/* 验证结局标示（spec「已封存侧的验证标示」）：与审查结局并存，顺序固定在其后。 */}
           {(item.verifyStatus === "verified" || item.verifyStatus === "verifiedNotPassed") && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -123,9 +123,9 @@ function ArchivedRow({ item, onOpen }: { item: ArchivedItem; onOpen: (target: Ar
   );
 }
 
-/** 封存討論列（design D4）：slug 為等寬標題＋複製 slug 鈕、改進小章在標題旁、topic 降為
- * 描述列；meta 為日期、「N 輪」、衍生變更數（自既有 promotedTo 長度派生）——與看板討論卡
- * 同構（slug 為 CLI 動詞把手；LANGUAGE.md 受控例外）。點整列開唯讀抽屜。 */
+/** 封存讨论列（design D4）：slug 为等宽标题＋拷贝 slug 钮、改进小章在标题旁、topic 降为
+ * 描述列；meta 为日期、「N 轮」、衍生变更数（自既有 promotedTo 长度派生）——与看板讨论卡
+ * 同构（slug 为 CLI 动词把手；LANGUAGE.md 受控例外）。点整列开唯读抽屉。 */
 function ArchivedDiscussionRow({
   item,
   onOpen,
@@ -161,7 +161,7 @@ function ArchivedDiscussionRow({
       }
       onClick={() => onOpen({ kind: "discussion", slug: item.slug })}
     >
-      {/* 改進小章：封存後標示不變（spec「已封存的改進討論維持標示」）。 */}
+      {/* 改进小章：封存后标示不变（spec「已封存的改进讨论维持标示」）。 */}
       {isImproveKind(item.kind) && <ImproveStamp />}
     </ListRow>
   );
@@ -171,20 +171,20 @@ export interface ArchivedListProps {
   archived: ArchivedItem[];
   query: string;
   onQuery: (q: string) => void;
-  /** 封存討論（討論節；缺席時不顯示該節，向後相容）。 */
+  /** 封存讨论（讨论节；缺席时不显示该节，向后兼容）。 */
   archivedDiscussions?: DiscussionItem[];
-  /** 點列開唯讀封存抽屜（discriminated target：封存變更或封存討論）。 */
+  /** 点列开唯读封存抽屉（discriminated target：封存变更或封存讨论）。 */
   onOpen: (target: ArchivedTarget) => void;
-  /** 頁標題區的標題；缺席時不渲染頁標題區，只有搜尋框。 */
+  /** 页标题区的标题；缺席时不渲染页标题区，只有搜索框。 */
   title?: string;
-  /** 頁標題區的灰字說明。 */
+  /** 页标题区的灰字说明。 */
   description?: string;
-  /** 受控每頁筆數（design D7），兩節各自一組：值與回呼一起給時以它為準；缺席時元件自持（預設 20）。 */
+  /** 受控每页笔数（design D7），两节各自一组：值与回呼一起给时以它为准；缺席时组件自持（缺省 20）。 */
   changesPageSize?: number;
   onChangesPageSizeChange?: (size: number) => void;
   discussionsPageSize?: number;
   onDiscussionsPageSizeChange?: (size: number) => void;
-  /** 回報兩節各自過濾後全部頁的順序（已封存詳情頁 ‹ › 的序列）；順序真的變了才回報。 */
+  /** 回报两节各自过滤后全部页的顺序（已封存详情页 ‹ › 的串行）；顺序真的变了才回报。 */
   onVisibleOrderChange?: (order: { changes: string[]; discussions: string[] }) => void;
 }
 
@@ -192,13 +192,13 @@ type Section = "changes" | "discussions";
 
 const EMPTY_CLS = "py-8 text-center text-sm text-muted-foreground";
 
-/** 已封存頁（spec「已封存頁含討論節」；design D4）：頁標題區（標題、說明、右端全圓
- * 搜尋框）之下為一張列表卡，卡頂為卡片標頭式分頁「變更」「討論」各帶過濾後筆數徽章；
- * 兩節皆為列式清單、點列開抽屜、無行內展開；搜尋同時過濾兩節、兩節頁碼與每頁筆數
- * 互相獨立（spec「清單最新在前與換頁瀏覽」）。清單最新在前：封存變更依 datedName
- * 字典序降冪、封存討論依 created 降冪同日 slug 升冪；archivedDiscussions 缺席（向後
- * 相容路徑）時分頁列缺席、列表卡維持完整圓角。版面填滿主區高度：頁標題區與分頁列
- * 固定、列於卡內捲動、工具列固定卡底。 */
+/** 已封存页（spec「已封存页含讨论节」；design D4）：页标题区（标题、说明、右端全圆
+ * 搜索框）之下为一张列表卡，卡顶为卡片标头式分页「变更」「讨论」各带过滤后笔数徽章；
+ * 两节皆为列式清单、点列开抽屉、无行内展开；搜索同时过滤两节、两节页码与每页笔数
+ * 互相独立（spec「清单最新在前与换页浏览」）。清单最新在前：封存变更依 datedName
+ * 字典序降幂、封存讨论依 created 降幂同日 slug 升幂；archivedDiscussions 缺席（向后
+ * 兼容路径）时分页列缺席、列表卡维持完整圆角。版面填满主区高度：页标题区与分页列
+ * 固定、列于卡内卷动、工具列固定卡底。 */
 export function ArchivedList({
   archived,
   query,
@@ -215,18 +215,18 @@ export function ArchivedList({
 }: ArchivedListProps) {
   const { t } = useI18n();
   const [section, setSection] = useState<Section>("changes");
-  // 兩節共用列表卡的捲動容器——換頁後歸位（清單自己捲、頁面不捲）。
+  // 两节共用列表卡的卷动容器——换页后归位（清单自己卷、页面不卷）。
   const scrollRef = useRef<HTMLDivElement>(null);
   const resetScroll = () => {
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
   };
 
-  // datedName 前綴 YYYY-MM-DD 使字典序＝時間序，降冪即封存日期新→舊（同日由字串降冪涵蓋）。
+  // datedName 前缀 YYYY-MM-DD 使字典序＝时间序，降幂即封存日期新→旧（同日由字符串降幂涵盖）。
   const sortedChanges = useMemo(
     () => [...archived].sort((a, b) => (a.datedName < b.datedName ? 1 : a.datedName > b.datedName ? -1 : 0)),
     [archived],
   );
-  // created 降冪；同日以 slug 字母升冪決勝。
+  // created 降幂；同日以 slug 字母升幂决胜。
   const sortedDiscussions = useMemo(
     () =>
       [...(archivedDiscussions ?? [])].sort((a, b) => {
@@ -236,11 +236,11 @@ export function ArchivedList({
     [archivedDiscussions],
   );
 
-  // 比對規則共用 matchesQuery（與看板一致的單一真相）。
+  // 比对规则共用 matchesQuery（与看板一致的单一真相）。
   const filtered = sortedChanges.filter((a) => matchesQuery(query, a.name));
   const discussions = sortedDiscussions.filter((d) => matchesQuery(query, d.topic, d.slug));
   const showDiscussions = archivedDiscussions !== undefined;
-  // 呈現順序回報：以兩節序列內容為依賴，順序真的變了才通知宿主（換頁、切子頁籤不影響）。
+  // 呈现顺序回报：以两节串行内容为依赖，顺序真的变了才通知宿主（换页、切子页签不影响）。
   const changeOrder = filtered.map((a) => a.datedName);
   const discussionOrder = discussions.map((d) => d.slug);
   const orderKey = JSON.stringify([changeOrder, discussionOrder]);
@@ -249,7 +249,7 @@ export function ArchivedList({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderKey]);
 
-  // 兩節頁碼與每頁筆數互相獨立。
+  // 两节页码与每页笔数互相独立。
   const changes = usePaging(filtered, {
     pageSize: changesPageSize,
     onPageSizeChange: onChangesPageSizeChange,
@@ -263,13 +263,13 @@ export function ArchivedList({
   const { setPage: setChangePage } = changes;
   const { setPage: setDiscPage } = discs;
 
-  // 搜尋字串變更（query 為外部受控 prop）：兩側頁碼皆回第 1 頁。
+  // 搜索字符串变更（query 为外部受控 prop）：两侧页码皆回第 1 页。
   useEffect(() => {
     setChangePage(1);
     setDiscPage(1);
   }, [query, setChangePage, setDiscPage]);
 
-  // 兩節的工具列落在同一個卡底槽：各帶 key，切換分頁時不共用跳頁輸入的狀態。
+  // 两节的工具列落在同一个卡底槽：各带 key，切换分页时不共用跳页输入的状态。
   const changesPager = <ListPager key="changes" {...changes.pager} />;
   const discussionsPager = <ListPager key="discussions" {...discs.pager} />;
 
@@ -288,7 +288,7 @@ export function ArchivedList({
     <TooltipProvider>
       <div className="flex h-full min-h-0 w-full flex-col gap-4">
         {title ? <PageHeader title={title} description={description} actions={search} /> : search}
-        {/* 流程成本摘要：頁標題區與列表卡之間，以全部封存變更計算（不受搜尋影響）。 */}
+        {/* 流程成本摘要：页标题区与列表卡之间，以全部封存变更计算（不受搜索影响）。 */}
         <ProcessCostSummary items={archived} />
         {showDiscussions ? (
           <Tabs
@@ -324,7 +324,7 @@ export function ArchivedList({
             </ListCard>
           </Tabs>
         ) : (
-          // 向後相容路徑：無討論清單資料，列表卡不帶分頁列、只有變更清單。
+          // 向后兼容路径：无讨论清单数据，列表卡不带分页列、只有变更清单。
           <ListCard scrollRef={scrollRef} footer={changesPager}>
             {changesRows}
           </ListCard>

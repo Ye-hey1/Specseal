@@ -1,4 +1,4 @@
 ---
 type: file_exists
-path: speclink/manual/*.md
+path: specseal/manual/*.md
 ---

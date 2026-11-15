@@ -2,63 +2,63 @@
 
 [简体中文](configuration.zh-CN.md) · **English**
 
-Speclink keeps settings in three layers. Workflow policy lives in `speclink/config.yaml` and travels with the specs. The AI tools and the remote connection of this checkout live in `.speclink.yaml`. Sign-in credentials live at the user level and never enter the project. Environment variables can override policy for one run.
+Specseal keeps settings in three layers. Workflow policy lives in `specseal/config.yaml` and travels with the specs. The AI tools and the remote connection of this checkout live in `.specseal.yaml`. Sign-in credentials live at the user level and never enter the project. Environment variables can override policy for one run.
 
 ## <a id="layers"></a>Where settings live
 
 | Location | Contents | Read by | In version control |
 | --- | --- | --- | --- |
-| `speclink/config.yaml` | Workflow policy: `schema`, `locale`, `spec_locale`, `tdd`, `audit`, `worktree`, `context`, `rules`, `review`, `subagent_model` | The CLI and the desktop app; skills get the effective values through `speclink instructions` | Yes |
-| `.speclink.yaml` | The binding of this checkout: `tools`, `spec_dir`, `remote` | The CLI and the desktop app | Yes (it holds no credentials) |
-| `.speclink/` | Local work data: snapshots for archive and the quality stations, records of generated tool files, the read-only content snapshot of remote mode | The CLI and the desktop app | No (`speclink init` adds it to `.gitignore`) |
-| User config directory | `credentials.yaml` (the credential that the CLI stores for an access-token login), `schemas/` (user-level custom schemas), `config.yaml` (the key-value store of `speclink config`) | The CLI and the desktop app | No |
+| `specseal/config.yaml` | Workflow policy: `schema`, `locale`, `spec_locale`, `tdd`, `audit`, `worktree`, `context`, `rules`, `review`, `subagent_model` | The CLI and the desktop app; skills get the effective values through `specseal instructions` | Yes |
+| `.specseal.yaml` | The binding of this checkout: `tools`, `spec_dir`, `remote` | The CLI and the desktop app | Yes (it holds no credentials) |
+| `.specseal/` | Local work data: snapshots for archive and the quality stations, records of generated tool files, the read-only content snapshot of remote mode | The CLI and the desktop app | No (`specseal init` adds it to `.gitignore`) |
+| User config directory | `credentials.yaml` (the credential that the CLI stores for an access-token login), `schemas/` (user-level custom schemas), `config.yaml` (the key-value store of `specseal config`) | The CLI and the desktop app | No |
 | System keychain | Device-login credentials, and access tokens (PATs) that the desktop app stores | Shared by the CLI and the desktop app | No |
-| `SPECLINK_*` environment variables | Overrides for one run | The CLI and the Node SDK | No |
+| `SPECSEAL_*` environment variables | Overrides for one run | The CLI and the Node SDK | No |
 
 The user config directory is here:
 
-- macOS: `~/Library/Application Support/speclink/`
-- Linux: `$XDG_CONFIG_HOME/speclink/`, or `~/.config/speclink/` when `XDG_CONFIG_HOME` is not set
-- Windows: `%USERPROFILE%\AppData\Roaming\speclink\`
+- macOS: `~/Library/Application Support/specseal/`
+- Linux: `$XDG_CONFIG_HOME/specseal/`, or `~/.config/specseal/` when `XDG_CONFIG_HOME` is not set
+- Windows: `%USERPROFILE%\AppData\Roaming\specseal\`
 
 The desktop app keeps its UI language and its server list in its own app folder. It keeps credentials in the system keychain. None of these go into the project.
 
-In the desktop app, Settings opens in settings mode. The left column lists the categories: General, Updates, CLI, and Servers under Application, and About Speclink under About. The General and CLI pages keep their values on this computer. The Servers page manages the list of server connections.
+In the desktop app, Settings opens in settings mode. The left column lists the categories: General, Updates, CLI, and Servers under Application, and About Specseal under About. The General and CLI pages keep their values on this computer. The Servers page manages the list of server connections.
 
 ![Settings mode in the desktop app, with the category column on the left and the General page](assets/screenshots/en/desktop-settings.png)
 
 Use these three rules to place a new setting:
 
-- A setting that changes what the workflow produces (language, TDD, audit, the worktree flow) is **policy**. Put it in `speclink/config.yaml`, so the whole team reads the same values.
-- A setting that concerns only this checkout (AI tools, remote connection) goes in `.speclink.yaml`.
+- A setting that changes what the workflow produces (language, TDD, audit, the worktree flow) is **policy**. Put it in `specseal/config.yaml`, so the whole team reads the same values.
+- A setting that concerns only this checkout (AI tools, remote connection) goes in `.specseal.yaml`.
 - A personal or CI difference uses an environment variable and changes no file.
 
-`speclink config` and `speclink workflow-config` are different commands. `speclink config` manages generic keys in the user-level `config.yaml`, and no other Speclink command reads that file. Always use `speclink workflow-config` to change workflow policy.
+`specseal config` and `specseal workflow-config` are different commands. `specseal config` manages generic keys in the user-level `config.yaml`, and no other Specseal command reads that file. Always use `specseal workflow-config` to change workflow policy.
 
 ## <a id="resolution"></a>Resolution order
 
-Speclink checks the layers from top to bottom. The first layer with a value wins:
+Specseal checks the layers from top to bottom. The first layer with a value wins:
 
 | Order | Source | Notes |
 | --- | --- | --- |
-| 1 | `SPECLINK_LOCALE`, `SPECLINK_SPEC_LOCALE`, `SPECLINK_TDD`, `SPECLINK_AUDIT`, `SPECLINK_WORKTREE` | Boolean variables accept only `true` / `false` (any case). Speclink treats `1`, `yes`, and an empty value as unset and checks the next layer |
-| 2 | `speclink/config.yaml` | The project values |
+| 1 | `SPECSEAL_LOCALE`, `SPECSEAL_SPEC_LOCALE`, `SPECSEAL_TDD`, `SPECSEAL_AUDIT`, `SPECSEAL_WORKTREE` | Boolean variables accept only `true` / `false` (any case). Specseal treats `1`, `yes`, and an empty value as unset and checks the next layer |
+| 2 | `specseal/config.yaml` | The project values |
 | 3 | Built-in defaults | `locale` and `spec_locale` are English. `tdd`, `audit`, and `worktree` are off. `schema` is `spec-driven` |
 
 Three more points:
 
-- Policy keys in `.speclink.yaml` (`locale`, `tdd`, and so on) have no effect and show no warning. Move them to `speclink/config.yaml` with the same values.
+- Policy keys in `.specseal.yaml` (`locale`, `tdd`, and so on) have no effect and show no warning. Move them to `specseal/config.yaml` with the same values.
 - Environment variables affect only the CLI and the Node SDK on your machine. In remote mode, the server makes the instructions from the team policy, so a local variable cannot override team policy.
-- Only the `worktree` key in `speclink/config.yaml` decides whether the two worktree skills exist. `SPECLINK_WORKTREE` does not change skill files.
+- Only the `worktree` key in `specseal/config.yaml` decides whether the two worktree skills exist. `SPECSEAL_WORKTREE` does not change skill files.
 
 The remote connection has two more orders:
 
-- **Connection URL**: `SPECLINK_STORE_URL` comes first, then `remote.url` in `.speclink.yaml`. Only a `remote:` section in `.speclink.yaml` turns on remote mode. `SPECLINK_STORE_URL` never turns a local project into a remote one. If the `remote:` section exists but neither source gives a URL, the command fails. It does not fall back to local mode.
-- **Credentials**: Speclink checks `SPECLINK_TOKEN`, then the device login in the keychain, then an access token in the keychain, then the user-level `credentials.yaml`. Credentials are keyed by the server origin (`scheme://host:port`), so all projects on one server share one login. `speclink auth status` shows which layer it uses.
+- **Connection URL**: `SPECSEAL_STORE_URL` comes first, then `remote.url` in `.specseal.yaml`. Only a `remote:` section in `.specseal.yaml` turns on remote mode. `SPECSEAL_STORE_URL` never turns a local project into a remote one. If the `remote:` section exists but neither source gives a URL, the command fails. It does not fall back to local mode.
+- **Credentials**: Specseal checks `SPECSEAL_TOKEN`, then the device login in the keychain, then an access token in the keychain, then the user-level `credentials.yaml`. Credentials are keyed by the server origin (`scheme://host:port`), so all projects on one server share one login. `specseal auth status` shows which layer it uses.
 
 ## <a id="workflow-config"></a>Change workflow policy
 
-Use `speclink workflow-config`. In local mode it changes `speclink/config.yaml`. In remote mode it changes the copy on the server.
+Use `specseal workflow-config`. In local mode it changes `specseal/config.yaml`. In remote mode it changes the copy on the server.
 
 | Subcommand | What it does |
 | --- | --- |
@@ -77,50 +77,50 @@ Write rules:
 - `tdd`, `audit`, and `worktree` accept only `true` / `false`. A `false` value (or an empty `locale`) removes the line, so the default applies again.
 - All write subcommands accept `--dry-run`. It prints the diff and writes nothing. The diff compares the old and new text line by line. Only the lines that are removed, added, or moved get `-` or `+`. The other lines in the changed range show as context, also when they are between two changes. Up to three unchanged lines before and after that range are also shown.
 - A `review` write replaces the whole `review` block. `extend` writes no `baseline` key, an empty list removes its key, and a block with nothing left is removed. Comments inside the `review` block are not kept.
-- After a `review` or `subagent-model` write, the command checks the skill files in your local project. If they are older than the engine, the write still succeeds, but stderr shows a warning that tells you to run `speclink update`. An older skill may not apply the review rules or the sub-agent model.
+- After a `review` or `subagent-model` write, the command checks the skill files in your local project. If they are older than the engine, the write still succeeds, but stderr shows a warning that tells you to run `specseal update`. An older skill may not apply the review rules or the sub-agent model.
 - The `review` block is strict. An unknown key (a typo such as `critcal`), a `baseline` other than `extend` or `replace`, or a list entry that is not a string makes the file unparseable. Every command that reads the file then fails and names the key, until you correct it.
 - A `subagent-model` write replaces the whole `subagent_model` block. A station or a list with nothing left is removed, and a block with nothing left is removed. Tool names are written in alphabetical order. Comments inside the block are not kept. A write that changes nothing (for example, removing a setting that is not there) leaves the file as it is and prints `unchanged`.
 - The `subagent_model` block is strict in the same way. An unknown key (a typo such as `reveiw`), a tool name that is not kebab-case or that appears twice in one map, or a value that is not a string makes the file unparseable. Model names are not checked: when a tool does not know a name, the quality station stops at the step that sends its sub-agents and shows the tool's error.
 - A write changes only the target lines. All other content and comments stay as they are. If the file cannot be parsed, reads and writes both fail, so your content stays safe.
-- In local mode, a `worktree` change also adds or removes the two worktree skills. You cannot change `worktree` from `true` to `false` while a worktree is still open. The command lists those worktrees. Close them with `speclink-worktree-merge` first.
+- In local mode, a `worktree` change also adds or removes the two worktree skills. You cannot change `worktree` from `true` to `false` while a worktree is still open. The command lists those worktrees. Close them with `specseal-worktree-merge` first.
 - In remote mode, a write fails if another person writes at the same time. Run the command again; it never overwrites the other write. The command also fails when you are offline or your credential is not valid. Nothing is queued.
 
 ```bash
-speclink workflow-config set tdd true --dry-run   # look at the diff first
-speclink workflow-config set tdd true             # then write
-cat CONTEXT.md | speclink workflow-config context --stdin
+specseal workflow-config set tdd true --dry-run   # look at the diff first
+specseal workflow-config set tdd true             # then write
+cat CONTEXT.md | specseal workflow-config context --stdin
 ```
 
-Run the first line in a project right after `speclink init`. **Expected output**:
+Run the first line in a project right after `specseal init`. **Expected output**:
 
 ```text
---- a/speclink/config.yaml
-+++ b/speclink/config.yaml
+--- a/specseal/config.yaml
++++ b/specseal/config.yaml
 @@ -1,5 +1,7 @@
  schema: spec-driven
  
 +tdd: true
 +
  # Workflow policy (optional)
- # Personal/CI overrides: SPECLINK_LOCALE, SPECLINK_SPEC_LOCALE, SPECLINK_TDD, SPECLINK_AUDIT, SPECLINK_WORKTREE
+ # Personal/CI overrides: SPECSEAL_LOCALE, SPECSEAL_SPEC_LOCALE, SPECSEAL_TDD, SPECSEAL_AUDIT, SPECSEAL_WORKTREE
  #
 ```
 
 `workflow-config set` does not accept `schema`. To change the schema, use one of these:
 
-- Edit the `schema:` line in `speclink/config.yaml`.
-- Run `speclink schema init <name> --default`. It makes a new custom schema and sets it as the project default.
+- Edit the `schema:` line in `specseal/config.yaml`.
+- Run `specseal schema init <name> --default`. It makes a new custom schema and sets it as the project default.
 - Use the Workflow page in **Project Settings** of the desktop app.
 
-**Project Settings** in the desktop app changes the same file with the same rules. Its **Quality gates › Sub-agent models** page changes the same `subagent_model` block. The built-in `speclink-config` skill collects `context` and `rules` from your code. It shows you the diff and writes only after you approve. It shows all policy fields, `worktree` included, in one table with their current values, and asks only whether you want to change any of them. Review rules are optional: you can leave them not set, add them to the built-in checks (`extend`), or use them in place of the built-in checks (`replace`). You can give the skill a list of reminders, pasted or as a file path. For each reminder, it decides whether it goes into a review rule, a rule for one artifact (`rules`), or neither, and tells you why. It takes review rules only from you, never from your code.
+**Project Settings** in the desktop app changes the same file with the same rules. Its **Quality gates › Sub-agent models** page changes the same `subagent_model` block. The built-in `specseal-config` skill collects `context` and `rules` from your code. It shows you the diff and writes only after you approve. It shows all policy fields, `worktree` included, in one table with their current values, and asks only whether you want to change any of them. Review rules are optional: you can leave them not set, add them to the built-in checks (`extend`), or use them in place of the built-in checks (`replace`). You can give the skill a list of reminders, pasted or as a file path. For each reminder, it decides whether it goes into a review rule, a rule for one artifact (`rules`), or neither, and tells you why. It takes review rules only from you, never from your code.
 
-The review station applies the `review` block only with a CLI and skill files of this version or later. Run `speclink update` after you upgrade. An older CLI skips the block.
+The review station applies the `review` block only with a CLI and skill files of this version or later. Run `specseal update` after you upgrade. An older CLI skips the block.
 
-The review and verify stations read `subagent_model` when they run, through `speclink workflow-config show --json`. A change to it takes effect without `speclink update`, but skill files from an older version do not read it: run `speclink update` after you upgrade. When a tool cannot give its sub-agents a model, the station uses the main conversation's model and says so. Codex can do it only when `expose_spawn_agent_model_overrides = true` is set in `~/.codex/config.toml`.
+The review and verify stations read `subagent_model` when they run, through `specseal workflow-config show --json`. A change to it takes effect without `specseal update`, but skill files from an older version do not read it: run `specseal update` after you upgrade. When a tool cannot give its sub-agents a model, the station uses the main conversation's model and says so. Codex can do it only when `expose_spawn_agent_model_overrides = true` is set in `~/.codex/config.toml`.
 
 ## <a id="tools"></a>AI tools and custom tools
 
-The `tools` list in `.speclink.yaml` decides which AI tools get skill files:
+The `tools` list in `.specseal.yaml` decides which AI tools get skill files:
 
 | Value | Skill file location |
 | --- | --- |
@@ -131,11 +131,11 @@ The `tools` list in `.speclink.yaml` decides which AI tools get skill files:
 | `cursor` | `.cursor/skills/` |
 | A custom tool descriptor | The `skills_dir` of the descriptor |
 
-GitHub Copilot also reads `.claude/skills/` and `.agents/skills/`, but it reads `.github/skills/` first. Thus, when you select `copilot`, Copilot uses the skills that Speclink writes for it. pi also reads `.agents/skills/`, but it reads `.pi/skills/` first and keeps the first skill that it finds for each name. Thus, if you select both `codex` and `pi`, pi shows one warning for each skill with the same name when it starts, and it uses the pi version. pi reads project skills only in a trusted project. Cursor also reads `.agents/skills/`, `.claude/skills/`, and `.codex/skills/`.
+GitHub Copilot also reads `.claude/skills/` and `.agents/skills/`, but it reads `.github/skills/` first. Thus, when you select `copilot`, Copilot uses the skills that Specseal writes for it. pi also reads `.agents/skills/`, but it reads `.pi/skills/` first and keeps the first skill that it finds for each name. Thus, if you select both `codex` and `pi`, pi shows one warning for each skill with the same name when it starts, and it uses the pi version. pi reads project skills only in a trusted project. Cursor also reads `.agents/skills/`, `.claude/skills/`, and `.codex/skills/`.
 
-After you change `tools`, run `speclink update`. A new tool gets its skill files. For a tool that you remove, Speclink deletes its `speclink-*` skill directories and any directory that becomes empty. When you select built-in tools on the **AI tools** page of **Project Settings** in the desktop app, the app does the same sync.
+After you change `tools`, run `specseal update`. A new tool gets its skill files. For a tool that you remove, Specseal deletes its `specseal-*` skill directories and any directory that becomes empty. When you select built-in tools on the **AI tools** page of **Project Settings** in the desktop app, the app does the same sync.
 
-After you upgrade to a version that supports pi and Cursor, if `tools` does not list `pi` or `cursor`, the first sync deletes the directories whose names start with `speclink-` under `.pi/skills/` and `.cursor/skills/`, as it does for any tool that you remove. This includes directories that you put there by hand. To keep them, add `pi` or `cursor` to `tools`.
+After you upgrade to a version that supports pi and Cursor, if `tools` does not list `pi` or `cursor`, the first sync deletes the directories whose names start with `specseal-` under `.pi/skills/` and `.cursor/skills/`, as it does for any tool that you remove. This includes directories that you put there by hand. To keep them, add `pi` or `cursor` to `tools`.
 
 The skills directory of a selected tool cannot share one directory with another tool through a symlink (for example, `.cursor/skills` linked to `.claude/skills`). The two tools would overwrite or delete each other's skills, so the sync stops with a one-line error before it writes any file. Remove the link, or deselect one of the tools. A symlink to a shared folder outside the project is not affected.
 
@@ -153,27 +153,27 @@ tools:
 | --- | --- | --- |
 | `name` | Yes | kebab-case, 2–50 characters of `a-z`, `0-9`, `-`. It cannot be `claude`, `codex`, `agents`, `copilot`, `pi`, or `cursor` |
 | `skills_dir` | Yes | A relative path inside the project root. It cannot leave the project, cannot be the project root itself, and cannot be `.claude/skills`, `.agents/skills`, `.github/skills`, `.pi/skills`, or `.cursor/skills` (in any letter case) |
-| `invocation` | No | `cli` (default): skills say "run `speclink <verb>`". `tool-call`: skills say "call the speclink tool with an argv array" |
-| `instructions_file` | No, deprecated | Speclink writes nothing to it. `speclink update` uses it only to remove an old `SPECLINK` block. If you keep it, stderr shows a one-line deprecation notice |
+| `invocation` | No | `cli` (default): skills say "run `specseal <verb>`". `tool-call`: skills say "call the specseal tool with an argv array" |
+| `instructions_file` | No, deprecated | Specseal writes nothing to it. `specseal update` uses it only to remove an old `SPECSEAL` block. If you keep it, stderr shows a one-line deprecation notice |
 
-If a field is not valid, the command prints one error line that names the field and exits non-zero. Skills for a descriptor have no `/speclink-` slash commands and do not mention plan mode. The built-in claude, codex, copilot, pi, and cursor output does not change.
+If a field is not valid, the command prints one error line that names the field and exits non-zero. Skills for a descriptor have no `/specseal-` slash commands and do not mention plan mode. The built-in claude, codex, copilot, pi, and cursor output does not change.
 
-Old versions accepted a descriptor named `copilot`, or a descriptor with `skills_dir` set to `.github/skills`. After you upgrade, `speclink update` rejects such a descriptor and exits non-zero. Remove the descriptor and add `copilot` to `tools`. The same applies to a descriptor named `pi` or `cursor`, or a descriptor with `skills_dir` set to `.pi/skills` or `.cursor/skills`: remove the descriptor and add `pi` or `cursor` to `tools`.
+Old versions accepted a descriptor named `copilot`, or a descriptor with `skills_dir` set to `.github/skills`. After you upgrade, `specseal update` rejects such a descriptor and exits non-zero. Remove the descriptor and add `copilot` to `tools`. The same applies to a descriptor named `pi` or `cursor`, or a descriptor with `skills_dir` set to `.pi/skills` or `.cursor/skills`: remove the descriptor and add `pi` or `cursor` to `tools`.
 
 ## <a id="remote"></a>Remote mode
 
 When you connect to a remote, each setting keeps its layer. Only the location of the specs moves to the server:
 
-- `speclink link <url> --repo <name>` writes a `remote:` section (`url` and `repo`) into `.speclink.yaml`. `speclink unlink` removes it. The section turns on remote mode.
-- Workflow policy lives on the server. `speclink workflow-config` reads and writes the server copy, and the local `speclink/config.yaml` has no effect.
-- `.speclink/context/` is a read-only snapshot of the remote content. Do not edit it. The next command finds the edit and refuses to run. Run `speclink instructions` again to refresh it.
-- No credential goes into a project file, so you can safely commit `.speclink.yaml`.
+- `specseal link <url> --repo <name>` writes a `remote:` section (`url` and `repo`) into `.specseal.yaml`. `specseal unlink` removes it. The section turns on remote mode.
+- Workflow policy lives on the server. `specseal workflow-config` reads and writes the server copy, and the local `specseal/config.yaml` has no effect.
+- `.specseal/context/` is a read-only snapshot of the remote content. Do not edit it. The next command finds the edit and refuses to run. Run `specseal instructions` again to refresh it.
+- No credential goes into a project file, so you can safely commit `.specseal.yaml`.
 
-[Remote Getting Started](remote-getting-started.md) shows how to start a server, sign in, and recover from a lost connection. It also lists the environment variables for the server, such as `SPECLINK_PORT`.
+[Remote Getting Started](remote-getting-started.md) shows how to start a server, sign in, and recover from a lost connection. It also lists the environment variables for the server, such as `SPECSEAL_PORT`.
 
 ## <a id="reference"></a>Key reference
 
-### `speclink/config.yaml`
+### `specseal/config.yaml`
 
 | Key | Values | Default | Use |
 | --- | --- | --- | --- |
@@ -187,16 +187,16 @@ When you connect to a remote, each setting keeps its layer. Only the location of
 | `rules` | Artifact id → list of rules | None | Writing rules for each artifact |
 | `review.baseline` | `extend`, `replace` | `extend` | Whether the review station checks its 12 built-in code smells plus the project rules (`extend`), or the project rules only (`replace`) |
 | `review.critical`, `review.warning`, `review.suggestion` | Lists of rules | None | Project review rules for the Standards axis of the review station. The list a rule is in sets the severity of a violation |
-| `subagent_model.review.<tool>`, `subagent_model.verify.<tool>` | A model name | None (the main conversation's model) | The model of the review station's two sub-agents, or of the verify station's sub-agent, when the station runs in that AI tool. `/speclink-quality` uses the same two values. Claude Code takes `sonnet`, `opus`, `haiku`, and `fable` |
-| `subagent_model.choices.<tool>` | A list of model names | None | The project's custom model list for one AI tool. `speclink workflow-config show --json` returns it together with the built-in list |
+| `subagent_model.review.<tool>`, `subagent_model.verify.<tool>` | A model name | None (the main conversation's model) | The model of the review station's two sub-agents, or of the verify station's sub-agent, when the station runs in that AI tool. `/specseal-quality` uses the same two values. Claude Code takes `sonnet`, `opus`, `haiku`, and `fable` |
+| `subagent_model.choices.<tool>` | A list of model names | None | The project's custom model list for one AI tool. `specseal workflow-config show --json` returns it together with the built-in list |
 
-Speclink ignores other keys.
+Specseal ignores other keys.
 
-### `.speclink.yaml`
+### `.specseal.yaml`
 
 | Key | Values | Default | Use |
 | --- | --- | --- | --- |
-| `spec_dir` | A relative path | `speclink` | The spec directory, relative to the project root. Without it, a project that an older version created with only `openspec/` keeps reading `openspec/` until `speclink update` moves it to `speclink/`. The move and the OpenSpec import never write this key. A project that sets this key is never moved automatically |
+| `spec_dir` | A relative path | `specseal` | The spec directory, relative to the project root. Without it, a project that an older version created with only `openspec/` keeps reading `openspec/` until `specseal update` moves it to `specseal/`. The move and the OpenSpec import never write this key. A project that sets this key is never moved automatically |
 | `tools` | A list | None | AI tools that get skill files: `claude`, `codex`, `copilot`, `pi`, `cursor`, or custom tool descriptors |
 | `remote.url` | A URL | None | The connection URL of the remote project (project-scoped URL) |
 | `remote.repo` | A name | None | The registered name of this repo in the remote project. A project with one repo can leave it out |
@@ -205,10 +205,10 @@ Speclink ignores other keys.
 
 | Variable | Values | Effect |
 | --- | --- | --- |
-| `SPECLINK_LOCALE` | A language code | Overrides `locale` |
-| `SPECLINK_SPEC_LOCALE` | A language code or `auto` | Overrides `spec_locale` |
-| `SPECLINK_TDD` | `true` / `false` | Overrides `tdd` |
-| `SPECLINK_AUDIT` | `true` / `false` | Overrides `audit` |
-| `SPECLINK_WORKTREE` | `true` / `false` | Overrides `worktree`. It does not change which skill files exist |
-| `SPECLINK_STORE_URL` | A URL | Replaces `remote.url`. It never turns a local project into a remote one |
-| `SPECLINK_TOKEN` | An access token | The remote credential. It comes before the keychain and `credentials.yaml`, so it suits CI |
+| `SPECSEAL_LOCALE` | A language code | Overrides `locale` |
+| `SPECSEAL_SPEC_LOCALE` | A language code or `auto` | Overrides `spec_locale` |
+| `SPECSEAL_TDD` | `true` / `false` | Overrides `tdd` |
+| `SPECSEAL_AUDIT` | `true` / `false` | Overrides `audit` |
+| `SPECSEAL_WORKTREE` | `true` / `false` | Overrides `worktree`. It does not change which skill files exist |
+| `SPECSEAL_STORE_URL` | A URL | Replaces `remote.url`. It never turns a local project into a remote one |
+| `SPECSEAL_TOKEN` | An access token | The remote credential. It comes before the keychain and `credentials.yaml`, so it suits CI |

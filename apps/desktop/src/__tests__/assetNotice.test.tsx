@@ -1,11 +1,11 @@
-// 技能檔提示卡與確認框（desktop-app spec「指令檔過期提示」；desktop-notice-relocation
-// design D1）：卡在專案欄底部、三態文案帶檔案數、整張可點開框；框內三列資訊、按鈕依
-// 狀態（過期／缺失：稍後、保留現狀、更新／安裝；較新：保留現狀、更新 Speclink）；更新
-// 失敗的錯誤留在內容卡下方可重試。原 assetUpdatePrompt.test.tsx 的案例逐條搬到這裡。
+// 技能档提示卡与确认框（desktop-app spec「指令档过期提示」；desktop-notice-relocation
+// design D1）：卡在项目栏底部、三态文案带文档数、整张可点开框；框内三列信息、按钮依
+// 状态（过期／缺失：稍后、保留现状、更新／安装；较新：保留现状、更新 Specseal）；更新
+// 失败的错误留在内容卡下方可重试。原 assetUpdatePrompt.test.tsx 的案例逐条搬到这里。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
-import { I18nProvider, SEMANTIC_TONE } from "@speclink/ui";
+import { I18nProvider, SEMANTIC_TONE } from "@specseal/ui";
 
 import type { AssetPromptState } from "../assetPrompt";
 import { AssetNoticeCard } from "../components/AssetNoticeCard";
@@ -13,7 +13,7 @@ import { AssetNoticeDialog, type AssetNoticeDialogProps } from "../components/As
 import { APP_MESSAGES } from "../i18n/messages";
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
@@ -27,7 +27,7 @@ const STALE: AssetPromptState = { kind: "stale", fileCount: 3, version: "v1.3.0"
 const MISSING: AssetPromptState = { kind: "missing", fileCount: 12, version: "v1.3.0", projectVersion: null, migration: NONE };
 const NEWER: AssetPromptState = { kind: "newer", fileCount: 2, version: "v1.3.0", projectVersion: "v1.4.0", migration: NONE };
 
-// remote 專案：基準是 Server 提供的技能（version＝Server 的版本）。
+// remote 项目：基准是 Server 提供的技能（version＝Server 的版本）。
 const REMOTE_STALE: AssetPromptState = {
   kind: "stale",
   fileCount: 1,
@@ -43,10 +43,10 @@ const button = (name: string) => screen.getByRole("button", { name }) as HTMLBut
 
 describe("AssetNoticeCard", () => {
   it.each([
-    ["過期", STALE, "技能檔是舊版", "更新會改寫 3 個檔案"],
-    ["缺失", MISSING, "還沒安裝技能檔", "安裝會新建 12 個檔案"],
-    ["較新", NEWER, "技能檔比 Speclink 新", "更新 Speclink 才能安全改寫"],
-  ])("%s態：一句標題、一句說明（代入檔案數）", (_label, prompt, title, desc) => {
+    ["过期", STALE, "技能档是旧版", "更新会改写 3 个文档"],
+    ["缺失", MISSING, "还没安装技能档", "安装会新建 12 个文档"],
+    ["较新", NEWER, "技能档比 Specseal 新", "更新 Specseal 才能安全改写"],
+  ])("%s态：一句标题、一句说明（代入文档数）", (_label, prompt, title, desc) => {
     render(<AssetNoticeCard prompt={prompt} onOpen={vi.fn()} />);
     const card = screen.getByTestId("asset-notice-card");
     expect(card.getAttribute("aria-label")).toBe(title);
@@ -54,10 +54,10 @@ describe("AssetNoticeCard", () => {
     expect(card.textContent).toContain(desc);
   });
 
-  it("整張可點：呼叫 onOpen；琥珀淡底、琥珀圖示、非 dialog 語意", () => {
+  it("整张可点：调用 onOpen；琥珀淡底、琥珀图标、非 dialog 语意", () => {
     const onOpen = vi.fn();
     render(<AssetNoticeCard prompt={STALE} onOpen={onOpen} />);
-    const card = screen.getByRole("button", { name: "技能檔是舊版" });
+    const card = screen.getByRole("button", { name: "技能档是旧版" });
     fireEvent.click(card);
     expect(onOpen).toHaveBeenCalledTimes(1);
     expect(card.className).toContain("bg-status-warning/10");
@@ -66,20 +66,20 @@ describe("AssetNoticeCard", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("remote 專案的過期態：說的是和 Server 不同，不說舊版", () => {
+  it("remote 项目的过期态：说的是和 Server 不同，不说旧版", () => {
     render(<AssetNoticeCard prompt={REMOTE_STALE} onOpen={vi.fn()} />);
     const card = screen.getByTestId("asset-notice-card");
-    expect(card.getAttribute("aria-label")).toBe("技能檔和 Server 的不同");
-    expect(card.textContent).toContain("更新會改寫 1 個檔案");
-    expect(card.textContent).not.toContain("舊版");
+    expect(card.getAttribute("aria-label")).toBe("技能档和 Server 的不同");
+    expect(card.textContent).toContain("更新会改写 1 个文档");
+    expect(card.textContent).not.toContain("旧版");
   });
 
-  it("remote 專案的缺失態：和本機專案同一句", () => {
+  it("remote 项目的缺失态：和本机项目同一句", () => {
     render(<AssetNoticeCard prompt={REMOTE_MISSING} onOpen={vi.fn()} />);
-    expect(screen.getByTestId("asset-notice-card").textContent).toContain("還沒安裝技能檔");
+    expect(screen.getByTestId("asset-notice-card").textContent).toContain("还没安装技能档");
   });
 
-  it("無提示時不渲染任何內容", () => {
+  it("无提示时不渲染任何内容", () => {
     render(<AssetNoticeCard prompt={null} onOpen={vi.fn()} />);
     expect(screen.queryByTestId("asset-notice-card")).toBeNull();
   });
@@ -107,103 +107,103 @@ const rowValues = () =>
     .map((el) => el.textContent);
 
 describe("AssetNoticeDialog", () => {
-  it("框內三列：這個專案的技能檔版本、你的 Speclink 版本、會改寫的檔案數——前兩列同一套技能檔版號", () => {
+  it("框内三列：这个项目的技能档版本、你的 Specseal 版本、会改写的文档数——前两列同一套技能档版号", () => {
     render(<AssetNoticeDialog {...dialogProps()} />);
     const rows = screen.getByTestId("asset-notice-rows");
-    for (const label of ["這個專案的技能檔版本", "你的 Speclink 版本", "會改寫的檔案數"]) {
+    for (const label of ["这个项目的技能档版本", "你的 Specseal 版本", "会改写的文档数"]) {
       expect(rows.textContent).toContain(label);
     }
-    // 第二列是 Speclink 這版帶的技能檔版號（探測的 currentVersion），不是 app 發版號：兩列比得出新舊。
+    // 第二列是 Specseal 这版带的技能档版号（探测的 currentVersion），不是 app 发版号：两列比得出新旧。
     expect(rowValues()).toEqual(["v0.9.0", "v1.3.0", "3"]);
   });
 
-  it("從未安裝：專案技能檔版本顯示「—」", () => {
+  it("从未安装：项目技能档版本显示「—」", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: MISSING })} />);
     expect(rowValues()).toEqual(["—", "v1.3.0", "12"]);
   });
 
-  it("較新態：第三列改為會被換回舊內容的檔案數", () => {
+  it("较新态：第三列改为会被换回旧内容的文档数", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: NEWER })} />);
     const rows = screen.getByTestId("asset-notice-rows");
-    expect(rows.textContent).toContain("會被換回舊內容的檔案數");
-    expect(rows.textContent).not.toContain("會改寫的檔案數");
+    expect(rows.textContent).toContain("会被换回旧内容的文档数");
+    expect(rows.textContent).not.toContain("会改写的文档数");
     expect(rowValues()).toEqual(["v1.4.0", "v1.3.0", "2"]);
   });
 
   it.each([
-    ["過期", STALE, ["稍後", "保留現狀", "更新技能檔"]],
-    ["缺失", MISSING, ["稍後", "保留現狀", "安裝技能檔"]],
-    ["較新", NEWER, ["保留現狀", "更新 Speclink"]],
-  ])("%s態的按鈕依序", (_label, prompt, labels) => {
+    ["过期", STALE, ["稍后", "保留现状", "更新技能档"]],
+    ["缺失", MISSING, ["稍后", "保留现状", "安装技能档"]],
+    ["较新", NEWER, ["保留现状", "更新 Specseal"]],
+  ])("%s态的按钮依序", (_label, prompt, labels) => {
     render(<AssetNoticeDialog {...dialogProps({ prompt })} />);
     const footer = screen.getByTestId("asset-notice-actions");
     expect(within(footer).getAllByRole("button").map((b) => b.textContent)).toEqual(labels);
   });
 
-  it("較新態：標題與說明以「app 本體是舊版」語意呈現，無任何改寫動作", () => {
+  it("较新态：标题与说明以「app 本体是旧版」语意呈现，无任何改写动作", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: NEWER })} />);
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("比你的 Speclink 新");
-    expect(dialog.textContent).toContain("你的 Speclink 是舊版");
+    expect(dialog.textContent).toContain("比你的 Specseal 新");
+    expect(dialog.textContent).toContain("你的 Specseal 是旧版");
     expect(dialog.querySelector("svg")?.getAttribute("class")).toContain(SEMANTIC_TONE.warning);
-    expect(screen.queryByRole("button", { name: "更新技能檔" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "安裝技能檔" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "更新技能档" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "安装技能档" })).toBeNull();
   });
 
-  it("「稍後」只關框：呼叫 onOpenChange(false)，不 dismiss、不 apply", () => {
+  it("「稍后」只关框：调用 onOpenChange(false)，不 dismiss、不 apply", () => {
     const p = dialogProps();
     render(<AssetNoticeDialog {...p} />);
-    fireEvent.click(button("稍後"));
+    fireEvent.click(button("稍后"));
     expect(p.onOpenChange).toHaveBeenCalledWith(false);
     expect(p.onDismiss).not.toHaveBeenCalled();
     expect(p.onApply).not.toHaveBeenCalled();
   });
 
-  it("「保留現狀」呼叫 onDismiss 並關框，不觸發再生", () => {
+  it("「保留现状」调用 onDismiss 并关框，不触发再生", () => {
     const p = dialogProps();
     render(<AssetNoticeDialog {...p} />);
-    fireEvent.click(button("保留現狀"));
+    fireEvent.click(button("保留现状"));
     expect(p.onDismiss).toHaveBeenCalledTimes(1);
     expect(p.onOpenChange).toHaveBeenLastCalledWith(false);
     expect(p.onApply).not.toHaveBeenCalled();
   });
 
-  it("「更新技能檔」呼叫 onApply；框不自行關閉（成功由提示消失收合、失敗留在框內）", () => {
+  it("「更新技能档」调用 onApply；框不自行关闭（成功由提示消失收合、失败留在框内）", () => {
     const p = dialogProps();
     render(<AssetNoticeDialog {...p} />);
-    fireEvent.click(button("更新技能檔"));
+    fireEvent.click(button("更新技能档"));
     expect(p.onApply).toHaveBeenCalledTimes(1);
     expect(p.onOpenChange).not.toHaveBeenCalled();
     expect(p.onDismiss).not.toHaveBeenCalled();
   });
 
-  it("缺失態「安裝技能檔」同樣走 onApply（從未安裝的專案不以更新稱之）", () => {
+  it("缺失态「安装技能档」同样走 onApply（从未安装的项目不以更新称之）", () => {
     const p = dialogProps({ prompt: MISSING });
     render(<AssetNoticeDialog {...p} />);
-    expect(screen.queryByRole("button", { name: "更新技能檔" })).toBeNull();
-    fireEvent.click(button("安裝技能檔"));
+    expect(screen.queryByRole("button", { name: "更新技能档" })).toBeNull();
+    fireEvent.click(button("安装技能档"));
     expect(p.onApply).toHaveBeenCalledTimes(1);
   });
 
-  it("較新態「更新 Speclink」呼叫 onOpenSettingsUpdate 並關框，不觸發再生", () => {
+  it("较新态「更新 Specseal」调用 onOpenSettingsUpdate 并关框，不触发再生", () => {
     const p = dialogProps({ prompt: NEWER });
     render(<AssetNoticeDialog {...p} />);
-    fireEvent.click(button("更新 Speclink"));
+    fireEvent.click(button("更新 Specseal"));
     expect(p.onOpenSettingsUpdate).toHaveBeenCalledTimes(1);
     expect(p.onOpenChange).toHaveBeenLastCalledWith(false);
     expect(p.onApply).not.toHaveBeenCalled();
     expect(p.onDismiss).not.toHaveBeenCalled();
   });
 
-  it("busy：全部動作鍵 disabled，避免重複觸發", () => {
+  it("busy：全部动作键 disabled，避免重复触发", () => {
     const p = dialogProps({ busy: true });
     render(<AssetNoticeDialog {...p} />);
-    for (const name of ["稍後", "保留現狀", "更新技能檔"]) expect(button(name).disabled).toBe(true);
-    fireEvent.click(button("更新技能檔"));
+    for (const name of ["稍后", "保留现状", "更新技能档"]) expect(button(name).disabled).toBe(true);
+    fireEvent.click(button("更新技能档"));
     expect(p.onApply).not.toHaveBeenCalled();
   });
 
-  it("error：錯誤顯示於內容卡下方、紅字；主動作仍可重試", () => {
+  it("error：错误显示于内容卡下方、红字；主动作仍可重试", () => {
     const p = dialogProps({ error: "CLAUDE.md: permission denied" });
     render(<AssetNoticeDialog {...p} />);
     const rows = screen.getByTestId("asset-notice-rows");
@@ -213,75 +213,75 @@ describe("AssetNoticeDialog", () => {
     expect(rows.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const actions = screen.getByTestId("asset-notice-actions");
     expect(alert.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(button("更新技能檔"));
+    fireEvent.click(button("更新技能档"));
     expect(p.onApply).toHaveBeenCalledTimes(1);
   });
 
-  it("無提示時不渲染框", () => {
+  it("无提示时不渲染框", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: null })} />);
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });
 
-// spec「指令檔過期提示」的 remote 情境：確認框多一列「Server 提供的技能版本」；app 比 Server
-// 舊時多一句說明與「更新 Speclink」，安裝或更新仍然可用。
-describe("AssetNoticeDialog：remote 專案", () => {
-  it("四列：專案的技能檔版本、Server 提供的技能版本、你的 Speclink 版本、會改寫的檔案數", () => {
+// spec「指令档过期提示」的 remote 情境：确认框多一列「Server 提供的技能版本」；app 比 Server
+// 旧时多一句说明与「更新 Specseal」，安装或更新仍然可用。
+describe("AssetNoticeDialog：remote 项目", () => {
+  it("四列：项目的技能档版本、Server 提供的技能版本、你的 Specseal 版本、会改写的文档数", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: REMOTE_STALE })} />);
     const rows = screen.getByTestId("asset-notice-rows");
-    const labels = ["這個專案的技能檔版本", "Server 提供的技能版本", "你的 Speclink 版本", "會改寫的檔案數"];
+    const labels = ["这个项目的技能档版本", "Server 提供的技能版本", "你的 Specseal 版本", "会改写的文档数"];
     for (const label of labels) expect(rows.textContent).toContain(label);
     expect(rowValues()).toEqual(["v1.56.0", "v1.58.0", "v1.57.0", "1"]);
   });
 
-  it("本機專案沒有「Server 提供的技能版本」一列", () => {
+  it("本机项目没有「Server 提供的技能版本」一列", () => {
     render(<AssetNoticeDialog {...dialogProps()} />);
     expect(screen.getByTestId("asset-notice-rows").textContent).not.toContain("Server 提供的技能版本");
   });
 
-  it("標題與說明講的是 Server 提供的內容，不講「你的 Speclink 這一版」", () => {
+  it("标题与说明讲的是 Server 提供的内容，不讲「你的 Specseal 这一版」", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: REMOTE_STALE })} />);
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("這個專案的技能檔和 Server 提供的不同");
-    expect(dialog.textContent).toContain("換成 Server 提供的內容");
-    expect(dialog.textContent).not.toContain("你的 Speclink 這一版");
+    expect(dialog.textContent).toContain("这个项目的技能档和 Server 提供的不同");
+    expect(dialog.textContent).toContain("换成 Server 提供的内容");
+    expect(dialog.textContent).not.toContain("你的 Specseal 这一版");
   });
 
   it.each([
-    ["和 Server 不同", REMOTE_STALE, ["稍後", "保留現狀", "更新技能檔"]],
-    ["沒有技能檔", REMOTE_MISSING, ["稍後", "保留現狀", "安裝技能檔"]],
-    ["app 比 Server 舊", REMOTE_OLD_APP, ["稍後", "保留現狀", "更新 Speclink", "更新技能檔"]],
-  ])("%s的按鈕依序", (_label, prompt, labels) => {
+    ["和 Server 不同", REMOTE_STALE, ["稍后", "保留现状", "更新技能档"]],
+    ["没有技能档", REMOTE_MISSING, ["稍后", "保留现状", "安装技能档"]],
+    ["app 比 Server 旧", REMOTE_OLD_APP, ["稍后", "保留现状", "更新 Specseal", "更新技能档"]],
+  ])("%s的按钮依序", (_label, prompt, labels) => {
     render(<AssetNoticeDialog {...dialogProps({ prompt })} />);
     const footer = screen.getByTestId("asset-notice-actions");
     expect(within(footer).getAllByRole("button").map((b) => b.textContent)).toEqual(labels);
   });
 
-  it("沒有技能檔：專案版本顯示「—」，說明講安裝 Server 提供的技能檔", () => {
+  it("没有技能档：项目版本显示「—」，说明讲安装 Server 提供的技能档", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: REMOTE_MISSING })} />);
     expect(rowValues()).toEqual(["—", "v1.58.0", "v1.57.0", "19"]);
-    expect(screen.getByRole("alertdialog").textContent).toContain("Server 提供的技能檔");
+    expect(screen.getByRole("alertdialog").textContent).toContain("Server 提供的技能档");
   });
 
-  it("app 比 Server 舊：多一句說明；「更新 Speclink」開設定的更新頁，「更新技能檔」照常可用", () => {
+  it("app 比 Server 旧：多一句说明；「更新 Specseal」开设置的更新页，「更新技能档」照常可用", () => {
     const p = dialogProps({ prompt: REMOTE_OLD_APP });
     render(<AssetNoticeDialog {...p} />);
-    expect(screen.getByTestId("asset-notice-app-older").textContent).toContain("你的 Speclink 比這台 Server 舊");
-    fireEvent.click(button("更新 Speclink"));
+    expect(screen.getByTestId("asset-notice-app-older").textContent).toContain("你的 Specseal 比这台 Server 旧");
+    fireEvent.click(button("更新 Specseal"));
     expect(p.onOpenSettingsUpdate).toHaveBeenCalledTimes(1);
     expect(p.onOpenChange).toHaveBeenLastCalledWith(false);
     expect(p.onApply).not.toHaveBeenCalled();
-    fireEvent.click(button("更新技能檔"));
+    fireEvent.click(button("更新技能档"));
     expect(p.onApply).toHaveBeenCalledTimes(1);
   });
 
-  it("app 不比 Server 舊：沒有那句說明，也沒有「更新 Speclink」", () => {
+  it("app 不比 Server 旧：没有那句说明，也没有「更新 Specseal」", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: REMOTE_STALE })} />);
     expect(screen.queryByTestId("asset-notice-app-older")).toBeNull();
-    expect(screen.queryByRole("button", { name: "更新 Speclink" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "更新 Specseal" })).toBeNull();
   });
 
-  it("英文介面也有這一列與這句說明", () => {
+  it("英文接口也有这一列与这句说明", () => {
     rtlRender(
       <I18nProvider locale="en" messages={APP_MESSAGES}>
         <AssetNoticeDialog {...dialogProps({ prompt: REMOTE_OLD_APP })} />
@@ -292,7 +292,7 @@ describe("AssetNoticeDialog：remote 專案", () => {
   });
 });
 
-// --- 技能檔提示承載規格資料夾遷移（desktop-app spec「技能檔提示承載規格資料夾遷移」；
+// --- 技能档提示承载规格文档夹迁移（desktop-app spec「技能档提示承载规格文档夹迁移」；
 // desktop-spec-dir-migration design D2） ---
 
 const PENDING = { state: "pending", folder: "openspec", metaFiles: 4 } as const;
@@ -310,49 +310,49 @@ const MIGRATE: AssetPromptState = {
   migration: PENDING,
 };
 
-describe("AssetNoticeCard：規格資料夾遷移", () => {
-  it("技能檔不過期但待遷移：卡片照樣出現，寫明資料夾會改名", () => {
+describe("AssetNoticeCard：规格文档夹迁移", () => {
+  it("技能档不过期但待迁移：卡片照样出现，写明文档夹会改名", () => {
     render(<AssetNoticeCard prompt={MIGRATE} onOpen={vi.fn()} />);
     const card = screen.getByTestId("asset-notice-card");
-    expect(card.getAttribute("aria-label")).toBe("規格資料夾要改名");
-    expect(card.textContent).toContain("openspec/ 會改名為 speclink/");
+    expect(card.getAttribute("aria-label")).toBe("规格文档夹要改名");
+    expect(card.textContent).toContain("openspec/ 会改名为 specseal/");
   });
 
-  it("只剩舊檔名的資料檔：卡片寫檔案數", () => {
+  it("只剩旧文档名的数据档：卡片写文档数", () => {
     render(
       <AssetNoticeCard
-        prompt={{ ...MIGRATE, migration: { state: "pending", folder: "speclink", metaFiles: 2 } }}
+        prompt={{ ...MIGRATE, migration: { state: "pending", folder: "specseal", metaFiles: 2 } }}
         onOpen={vi.fn()}
       />,
     );
-    expect(screen.getByTestId("asset-notice-card").textContent).toContain("2 個變更資料檔要改名");
+    expect(screen.getByTestId("asset-notice-card").textContent).toContain("2 个变更数据档要改名");
   });
 
 });
 
-describe("AssetNoticeDialog：規格資料夾遷移", () => {
+describe("AssetNoticeDialog：规格文档夹迁移", () => {
   const migration = () => screen.getByTestId("asset-notice-migration").textContent ?? "";
 
-  it("待遷移：按下前寫明 openspec/ 會改名為 speclink/、資料檔數與不會 commit", () => {
+  it("待迁移：按下前写明 openspec/ 会改名为 specseal/、数据档数与不会 commit", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: { ...STALE, migration: PENDING } })} />);
-    expect(migration()).toContain("openspec/ 會改名為 speclink/");
-    expect(migration()).toContain("4 個變更資料檔會從 .openspec.yaml 改名為 .meta.yaml");
-    expect(migration()).toContain("不會幫你 commit");
+    expect(migration()).toContain("openspec/ 会改名为 specseal/");
+    expect(migration()).toContain("4 个变更数据档会从 .openspec.yaml 改名为 .meta.yaml");
+    expect(migration()).toContain("不会帮你 commit");
   });
 
-  it("暫緩：列出原因與 worktree 路徑，說明按更新只更新技能檔", () => {
+  it("暂缓：列出原因与 worktree 路径，说明按更新只更新技能档", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: { ...STALE, migration: DEFERRED } })} />);
     expect(migration()).toContain("/work/side");
-    expect(migration()).toContain("只更新技能檔，資料夾不動");
-    expect(migration()).not.toContain("會改名為 speclink/");
+    expect(migration()).toContain("只更新技能档，文档夹不动");
+    expect(migration()).not.toContain("会改名为 specseal/");
   });
 
   it.each([
-    ["linkedWorktree", "請在主目錄開啟這個專案"],
-    ["uncommitted", "openspec/ 有還沒 commit 的修改"],
-    ["symlinkedFolder", "符號連結"],
-    ["specFolderTaken", "已被其他檔案或資料夾使用"],
-  ] as const)("暫緩原因 %s 有自己的說明", (reason, text) => {
+    ["linkedWorktree", "请在主目录打开这个项目"],
+    ["uncommitted", "openspec/ 有还没 commit 的修改"],
+    ["symlinkedFolder", "符号链接"],
+    ["specFolderTaken", "已被其他文档或文档夹使用"],
+  ] as const)("暂缓原因 %s 有自己的说明", (reason, text) => {
     render(
       <AssetNoticeDialog
         {...dialogProps({ prompt: { ...STALE, migration: { ...DEFERRED, reason, worktrees: [] } } })}
@@ -361,51 +361,51 @@ describe("AssetNoticeDialog：規格資料夾遷移", () => {
     expect(migration()).toContain(text);
   });
 
-  it("沒有遷移時不顯示遷移段落", () => {
+  it("没有迁移时不显示迁移段落", () => {
     render(<AssetNoticeDialog {...dialogProps()} />);
     expect(screen.queryByTestId("asset-notice-migration")).toBeNull();
   });
 
-  it("技能檔不過期但待遷移：不顯示版本列，按鈕為稍後、保留現狀、更新規格資料夾", () => {
+  it("技能档不过期但待迁移：不显示版本列，按钮为稍后、保留现状、更新规格文档夹", () => {
     const p = dialogProps({ prompt: MIGRATE });
     render(<AssetNoticeDialog {...p} />);
-    expect(screen.getByRole("alertdialog").textContent).toContain("這個專案的規格資料夾要改名");
+    expect(screen.getByRole("alertdialog").textContent).toContain("这个项目的规格文档夹要改名");
     expect(screen.queryByTestId("asset-notice-rows")).toBeNull();
     const footer = screen.getByTestId("asset-notice-actions");
     expect(within(footer).getAllByRole("button").map((b) => b.textContent)).toEqual([
-      "稍後",
-      "保留現狀",
-      "更新規格資料夾",
+      "稍后",
+      "保留现状",
+      "更新规格文档夹",
     ]);
-    fireEvent.click(button("更新規格資料夾"));
+    fireEvent.click(button("更新规格文档夹"));
     expect(p.onApply).toHaveBeenCalledTimes(1);
   });
 
-  it("更新進行中按 Esc 不關框：完成態與錯誤都要留在框內", () => {
+  it("更新进行中按 Esc 不关框：完成态与错误都要留在框内", () => {
     const p = dialogProps({ prompt: { ...STALE, migration: PENDING }, busy: true });
     render(<AssetNoticeDialog {...p} />);
     fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
     expect(p.onOpenChange).not.toHaveBeenCalled();
   });
 
-  it("完成：顯示要 commit 的路徑與兩則提醒；提示已消失也照樣顯示", () => {
+  it("完成：显示要 commit 的路径与两则提醒；提示已消失也照样显示", () => {
     const p = dialogProps({ prompt: null, migrated: { movedFolder: true, renamed: 4 } });
     render(<AssetNoticeDialog {...p} />);
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("規格資料夾已改名");
-    expect(dialog.textContent).toContain("4 個變更資料檔已改名為 .meta.yaml");
-    expect(dialog.textContent).toContain("speclink/（新增）與 openspec/（刪除）");
-    expect(dialog.textContent).toContain("團隊成員要先升級 Speclink 再 pull");
-    expect(dialog.textContent).toContain("腳本、CI 設定與 .gitignore");
+    expect(dialog.textContent).toContain("规格文档夹已改名");
+    expect(dialog.textContent).toContain("4 个变更数据档已改名为 .meta.yaml");
+    expect(dialog.textContent).toContain("specseal/（添加）与 openspec/（删除）");
+    expect(dialog.textContent).toContain("团队成员要先升级 Specseal 再 pull");
+    expect(dialog.textContent).toContain("脚本、CI 设置与 .gitignore");
     fireEvent.click(button("知道了"));
     expect(p.onDone).toHaveBeenCalledTimes(1);
   });
 
-  it("完成（只改名舊檔名的資料檔）：只提醒 commit 改名的資料檔", () => {
+  it("完成（只改名旧文档名的数据档）：只提醒 commit 改名的数据档", () => {
     render(<AssetNoticeDialog {...dialogProps({ prompt: null, migrated: { movedFolder: false, renamed: 2 } })} />);
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog.textContent).toContain("speclink/ 裡 2 個變更資料檔已改名為 .meta.yaml");
-    expect(dialog.textContent).not.toContain("openspec/（刪除）");
-    expect(dialog.textContent).not.toContain("團隊成員");
+    expect(dialog.textContent).toContain("specseal/ 里 2 个变更数据档已改名为 .meta.yaml");
+    expect(dialog.textContent).not.toContain("openspec/（删除）");
+    expect(dialog.textContent).not.toContain("团队成员");
   });
 });

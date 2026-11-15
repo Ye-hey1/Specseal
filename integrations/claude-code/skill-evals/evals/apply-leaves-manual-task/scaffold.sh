@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# change add-greeting 兩個任務：1.1 建立 greeting.txt、[M] 1.2 打開檔案確認內容。
+# change add-greeting 两个任务：1.1 创建 greeting.txt、[M] 1.2 打开文件确认内容。
 source "$(dirname "$0")/../fixtures.sh"
 eval_git_init
 eval_init

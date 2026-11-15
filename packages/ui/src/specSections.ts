@@ -1,14 +1,14 @@
-// 正式規格 spec.md 的分段解析（desktop-readonly-detail-pages design D1）：Purpose 區段、
-// 逐條需求的 body／scenarios／段尾 @trace，與 SHALL／MUST 關鍵字的 rehype 標示外掛。
-// 逐行掃描且認得 fenced code block——圍欄內的 `## `、`### Requirement:`、`---` 都不是結構。
+// 正式规格 spec.md 的分段解析（desktop-readonly-detail-pages design D1）：Purpose 区段、
+// 逐条需求的 body／scenarios／段尾 @trace，与 SHALL／MUST 关键字的 rehype 标示插件。
+// 逐行扫描且认得 fenced code block——围栏内的 `## `、`### Requirement:`、`---` 都不是结构。
 
-/** 需求段的一個 Scenario：標題（去掉 `#### Scenario:` 前綴）與內文（含所屬 `##### Example`）。 */
+/** 需求段的一个 Scenario：标题（去掉 `#### Scenario:` 前缀）与内文（含所属 `##### Example`）。 */
 export interface SpecScenario {
   title: string;
   body: string;
 }
 
-/** 一條需求：標題、需求文、Scenario 與段尾 @trace（缺席為 null；updated 只取日期部分）。 */
+/** 一条需求：标题、需求文、Scenario 与段尾 @trace（缺席为 null；updated 只取日期部分）。 */
 export interface SpecRequirement {
   title: string;
   body: string;
@@ -17,29 +17,29 @@ export interface SpecRequirement {
 }
 
 export interface SpecSections {
-  /** `## Purpose` 區段內文；缺席為空字串。 */
+  /** `## Purpose` 区段内文；缺席为空字符串。 */
   purpose: string;
-  /** 第一條需求之前、Purpose 之外的內容（如 `## Requirements` 下的引言）；缺席為空字串。 */
+  /** 第一条需求之前、Purpose 之外的内容（如 `## Requirements` 下的引言）；缺席为空字符串。 */
   intro: string;
   requirements: SpecRequirement[];
-  /** 第一條需求之後、不屬任何需求段的內容（自 `## ` 標題起的其他區段）；缺席為空字串。 */
+  /** 第一条需求之后、不属任何需求段的内容（自 `## ` 标题起的其他区段）；缺席为空字符串。 */
   appendix: string;
 }
 
-/** 封存流程寫進新規格 Purpose 的佔位前綴；與引擎 `lifecycle::model::PURPOSE_TBD_PREFIX` 逐字一致
- *（specSections.test.ts 讀原始檔對齊）。 */
+/** 封存流程写进新规格 Purpose 的占位前缀；与引擎 `lifecycle::model::PURPOSE_TBD_PREFIX` 逐字一致
+ *（specSections.test.ts 读源文件对齐）。 */
 export const PURPOSE_TBD_PREFIX = "TBD - created by archiving";
 
 const REQUIREMENT_RE = /^### Requirement:\s*(.*?)\s*$/;
 const SCENARIO_RE = /^#### Scenario:\s*(.*?)\s*$/;
 const DATE_RE = /\d{4}-\d{2}-\d{2}/;
 
-/** 圍欄行：3 個以上 ` 或 ~（容忍前導空白），其後為 info 字串。 */
+/** 围栏行：3 个以上 ` 或 ~（容忍前导空白），其后为 info 字符串。 */
 const FENCE_RE = /^\s*(`{3,}|~{3,})(.*)$/;
 
-/** 逐行標記是否位於 fenced code block（圍欄行自身視為圍欄內）。收尾圍欄須與開頭同字元、
- * 不短於開頭且其後只有空白——較短或另一種字元的圍欄行是內容（巢狀圍欄）。docModel 的
- * 章節與列點解析共用。 */
+/** 逐行标记是否位于 fenced code block（围栏行自身视为围栏内）。收尾围栏须与开头同字符、
+ * 不短于开头且其后只有空白——较短或另一种字符的围栏行是内容（嵌套围栏）。docModel 的
+ * 章节与列点解析共用。 */
 export function fenceFlags(lines: string[]): boolean[] {
   let open: string | null = null;
   return lines.map((l) => {
@@ -53,7 +53,7 @@ export function fenceFlags(lines: string[]): boolean[] {
   });
 }
 
-/** `<!-- @trace … -->` 區塊內的 `key: value` 行。 */
+/** `<!-- @trace … -->` 区块内的 `key: value` 行。 */
 function traceField(block: string[], key: string): string | null {
   for (const line of block) {
     const m = new RegExp(`^\\s*${key}:\\s*(\\S.*?)\\s*$`).exec(line);
@@ -62,7 +62,7 @@ function traceField(block: string[], key: string): string | null {
   return null;
 }
 
-/** 一條需求的行（標題行之後到段尾）切成 body、scenarios 與 trace。 */
+/** 一条需求的行（标题行之后到段尾）切成 body、scenarios 与 trace。 */
 function parseRequirement(title: string, lines: string[], inFence: boolean[]): SpecRequirement {
   const body: string[] = [];
   const scenarios: { title: string; lines: string[] }[] = [];
@@ -82,7 +82,7 @@ function parseRequirement(title: string, lines: string[], inFence: boolean[]): S
     }
     if (!inFence[i]) {
       if (line.trim() === "---") return;
-      // 只認 `#### Scenario:` 為邊界——正式規格的 h4 皆為 Scenario，其他 h4 原樣留在所在段。
+      // 只认 `#### Scenario:` 为边界——正式规格的 h4 皆为 Scenario，其他 h4 原样留在所在段。
       const sc = SCENARIO_RE.exec(line);
       if (sc) {
         scenarios.push({ title: sc[1], lines: [] });
@@ -100,16 +100,16 @@ function parseRequirement(title: string, lines: string[], inFence: boolean[]): S
 }
 
 /**
- * 以 `### Requirement:` 行切段（design D1）。第一段之前取 `## Purpose` 區段；每段自標題行
- * 到下一個需求標題或 `## ` 標題為止。不屬 Purpose 與需求段的內容不丟：`# ` 標題與
- * `## Requirements` 標題行之外，第一段之前的收進 intro、之後的收進 appendix。沒有任何需求
- * 標題回 null——呼叫端整篇以單一 markdown 檢視退回。
+ * 以 `### Requirement:` 行切段（design D1）。第一段之前取 `## Purpose` 区段；每段自标题行
+ * 到下一个需求标题或 `## ` 标题为止。不属 Purpose 与需求段的内容不丢：`# ` 标题与
+ * `## Requirements` 标题行之外，第一段之前的收进 intro、之后的收进 appendix。没有任何需求
+ * 标题回 null——调用端整篇以单一 markdown 查看退回。
  */
 export function parseSpecSections(markdown: string): SpecSections | null {
   const lines = markdown.split(/\r?\n/);
   const inFence = fenceFlags(lines);
   const isRequirement = (i: number) => !inFence[i] && REQUIREMENT_RE.test(lines[i]);
-  // 區段終點：下一個需求標題或 `## ` 標題（圍欄外）。
+  // 区段终点：下一个需求标题或 `## ` 标题（围栏外）。
   const sectionEnd = (from: number) => {
     for (let i = from; i < lines.length; i++) {
       if (isRequirement(i) || (!inFence[i] && lines[i].startsWith("## "))) return i;
@@ -119,7 +119,7 @@ export function parseSpecSections(markdown: string): SpecSections | null {
   const starts = lines.flatMap((_, i) => (isRequirement(i) ? [i] : []));
   if (starts.length === 0) return null;
   const p = lines.findIndex((l, i) => !inFence[i] && l.trimEnd() === "## Purpose");
-  // 已歸屬的行：文件標題、`## Requirements` 標題行、Purpose 區段與各需求段。
+  // 已归属的行：文档标题、`## Requirements` 标题行、Purpose 区段与各需求段。
   const used = lines.map((l, i) => !inFence[i] && (/^# /.test(l) || l.trimEnd() === "## Requirements"));
   const claim = (from: number, to: number) => used.fill(true, from, to);
   const purposeEnd = p < 0 ? -1 : sectionEnd(p + 1);
@@ -140,7 +140,7 @@ export function parseSpecSections(markdown: string): SpecSections | null {
   };
 }
 
-/** 最小 hast 節點視圖（不引入型別套件相依）。 */
+/** 最小 hast 节点视图（不引入类型套件相依）。 */
 interface HastNode {
   type: string;
   value?: string;
@@ -151,7 +151,7 @@ interface HastNode {
 
 const KEYWORD_RE = /\b(SHALL NOT|SHALL|MUST NOT|MUST)\b/g;
 
-/** 一個文字節點切成文字與 `<code class="spec-kw">` 交錯的節點；無關鍵字回 null。 */
+/** 一个文本节点切成文本与 `<code class="spec-kw">` 交错的节点；无关键字回 null。 */
 function splitKeywords(value: string): HastNode[] | null {
   const out: HastNode[] = [];
   let last = 0;
@@ -171,8 +171,8 @@ function splitKeywords(value: string): HastNode[] | null {
 }
 
 /**
- * rehype 外掛（design D1）：把文字節點中的 `SHALL NOT`／`SHALL`／`MUST NOT`／`MUST`（整詞）包成
- * `<code class="spec-kw">`；行內 code 與程式碼區塊內不處理。只標示、不改來源。
+ * rehype 插件（design D1）：把文本节点中的 `SHALL NOT`／`SHALL`／`MUST NOT`／`MUST`（整词）包成
+ * `<code class="spec-kw">`；行内 code 与代码区块内不处理。只标示、不改来源。
  */
 export function rehypeSpecKeywords() {
   const walk = (node: HastNode) => {

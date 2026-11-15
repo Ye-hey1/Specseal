@@ -2,9 +2,9 @@
 
 <!-- What does this pull request change, and why? -->
 
-## Speclink change
+## Specseal change
 
-<!-- The change folder in speclink/changes/, if there is one. Write "none" for a small fix. -->
+<!-- The change folder in specseal/changes/, if there is one. Write "none" for a small fix. -->
 
 ## Tests
 
@@ -15,4 +15,4 @@
 ## Docs
 
 - [ ] This change does not affect users.
-- [ ] I updated both language versions of the affected docs (`<name>.md` and `<name>.zh-TW.md`).
+- [ ] I updated both language versions of the affected docs (`<name>.md` and `<name>.zh-CN.md`).

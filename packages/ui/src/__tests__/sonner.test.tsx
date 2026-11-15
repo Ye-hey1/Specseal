@@ -25,7 +25,7 @@ beforeAll(() => {
 
 function renderToaster(props: ToasterProps = {}) {
   return render(
-    <I18nProvider locale="zh-TW">
+    <I18nProvider locale="zh-CN">
       <Toaster {...props} />
     </I18nProvider>,
   );
@@ -37,20 +37,20 @@ afterEach(() => {
 });
 
 describe("Toaster", () => {
-  it("沿用主介面 tokens，並以 destructive 局部標示 error toast", async () => {
+  it("沿用主接口 tokens，并以 destructive 局部标示 error toast", async () => {
     renderToaster();
 
     act(() => {
-      toast.error("設計 token 失敗", { id: TOAST_ID });
+      toast.error("设计 token 失败", { id: TOAST_ID });
     });
 
-    const toastNode = (await screen.findByText("設計 token 失敗")).closest("[data-sonner-toast]");
+    const toastNode = (await screen.findByText("设计 token 失败")).closest("[data-sonner-toast]");
     const toaster = toastNode?.closest<HTMLElement>("[data-sonner-toaster]");
     expect(toaster).toBeTruthy();
     expect(toaster?.style.getPropertyValue("--normal-bg")).toBe("var(--card)");
     expect(toaster?.style.getPropertyValue("--normal-text")).toBe("var(--card-foreground)");
     expect(toaster?.style.getPropertyValue("--normal-border")).toBe("var(--border)");
-    // 圓角走 Tailwind 預設四階（design D2）：不再引用已移除的自訂圓角 token。
+    // 圆角走 Tailwind 缺省四阶（design D2）：不再引用已移除的自订圆角 token。
     expect(toaster?.style.getPropertyValue("--border-radius")).toBe("");
     expect(toaster?.style.fontFamily).toBe("inherit");
 
@@ -61,13 +61,13 @@ describe("Toaster", () => {
     expect(toastNode?.className).toContain("[&_[data-icon]]:text-destructive");
     expect(toastNode?.className).not.toContain("bg-destructive");
 
-    const closeButton = screen.getByRole("button", { name: "關閉通知" });
+    const closeButton = screen.getByRole("button", { name: "关闭通知" });
     expect(closeButton.className).toContain("!bg-card");
     expect(closeButton.className).toContain("!border-border");
     expect(closeButton.className).toContain("!text-muted-foreground");
   });
 
-  it("合併呼叫端 root style、toast style 與逐型別 classNames", async () => {
+  it("合并调用端 root style、toast style 与逐类型 classNames", async () => {
     renderToaster({
       style: { letterSpacing: "0.123em" },
       toastOptions: {
@@ -80,10 +80,10 @@ describe("Toaster", () => {
     });
 
     act(() => {
-      toast.error("自訂樣式失敗", { id: TOAST_ID });
+      toast.error("自订样式失败", { id: TOAST_ID });
     });
 
-    const toastNode = (await screen.findByText("自訂樣式失敗")).closest<HTMLElement>(
+    const toastNode = (await screen.findByText("自订样式失败")).closest<HTMLElement>(
       "[data-sonner-toast]",
     );
     const toaster = toastNode?.closest<HTMLElement>("[data-sonner-toaster]");
@@ -96,33 +96,33 @@ describe("Toaster", () => {
     expect(toastNode?.className).toContain("consumer-error");
   });
 
-  it("顯示訊息與關閉鈕，且同 id 的新訊息取代舊訊息", async () => {
+  it("显示消息与关闭钮，且同 id 的新消息取代旧消息", async () => {
     renderToaster();
 
     act(() => {
-      toast.error("第一則失敗", { id: TOAST_ID });
+      toast.error("第一则失败", { id: TOAST_ID });
     });
-    expect(await screen.findByText("第一則失敗")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "關閉通知" })).toBeTruthy();
+    expect(await screen.findByText("第一则失败")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "关闭通知" })).toBeTruthy();
 
     act(() => {
-      toast.error("第二則失敗", { id: TOAST_ID });
+      toast.error("第二则失败", { id: TOAST_ID });
     });
-    expect(await screen.findByText("第二則失敗")).toBeTruthy();
-    expect(screen.queryByText("第一則失敗")).toBeNull();
+    expect(await screen.findByText("第二则失败")).toBeTruthy();
+    expect(screen.queryByText("第一则失败")).toBeNull();
   });
 
-  it("6000 毫秒後自動消失", async () => {
+  it("6000 毫秒后自动消失", async () => {
     vi.useFakeTimers();
     renderToaster();
 
     act(() => {
-      toast.error("逾時失敗", { id: TOAST_ID });
+      toast.error("逾时失败", { id: TOAST_ID });
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
-    const toastNode = screen.getByText("逾時失敗").closest("[data-sonner-toast]");
+    const toastNode = screen.getByText("逾时失败").closest("[data-sonner-toast]");
     expect(toastNode).toBeTruthy();
 
     await act(async () => {
@@ -133,23 +133,23 @@ describe("Toaster", () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(200);
     });
-    expect(screen.queryByText("逾時失敗")).toBeNull();
+    expect(screen.queryByText("逾时失败")).toBeNull();
   });
 
-  it("點按關閉鈕立即消失", async () => {
+  it("点按关闭钮立即消失", async () => {
     renderToaster();
 
     act(() => {
-      toast.error("手動關閉失敗", { id: TOAST_ID });
+      toast.error("手动关闭失败", { id: TOAST_ID });
     });
-    fireEvent.click(await screen.findByRole("button", { name: "關閉通知" }));
+    fireEvent.click(await screen.findByRole("button", { name: "关闭通知" }));
 
     await waitFor(() => {
-      expect(screen.queryByText("手動關閉失敗")).toBeNull();
+      expect(screen.queryByText("手动关闭失败")).toBeNull();
     });
   });
 
-  it("HTML-like 訊息以純文字呈現，不建立可執行元素", async () => {
+  it("HTML-like 消息以纯文本呈现，不创建可运行元素", async () => {
     renderToaster();
     const htmlLikeMessage = '<img src="x" onerror="globalThis.pwned=true">';
 

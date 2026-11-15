@@ -1,0 +1,219 @@
+//! Integration tests: frozen behavior for the dispatch layer's three mode-shape
+//! boundary classes (characterization — green before AND after the dispatch
+//! refactor, with byte-identical messages).
+//!
+//! - ModeFree: verbs that read no project config (completion, config) run
+//!   untouched under a broken .specseal.yaml.
+//! - FsOnly: demo under a remote-mode project is refused at mode resolution —
+//!   no server request leaves the process, so offline refuses identically.
+//! - Dual: trace and evidence show reach the server in remote mode.
+//! - RemoteOnly: claim under an fs project is refused with the frozen message.
+
+use std::path::PathBuf;
+use std::process::{Command, Output};
+
+struct TempProject {
+    dir: PathBuf,
+}
+
+impl TempProject {
+    /// Bare project root carrying only the given `.specseal.yaml`.
+    fn new(tag: &str, app_yaml: &str) -> TempProject {
+        let dir = std::env::temp_dir().join(format!(
+            "specseal-cli-mode-dispatch-{tag}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(".specseal.yaml"), app_yaml).unwrap();
+        TempProject { dir }
+    }
+
+    fn run(&self, args: &[&str]) -> Output {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_specseal"));
+        cmd.args(args).current_dir(&self.dir);
+        for key in [
+            "SPECSEAL_LOCALE",
+            "SPECSEAL_SPEC_LOCALE",
+            "SPECSEAL_TDD",
+            "SPECSEAL_AUDIT",
+            "SPECSEAL_STORE_URL",
+        ] {
+            cmd.env_remove(key);
+        }
+        // Hermetic global config: point every home lookup (macOS HOME, Windows
+        // USERPROFILE, Linux XDG_CONFIG_HOME) at the temp dir so the
+        // developer's real global config never leaks into assertions.
+        cmd.env("HOME", &self.dir)
+            .env("USERPROFILE", &self.dir)
+            .env("XDG_CONFIG_HOME", &self.dir);
+        cmd.output().expect("run specseal binary")
+    }
+}
+
+impl Drop for TempProject {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+const BAD_YAML: &str = ": not yaml : [\n";
+
+// --- ModeFree: a broken .specseal.yaml must not affect verbs that read no project config ---
+
+#[test]
+fn mode_free_completion_runs_under_broken_app_yaml() {
+    // Spec scenario ModeFree 动词不受坏连接设置影响.
+    let p = TempProject::new("modefree-completion", BAD_YAML);
+    let out = p.run(&["completion", "generate", "zsh"]);
+    assert!(
+        out.status.success(),
+        "completion must ignore the broken file: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(!out.stdout.is_empty(), "completion script on stdout");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !err.contains(".specseal.yaml"),
+        "stderr must not mention the config file: {err}"
+    );
+}
+
+#[test]
+fn mode_free_config_list_runs_under_broken_app_yaml() {
+    // Spec scenario ModeFree 动词不受坏连接设置影响: config operates on the
+    // global config file only, never the project one.
+    let p = TempProject::new("modefree-config", BAD_YAML);
+    let out = p.run(&["config", "list"]);
+    assert!(
+        out.status.success(),
+        "config list must ignore the broken file: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        !err.contains(".specseal.yaml"),
+        "stderr must not mention the config file: {err}"
+    );
+}
+
+// --- FsOnly: demo refuses remote mode at mode resolution — zero server requests ---
+
+/// FsOnly 动词于 remote 模式且 server 不可达：exit code 非零、stderr 含各自
+/// 拒绝句、stdout 空、零请求（listener 在线但从不说 HTTP——若动词发出任何请求，
+/// 连接会躺在 backlog 里被 accept() 捡到）。
+fn assert_fs_only_refuses_remote(tag: &str, args: &[&str], refusal: &str) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let p = TempProject::new(
+        tag,
+        &format!("remote:\n  url: http://127.0.0.1:{port}/api/specseal/v1/projects/demo\n"),
+    );
+    let out = p.run(args);
+    assert!(!out.status.success(), "{args:?} must refuse remote mode");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains(refusal), "{args:?} frozen refusal text: {err}");
+    assert!(
+        String::from_utf8_lossy(&out.stdout).trim().is_empty(),
+        "{args:?} refusal writes nothing to stdout"
+    );
+    listener.set_nonblocking(true).unwrap();
+    match listener.accept() {
+        Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {}
+        other => panic!("{args:?}: no server request may be emitted, got {other:?}"),
+    }
+}
+
+#[test]
+fn fs_only_demo_rejects_remote_mode_without_any_server_request() {
+    // Spec scenario FsOnly 动词于 remote 模式零请求拒绝.
+    assert_fs_only_refuses_remote(
+        "fsonly-demo",
+        &["demo"],
+        "demo is not available in remote mode — it seeds a demo change into the local spec directory",
+    );
+}
+
+#[test]
+fn fs_only_demo_rejects_remote_mode_when_no_server_listens() {
+    // Spec scenario FsOnly 动词于 remote 模式零请求拒绝（脱机变体）: bind then
+    // drop to get a port nobody listens on — the refusal must still be the
+    // mode-resolution text, never a connection error.
+    let port = {
+        let l = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        l.local_addr().unwrap().port()
+    };
+    let p = TempProject::new(
+        "fsonly-demo-offline",
+        &format!("remote:\n  url: http://127.0.0.1:{port}/api/specseal/v1/projects/demo\n"),
+    );
+    let out = p.run(&["demo"]);
+    assert!(!out.status.success(), "demo must refuse remote mode while offline");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains(
+            "demo is not available in remote mode — it seeds a demo change into the local spec directory"
+        ),
+        "frozen refusal text: {err}"
+    );
+}
+
+// --- Dual: trace and evidence show reach the server in remote mode ---
+
+#[test]
+fn trace_and_evidence_show_reach_the_server_in_remote_mode() {
+    // Spec scenario「trace 与 evidence show 于 remote 模式走 server」（改写自
+    // fs_only_trace_rejects_remote_mode_without_any_server_request：trace 不再只限本机）。
+    let fake = crate::fake_server::Fake::new();
+    fake.route("/api/specseal/v1/projects/demo/binding", 200, BINDING)
+        .route(
+            "/api/specseal/v1/projects/demo/trace/some-capability",
+            200,
+            r#"{"capability":"some-capability","requirements":[],"changes":[],"discussions":[]}"#,
+        )
+        .route(
+            "/api/specseal/v1/projects/demo/changes/some-change/evidence",
+            200,
+            r#"{"change":"some-change","entries":[]}"#,
+        );
+    let p = TempProject::new("dual-trace", &format!("remote:\n  url: {}\n", fake.project_url()));
+    for (args, first_line) in [
+        (&["trace", "some-capability"][..], "Capability: some-capability"),
+        (&["evidence", "show", "some-change"], "No evidence recorded for 'some-change'."),
+    ] {
+        let mut cmd = Command::new(env!("CARGO_BIN_EXE_specseal"));
+        cmd.args(args).current_dir(&p.dir).env_remove("SPECSEAL_STORE_URL").env("SPECSEAL_TOKEN", "tok");
+        cmd.env("HOME", &p.dir).env("USERPROFILE", &p.dir).env("XDG_CONFIG_HOME", &p.dir);
+        let out = cmd.output().expect("run specseal binary");
+        assert!(out.status.success(), "{args:?}: {}", String::from_utf8_lossy(&out.stderr));
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        assert_eq!(stdout.lines().next(), Some(first_line), "{args:?}: {stdout}");
+    }
+    let paths = fake.paths();
+    assert!(paths.contains(&"/api/specseal/v1/projects/demo/trace/some-capability".to_string()), "{paths:?}");
+    assert!(paths.contains(&"/api/specseal/v1/projects/demo/changes/some-change/evidence".to_string()), "{paths:?}");
+    // Nothing was written next to the connection file.
+    let left: Vec<_> = std::fs::read_dir(&p.dir).unwrap().flatten().map(|e| e.file_name()).collect();
+    assert_eq!(left, [std::ffi::OsString::from(".specseal.yaml")], "the local store is not touched");
+}
+
+const BINDING: &str = r#"{"actor":{"id":"u_1","name":"Tester"},"project":{"id":"prj_1","key":"demo","name":"Demo"},"repo":{"id":"repo_1","key":"backend","name":"Backend"},"apiVersion":"1","engineVersion":"0.1.0","capabilities":{"events":{"transports":[],"polling":{"url":"/sync-state","etag":true}}}}"#;
+
+// --- RemoteOnly: claim refuses fs mode with the frozen message ---
+
+#[test]
+fn remote_only_claim_rejects_fs_mode_with_frozen_text() {
+    // Spec scenario RemoteOnly 动词于 fs 模式明确拒绝.
+    let p = TempProject::new("remoteonly-claim", "tools:\n  - claude\n");
+    let out = p.run(&["claim", "some-change"]);
+    assert!(!out.status.success(), "claim must refuse fs mode");
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        err.contains("claim requires a remote store — this project uses the local fs store"),
+        "frozen refusal text: {err}"
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stdout).trim().is_empty(),
+        "refusal writes nothing to stdout"
+    );
+}

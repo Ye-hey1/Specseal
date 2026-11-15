@@ -7,18 +7,18 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
-/** 每頁筆數預設值（spec「清單最新在前與換頁瀏覽」）——清單元件與測試共用。 */
+/** 每页笔数默认值（spec「清单最新在前与换页浏览」）——清单组件与测试共用。 */
 export const PAGE_SIZE = 20;
 
-/** 每頁筆數下拉的選項——也是桌面 store 讀回記住的每頁筆數時唯一接受的值。 */
+/** 每页笔数下拉的选项——也是桌面 store 读回记住的每页笔数时唯一接受的值。 */
 export const PAGE_SIZE_OPTIONS: readonly number[] = [20, 50, 100];
 
 /**
- * 清單換頁狀態（design D2、D7）——規格頁與已封存兩節共用。頁碼以 min(rawPage, pageCount)
- * 鉗制派生，清單縮短不停在越界頁；改每頁筆數時把鉗制後的頁碼寫回（改回原筆數不彈回舊頁）。
- * 每頁筆數在值與回呼都給時受控（桌面 store 跨啟動記住），否則元件自持（預設 PAGE_SIZE；
- * server-web 與單元測試走這條）。`pager` 直接展開給 ListPager；換頁與改每頁筆數後呼叫
- * onMove（捲回頂部）。`setPage` 只改頁碼不呼叫 onMove（搜尋重設、聚焦列用）。
+ * 清单换页状态（design D2、D7）——规格页与已封存两节共用。页码以 min(rawPage, pageCount)
+ * 钳制派生，清单缩短不停在越界页；改每页笔数时把钳制后的页码写回（改回原笔数不弹回旧页）。
+ * 每页笔数在值与回呼都给时受控（桌面 store 跨启动记住），否则组件自持（缺省 PAGE_SIZE；
+ * server-web 与单元测试走这条）。`pager` 直接展开给 ListPager；换页与改每页笔数后调用
+ * onMove（卷回顶部）。`setPage` 只改页码不调用 onMove（搜索重设、聚焦列用）。
  */
 export function usePaging<T>(
   items: readonly T[],
@@ -54,12 +54,12 @@ export function usePaging<T>(
   return { pageItems: items.slice((page - 1) * size, page * size), setPage, pager };
 }
 
-/** 頁碼視窗要列的頁數上限；超過時恆列首尾頁、目前頁前後各一頁，其餘以 … 收攏。 */
+/** 页码窗口要列的页数上限；超过时恒列首尾页、目前页前后各一页，其余以 … 收拢。 */
 const FULL_WINDOW = 7;
 
 /**
- * 頁碼視窗（design D2）：總頁數 ≤ 7 全列；否則恆列 1 與 M，中段為 page−1..page+1，
- * 與兩端不相鄰處插入 "…"。純函式。
+ * 页码窗口（design D2）：总页数 ≤ 7 全列；否则恒列 1 与 M，中段为 page−1..page+1，
+ * 与两端不相邻处插入 "…"。纯函数。
  */
 export function pageWindow(page: number, pageCount: number): Array<number | "…"> {
   if (pageCount <= FULL_WINDOW) return Array.from({ length: pageCount }, (_, i) => i + 1);
@@ -76,27 +76,27 @@ export function pageWindow(page: number, pageCount: number): Array<number | "…
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 export interface ListPagerProps {
-  /** 目前頁碼（1 起算）。 */
+  /** 目前页码（1 起算）。 */
   page: number;
-  /** 總頁數。 */
+  /** 总页数。 */
   pageCount: number;
-  /** 過濾後總筆數；0 時整條工具列不渲染。 */
+  /** 过滤后总笔数；0 时整条工具列不渲染。 */
   total: number;
-  /** 每頁筆數（受控，呼叫端持有）；選項固定為 PAGE_SIZE_OPTIONS。 */
+  /** 每页笔数（受控，调用端持有）；选项固定为 PAGE_SIZE_OPTIONS。 */
   pageSize: number;
-  /** 換頁回呼——受控形態，頁碼狀態由呼叫端持有。 */
+  /** 换页回呼——受控形态，页码状态由调用端持有。 */
   onPage: (next: number) => void;
-  /** 改每頁筆數回呼；呼叫端重算總頁數並鉗制頁碼。 */
+  /** 改每页笔数回呼；调用端重算总页数并钳制页码。 */
   onPageSize: (size: number) => void;
-  /** 窄版（server-web 窄螢幕）：左側只留範圍，右側只留 ‹「目前頁 / 總頁數」›。 */
+  /** 窄版（server-web 窄屏幕）：左侧只留范围，右侧只留 ‹「目前页 / 总页数」›。 */
   compact?: boolean;
 }
 
 /**
- * 換頁工具列（spec「清單最新在前與換頁瀏覽」；design D2：自建受控元件，不採 shadcn
- * Pagination）：上緣自帶分隔線；左側「第 a–b 筆，共 N 筆」＋每頁筆數下拉；總頁數 > 1
- * 時右側為 « ‹ 頁碼 › » 與跳頁輸入（只認 Enter、越界鉗制、非數字忽略；失焦即捨棄輸入）。
- * `compact` 收成範圍與 ‹ n / m ›（server-web-list-pages design D1）。
+ * 换页工具列（spec「清单最新在前与换页浏览」；design D2：自建受控组件，不采 shadcn
+ * Pagination）：上缘自带分隔线；左侧「第 a–b 笔，共 N 笔」＋每页笔数下拉；总页数 > 1
+ * 时右侧为 « ‹ 页码 › » 与跳页输入（只认 Enter、越界钳制、非数字忽略；失焦即舍弃输入）。
+ * `compact` 收成范围与 ‹ n / m ›（server-web-list-pages design D1）。
  */
 export function ListPager({ page, pageCount, total, pageSize, onPage, onPageSize, compact = false }: ListPagerProps) {
   const { t } = useI18n();
@@ -110,10 +110,10 @@ export function ListPager({ page, pageCount, total, pageSize, onPage, onPageSize
     .replace("{b}", String(last))
     .replace("{n}", String(total));
   const perPage = (n: number) => t("pager.perPage").replace("{n}", String(n));
-  // 「跳到 {n} 頁」拆成輸入框前後的兩段文字；缺 {n} 時整句在前。
+  // 「跳到 {n} 页」拆成输入框前后的两段文本；缺 {n} 时整句在前。
   const [jumpPrefix, jumpSuffix = ""] = t("pager.jumpTo").split("{n}");
 
-  // 跳頁提交：空字串與非數字忽略，其餘鉗制到 1..pageCount。
+  // 跳页提交：空字符串与非数字忽略，其余钳制到 1..pageCount。
   const commitJump = () => {
     if (jump.trim() === "") return;
     const n = Number(jump);
@@ -240,8 +240,8 @@ export function ListPager({ page, pageCount, total, pageSize, onPage, onPageSize
               value={jump}
               onChange={(e) => setJump(e.target.value)}
               onKeyDown={onJumpKey}
-              // 失焦一律捨棄輸入、不換頁：滑鼠按下即失焦、早於點擊，此時換頁會讓這次點擊落空；
-              // WebKit 點按鈕不給焦點（relatedTarget 為 null），無從分辨點的是哪裡，所以只認 Enter。
+              // 失焦一律舍弃输入、不换页：鼠标按下即失焦、早于点击，此时换页会让这次点击落空；
+              // WebKit 点按钮不给焦点（relatedTarget 为 null），无从分辨点的是哪里，所以只认 Enter。
               onBlur={() => setJump("")}
             />
             <span>{jumpSuffix}</span>

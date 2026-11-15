@@ -1,5 +1,5 @@
-// 專案設定四頁共用的片段（desktop-settings-mode design D8）：欄位說明、未知值提示、解析失敗
-// 說明、頁標題右側的編輯／取消／儲存與 ⌘S、remote revision 衝突對照卡與頁標題下的檔案鍵註記。
+// 项目设置四页共用的片段（desktop-settings-mode design D8）：字段说明、未知值提示、解析失败
+// 说明、页标题右侧的编辑／取消／保存与 ⌘S、remote revision 冲突对照卡与页标题下的文件键注记。
 import { useEffect, useRef } from "react";
 import { AlertTriangle } from "lucide-react";
 import {
@@ -13,7 +13,7 @@ import {
   SEMANTIC_TONE,
   cn,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { detectPlatform, modKey } from "../../platform";
 import type { PolicyConflict, ProjectSettingsState } from "./useProjectSettings";
@@ -24,7 +24,7 @@ export function FieldHelp({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-muted-foreground m-0">{children}</p>;
 }
 
-/** 選項集外儲存值的引導提示（spec 需求「設定頁政策下拉的未知值顯性呈現」）。 */
+/** 选项集外保存值的引导提示（spec 需求「设置页政策下拉的未知值显性呈现」）。 */
 export function InvalidLocaleHint({ testId, children }: { testId: string; children: React.ReactNode }) {
   return (
     <p data-testid={testId} className={`flex items-start gap-1.5 text-xs m-0 ${SEMANTIC_TONE.warning}`}>
@@ -46,9 +46,9 @@ export function ParseErrorBanner({ message }: { message: string }) {
   );
 }
 
-/** 編輯態的 ⌘S／Ctrl+S（desktop-settings-editors design D2）：編輯器 keymap 先攔（已
- * preventDefault）；焦點在編輯器外、或編輯器唯讀時由這裡的視窗層補上。是否真的送出由
- * `onSave`（useProjectSettings 的寫入守門）決定。 */
+/** 编辑态的 ⌘S／Ctrl+S（desktop-settings-editors design D2）：编辑器 keymap 先拦（已
+ * preventDefault）；焦点在编辑器外、或编辑器唯读时由这里的窗口层补上。是否真的送出由
+ * `onSave`（useProjectSettings 的写入守门）决定。 */
 export function useSaveShortcut(editing: boolean, onSave: () => void) {
   const latest = useRef(onSave);
   latest.current = onSave;
@@ -64,8 +64,8 @@ export function useSaveShortcut(editing: boolean, onSave: () => void) {
   }, [editing]);
 }
 
-/** 頁標題右側的編輯／取消／儲存（專案說明頁與產出規則頁共用）；`toggle` 放在取消之前
- * （專案說明的「編輯／預覽」切換）。 */
+/** 页标题右侧的编辑／取消／保存（项目说明页与产出规则页共用）；`toggle` 放在取消之前
+ * （项目说明的「编辑／预览」切换）。 */
 export function CardEditControls({
   editing,
   disabled,
@@ -79,7 +79,7 @@ export function CardEditControls({
   editing: boolean;
   disabled: boolean;
   msg: string | null;
-  /** data-testid 前綴（context／rules）。 */
+  /** data-testid 前缀（context／rules）。 */
   testPrefix: string;
   toggle?: React.ReactNode;
   onEdit: () => void;
@@ -133,7 +133,7 @@ export function CardEditControls({
   );
 }
 
-/** remote 409 對照卡：任一頁的寫入都可能撞衝突，各頁頂部都呈現（review R5）。 */
+/** remote 409 对照卡：任一页的写入都可能撞冲突，各页顶部都呈现（review R5）。 */
 export function ConflictPanel({
   conflict,
   onReload,
@@ -208,7 +208,7 @@ export function ConflictPanel({
   );
 }
 
-/** 頁標題下的註記：local 為等寬檔案路徑與鍵，remote 為等寬 policy revision（檢視者另附角色說明）。 */
+/** 页标题下的注记：local 为等宽文件路径与键，remote 为等宽 policy revision（查看者另附角色说明）。 */
 export function PageNote({
   remote,
   fileKey,
@@ -243,7 +243,7 @@ export function PageNote({
   );
 }
 
-/** 頁頂：衝突對照卡＋該頁所掛設定檔的解析失敗說明。 */
+/** 页顶：冲突对照卡＋该页所挂设置档的解析失败说明。 */
 export function PageAlerts({ ps, parseError }: { ps: ProjectSettingsState; parseError: string | null }) {
   return (
     <>

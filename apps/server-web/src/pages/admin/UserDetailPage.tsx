@@ -19,7 +19,7 @@ import {
   TabsContent,
   TabsTrigger,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { useAsync, useLastData } from "../../lib/useAsync";
 import { useNarrow } from "../../lib/useMediaQuery";
@@ -34,10 +34,10 @@ import { DetailNotFound, DetailTabs } from "./detail";
 import { AdminCardState } from "./states";
 import type { AdminProject, AdminUser } from "../../api/client";
 
-// 使用者詳情頁（server-web-console「管理列表以詳情頁與對話框承載檢視與建立」；server-web-detail-pages
-// design D5）：768px 置中欄，頁標題接狀態籤、頁級動作為停權或重新啟用；其下卡片標頭分頁——概要、
-// 成員資格、憑證、稽核，分頁內容為設定型列。資料來自使用者區段（列表與詳情頁共用一份），變更後
-// 重載區段；憑證與稽核只在這一頁讀，並在前端裁切為該使用者的項目。
+// 用户详情页（server-web-console「管理列表以详情页与对话框承载查看与创建」；server-web-detail-pages
+// design D5）：768px 置中栏，页标题接状态签、页级动作为停权或重新激活；其下卡片标头分页——概要、
+// 成员资格、凭证、稽核，分页内容为设置型列。数据来自用户区段（列表与详情页共用一份），变更后
+// 重载区段；凭证与稽核只在这一页读，并在前端裁切为该用户的项目。
 
 type Confirm = { title: string; body: string; action: string; run: () => Promise<void> };
 
@@ -54,9 +54,9 @@ export function UserDetailPage({
   reload,
 }: {
   users: AdminUser[];
-  /** 列表目前呈現的項目（含搜尋與篩選）——‹ n / m › 的序列。 */
+  /** 列表目前呈现的项目（含搜索与筛选）——‹ n / m › 的串行。 */
   sequence: AdminUser[];
-  /** registry 的專案；還沒載入（或載入失敗）時為 null。 */
+  /** registry 的项目；还没加载（或加载失败）时为 null。 */
   projects: AdminProject[] | null;
   reload: () => void;
 }) {
@@ -93,14 +93,14 @@ function UserDetail({
   const { t } = useI18n();
   const client = useClient();
   const navigate = useNavigate();
-  // 分頁是元件 state：‹ › 換使用者時停在同一個分頁。
+  // 分页是组件 state：‹ › 换用户时停在同一个分页。
   const [tab, setTab] = useState("summary");
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [busy, setBusy] = useState(false);
   const credentials = useAsync(() => client.getAdminCredentials(), [user.id]);
-  // 撤銷後重讀期間留著上一份成功回應，分頁計數不閃掉（design D5）。
+  // 撤销后重读期间留着上一份成功回应，分页计数不闪掉（design D5）。
   const shownCredentials = useLastData(credentials.data, credentials.error);
-  // 存取金鑰與裝置登入同一種列：名稱、說明、撤銷鈕（只在有效時）與撤銷籤。
+  // 访问密钥与设备登录同一种列：名称、说明、撤销钮（只在有效时）与撤销签。
   const credentialRows = [
     ...(shownCredentials?.pats ?? [])
       .filter((p) => p.userId === user.id)
@@ -263,7 +263,7 @@ function UserDetail({
             control={
               <Switch
                 id={`admin-flag-${user.id}`}
-                // 按鈕的名稱 axe 只認 aria-*，不認 <label for>。
+                // 按钮的名称 axe 只认 aria-*，不认 <label for>。
                 aria-label={t("users.roleAdmin")}
                 checked={user.admin}
                 disabled={busy || (user.admin && !user.canRemoveAdmin)}
@@ -344,7 +344,7 @@ function UserDetail({
   );
 }
 
-/** 設定型列；窄螢幕時控制項換到標題下方整列、可換行（design D11）。 */
+/** 设置型列；窄屏幕时控制项换到标题下方整列、可换行（design D11）。 */
 function ControlRow({
   label,
   description,
@@ -367,8 +367,8 @@ const ROLE_OPTIONS = ROLES.map((value) => ({ value, label: value }));
 
 type SetMembership = (body: { projectKey: string; role: string; member: boolean }) => void;
 
-// 成員資格：每列就地改角色（伺服器的成員資格寫入是 upsert）、移除先確認；末列加入專案——專案來自
-// registry 且只列尚未加入的，角色為伺服器的固定集合，皆不開放自由輸入。
+// 成员资格：每列就地改角色（服务器的成员资格写入是 upsert）、移除先确认；末列加入项目——项目来自
+// registry 且只列尚未加入的，角色为服务器的固定集合，皆不开放自由输入。
 function Memberships({
   user,
   projects,
@@ -416,13 +416,13 @@ function Memberships({
           </ControlRow>
         );
       })}
-      {/* 以使用者為 key：‹ › 換人時選到一半的專案與角色清空，不會套到下一位身上。 */}
+      {/* 以用户为 key：‹ › 换人时选到一半的项目与角色清空，不会套到下一位身上。 */}
       <AddMembership key={user.id} user={user} projects={projects} busy={busy} onSet={onSet} />
     </>
   );
 }
 
-/** 末列「加入專案」：只列尚未加入的專案；專案清單還沒載入時不宣稱「已加入全部專案」。 */
+/** 末列「加入项目」：只列尚未加入的项目；项目清单还没加载时不宣称「已加入全部项目」。 */
 function AddMembership({
   user,
   projects,
@@ -444,7 +444,7 @@ function AddMembership({
 
   return (
     <ControlRow label={t("users.addProjectTitle")} description={t("users.addProjectHint")}>
-      {/* 未選時以 placeholder 呈現，而非一個空值選項——Radix Select 的 item 不接受空字串。 */}
+      {/* 未选时以 placeholder 呈现，而非一个空值选项——Radix Select 的 item 不接受空字符串。 */}
       <Select value={projectKey} onValueChange={setProjectKey} disabled={available.length === 0}>
         <SelectTrigger aria-label={t("users.addProjectPick")} className="w-auto min-w-40 text-[13px]">
           <SelectValue placeholder={t(placeholder)} />
@@ -475,7 +475,7 @@ function AddMembership({
   );
 }
 
-// 稽核：讀稽核紀錄第一頁再裁切為該使用者的事件（操作者或對象是他）；完整查詢在稽核紀錄頁。
+// 稽核：读稽核纪录第一页再裁切为该用户的事件（操作者或对象是他）；完整查找在稽核纪录页。
 function UserAudit({ userId, users }: { userId: string; users: AdminUser[] }) {
   const { t } = useI18n();
   const client = useClient();

@@ -17,7 +17,7 @@ import { CopyButton } from "./CopyButton";
 import { DotSeparated } from "./DetailHeader";
 import { ManualToc } from "./ManualToc";
 
-/** 文件 → 閱讀卡標題（與文件節點同一詞條）：變更、討論與已封存三頁共用。 */
+/** 文档 → 阅读卡标题（与文档节点同一词条）：变更、讨论与已封存三页共用。 */
 export const DOC_TITLE_KEYS: Record<string, string> = {
   proposal: "common.tabProposal",
   design: "common.tabDesign",
@@ -33,8 +33,8 @@ export const DOC_TITLE_KEYS: Record<string, string> = {
   record: "ddrawer.tabRecord",
 };
 
-/** 變更文件的本頁目錄重掃鍵：規格取全部 capability、工單取輪次，其餘取該文件內容；任一變就重掃錨點。
- * 變更詳情頁與已封存變更頁共用。 */
+/** 变更文档的本页目录重扫键：规格取全部 capability、工单取轮次，其余取该文档内容；任一变就重扫锚点。
+ * 变更详情页与已封存变更页共用。 */
 export function changeDocTocKey(
   tab: string,
   docs: { content: unknown; specs: unknown; tickets: Record<"review" | "verify", unknown> },
@@ -43,32 +43,32 @@ export function changeDocTocKey(
   return `${tab}\u0000${JSON.stringify(source)}`;
 }
 
-/** 本頁目錄收的標題：渲染器標出的區段標題，加上 Markdown 內文的 h2／h3。 */
+/** 本页目录收的标题：渲染器标出的区段标题，加上 Markdown 内文的 h2／h3。 */
 const DOC_HEADINGS = "[data-doc-heading], .markdown h2, .markdown h3";
 
 export interface DetailShellProps {
-  /** 外框上的頁標記（`data-change-detail` 等），供宿主與測試定位。 */
+  /** 外框上的页标记（`data-change-detail` 等），供宿主与测试定位。 */
   [mark: `data-${string}`]: string | boolean | undefined;
-  /** 左欄文件樹的內容（身分區、「文件」節點、「狀態」列）。 */
+  /** 左栏文档树的内容（身分区、「文档」节点、「状态」列）。 */
   tree: ReactNode;
-  /** 目前文件（含項目識別）；一變閱讀區就捲回頂端。 */
+  /** 目前文档（含项目识别）；一变阅读区就卷回顶端。 */
   activeDoc: string;
-  /** 本頁目錄的重掃鍵：文件或其內容一變就重掃錨點。 */
+  /** 本页目录的重扫键：文档或其内容一变就重扫锚点。 */
   tocKey: string;
-  /** 指向閱讀卡的 `DocBody`——本頁目錄自它渲染後的 DOM 推導錨點。 */
+  /** 指向阅读卡的 `DocBody`——本页目录自它渲染后的 DOM 推导锚点。 */
   bodyRef: RefObject<HTMLElement | null>;
   children: ReactNode;
 }
 
 /**
- * 詳情頁三欄骨架（design D1；spec「詳情頁的文件樹、閱讀卡與本頁目錄」）：左欄 240px 文件樹
- * （獨立捲動）、中欄閱讀區（置中 768px，自己捲動）、右欄 200px 本頁目錄。右欄以 container
- * query 量主區寬，≥1200px 才顯示；沒有錨點時目錄不渲染、右欄留空。無底部固定列。
+ * 详情页三栏骨架（design D1；spec「详情页的文档树、阅读卡与本页目录」）：左栏 240px 文档树
+ * （独立卷动）、中栏阅读区（置中 768px，自己卷动）、右栏 200px 本页目录。右栏以 container
+ * query 量主区宽，≥1200px 才显示；没有锚点时目录不渲染、右栏留空。无底部固定列。
  */
 export function DetailShell({ tree, activeDoc, tocKey, bodyRef, children, ...marks }: DetailShellProps) {
   const { locale } = useI18n();
   const scrollerRef = useRef<HTMLDivElement>(null);
-  // 換文件：閱讀區自頂端呈現（畫面畫出前就歸零，不閃前一份的捲動位置）；左欄捲動位置不受影響。
+  // 换文档：阅读区自顶端呈现（画面画出前就归零，不闪前一份的卷动位置）；左栏卷动位置不受影响。
   useLayoutEffect(() => {
     if (scrollerRef.current) scrollerRef.current.scrollTop = 0;
   }, [activeDoc]);
@@ -84,7 +84,7 @@ export function DetailShell({ tree, activeDoc, tocKey, bodyRef, children, ...mar
         <div className="mx-auto flex w-full max-w-[768px] flex-col gap-5">{children}</div>
       </div>
       <aside data-detail-toc className="hidden w-[200px] shrink-0 @min-[1200px]:flex">
-        {/* 錨點文字多為譯文（章節標籤、欄位標籤）：語系一換也重掃。 */}
+        {/* 锚点文本多为译文（章节标签、字段标签）：语系一换也重扫。 */}
         <ManualToc
           bodyRef={bodyRef}
           markdownBody={`${locale}\u0000${tocKey}`}
@@ -96,7 +96,7 @@ export function DetailShell({ tree, activeDoc, tocKey, bodyRef, children, ...mar
   );
 }
 
-/** 身分區的一列關聯：標籤＋內容（內容可折行），`data-relation-<mark>` 供測試定位。 */
+/** 身分区的一列关联：标签＋内容（内容可折行），`data-relation-<mark>` 供测试定位。 */
 export interface DetailRelation {
   mark: string;
   label: string;
@@ -104,22 +104,22 @@ export interface DetailRelation {
 }
 
 export interface DetailIdentityProps {
-  /** 名稱或 slug：等寬 14px，過長折行、不撐寬左欄。 */
+  /** 名称或 slug：等宽 14px，过长折行、不撑宽左栏。 */
   title: string;
   copyLabel: string;
-  /** 複製鈕寫入的值；缺席＝標題本身。 */
+  /** 拷贝钮写入的值；缺席＝标题本身。 */
   copyValue?: string;
-  /** 階段籤、章籤等籤列。 */
+  /** 阶段签、章签等签列。 */
   badges?: ReactNode;
-  /** 討論 topic：最多三行、溢出截斷。 */
+  /** 讨论 topic：最多三行、溢出截断。 */
   subtitle?: ReactNode;
-  /** 出身行的各段：單行灰字、缺席段略過、溢出裁切。 */
+  /** 出身行的各段：单行灰字、缺席段略过、溢出裁切。 */
   provenance?: ReactNode[];
-  /** 關聯列，各自一行；空陣列＝無關聯列。 */
+  /** 关联列，各自一行；空数组＝无关联列。 */
   relations?: DetailRelation[];
 }
 
-/** 左欄身分區（design D1）：承接原標題列與出身列。 */
+/** 左栏身分区（design D1）：承接原标题列与出身列。 */
 export function DetailIdentity({
   title,
   copyLabel,
@@ -155,7 +155,7 @@ export function DetailIdentity({
   );
 }
 
-/** 左欄小標（「文件」「狀態」）：與手冊頁側欄樹的分組標題同款。 */
+/** 左栏小标（「文档」「状态」）：与手册页侧栏树的分组标题同款。 */
 export function DetailTreeLabel({ children }: { children: ReactNode }) {
   return (
     <div className="px-2.5 pt-4 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -164,9 +164,9 @@ export function DetailTreeLabel({ children }: { children: ReactNode }) {
   );
 }
 
-/** 左欄「狀態」列：承接原「狀態」卡的內容（`DetailHeader` 的 `StatusRow` 清單，細線分隔）。兩欄格線讓各列以
- * subgrid 共用標籤欄——欄寬取最長標籤，英文單字標籤不溢出、各列數值左緣對齊（desktop-app「詳情頁狀態列的標籤欄
- * 依最長標籤對齊」）。 */
+/** 左栏「状态」列：承接原「状态」卡的内容（`DetailHeader` 的 `StatusRow` 清单，细线分隔）。两栏格线让各列以
+ * subgrid 共用标签栏——栏宽取最长标签，英文单字标签不溢出、各列数值左缘对齐（desktop-app「详情页状态栏的标签栏
+ * 依最长标签对齐」）。 */
 export function DetailStatus({ children }: { children: ReactNode }) {
   return (
     <section data-status-card className="grid grid-cols-[max-content_minmax(0,1fr)] divide-y divide-border">
@@ -176,16 +176,16 @@ export function DetailStatus({ children }: { children: ReactNode }) {
 }
 
 export interface DocHeaderProps {
-  /** 文件名（24px 一般字重）。 */
+  /** 文档名（24px 一般字重）。 */
   title: ReactNode;
   badges?: ReactNode;
-  /** 同列右端（「開啟 ▾」）。 */
+  /** 同列右端（「打开 ▾」）。 */
   actions?: ReactNode;
-  /** 出處行：13px 灰字、「·」分隔、可折行。 */
+  /** 出处行：13px 灰字、「·」分隔、可折行。 */
   provenance?: ReactNode[];
 }
 
-/** 閱讀卡標題區（design D1）。 */
+/** 阅读卡标题区（design D1）。 */
 export function DocHeader({ title, badges, actions, provenance }: DocHeaderProps) {
   return (
     <header data-doc-header className="flex min-w-0 flex-col gap-1.5">
@@ -207,16 +207,16 @@ export function DocHeader({ title, badges, actions, provenance }: DocHeaderProps
   );
 }
 
-/** 一格數字磚：值與標籤。 */
+/** 一格数字砖：值与标签。 */
 export interface DocTile {
   value: ReactNode;
   label: string;
-  /** 不含內容的連結元素（react-router 的 `<Link to=… />`）：給了就以它渲染整格、可點；
-   *  元件填入格子內容與樣式，連結原有的子元素與 className 不採用。 */
+  /** 不含内容的链接元素（react-router 的 `<Link to=… />`）：给了就以它渲染整格、可点；
+   *  组件填入格子内容与样式，链接原有的子元素与 className 不采用。 */
   link?: ReactElement<{ className?: string; children?: ReactNode }>;
 }
 
-/** 閱讀卡標題區的推導結果：籤槽、數字磚、提示框（缺席時為空）。 */
+/** 阅读卡标题区的推导结果：签槽、数字砖、提示框（缺席时为空）。 */
 export interface DocSummary {
   badges: ReactNode;
   tiles: DocTile[];
@@ -227,9 +227,9 @@ const TILE_CLS = "flex min-w-0 flex-col gap-0.5 rounded-xl border border-border 
 const TILE_LINK_CLS =
   "cursor-(--cursor-interaction) outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring";
 
-/** 數字磚：閱讀卡標題下由文件結構推出的計數格，最多四格、依格數平分整列（每格一欄等寬；
- * `auto-cols-fr` 即 `minmax(0, 1fr)`，長標籤截斷、不撐寬欄）；空陣列整列缺席。帶 `link` 的格
- * 整格是連結（server 總覽；server-web-list-pages design D1）。 */
+/** 数字砖：阅读卡标题下由文档结构推出的计数格，最多四格、依格数平分整列（每格一栏等宽；
+ * `auto-cols-fr` 即 `minmax(0, 1fr)`，长标签截断、不撑宽栏）；空数组整列缺席。带 `link` 的格
+ * 整格是链接（server 总览；server-web-list-pages design D1）。 */
 export function DocTiles({ tiles }: { tiles: DocTile[] }) {
   if (tiles.length === 0) return null;
   return (
@@ -258,10 +258,10 @@ export function DocTiles({ tiles }: { tiles: DocTile[] }) {
   );
 }
 
-/** 閱讀卡內文：包住各文件渲染器的輸出，本頁目錄自它推導錨點。內文 15px／行高 1.75，行寬以卡欄
- * （768px 扣內距）為上限（design D10；規格詳情頁與手冊頁不經這裡）。index.css 的 `.markdown` 基準字級
- * 不在 cascade layer、一般宣告就壓過 Tailwind utilities 層，字級與行高的覆蓋因此帶 important（`!`）；
- * Markdown 自帶的 96ch 同在 utilities 層，後代選擇器的特異性就夠。 */
+/** 阅读卡内文：包住各文档渲染器的输出，本页目录自它推导锚点。内文 15px／行高 1.75，行宽以卡栏
+ * （768px 扣内距）为上限（design D10；规格详情页与手册页不经这里）。index.css 的 `.markdown` 基准字级
+ * 不在 cascade layer、一般声明就压过 Tailwind utilities 层，字级与行高的覆盖因此带 important（`!`）；
+ * Markdown 自带的 96ch 同在 utilities 层，后代选择器的特异性就够。 */
 const DOC_BODY_CLS =
   "w-full text-[15px] leading-[1.75] [&_.markdown]:max-w-none [&_.markdown]:text-[15px]! [&_.markdown]:leading-[1.75]!";
 
@@ -272,21 +272,21 @@ export const DocBody = forwardRef<HTMLDivElement, { children: ReactNode }>(({ ch
 ));
 DocBody.displayName = "DocBody";
 
-/** 標題列動作插槽：undefined＝沒有宿主（原地渲染）、null＝宿主的插槽尚未掛上。 */
+/** 标题列动作插槽：undefined＝没有宿主（原地渲染）、null＝宿主的插槽尚未挂上。 */
 const ActionsSlotContext = createContext<HTMLElement | null | undefined>(undefined);
 
-/** 宿主提供插槽節點（design D3）：value 為宿主以 callback ref 取得的 [`DetailActionsSlot`] 節點。 */
+/** 宿主提供插槽节点（design D3）：value 为宿主以 callback ref 取得的 [`DetailActionsSlot`] 节点。 */
 export const DetailActionsSlotProvider = ActionsSlotContext.Provider;
 
-/** 宿主標題列上的空插槽。 */
+/** 宿主标题列上的空插槽。 */
 export const DetailActionsSlot = forwardRef<HTMLDivElement>((_, ref) => (
   <div ref={ref} data-detail-actions className="flex shrink-0 items-center gap-1.5 pr-3" />
 ));
 DetailActionsSlot.displayName = "DetailActionsSlot";
 
 /**
- * 頁的變更層動作（design D3）：有宿主時以 portal 送進標題列插槽，最前面帶一條細線與
- * ‹ n／m › 分隔；沒有宿主時原地渲染。
+ * 页的变更层动作（design D3）：有宿主时以 portal 送进标题列插槽，最前面带一条细线与
+ * ‹ n／m › 分隔；没有宿主时原地渲染。
  */
 export function DetailActions({ children }: { children: ReactNode }) {
   const slot = useContext(ActionsSlotContext);

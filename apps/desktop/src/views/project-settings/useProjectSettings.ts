@@ -1,8 +1,8 @@
-// 專案設定的狀態與動作（desktop-settings-mode design D8）：自 ProjectSettingsView 原樣搬出——
-// 兩層設定的載入、儲存、remote revision 衝突對照與產出流程的切換／fork／建立／刪除，邏輯不變；
-// 四個分類頁共用同一份狀態，切頁不重載、各頁的編輯態與草稿跨頁保留。
+// 项目设置的状态与动作（desktop-settings-mode design D8）：自 ProjectSettingsView 原样搬出——
+// 两层设置的加载、保存、remote revision 冲突对照与产出流程的切换／fork／创建／删除，逻辑不变；
+// 四个分类页共用同一份状态，切页不重载、各页的编辑态与草稿跨页保留。
 import { useEffect, useRef, useState } from "react";
-import { REVIEW_LISTS, useI18n, type ReviewBaseline, type ReviewList, type ReviewRules } from "@speclink/ui";
+import { REVIEW_LISTS, useI18n, type ReviewBaseline, type ReviewList, type ReviewRules } from "@specseal/ui";
 
 import type {
   SchemaEntry,
@@ -22,10 +22,10 @@ import {
   type SubagentDraft,
 } from "./subagentModel";
 
-/** locale／spec_locale 的「未設定」在 config 裡是空字串，Radix Select 的 item 不接受空字串。 */
+/** locale／spec_locale 的「未设置」在 config 里是空字符串，Radix Select 的 item 不接受空字符串。 */
 export const LOCALE_UNSET = "__unset__";
 
-/** 官方合法語系代碼（引擎 LOCALE_CODES／SPEC_LOCALE_CODES 的前端鏡像）。 */
+/** 官方合法语系代码（引擎 LOCALE_CODES／SPEC_LOCALE_CODES 的前端镜像）。 */
 export const LOCALE_OPTIONS: readonly string[] = ["tw", "ja", "en"];
 export const SPEC_LOCALE_OPTIONS: readonly string[] = ["auto", "tw", "ja", "en"];
 
@@ -37,10 +37,10 @@ type PendingRemoteWrite =
   | { kind: "subagentModel"; config: SubagentModelConfig }
   | { kind: "schema"; name: string };
 
-/** 有自己編輯態的四張內容卡。 */
+/** 有自己编辑态的四张内容卡。 */
 type CardKind = "context" | "rules" | "review" | "subagentModel";
 
-/** 只取物件自己的鍵：工具名稱 `constructor` 之類與物件內建屬性同名時，不會取到原型上的值。 */
+/** 只取对象自己的键：工具名称 `constructor` 之类与对象内置属性同名时，不会取到原型上的值。 */
 const own = <T,>(map: Record<string, T>, key: string): T | undefined =>
   Object.prototype.hasOwnProperty.call(map, key) ? map[key] : undefined;
 
@@ -80,7 +80,7 @@ export function errorMessage(error: unknown): string {
   return String(error);
 }
 
-/** 審查規則編輯草稿：預設清單模式＋三節各一份「一行一條」文字。 */
+/** 审查规则编辑草稿：缺省清单模式＋三节各一份「一行一条」文本。 */
 export type ReviewDraft = { baseline: ReviewBaseline } & Record<ReviewList, string>;
 
 const reviewToDraft = (review: ReviewRules): ReviewDraft => ({
@@ -110,58 +110,58 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   const [audit, setAudit] = useState(false);
   const [worktree, setWorktree] = useState(false);
   const [contextText, setContextText] = useState("");
-  /** 產出規則現值：schemaArtifacts 固定鍵 → 條目清單（清單順序即檔案順序）。 */
+  /** 产出规则现值：schemaArtifacts 固定键 → 条目清单（清单顺序即文件顺序）。 */
   const [rules, setRules] = useState<Record<string, string[]>>({});
-  // 拆卡獨立編輯態（design D2）：專案說明卡與產出規則卡各持 editing 旗標與草稿，
-  // 編輯／取消／儲存互不影響；各卡儲存僅寫對應鍵。
+  // 拆卡独立编辑态（design D2）：项目说明卡与产出规则卡各持 editing 旗标与草稿，
+  // 编辑／取消／保存互不影响；各卡保存仅写对应键。
   const [ctxEditing, setCtxEditing] = useState(false);
   const [draftContext, setDraftContext] = useState("");
   const [ctxMsg, setCtxMsg] = useState<string | null>(null);
   const [rulesEditing, setRulesEditing] = useState(false);
   const [draftRules, setDraftRules] = useState<Record<string, string>>({});
-  /** 編輯面凍結鍵集（review N4）：開編輯當下的 schemaArtifacts 快照——編輯中
-   * 固定鍵換集（切換 schema、fork／建立／刪除改變活躍解析）不換編輯面，儲存
-   * 也以此鍵集送草稿，新固定鍵的既有規則走非凍結鍵兜底原樣保留。 */
+  /** 编辑面冻结键集（review N4）：开编辑当下的 schemaArtifacts 快照——编辑中
+   * 固定键换集（切换 schema、fork／创建／删除改变活跃解析）不换编辑面，保存
+   * 也以此键集送草稿，新固定键的既有规则走非冻结键兜底原样保留。 */
   const [editingRuleKeys, setEditingRuleKeys] = useState<string[]>([]);
   const [rulesMsg, setRulesMsg] = useState<string | null>(null);
-  // 審查規則頁：與產出規則卡同一套獨立編輯態（唯讀現值、編輯旗標、草稿、訊息、寫入中）。
+  // 审查规则页：与产出规则卡同一套独立编辑态（唯读现值、编辑旗标、草稿、消息、写入中）。
   const [review, setReview] = useState<ReviewRules>(EMPTY_REVIEW);
   const [reviewEditing, setReviewEditing] = useState(false);
   const [draftReview, setDraftReview] = useState<ReviewDraft>(reviewToDraft(EMPTY_REVIEW));
   const [reviewMsg, setReviewMsg] = useState<string | null>(null);
-  // 子代理模型頁：同一套獨立編輯態；草稿見 subagentModel.ts。
+  // 子代理模型页：同一套独立编辑态；草稿见 subagentModel.ts。
   const [subagentModel, setSubagentModel] = useState<SubagentModelConfig>(EMPTY_SUBAGENT_MODEL);
   const [subagentEditing, setSubagentEditing] = useState(false);
   const [draftSubagent, setDraftSubagent] = useState<SubagentDraft>(() => toDraft(EMPTY_SUBAGENT_MODEL, {}));
   const [subagentMsg, setSubagentMsg] = useState<string | null>(null);
-  // 寫入中（desktop-settings-editors design D2）：state 驅動按鈕停用與編輯器唯讀，ref 擋同一輪
-  // 事件內的重送；放在四頁共用的狀態裡，儲存中切頁再切回也不重送。
+  // 写入中（desktop-settings-editors design D2）：state 驱动按钮停用与编辑器唯读，ref 挡同一轮
+  // 事件内的重送；放在四页共用的状态里，保存中切页再切回也不重送。
   const [ctxSaving, setCtxSaving] = useState(false);
   const [rulesSaving, setRulesSaving] = useState(false);
   const [reviewSaving, setReviewSaving] = useState(false);
   const [subagentSaving, setSubagentSaving] = useState(false);
   const writing = useRef({ context: false, rules: false, review: false, subagentModel: false });
-  /** 編輯期間被別的寫入帶到較新的 revision、且 server 值已與開編輯時不同的卡（review R3）。 */
+  /** 编辑期间被别的写入带到较新的 revision、且 server 值已与开编辑时不同的卡（review R3）。 */
   const [staleCards, setStaleCards] = useState<ReadonlySet<CardKind>>(() => new Set());
   const [appMsg, setAppMsg] = useState<string | null>(null);
   const [wfMsg, setWfMsg] = useState<string | null>(null);
   const [conflict, setConflictState] = useState<PolicyConflict | null>(null);
-  /** 衝突狀態的同步鏡像：409 設下衝突到下一次 render 之間，寫入守門也要看得到它。 */
+  /** 冲突状态的同步镜像：409 设下冲突到下一次 render 之间，写入守门也要看得到它。 */
   const conflictOpen = useRef(false);
   const setConflict = (next: PolicyConflict | null) => {
     conflictOpen.current = next !== null;
     setConflictState(next);
   };
-  // 產出流程頁籤（desktop-schema-panel design D4/D5）：清單快照、展開中的項、
-  // 建立表單草稿與表單訊息。
+  // 产出流程页签（desktop-schema-panel design D4/D5）：清单快照、展开中的项、
+  // 创建表单草稿与表单消息。
   const [schemas, setSchemas] = useState<SchemaEntry[]>([]);
   const [expandedSchema, setExpandedSchema] = useState<string | null>(null);
   const [schemaMsg, setSchemaMsg] = useState<string | null>(null);
   const [createName, setCreateName] = useState("");
-  /** 待確認刪除的專案層 schema 名稱（確認框開關；D7 確認後才執行）。 */
+  /** 待确认删除的项目层 schema 名称（确认框开关；D7 确认后才运行）。 */
   const [pendingDeleteSchema, setPendingDeleteSchema] = useState<string | null>(null);
-  /** 產出流程動作（切換／fork／建立／刪除＋重讀）進行中：所有寫入入口停用。動作完成後
-   * adoptFresh 依按下當時的編輯與未存狀態採納 server 值，等待期間不得再有新改動。 */
+  /** 产出流程动作（切换／fork／创建／删除＋重读）进行中：所有写入入口停用。动作完成后
+   * adoptFresh 依按下当时的编辑与未存状态采纳 server 值，等待期间不得再有新改动。 */
   const [schemaBusy, setSchemaBusy] = useState(false);
 
   const hydrate = (next: SettingsSnapshot) => {
@@ -198,8 +198,8 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   };
 
   useEffect(() => {
-    // stale-guard＋錯誤浮出（review R7）：session 快速切換時舊回應不得覆寫
-    // 新清單；讀取失敗以表單訊息浮出而非 unhandled rejection 靜默空白。
+    // stale-guard＋错误浮出（review R7）：session 快速切换时旧回应不得覆写
+    // 新清单；读取失败以表单消息浮出而非 unhandled rejection 静默空白。
     let cancelled = false;
     void settings.readSettings().then((next) => {
       if (!cancelled) hydrate(next);
@@ -227,7 +227,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     conflict !== null ||
     schemaBusy;
 
-  // 政策表單相對快照的未存修改（dirty 與 adoptFresh 共用）。
+  // 政策表单相对快照的未存修改（dirty 与 adoptFresh 共用）。
   const policyDirty =
     locale !== (snap.workflow.locale ?? "") ||
     specLocale !== (snap.workflow.specLocale ?? "") ||
@@ -235,10 +235,10 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     audit !== snap.workflow.audit ||
     worktree !== snap.workflow.worktree;
 
-  /** 採納最新快照裡「不是這次寫入、也不在編輯中」各區的現值（review R8）：remote 的
-   * readSettings 會靜默換上最新 revision，留著舊現值再起草儲存，就會不經 409 蓋掉別人的修改。
-   * 編輯中的卡保留草稿；它的 server 值若已變，記為 stale，儲存時先浮出對照（isStale）。
-   * 政策欄位只在表單沒有未存修改時採納。 */
+  /** 采纳最新快照里「不是这次写入、也不在编辑中」各区的现值（review R8）：remote 的
+   * readSettings 会静默换上最新 revision，留着旧现值再起草保存，就会不经 409 盖掉别人的修改。
+   * 编辑中的卡保留草稿；它的 server 值若已变，记为 stale，保存时先浮出对照（isStale）。
+   * 政策字段只在表单没有未存修改时采纳。 */
   const adoptFresh = (fresh: SettingsSnapshot, written: PendingRemoteWrite["kind"]) => {
     const w = fresh.workflow;
     if (written !== "policy" && !policyDirty) {
@@ -279,7 +279,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     );
   };
 
-  // 寫入成功後把已存值併進快照：快照＝檔案現值，未存修改（dirty）以它為基準比對。
+  // 写入成功后把已存值并进快照：快照＝文件现值，未存修改（dirty）以它为基准比对。
   const adoptTools = (saved: string[]) =>
     setSnap((current) => current && { ...current, app: { ...current.app, tools: saved } });
   const adoptPolicy = (fields: WorkflowFields) =>
@@ -294,7 +294,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
       adoptTools(tools);
       setAppMsg(t("settings.saved"));
     } catch (e) {
-      // 寫入失敗：單行錯誤（指明檔案與階段，來自 desktop-core），表單維持原值。
+      // 写入失败：单行错误（指明文件与阶段，来自 desktop-core），表单维持原值。
       setAppMsg(errorMessage(e));
     }
   };
@@ -316,8 +316,8 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     const mineContext =
       pending.kind === "context" ? pending.context : ctxEditing ? draftContext : contextText;
     const mineSchema = pending.kind === "schema" ? pending.name : snap.workflow.schemaName;
-    // 編輯中以凍結鍵集入表（review S-a）：payload 鍵集由 editingRuleKeys 決定，
-    // 對照表列的行必須跟 payload 同源，凍結鍵才不會從對照中消失。
+    // 编辑中以冻结键集入表（review S-a）：payload 键集由 editingRuleKeys 决定，
+    // 对照表列的行必须跟 payload 同源，冻结键才不会从对照中消失。
     const artifactIds = Array.from(
       new Set([
         ...(rulesEditing ? editingRuleKeys : snap.workflow.schemaArtifacts),
@@ -373,8 +373,8 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
       },
     ];
     for (const id of artifactIds) {
-      // 編輯中：凍結鍵顯示草稿；非凍結鍵（編輯期間換入的新固定鍵）顯示將被
-      // 兜底原樣保留的現值，而非誤導的空白（review S-a）。
+      // 编辑中：冻结键显示草稿；非冻结键（编辑期间换入的新固定键）显示将被
+      // 兜底原样保留的现值，而非误导的空白（review S-a）。
       const mine = rulesEditing
         ? editingRuleKeys.includes(id)
           ? draftRules[id] ?? ""
@@ -401,7 +401,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
         mine: show(entriesToText(mineReview[list])),
       });
     }
-    // 子代理模型：各站與各清單取兩邊出現過的工具名稱聯集，一個工具一列。
+    // 子代理模型：各站与各清单取两边出现过的工具名称联集，一个工具一列。
     const serverSubagent = latest.workflow.subagentModel;
     const toolsOf = (a: Record<string, unknown>, b: Record<string, unknown>) =>
       Array.from(new Set([...Object.keys(a), ...Object.keys(b)])).sort();
@@ -428,7 +428,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     return rows;
   };
 
-  /** 各種寫入的訊息落點（衝突重讀失敗、重送失敗時共用）。 */
+  /** 各种写入的消息落点（冲突重读失败、重送失败时共用）。 */
   const MSG_SETTERS: Record<PendingRemoteWrite["kind"], (message: string | null) => void> = {
     policy: setWfMsg,
     context: setCtxMsg,
@@ -438,7 +438,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     schema: setSchemaMsg,
   };
 
-  /** 重讀 server 最新版並浮出逐欄位對照；重讀失敗時把原因寫到該卡的訊息。 */
+  /** 重读 server 最新版并浮出逐字段对照；重读失败时把原因写到该卡的消息。 */
   const openConflict = async (pending: PendingRemoteWrite) => {
     try {
       const latest = await settings.readSettings();
@@ -457,8 +457,8 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     return true;
   };
 
-  /** stale 的卡（見 adoptFresh）不直接寫入：adapter 已帶著新 revision，寫入不會再 409，會蓋掉
-   * 別人的修改——儲存改為比照 409 浮出對照（openConflict），看過差異再選重載或重送。 */
+  /** stale 的卡（见 adoptFresh）不直接写入：adapter 已带着新 revision，写入不会再 409，会盖掉
+   * 别人的修改——保存改为比照 409 浮出对照（openConflict），看过差异再选重载或重送。 */
   const isStale = (kind: CardKind) => isRemote && staleCards.has(kind);
 
   const saveWorkflow = async () => {
@@ -477,9 +477,9 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     } catch (e) {
       if (await handleWriteError(e, { kind: "policy", fields })) setWfMsg(null);
       else if (!isRemote) {
-        // local 失敗有兩種身分：被拒（例如 worktree 掛著時關不掉，檔案沒變）
-        // 或技能同步失敗（config 已寫入、新值為正典）。重讀檔案現值——開關與
-        // 快照都以檔案為準，才不會在下次儲存時靜默把政策寫回舊值。
+        // local 失败有两种身分：被拒（例如 worktree 挂着时关不掉，文件没变）
+        // 或技能同步失败（config 已写入、新值为正典）。重读文件现值——开关与
+        // 快照都以文件为准，才不会在下次保存时静默把政策写回旧值。
         try {
           const fresh = await settings.readSettings();
           setSnap(fresh);
@@ -489,9 +489,9 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
         }
         setWfMsg(errorMessage(e));
       } else {
-        // remote 不重讀：adapter 的 readSettings 會靜默採納最新 revision，
-        // 之後再存等於帶新 revision 提交過期欄位值、繞過 409 衝突對照。
-        // 維持舊 revision，讓併發修改照常走 revision_conflict 對話框。
+        // remote 不重读：adapter 的 readSettings 会静默采纳最新 revision，
+        // 之后再存等于带新 revision 提交过期字段值、绕过 409 冲突对照。
+        // 维持旧 revision，让并发修改照常走 revision_conflict 对话框。
         setWorktree(snap?.workflow.worktree ?? false);
         setWfMsg(errorMessage(e));
       }
@@ -504,9 +504,9 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     setCtxEditing(true);
   };
 
-  /** 按鈕、編輯器內 ⌘S 與頁層 ⌘S 共用的寫入守門：停用時（解析失敗、檢視者、衝突對照中）
-   * 不送——衝突對照中 adapter 已採用最新 revision，再送會繞過對照卡蓋掉 server 版；
-   * 同一份寫入進行中也不重送。 */
+  /** 按钮、编辑器内 ⌘S 与页层 ⌘S 共用的写入守门：停用时（解析失败、查看者、冲突对照中）
+   * 不送——冲突对照中 adapter 已采用最新 revision，再送会绕过对照卡盖掉 server 版；
+   * 同一份写入进行中也不重送。 */
   const guardWrite = async (
     kind: "context" | "rules" | "review" | "subagentModel",
     setSaving: (saving: boolean) => void,
@@ -524,7 +524,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   };
 
   const saveContext = () => guardWrite("context", setCtxSaving, async () => {
-    // 僅寫 context 鍵（清空＝移除鍵）；產出規則卡對應的 rules 鍵不觸碰。
+    // 仅写 context 键（清空＝移除键）；产出规则卡对应的 rules 键不触碰。
     const pending = { kind: "context", context: draftContext } as const;
     if (isStale(pending.kind)) {
       setCtxMsg(null);
@@ -538,14 +538,14 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
       setCtxEditing(false);
       setCtxMsg(t("settings.saved"));
     } catch (e) {
-      // 寫入失敗：單行錯誤，維持編輯態不遺失輸入。
+      // 写入失败：单行错误，维持编辑态不遗失输入。
       if (await handleWriteError(e, pending)) setCtxMsg(null);
       else setCtxMsg(errorMessage(e));
     }
   });
 
   const beginRulesEdit = () => {
-    // 凍結編輯面鍵集（review N4）：編輯期間固定鍵換集不影響編輯中的分節。
+    // 冻结编辑面键集（review N4）：编辑期间固定键换集不影响编辑中的分节。
     setEditingRuleKeys(snap.workflow.schemaArtifacts);
     setDraftRules(
       Object.fromEntries(
@@ -557,16 +557,16 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   };
 
   const saveRules = () => guardWrite("rules", setRulesSaving, async () => {
-    // 整份代換 payload：全部固定鍵依 schemaArtifacts 順序送出（空節＝移除鍵、全空＝移除 rules 鍵）；
-    // 僅寫 rules 鍵，context 逐字元不變（不經寫入路徑）。
-    // 以凍結鍵集送出草稿（review N4）：編輯中固定鍵換集時，草稿仍對應開編輯
-    // 當下的分節，不對新鍵送空值。
+    // 整份代换 payload：全部固定键依 schemaArtifacts 顺序送出（空节＝移除键、全空＝移除 rules 键）；
+    // 仅写 rules 键，context 逐字符不变（不经写入路径）。
+    // 以冻结键集送出草稿（review N4）：编辑中固定键换集时，草稿仍对应开编辑
+    // 当下的分节，不对新键送空值。
     const nextRules: Array<[string, string[]]> = editingRuleKeys.map((id) => [
       id,
       keepUnedited(draftRules[id] ?? "", rules[id] ?? []),
     ]);
-    // 非凍結鍵的既有分節原樣附上（review R3／N4）：整份代換不得靜默刪掉其他
-    // schema 的分節——含編輯期間換入的新固定鍵既有規則。
+    // 非冻结键的既有分节原样附上（review R3／N4）：整份代换不得静默删掉其他
+    // schema 的分节——含编辑期间换入的新固定键既有规则。
     for (const [key, entries] of Object.entries(snap.workflow.rules)) {
       if (!editingRuleKeys.includes(key)) nextRules.push([key, entries]);
     }
@@ -595,8 +595,8 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   };
 
   const saveReview = () => guardWrite("review", setReviewSaving, async () => {
-    // 整塊代換、只寫 review 鍵：逐行修剪、空行不寫；移除語意（extend 不寫 baseline、空節移除、
-    // 全空移除 review）在 core 落實。
+    // 整块代换、只写 review 键：逐行修剪、空行不写；移除语意（extend 不写 baseline、空节移除、
+    // 全空移除 review）在 core 落实。
     const nextReview = draftToReview(draftReview, review);
     const pending = { kind: "review", review: nextReview } as const;
     if (isStale(pending.kind)) {
@@ -623,7 +623,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   };
 
   const saveSubagentModel = () => guardWrite("subagentModel", setSubagentSaving, async () => {
-    // 整塊代換、只寫 subagent_model 鍵；內容與現值相同時不寫檔——整塊代換會丟掉區塊內的註解。
+    // 整块代换、只写 subagent_model 键；内容与现值相同时不写档——整块代换会丢掉区块内的注解。
     const nextModel = fromDraft(draftSubagent, subagentModel);
     if (sameSubagentModel(nextModel, subagentModel)) {
       setSubagentEditing(false);
@@ -648,7 +648,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     }
   });
 
-  /** 產出流程來源層級的顯示詞（package／project／user → 內建／專案／使用者）。 */
+  /** 产出流程来源层级的显示词（package／project／user → 内置／项目／用户）。 */
   const SCHEMA_SOURCE_LABEL_KEY = {
     package: "settings.schemaSourceBuiltin",
     project: "settings.schemaSourceProject",
@@ -657,9 +657,9 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   const schemaSourceLabel = (source: keyof typeof SCHEMA_SOURCE_LABEL_KEY) =>
     t(SCHEMA_SOURCE_LABEL_KEY[source]);
 
-  /** 引擎 fork 以 project→user→built-in 第一命中解析來源；被同名前層 shadow 的
-   * 項不給 fork 入口——按下去複製到的會是前層內容（review R8）。引擎的層命中
-   * 只看 schema.yaml 檔案存在，前層壞檔也算 shadow（不看 error）。 */
+  /** 引擎 fork 以 project→user→built-in 第一命中解析来源；被同名前层 shadow 的
+   * 项不给 fork 入口——按下去拷贝到的会是前层内容（review R8）。引擎的层命中
+   * 只看 schema.yaml 文件存在，前层坏档也算 shadow（不看 error）。 */
   const SCHEMA_RESOLUTION_ORDER = { project: 0, user: 1, package: 2 } as const;
   const isResolutionHit = (entry: SchemaEntry) =>
     !schemas.some(
@@ -668,18 +668,18 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
         SCHEMA_RESOLUTION_ORDER[s.source] < SCHEMA_RESOLUTION_ORDER[entry.source],
     );
 
-  /** 切換／fork／建立／刪除成功後的快照局部採納（review R4／N1／N4）：只更新
-   * schema 面與 rules 固定鍵——不走 hydrate，任一卡的編輯態與草稿不得被重設。
-   * 產出規則編輯中時只更新 snap，唯讀顯示值與草稿不動——編輯面凍結在
-   * editingRuleKeys（開編輯當下的鍵集），儲存時換入的新固定鍵規則由非凍結鍵
-   * 兜底保留。重讀失敗不改報成錯誤：寫入已成功，快照留舊值待下次載入補上。 */
+  /** 切换／fork／创建／删除成功后的快照局部采纳（review R4／N1／N4）：只更新
+   * schema 面与 rules 固定键——不走 hydrate，任一卡的编辑态与草稿不得被重设。
+   * 产出规则编辑中时只更新 snap，唯读显示值与草稿不动——编辑面冻结在
+   * editingRuleKeys（开编辑当下的键集），保存时换入的新固定键规则由非冻结键
+   * 兜底保留。重读失败不改报成错误：写入已成功，快照留旧值待下次加载补上。 */
   const refreshSchemaFacts = async () => {
     try {
       const fresh = await settings.readSettings();
       setSnap(fresh);
       adoptFresh(fresh, "schema");
     } catch {
-      /* 寫入已成功；重讀失敗容忍。 */
+      /* 写入已成功；重读失败容忍。 */
     }
   };
 
@@ -692,7 +692,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
       setSchemaMsg(t("settings.saved"));
       await refreshSchemaFacts();
     } catch (e) {
-      // remote revision 落後走衝突對照（review R5）；其餘失敗單行浮出、下拉維持原值。
+      // remote revision 落后走冲突对照（review R5）；其余失败单行浮出、下拉维持原值。
       if (await handleWriteError(e, { kind: "schema", name })) setSchemaMsg(null);
       else setSchemaMsg(errorMessage(e));
     } finally {
@@ -700,9 +700,9 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     }
   };
 
-  /** schema 動作共用骨架（review S3）：執行 → 重拉清單＋局部採納快照（fork／
-   * 建立／刪除都可能改變同名 shadow 下的活躍解析，固定鍵一併跟上）→ 已儲存；
-   * 失敗單行浮出。 */
+  /** schema 动作共用骨架（review S3）：运行 → 重拉清单＋局部采纳快照（fork／
+   * 创建／删除都可能改变同名 shadow 下的活跃解析，固定键一并跟上）→ 已保存；
+   * 失败单行浮出。 */
   const runSchemaAction = async (action: () => Promise<unknown>) => {
     setSchemaBusy(true);
     try {
@@ -727,7 +727,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
   };
 
   const createSchemaAction = () => {
-    // 名稱驗證在引擎（D5）：kebab-case 規則與已存在檢查不在前端重複，錯誤原樣浮出。
+    // 名称验证在引擎（D5）：kebab-case 规则与已存在检查不在前端重复，错误原样浮出。
     const name = createName.trim();
     if (name === "") return Promise.resolve();
     return runSchemaAction(async () => {
@@ -747,7 +747,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     setWfMsg(null);
   };
 
-  /** 以最新 revision 重送一筆被擋下的寫入：每種寫入的送出與成功後的採納寫在同一處。 */
+  /** 以最新 revision 重送一笔被挡下的写入：每种写入的送出与成功后的采纳写在同一处。 */
   const resend = async (pending: PendingRemoteWrite): Promise<[number | void, () => void]> => {
     switch (pending.kind) {
       case "policy":
@@ -801,7 +801,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
         await refreshSchemaFacts();
         return;
       }
-      // 以最新 revision 重送成功：快照換成 server 最新版，其他區一併採納（review R8）。
+      // 以最新 revision 重送成功：快照换成 server 最新版，其他区一并采纳（review R8）。
       setSnap(latest);
       adoptFresh(latest, pending.kind);
       adoptSaved();
@@ -813,7 +813,7 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     }
   };
 
-  // 未存修改（App 的返回據此先問要不要捨棄）：表單值對照快照，兩張文字卡只看編輯中的草稿。
+  // 未存修改（App 的返回据此先问要不要舍弃）：表单值对照快照，两张文本卡只看编辑中的草稿。
   const dirty =
     tools.length !== snap.app.tools.length ||
     tools.some((tool) => !snap.app.tools.includes(tool)) ||
@@ -822,23 +822,23 @@ export function useProjectSettings(settings: WorkspaceSettingsProvider) {
     (rulesEditing && editingRuleKeys.some((id) => (draftRules[id] ?? "") !== entriesToText(rules[id] ?? []))) ||
     (reviewEditing && !sameReview(draftToReview(draftReview, review), review)) ||
     (subagentEditing && !sameSubagentModel(fromDraft(draftSubagent, subagentModel), subagentModel));
-  // 頁標題下的 remote 註記：policy revision 與檢視者說明（local 為 null，改顯示檔案鍵）。
+  // 页标题下的 remote 注记：policy revision 与查看者说明（local 为 null，改显示文件键）。
   const remoteNote = isRemote
     ? { revision: snap.workflow.revision ?? null, reader: !settings.policyWrite }
     : null;
 
   const populatedRuleKeys = snap.workflow.schemaArtifacts.filter((id) => (rules[id] ?? []).length > 0);
-  // 「整份換掉」且三節皆空：Standards 軸只剩 repo 文件可依——頁內提示，但不擋儲存。
+  // 「整份换掉」且三节皆空：Standards 轴只剩 repo 文档可依——页内提示，但不挡保存。
   const reviewDraft = draftToReview(draftReview, review);
   const reviewReplaceEmpty =
     draftReview.baseline === "replace" && REVIEW_LISTS.every((list) => reviewDraft[list].length === 0);
-  // 下拉選項：壞項不可選；同名跨層去重（解析語意本就取第一命中）。
+  // 下拉选项：坏项不可选；同名跨层去重（解析语意本就取第一命中）。
   const selectableSchemaNames = Array.from(
     new Set(schemas.filter((s) => s.error === null).map((s) => s.name)),
   );
 
 
-  // 頁標題下檔案註記的檔名：依專案實際的規格資料夾（desktop-spec-dir-migration D4）。
+  // 页标题下文件注记的文件名：依项目实际的规格文件夹（desktop-spec-dir-migration D4）。
   const configFile = workflowConfigFile(snap.specDir);
 
   return {

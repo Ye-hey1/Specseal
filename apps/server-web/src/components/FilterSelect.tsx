@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { SELECT_ALL, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@speclink/ui";
+import { SELECT_ALL, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@specseal/ui";
 
-/** 頁標題區的篩選下拉（server-web-list-pages design D2）：沒有可見標籤，以 `label` 作無障礙名稱；
- *  高度與搜尋框同為 h-8（SelectTrigger 預設）。空字串代表不篩選，選項為「全部」——Radix Select 禁止
- *  空字串當 item value，所以在元件內部與共用的 `SELECT_ALL` 來回換，呼叫端仍只認得空字串。 */
+/** 页标题区的筛选下拉（server-web-list-pages design D2）：没有可见标签，以 `label` 作无障碍名称；
+ *  高度与搜索框同为 h-8（SelectTrigger 缺省）。空字符串代表不筛选，选项为「全部」——Radix Select 禁止
+ *  空字符串当 item value，所以在组件内部与共用的 `SELECT_ALL` 来回换，调用端仍只认得空字符串。 */
 export function FilterSelect({
   label,
   allLabel,
@@ -12,11 +12,11 @@ export function FilterSelect({
   children,
 }: {
   label: string;
-  /** 「不篩選」那一項的文字，例如「全部狀態」。 */
+  /** 「不筛选」那一项的文本，例如「全部状态」。 */
   allLabel: string;
   value: string;
   onChange: (value: string) => void;
-  /** 該篩選器自己的選項（`SelectItem`），不含「全部」。 */
+  /** 该筛选器自己的选项（`SelectItem`），不含「全部」。 */
   children: ReactNode;
 }) {
   return (

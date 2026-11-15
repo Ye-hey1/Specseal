@@ -1,9 +1,9 @@
-// 更新頁「下載與安裝」卡的列（desktop-app spec「桌面自動更新」；desktop-settings-mode design D6）：
-// 標題「Speclink <目標版本>」，說明與控制依狀態——待同意＝「安裝後會重新啟動」＋「下載」、
-// 下載中＝不確定進度列＋「取消」、待重啟＝「更新已就緒」＋「安裝並重新啟動」、失敗＝錯誤＋
-// 「重試」（重新檢查）；其他狀態不出現。取消＝放棄本次同意回閒置：外掛沒有真正的下載取消，
-// 其後到達的下載完成在閒置態被狀態機忽略。進度列為不確定狀態：外掛的下載進度事件未接。
-import { Button, SEMANTIC_TONE, SettingsRow, useI18n } from "@speclink/ui";
+// 更新页「下载与安装」卡的列（desktop-app spec「桌面自动更新」；desktop-settings-mode design D6）：
+// 标题「Specseal <目标版本>」，说明与控制依状态——待同意＝「安装后会重新启动」＋「下载」、
+// 下载中＝不确定进度列＋「取消」、待重启＝「更新已就绪」＋「安装并重新启动」、失败＝错误＋
+// 「重试」（重新检查）；其他状态不出现。取消＝放弃本次同意回闲置：插件没有真正的下载取消，
+// 其后到达的下载完成在闲置态被状态机忽略。进度列为不确定状态：插件的下载进度事件未接。
+import { Button, SEMANTIC_TONE, SettingsRow, useI18n } from "@specseal/ui";
 
 import { updateNeedsAttention, type UpdaterState } from "../core/updater";
 
@@ -12,15 +12,15 @@ export interface UpdateInstallRowProps {
   onAccept: () => void;
   onCancel: () => void;
   onRelaunch: () => void;
-  /** 失敗後重試＝重新手動檢查。 */
+  /** 失败后重试＝重新手动检查。 */
   onRetry: () => void;
 }
 
 export function UpdateInstallRow({ state, onAccept, onCancel, onRelaunch, onRetry }: UpdateInstallRowProps) {
   const { t } = useI18n();
   if (!updateNeedsAttention(state)) return null;
-  // 失敗態不帶目標版本（簽章驗證失敗後待套用項已清掉）。
-  const label = state.phase === "error" ? "Speclink" : `Speclink ${state.version}`;
+  // 失败态不带目标版本（签章验证失败后待套用项已清掉）。
+  const label = state.phase === "error" ? "Specseal" : `Specseal ${state.version}`;
   const button = (text: string, onClick: () => void, variant?: "ghost" | "outline") => (
     <Button type="button" size="sm" variant={variant} onClick={onClick}>
       {text}
@@ -37,7 +37,7 @@ export function UpdateInstallRow({ state, onAccept, onCancel, onRelaunch, onRetr
           description={
             <span className="flex flex-col gap-1.5">
               <span>{t("updater.downloading")}…</span>
-              {/* 不確定進度：無 aria-valuenow，整段脈動。 */}
+              {/* 不确定进度：无 aria-valuenow，整段脉动。 */}
               <span role="progressbar" aria-label={t("updater.downloading")} className="block h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
                 <span className="block h-full w-1/2 animate-pulse rounded-full bg-primary motion-reduce:animate-none" />
               </span>

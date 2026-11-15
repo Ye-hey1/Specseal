@@ -1,5 +1,5 @@
-// 專案動作選單（design D5）：一份項目，由標題列「⋯」的下拉選單與圖示列方塊的右鍵
-// 選單各自包一層渲染。remote 無 checkout 時沒有本機目錄，只剩重新整理與關閉專案。
+// 项目动作菜单（design D5）：一份项目，由标题列「⋯」的下拉列表与图标列方块的右键
+// 菜单各自包一层渲染。remote 无 checkout 时没有本机目录，只剩刷新与关闭项目。
 import { Code, Copy, FolderOpen, RefreshCw, SquareTerminal, X } from "lucide-react";
 import {
   ContextMenuItem,
@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   MenuShortcut,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { projectDirOf } from "../adapter/fsActions";
 import { modKey, type Platform } from "../platform";
@@ -42,7 +42,7 @@ export function ProjectActionItems({
   tab: ProjectTab;
   platform: Platform;
   actions: ProjectActions;
-  /** 錯誤變體：首列顯示錯誤訊息，其後只有「自專案列移除」。 */
+  /** 错误变体：首列显示错误消息，其后只有「自项目列移除」。 */
   error?: string;
 }) {
   const { t } = useI18n();

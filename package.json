@@ -1,5 +1,5 @@
 {
-  "name": "speclink-workspace",
+  "name": "specseal-workspace",
   "version": "0.1.3",
   "private": true,
   "workspaces": [
@@ -13,6 +13,6 @@
     "dev:desktop": "node scripts/dev/dev.mjs --desktop",
     "dev:reset": "node scripts/dev/dev.mjs --reset",
     "cli": "node scripts/dev/cli.mjs",
-    "test:all": "node --test \"scripts/**/*.test.mjs\" && npm test -w packages/ui && npm test -w apps/desktop && npm test -w apps/server-web && npm run build -w apps/server-web && cargo test --workspace && npm --prefix crates/adapters/speclink-node ci && npm --prefix crates/adapters/speclink-node run build && npm --prefix crates/adapters/speclink-node test"
+    "test:all": "node --test \"scripts/**/*.test.mjs\" && npm test -w packages/ui && npm test -w apps/desktop && npm test -w apps/server-web && npm run build -w apps/server-web && cargo test --workspace && npm --prefix crates/adapters/specseal-node ci && npm --prefix crates/adapters/specseal-node run build && npm --prefix crates/adapters/specseal-node test"
   }
 }

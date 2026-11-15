@@ -25,7 +25,7 @@ import {
   useI18n,
   usePaging,
   PageHeader,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { useAsync, useLastData } from "../../lib/useAsync";
 import { useListScroll } from "../../lib/useListScroll";
@@ -47,17 +47,17 @@ import { AdminError, AdminLoading } from "./states";
 import { UserDetailPage } from "./UserDetailPage";
 import type { AdminPendingInvitation, AdminProject, AdminUser } from "../../api/client";
 
-// 使用者區段（server-web-console「管理列表以詳情頁與對話框承載檢視與建立」「使用者頁呈現尚未接受的
-// 邀請」；server-web-list-pages design D2–D4；server-web-detail-pages design D1）：`/admin/users` 是
-// 列表、`/admin/users/<id>` 是詳情頁。資料與列表狀態（搜尋、狀態篩選、頁碼）放在區段——兩者切換時
-// 區段不卸載，回列表時狀態原樣，詳情頁的 ‹ n / m › 也依列表目前呈現的順序。列表頁標題區右側是搜尋、
-// 狀態篩選與邀請；其下一張列表卡，卡頂「使用者｜邀請中」兩個分頁（分頁狀態在網址 ?tab=pending），
-// 卡底共用換頁列（前端換頁）。使用者列整列可點進詳情頁、列內不含輸入控制項；邀請由頁面唯一 primary
-// action 開啟。撤回邀請等破壞性動作維持確認框確認（確認鈕為紅系）。
+// 用户区段（server-web-console「管理列表以详情页与对话框承载查看与创建」「用户页呈现尚未接受的
+// 邀请」；server-web-list-pages design D2–D4；server-web-detail-pages design D1）：`/admin/users` 是
+// 列表、`/admin/users/<id>` 是详情页。数据与列表状态（搜索、状态筛选、页码）放在区段——两者切换时
+// 区段不卸载，回列表时状态原样，详情页的 ‹ n / m › 也依列表目前呈现的顺序。列表页标题区右侧是搜索、
+// 状态筛选与邀请；其下一张列表卡，卡顶「用户｜邀请中」两个分页（分页状态在网址 ?tab=pending），
+// 卡底共用换页列（前端换页）。用户列整列可点进详情页、列内不含输入控制项；邀请由页面唯一 primary
+// action 打开。撤回邀请等破坏性动作维持确认框确认（确认钮为红系）。
 
 type Confirm = { title: string; body: string; action: string; run: () => Promise<void> };
 
-/** 邀請對話框的專案挑選器固定停在這個值；它對不到任何選項，所以 trigger 顯示 placeholder。 */
+/** 邀请对话框的项目挑选器固定停在这个值；它对不到任何选项，所以 trigger 显示 placeholder。 */
 const PICKER = "__picker__";
 
 export function UsersSection() {
@@ -66,14 +66,14 @@ export function UsersSection() {
   const navigate = useNavigate();
   const narrow = useNarrow();
   const { data: fresh, error, reload } = useAsync(() => client.getAdminUsers(), []);
-  // useAsync 重抓時會先清空 data：留著上一份成功回應繼續渲染，詳情頁的變更（改角色、撤銷）
-  // 重載時詳情頁才不會卸載重掛、跳回第一個分頁（design D1）。只有第一次載入顯示載入中。
+  // useAsync 重抓时会先清空 data：留着上一份成功回应继续渲染，详情页的变更（改角色、撤销）
+  // 重载时详情页才不会卸载重挂、跳回第一个分页（design D1）。只有第一次加载显示加载中。
   const data = useLastData(fresh, error);
-  // 成員資格的專案選項來自 registry（專案代號為封閉集合，不開放自由輸入）；還沒載入時為 null。
+  // 成员资格的项目选项来自 registry（项目代号为封闭集合，不开放自由输入）；还没加载时为 null。
   const registry = useAsync(() => client.getAdminRegistry(), []);
   const projects = registry.data?.projects ?? null;
   const [searchParams, setSearchParams] = useSearchParams();
-  // 其他值或缺席都是使用者分頁。
+  // 其他值或缺席都是用户分页。
   const tab = searchParams.get("tab") === "pending" ? "pending" : "users";
   const [inviteOpen, setInviteOpen] = useState(false);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
@@ -91,13 +91,13 @@ export function UsersSection() {
   const users = usePaging(visible, { onMove: scrollToTop });
   const pending = usePaging(visiblePending, { onMove: scrollToTop });
 
-  // 搜尋、篩選與切分頁都回到第 1 頁。
+  // 搜索、筛选与切分页都回到第 1 页。
   function firstPage() {
     users.setPage(1);
     pending.setPage(1);
   }
 
-  // 分頁寫進網址但不新增瀏覽紀錄：上一頁不會在兩個分頁間來回。
+  // 分页写进网址但不添加浏览纪录：上一页不会在两个分页间来回。
   function switchTab(next: string) {
     setSearchParams(next === "pending" ? { tab: "pending" } : {}, { replace: true });
     firstPage();
@@ -167,7 +167,7 @@ export function UsersSection() {
           <ListCard
             scrollRef={scrollRef}
             header={
-              // 計數是未經搜尋與篩選的總數。
+              // 计数是未经搜索与筛选的总数。
               <TabsList variant="card">
                 <TabsTrigger value="users" count={data.users.length}>
                   {t("users.tabUsers")}
@@ -231,7 +231,7 @@ export function UsersSection() {
         </Tabs>
       )}
 
-      {/* 只在開著時掛載：每次開啟都是空白表單。 */}
+      {/* 只在开着时挂载：每次打开都是空白表单。 */}
       {inviteOpen && <InviteDialog projects={projects} onClose={() => setInviteOpen(false)} onCreated={reload} />}
 
       <ConfirmDialog
@@ -259,13 +259,13 @@ export function UsersSection() {
   );
 }
 
-/** 受邀者要開的連結；token 只在建立當下拿得到，網址在前端拼。 */
+/** 受邀者要开的链接；token 只在创建当下拿得到，网址在前端拼。 */
 function inviteUrl(token: string): string {
   return `${window.location.origin}/invite/${token}`;
 }
 
-/** 使用者列（design D4）：頭像字、名稱與 email、管理員籤、狀態籤、所屬專案數；窄螢幕把管理員
- *  併入 email 那一行、meta 只留狀態籤。整列可點進詳情頁。 */
+/** 用户列（design D4）：头像字、名称与 email、管理员签、状态签、所属项目数；窄屏幕把管理员
+ *  并入 email 那一行、meta 只留状态签。整列可点进详情页。 */
 function UserRow({ user, narrow, onOpen }: { user: AdminUser; narrow: boolean; onOpen: () => void }) {
   const { t, tn } = useI18n();
   const name = userLabel(user);
@@ -314,8 +314,8 @@ function UserRow({ user, narrow, onOpen }: { user: AdminUser; narrow: boolean; o
   );
 }
 
-// 待啟用邀請列：受邀者接受前沒有 user row，不能被停權、沒有憑證也沒有細節可看，所以是靜態列；
-// 標示到期日，管理員才知道哪一筆快失效。撤回恆常顯示（破壞性動作，確認框指名受邀者）。
+// 待激活邀请列：受邀者接受前没有 user row，不能被停权、没有凭证也没有细节可看，所以是静态列；
+// 标示到期日，管理员才知道哪一笔快失效。撤回恒常显示（破坏性动作，确认框指名受邀者）。
 function PendingRow({
   invitation: i,
   busy,
@@ -362,15 +362,15 @@ function PendingRow({
   );
 }
 
-// 邀請對話框（design D7）：送出成功後同一個對話框換成已建立狀態，一次性的邀請連結（token 進入 URL
-// 成為連結）只在這裡出現、關掉就看不到；成功當下即重載，邀請中分頁的計數隨之加一。提交失敗保持開啟
-// 並保留非祕密輸入，錯誤置於對應欄位附近。
+// 邀请对话框（design D7）：送出成功后同一个对话框换成已创建状态，一次性的邀请链接（token 进入 URL
+// 成为链接）只在这里出现、关掉就看不到；成功当下即重载，邀请中分页的计数随之加一。提交失败保持打开
+// 并保留非秘密输入，错误置于对应字段附近。
 function InviteDialog({
   projects,
   onClose,
   onCreated,
 }: {
-  /** registry 的專案；還沒載入（或載入失敗）時為 null。 */
+  /** registry 的项目；还没加载（或加载失败）时为 null。 */
   projects: AdminProject[] | null;
   onClose: () => void;
   onCreated: () => void;
@@ -402,7 +402,7 @@ function InviteDialog({
         description={t("users.inviteDoneBody").replace("{email}", () => email)}
         done
       >
-        {/* 給受邀者的是可直接開啟的連結，不是要他自己拼網址的 token。 */}
+        {/* 给受邀者的是可直接打开的链接，不是要他自己拼网址的 token。 */}
         <SecretDone
           value={inviteUrl(token)}
           copyLabel={t("users.copyLink")}
@@ -437,17 +437,17 @@ function InviteDialog({
         />
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium">{t("users.inviteJoinProjects")}</legend>
-          {/* 以下拉挑選再逐一移除，而不是每個專案一列勾選框：專案數量會成長，一整欄
-              勾選框在十來個專案之後就不可用了。已選的專案不再出現在可選項裡。 */}
+          {/* 以下拉挑选再逐一移除，而不是每个项目一列勾选框：项目数量会成长，一整栏
+              勾选框在十来个项目之后就不可用了。已选的项目不再出现在可选项里。 */}
           {projects === null || projects.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               {t(projects === null ? "users.projectsNotLoaded" : "users.inviteNoProjects")}
             </p>
           ) : (
             <>
-              {/* 純挑選器，不持有選中值：value 固定綁在一個對不到任何選項的哨符上，
-                  所以 trigger 永遠顯示 placeholder，而每次挑選都算一次值變動（同一個
-                  專案移除後可以再加回來）。 */}
+              {/* 纯挑选器，不持有选中值：value 固定绑在一个对不到任何选项的哨符上，
+                  所以 trigger 永远显示 placeholder，而每次挑选都算一次值变动（同一个
+                  项目移除后可以再加回来）。 */}
               <Select value={PICKER} onValueChange={(key) => setMemberships((prev) => [...prev, key])}>
                 <SelectTrigger id="invite-memberships" aria-label={t("users.inviteJoinProjects")}>
                   <SelectValue placeholder={t("users.pickProject")} />
@@ -491,14 +491,14 @@ function InviteDialog({
             </p>
           )}
         </fieldset>
-        {/* 管理員開關與使用者詳情頁同一個設定型列，框起來與上方的已選專案清單同一種外框。 */}
+        {/* 管理员开关与用户详情页同一个设置型列，框起来与上方的已选项目清单同一种外框。 */}
         <div className="rounded-xl border border-border">
           <SettingsRow
             label={t("users.roleAdmin")}
             htmlFor="invite-admin"
             description={t("users.adminHint")}
             control={
-              // 按鈕的名稱 axe 只認 aria-*，不認 <label for>。
+              // 按钮的名称 axe 只认 aria-*，不认 <label for>。
               <Switch id="invite-admin" aria-label={t("users.roleAdmin")} checked={admin} onCheckedChange={setAdmin} />
             }
           />

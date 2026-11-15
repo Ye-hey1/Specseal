@@ -4,18 +4,18 @@
 
 ## <a id="audience"></a>这份文档给谁
 
-要自己写客户端、自己架 server，或想用 HTTP 直接接 Speclink 的开发者看这份。只用桌面 app 或 CLI 的话可以跳过，日常操作看[完整 SDD 工作流](workflow.zh-CN.md)就够。
+要自己写客户端、自己架 server，或想用 HTTP 直接接 Specseal 的开发者看这份。只用桌面 app 或 CLI 的话可以跳过，日常操作看[完整 SDD 工作流](workflow.zh-CN.md)就够。
 
 这份文档回答三件事：
 
-- CLI 的每个动词在本机模式与远程模式能不能用、输出哪里不同。本机模式指文档存在 repo 里的 `speclink/`（或旧版创建的 `openspec/`）；远程模式指 `.speclink.yaml` 有 `remote:` 区段、文档存在 server 上。
+- CLI 的每个动词在本机模式与远程模式能不能用、输出哪里不同。本机模式指文档存在 repo 里的 `specseal/`（或旧版创建的 `openspec/`）；远程模式指 `.specseal.yaml` 有 `remote:` 区段、文档存在 server 上。
 - 远程 HTTP API 的共同规则、错误码与全部端点。
 - 需要送 body 的端点，请求与回应长什幺样子。
 
-官方 `speclink-server` 是参考实作，你可以照这份文档自建 server。这份文档与正式规格有出入时，以正式规格为准：
+官方 `specseal-server` 是参考实作，你可以照这份文档自建 server。这份文档与正式规格有出入时，以正式规格为准：
 
-- [动词契约正式规格](../speclink/specs/verb-contract/spec.md)
-- [客户端协定正式规格](../speclink/specs/client-protocol/spec.md)
+- [动词契约正式规格](../specseal/specs/verb-contract/spec.md)
+- [客户端协定正式规格](../specseal/specs/client-protocol/spec.md)
 
 架 server、创建访问密钥（PAT）的步骤见 [Remote 入门](remote-getting-started.zh-CN.md)。
 
@@ -32,8 +32,8 @@
 
 为什幺只限本机：
 
-- `demo` 把示范变更写进本机的 `speclink/`。
-- `trace` 从本机 `speclink/` 的封存变更与讨论档组出溯源链。
+- `demo` 把示范变更写进本机的 `specseal/`。
+- `trace` 从本机 `specseal/` 的封存变更与讨论档组出溯源链。
 - `change rank` 写本机卡片的排序；远程的看板顺序存在 `/board-order`。
 - `plan --strict-overlap` 依目录判断重叠；server 只依 requirement 判断。
 
@@ -67,21 +67,21 @@
 每个项目的 API 都在这个网址底下：
 
 ```text
-https://<server>/api/speclink/v1/projects/<项目代号>
+https://<server>/api/specseal/v1/projects/<项目代号>
 ```
 
-下文端点表的路径都接在它后面。CLI 的 `.speclink.yaml` 里 `remote.url` 存的就是这个网址（由 `speclink link <url>` 写入）。
+下文端点表的路径都接在它后面。CLI 的 `.specseal.yaml` 里 `remote.url` 存的就是这个网址（由 `specseal link <url>` 写入）。
 
 ### 每个请求都要带的标头
 
 | 标头 | 值 | 缺少或错误时 |
 | --- | --- | --- |
 | `Authorization` | `Bearer <凭证>` | 401 `permission_denied` |
-| `X-Speclink-Api-Version` | `1` | 409 `refused`（版本不兼容） |
-| `X-Speclink-Repo` | 保存库代号 | 项目只有一个 repo 时可省略；有多个 repo 却省略回 409 `refused`；写了没注册的 repo 回 404 `not_found` |
+| `X-Specseal-Api-Version` | `1` | 409 `refused`（版本不兼容） |
+| `X-Specseal-Repo` | 保存库代号 | 项目只有一个 repo 时可省略；有多个 repo 却省略回 409 `refused`；写了没注册的 repo 回 404 `not_found` |
 | `Content-Type` | `application/json`（有 body 时） | 415，回应是纯文本 |
 
-凭证有两种：访问密钥（PAT，`spk_pat_` 开头，在 server 的帐号页创建），或 `speclink auth login` 取得的设备登录凭证（`spk_at_` 开头）。凭证有效但帐号不是这个项目的成员，回 403。
+凭证有两种：访问密钥（PAT，`spk_pat_` 开头，在 server 的帐号页创建），或 `specseal auth login` 取得的设备登录凭证（`spk_at_` 开头）。凭证有效但帐号不是这个项目的成员，回 403。
 
 ### 角色
 
@@ -138,11 +138,11 @@ ETag 是 HTTP 回应标头，用来判断数据有没有变。
 
 每个变更恰好属于一个 repo；同时牵涉两个 repo 的需求，要拆成多个变更。
 
-- 远程模式创建变更（`POST /changes`）时，归属取自请求的 `X-Speclink-Repo`。项目只有一个 repo 时自动用那一个。回应的 `repo` 字段会回报归属。
+- 远程模式创建变更（`POST /changes`）时，归属取自请求的 `X-Specseal-Repo`。项目只有一个 repo 时自动用那一个。回应的 `repo` 字段会回报归属。
 - 枚举变更（`GET /changes`）只回请求那个 repo 的变更，其他 repo 的变更不会出现。
 - 一个需求要同时改两个 repo（例如 backend 与 frontend）时，拆成两个变更，各自在自己的 repo 创建。契约没有「跨 repo 的变更」。
 - 不只变更：讨论、正式规格、封存、工作流设置与看板顺序也都分 repo 存放。
-- CLI 送出的 repo 名称来自 `.speclink.yaml` 的 `remote.repo`，用 `speclink link <url> --repo <名称>` 设置。
+- CLI 送出的 repo 名称来自 `.specseal.yaml` 的 `remote.repo`，用 `specseal link <url> --repo <名称>` 设置。
 
 ## <a id="errors"></a>错误封套与错误码
 
@@ -188,30 +188,30 @@ ETag 是 HTTP 回应标头，用来判断数据有没有变。
 
 | 方法 | 路径 | 最低角色 | 用途 |
 | --- | --- | --- | --- |
-| GET | `/changes` | reader | 列出这个 repo 的变更（`speclink list`） |
-| POST | `/changes` | editor | 创建变更（`speclink new change`） |
-| GET | `/changes/{name}` | reader | 单一变更的状态与 metadata（`speclink status`、`show`） |
-| DELETE | `/changes/{name}?force=<bool>` | editor | 舍弃变更（`speclink discard`） |
-| GET | `/changes/{name}/drift` | reader | 规格那一侧的偏移数据（`speclink drift`） |
-| GET | `/changes/{name}/validate` | reader | 验证单一变更（`speclink validate`） |
-| GET | `/changes/{name}/analyze` | reader | 交叉分析报告（`speclink analyze`） |
-| GET | `/changes/{name}/instructions/{kind}` | reader | 产出指示；`{kind}` 是 `proposal`、`design`、`specs` 或 `tasks`，写 `apply` 时回实作进度（`speclink instructions`） |
-| GET | `/changes/{name}/artifacts/{artifact}` | reader | 读 artifact 内容与 `version`（`speclink artifact cat`） |
+| GET | `/changes` | reader | 列出这个 repo 的变更（`specseal list`） |
+| POST | `/changes` | editor | 创建变更（`specseal new change`） |
+| GET | `/changes/{name}` | reader | 单一变更的状态与 metadata（`specseal status`、`show`） |
+| DELETE | `/changes/{name}?force=<bool>` | editor | 舍弃变更（`specseal discard`） |
+| GET | `/changes/{name}/drift` | reader | 规格那一侧的偏移数据（`specseal drift`） |
+| GET | `/changes/{name}/validate` | reader | 验证单一变更（`specseal validate`） |
+| GET | `/changes/{name}/analyze` | reader | 交叉分析报告（`specseal analyze`） |
+| GET | `/changes/{name}/instructions/{kind}` | reader | 产出指示；`{kind}` 是 `proposal`、`design`、`specs` 或 `tasks`，写 `apply` 时回实作进度（`specseal instructions`） |
+| GET | `/changes/{name}/artifacts/{artifact}` | reader | 读 artifact 内容与 `version`（`specseal artifact cat`） |
 | PUT | `/changes/{name}/artifacts/{artifact}` | editor | 写 artifact，需带 `If-Match` |
 | GET | `/changes/{name}/evidence` | reader | 完成证据：勾选任务时记下的文档 |
-| POST | `/changes/{name}/in-progress` | editor | 标记开工（`speclink in-progress add`） |
-| DELETE | `/changes/{name}/in-progress` | editor | 移除开工标记（`speclink in-progress remove`） |
-| POST | `/changes/{name}/claim` | editor | 认领（`speclink claim`） |
-| POST | `/changes/{name}/depends` | editor | 声明或移除前置变更（`speclink change depends`） |
-| POST | `/changes/{name}/schema` | editor | 切换变更的 schema（`speclink change schema`） |
-| POST | `/changes/{name}/archive?carryReview=<bool>&carryVerify=<bool>` | editor | 封存（`speclink archive`） |
+| POST | `/changes/{name}/in-progress` | editor | 标记开工（`specseal in-progress add`） |
+| DELETE | `/changes/{name}/in-progress` | editor | 移除开工标记（`specseal in-progress remove`） |
+| POST | `/changes/{name}/claim` | editor | 认领（`specseal claim`） |
+| POST | `/changes/{name}/depends` | editor | 声明或移除前置变更（`specseal change depends`） |
+| POST | `/changes/{name}/schema` | editor | 切换变更的 schema（`specseal change schema`） |
+| POST | `/changes/{name}/archive?carryReview=<bool>&carryVerify=<bool>` | editor | 封存（`specseal archive`） |
 
 ### 任务
 
 | 方法 | 路径 | 最低角色 | 用途 |
 | --- | --- | --- | --- |
-| POST | `/changes/{name}/tasks/{taskId}/done` | editor | 勾选任务（`speclink task done`）；`{taskId}` 是序号或 `tsk_` 开头的稳定 ID |
-| POST | `/changes/{name}/tasks/{taskId}/undone` | editor | 取消勾选（`speclink task undone`） |
+| POST | `/changes/{name}/tasks/{taskId}/done` | editor | 勾选任务（`specseal task done`）；`{taskId}` 是序号或 `tsk_` 开头的稳定 ID |
+| POST | `/changes/{name}/tasks/{taskId}/undone` | editor | 取消勾选（`specseal task undone`） |
 | POST | `/changes/{name}/tasks/move` | editor | 搬移任务并重排编号（桌面 app 的拖曳） |
 
 ### 品质关卡
@@ -220,42 +220,42 @@ ETag 是 HTTP 回应标头，用来判断数据有没有变。
 
 | 方法 | 路径 | 最低角色 | 用途 |
 | --- | --- | --- | --- |
-| GET | `/changes/{name}/{station}` | reader | 读工单（`speclink review show`） |
-| POST | `/changes/{name}/{station}/rounds` | editor | 添加一轮（`speclink review add-round`） |
-| POST | `/changes/{name}/{station}/stamp` | editor | 盖章（`speclink review stamp`） |
-| DELETE | `/changes/{name}/{station}` | editor | 丢弃工单（`speclink review discard`） |
+| GET | `/changes/{name}/{station}` | reader | 读工单（`specseal review show`） |
+| POST | `/changes/{name}/{station}/rounds` | editor | 添加一轮（`specseal review add-round`） |
+| POST | `/changes/{name}/{station}/stamp` | editor | 盖章（`specseal review stamp`） |
+| DELETE | `/changes/{name}/{station}` | editor | 丢弃工单（`specseal review discard`） |
 
 ### 讨论
 
 | 方法 | 路径 | 最低角色 | 用途 |
 | --- | --- | --- | --- |
 | GET | `/discussions?archived=<bool>` | reader | 列出讨论；`archived=true` 列出封存的讨论 |
-| POST | `/discussions` | editor | 创建讨论（`speclink discuss new`） |
-| GET | `/discussions/search?q=<关键字>` | reader | 搜索讨论，多个关键字以空白分隔（`speclink discuss search`） |
-| GET | `/discussions/{slug}` | reader | 读单一讨论与全文（`speclink discuss show`） |
-| DELETE | `/discussions/{slug}?force=<bool>` | editor | 删除讨论（`speclink discuss discard`） |
-| PUT | `/discussions/{slug}/context` | editor | 写背景段（`speclink discuss context`） |
-| POST | `/discussions/{slug}/rounds` | editor | 添加一轮（`speclink discuss add-round`） |
-| POST | `/discussions/{slug}/conclude` | editor | 写结论（`speclink discuss conclude`） |
-| POST | `/discussions/{slug}/archive` | editor | 封存讨论（`speclink discuss archive`） |
-| POST | `/discussions/{slug}/promote` | editor | 转为变更（`speclink discuss promote`） |
-| POST | `/discussions/{slug}/link` | editor | 把既有变更连到这个讨论（`speclink discuss link`） |
-| POST | `/discussions/{slug}/seal` | editor | 内容写好后，把讨论标为已转出变更（`speclink discuss seal`） |
+| POST | `/discussions` | editor | 创建讨论（`specseal discuss new`） |
+| GET | `/discussions/search?q=<关键字>` | reader | 搜索讨论，多个关键字以空白分隔（`specseal discuss search`） |
+| GET | `/discussions/{slug}` | reader | 读单一讨论与全文（`specseal discuss show`） |
+| DELETE | `/discussions/{slug}?force=<bool>` | editor | 删除讨论（`specseal discuss discard`） |
+| PUT | `/discussions/{slug}/context` | editor | 写背景段（`specseal discuss context`） |
+| POST | `/discussions/{slug}/rounds` | editor | 添加一轮（`specseal discuss add-round`） |
+| POST | `/discussions/{slug}/conclude` | editor | 写结论（`specseal discuss conclude`） |
+| POST | `/discussions/{slug}/archive` | editor | 封存讨论（`specseal discuss archive`） |
+| POST | `/discussions/{slug}/promote` | editor | 转为变更（`specseal discuss promote`） |
+| POST | `/discussions/{slug}/link` | editor | 把既有变更连到这个讨论（`specseal discuss link`） |
+| POST | `/discussions/{slug}/seal` | editor | 内容写好后，把讨论标为已转出变更（`specseal discuss seal`） |
 
 ### 项目层数据
 
 | 方法 | 路径 | 最低角色 | 用途 |
 | --- | --- | --- | --- |
-| GET | `/plan` | reader | 变更的运行顺序（`speclink plan`） |
+| GET | `/plan` | reader | 变更的运行顺序（`specseal plan`） |
 | GET | `/specs` | reader | 正式规格清单 |
 | GET | `/specs/{capability}/document` | reader | 一份正式规格的全文 |
 | GET | `/archived` | reader | 已封存变更清单 |
 | GET | `/archived/{datedName}/artifacts/{path}` | reader | 已封存变更里的一份文档，`{path}` 例如 `proposal.md` |
 | GET | `/archived/{datedName}/capabilities` | reader | 该次封存动到的 capability 名称 |
 | GET | `/search?q=<文本>` | reader | 桌面 app 的全文搜索（只搜在途的变更与讨论） |
-| GET | `/language` | reader | 共用词汇文档（`speclink language show`） |
+| GET | `/language` | reader | 共用词汇文档（`specseal language show`） |
 | GET | `/config` | reader | 工作流设置原文与修订号 |
-| PUT | `/config` | editor | 写工作流设置（`speclink workflow-config set`） |
+| PUT | `/config` | editor | 写工作流设置（`specseal workflow-config set`） |
 | GET | `/board-order` | reader | 看板顺序 |
 | PUT | `/board-order` | editor | 整份取代看板顺序，需带 `If-Match` |
 | POST | `/import` | editor | 把本机项目整包搬上 server（桌面 app 使用）；目标 repo 必须是空的 |
@@ -269,9 +269,9 @@ ETag 是 HTTP 回应标头，用来判断数据有没有变。
 | GET | `/healthz` | 不需要 | 进程在运行就回 200 |
 | GET | `/readyz` | 不需要 | 保存后端可用才回 200，否则 503 |
 | GET | `/auth/whoami` | 只需凭证 | 凭证属于谁（还没选项目时用） |
-| GET | `/api/speclink/v1/scopes` | 只需凭证 | 这个帐号看得到的项目与 repo |
+| GET | `/api/specseal/v1/scopes` | 只需凭证 | 这个帐号看得到的项目与 repo |
 
-`/auth/device`、`/auth/device/token`、`/auth/refresh` 与 `/auth/revoke` 是 `speclink auth login` 用的设备登录流程。
+`/auth/device`、`/auth/device/token`、`/auth/refresh` 与 `/auth/revoke` 是 `specseal auth login` 用的设备登录流程。
 
 ### <a id="events"></a>事件流
 
@@ -321,7 +321,7 @@ ETag 是 HTTP 回应标头，用来判断数据有没有变。
 
 ```text
 GET /changes/add-login/artifacts/tasks
-→ {"artifact":"tasks","content":"## 1. Login\n\n- [ ] 1.1 Add the login form <!-- speclink-task:tsk_01M4… -->\n…","version":2}
+→ {"artifact":"tasks","content":"## 1. Login\n\n- [ ] 1.1 Add the login form <!-- specseal-task:tsk_01M4… -->\n…","version":2}
 ```
 
 再带着 `version` 写回：
@@ -334,7 +334,7 @@ If-Match: 2
 ```
 
 - 新建一份还不存在的 artifact 时用 `If-Match: 0`。
-- 写入 `tasks.md` 时，server 会在每个任务行尾补上稳定 ID 注解（`<!-- speclink-task:tsk_… -->`）。
+- 写入 `tasks.md` 时，server 会在每个任务行尾补上稳定 ID 注解（`<!-- specseal-task:tsk_… -->`）。
 
 ### 品质关卡
 
@@ -344,7 +344,7 @@ If-Match: 2
 | `POST /changes/{name}/review/stamp` | `{"accept":false,"agent":"claude-code","scope":[{"path":"src/login.rs","hash":"<64 字符>"}],"missing":[]}` | `{"change":"add-login"}` |
 | `DELETE /changes/{name}/review` | 无 | `{"change":"add-login"}` |
 
-- 一轮的内容格式与 `speclink review add-round` 从 stdin 收的内容相同，必须有 `**Scope**:` 行。
+- 一轮的内容格式与 `specseal review add-round` 从 stdin 收的内容相同，必须有 `**Scope**:` 行。
 - `GET /changes/{name}/review` 回 `change`、`rounds`、`lastRound` 与 `content`（工单原文）。每一轮有 `index`、`phase`、`patchHash`、`rules`、`scope` 与 `findings`（每项 `severity`、`path`、`text`）。`rules` 为 null，或是带 `baseline`（`extend` 或 `replace`）与 `critical`、`warning`、`suggestion` 三个清单的对象；只有记录了套用规则的首轮才有对象。
 - 盖章的 `scope` 是工单各轮 Scope 列过的文档，在你工作目录里的内容指纹。`hash` 是文档内容的 SHA-256（小写十六进位）；UTF-8 文本档先把 CRLF 换成 LF 再算。
 - 工作目录里已经不存在的文档放进 `missing`。`scope` 加 `missing` 必须刚好等于工单列过的文档；server 不重算指纹，只检查文档集合。
@@ -378,7 +378,7 @@ If-Match: 2
 | `PUT /board-order`（加 `If-Match: "16"`） | `{"content":"{\"changes\":{\"add-logout\":\"a\"}}"}` | `{"revision":17}` |
 
 - `PUT /config` 收整份设置文档；server 先解析，解析不了回 422 `invalid_config`。
-- `POST /context` 的 body 可带 `change`，只取这个变更的文档；送 `{}` 就取全部。回应有 `snapshotId`、`digest` 与 `documents`，每份文档有 `path`、`content`、`revision` 与 `digest`。CLI 用它把 server 上的文档镜像到本机的唯读目录 `.speclink/context/`。
+- `POST /context` 的 body 可带 `change`，只取这个变更的文档；送 `{}` 就取全部。回应有 `snapshotId`、`digest` 与 `documents`，每份文档有 `path`、`content`、`revision` 与 `digest`。CLI 用它把 server 上的文档镜像到本机的唯读目录 `.specseal/context/`。
 - 看板顺序的 `content` 是一段 JSON 文本，形如 `{"changes":{"<变更>":"<排序键>"},"discussions":{…}}`。server 只存不解析；`GET /plan` 读取时看不懂的内容一律当作没有排序。
 
 `GET /changes/{name}/validate` 的回应：
@@ -449,15 +449,15 @@ If-Match: 2
 { "slug": "board-search-bar", "topic": "看板搜索列", "status": "promoted", "rounds": 1, "created": "2026-10-07", "createdBy": "Demo <demo@example.com>", "promotedTo": ["add-search-bar"], "concluded": true, "hold": true, "path": "discussions/board-search-bar.md", "archived": false }
 ```
 
-### `speclink list --json` 的本机 `worktree` 字段
+### `specseal list --json` 的本机 `worktree` 字段
 
 本机模式的 `list --json` 可能在某个变更上多一个 `worktree` 对象，表示这个变更正在某个 git worktree 里实作：
 
 ```json
-{ "completedTasks": 3, "name": "add-dark-mode", "status": "in-progress", "totalTasks": 5, "worktree": { "path": "/path/to/speclink.worktrees/add-dark-mode", "branch": "speclink/add-dark-mode" } }
+{ "completedTasks": 3, "name": "add-dark-mode", "status": "in-progress", "totalTasks": 5, "worktree": { "path": "/path/to/specseal.worktrees/add-dark-mode", "branch": "specseal/add-dark-mode" } }
 ```
 
-- `path` 是 worktree 目录的绝对路径，`branch` 是完整分支名（`speclink/<变更>`）。
+- `path` 是 worktree 目录的绝对路径，`branch` 是完整分支名（`specseal/<变更>`）。
 - 只在这些条件都成立时出现：本机模式、从主 checkout 运行、工作流设置打开 `worktree`，而且找得到这个变更对应的 worktree。其他情况整个键都不出现。
 - 远程模式的 `list` 永远不带这个字段，因为 server 不知道你本机的 checkout。所以没有 worktree 时，两种模式的输出逐栏一致。
 - 字段出现时，这一项的 `completedTasks`、`totalTasks`、`status` 与 `metaError` 取自 worktree 里的副本，不是主 checkout 的。

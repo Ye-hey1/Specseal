@@ -1,12 +1,12 @@
-// 詳情頁標題列左側的返回鈕與返回快捷鍵判斷（desktop-readonly-detail-pages design D8）。
-// 右端的 ‹ n／m › 已搬進 @speclink/ui 的 DetailNav（server-web-detail-pages design D3）。
+// 详情页标题列左侧的返回钮与返回快捷键判断（desktop-readonly-detail-pages design D8）。
+// 右端的 ‹ n／m › 已搬进 @specseal/ui 的 DetailNav（server-web-detail-pages design D3）。
 import { ArrowLeft } from "lucide-react";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 
 import type { Platform } from "../platform";
 
-/** 返回快捷鍵（design D8）：macOS 為 ⌘[ 與 ⌘←、其他平台 Alt+←。以實體按鍵（e.code）判定——
- * 中文輸入法啟用時 `[` 鍵送進頁面的 e.key 不一定是「[」；e.key 留作沒有 code 的事件後備。 */
+/** 返回快捷键（design D8）：macOS 为 ⌘[ 与 ⌘←、其他平台 Alt+←。以实体按键（e.code）判定——
+ * 中文输入法激活时 `[` 键送进页面的 e.key 不一定是「[」；e.key 留作没有 code 的事件后备。 */
 export function isBackShortcut(
   e: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "altKey" | "ctrlKey" | "shiftKey">,
   platform: Platform,
@@ -19,15 +19,15 @@ export function isBackShortcut(
   return e.altKey && !e.metaKey && leftArrow;
 }
 
-/** 返回鈕：回宿主清單頁（與 Esc、麵包屑中段同一個動作），提示標示 Esc 與返回快捷鍵。 */
+/** 返回钮：回宿主清单页（与 Esc、面包屑中段同一个动作），提示标示 Esc 与返回快捷键。 */
 export function DetailBack({
   page,
   keys,
   onBack,
 }: {
-  /** 宿主頁名（規格、已封存、變更、手冊）。 */
+  /** 宿主页名（规格、已封存、变更、手册）。 */
   page: string;
-  /** 依平台的返回快捷鍵（⌘[ 或 Alt+←）。 */
+  /** 依平台的返回快捷键（⌘[ 或 Alt+←）。 */
   keys: string;
   onBack: () => void;
 }) {

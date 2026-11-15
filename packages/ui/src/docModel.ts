@@ -1,9 +1,9 @@
-// 變更文件的結構解析（desktop-change-doc-views design D1）：章節切分與各章節的列點、路徑、決策、
-// 任務三層等形狀。全部是純函式、不碰 React；形狀不符時回 null 或把該列標成一般列（逐項降級），
-// 不拋錯——呼叫端照 Markdown 排。逐行掃描且認得 fenced code block（與 specSections 共用 fenceFlags）。
+// 变更文档的结构解析（desktop-change-doc-views design D1）：章节切分与各章节的列点、路径、决策、
+// 任务三层等形状。全部是纯函数、不碰 React；形状不符时回 null 或把该列标成一般列（逐项降级），
+// 不抛错——调用端照 Markdown 排。逐行扫描且认得 fenced code block（与 specSections 共用 fenceFlags）。
 import { fenceFlags } from "./specSections";
 
-/** 已知模板章節（h2）→ i18n key：三型提案模板與設計模板的聯集（白名單留在前端、不讀 schema）。 */
+/** 已知模板章节（h2）→ i18n key：三型提案模板与设计模板的联集（白名单留在前端、不读 schema）。 */
 const SECTION_KEYS: Record<string, string> = {
   Why: "sections.why",
   "What Changes": "sections.whatChanges",
@@ -26,7 +26,7 @@ const SECTION_KEYS: Record<string, string> = {
   "Open Questions": "sections.openQuestions",
 };
 
-/** Capabilities 段內的 h3 模板詞（子段）。 */
+/** Capabilities 段内的 h3 模板词（子段）。 */
 const SUB_SECTION_KEYS: Record<string, string> = {
   "New Capabilities": "sections.newCapabilities",
   "Modified Capabilities": "sections.modifiedCapabilities",
@@ -38,23 +38,23 @@ export interface DocSubsection {
   content: string;
 }
 
-/** 一個二級標題段：白名單命中時 key 為 i18n 鍵，白名單外為 null（title 為原文）。 */
+/** 一个二级标题段：白名单命中时 key 为 i18n 键，白名单外为 null（title 为原文）。 */
 export interface H2Section {
   key: string | null;
   title: string;
-  /** 段內文（不含標題行；Capabilities 段為第一個子段之前的內文）。 */
+  /** 段内文（不含标题行；Capabilities 段为第一个子段之前的内文）。 */
   content: string;
-  /** Capabilities 段的 New／Modified 子段；其他段為空陣列。 */
+  /** Capabilities 段的 New／Modified 子段；其他段为空数组。 */
   subsections: DocSubsection[];
 }
 
 export interface SplitDoc {
-  /** 第一個 h2 之前的內容。 */
+  /** 第一个 h2 之前的内容。 */
   preamble: string;
   sections: H2Section[];
 }
 
-/** 每個 `## ` 行開一段；沒有任何 h2 回 null（呼叫端整篇 Markdown 退回）。 */
+/** 每个 `## ` 行开一段；没有任何 h2 回 null（调用端整篇 Markdown 退回）。 */
 export function splitH2Sections(text: string): SplitDoc | null {
   const lines = text.split(/\r?\n/);
   const inFence = fenceFlags(lines);
@@ -93,13 +93,13 @@ export function splitH2Sections(text: string): SplitDoc | null {
   };
 }
 
-/** 頂層列點：首行文字與其後的續行／巢狀行（已去掉共同縮排）。 */
+/** 顶层列点：首行文本与其后的续行／嵌套行（已去掉共同缩进）。 */
 export interface ListItem {
   text: string;
   body: string;
 }
 
-/** 一段內容依出現序切成列點群與 prose 段。 */
+/** 一段内容依出现序切成列点群与 prose 段。 */
 export type ListBlock = { kind: "list"; items: ListItem[] } | { kind: "prose"; text: string };
 
 const ITEM_RE = /^(?:[-*+]|\d+[.)])\s+(.*)$/;
@@ -110,7 +110,7 @@ function dedent(lines: string[]): string {
   return lines.map((l) => l.slice(cut)).join("\n").trim();
 }
 
-/** 頂層列點（`- `／`* `／`1. `）與 prose 段依序切開；巢狀與縮排續行歸入該項 body。 */
+/** 顶层列点（`- `／`* `／`1. `）与 prose 段依序切开；嵌套与缩进续行归入该项 body。 */
 export function parseListItems(md: string): ListBlock[] {
   const lines = md.split(/\r?\n/);
   const inFence = fenceFlags(lines);
@@ -118,7 +118,7 @@ export function parseListItems(md: string): ListBlock[] {
   let prose: string[] = [];
   let list: { text: string; body: string[] }[] | null = null;
   let lastBlank = false;
-  // 圍欄跟著開頭行走：開頭行縮排且在列點內＝歸該項，否則歸 prose。
+  // 围栏跟着开头行走：开头行缩进且在列点内＝归该项，否则归 prose。
   let fenceTarget: string[] | null = null;
   const flushProse = () => {
     const text = prose.join("\n").trim();
@@ -166,28 +166,28 @@ export function parseListItems(md: string): ListBlock[] {
   return blocks;
 }
 
-/** 各段列點收成一串（計數與逐列渲染用）。 */
+/** 各段列点收成一串（计数与逐列渲染用）。 */
 export function listItemsOf(blocks: ListBlock[]): ListItem[] {
   return blocks.flatMap((b) => (b.kind === "list" ? b.items : []));
 }
 
-/** 列點的完整內文：首行加續行。 */
+/** 列点的完整内文：首行加续行。 */
 export function itemMarkdown(item: ListItem): string {
   return item.body ? `${item.text}\n${item.body}` : item.text;
 }
 
-/** 替代方案一列：首個「——」切方案與落敗理由；切不到時整條為方案。 */
+/** 替代方案一列：首个「——」切方案与落败理由；切不到时整条为方案。 */
 export function splitAlternative(text: string): { option: string; reason: string | null } {
   const i = text.indexOf("——");
   if (i < 0) return { option: text, reason: null };
   return { option: text.slice(0, i).trim(), reason: text.slice(i + 2).trim() || null };
 }
 
-/** 「(none)」「無」「（無）」這類空值標記。 */
-const NONE_RE = /^[（(]?\s*(none|無)\s*[)）]?[。.]?$/i;
+/** 「(none)」「无」「（无）」这类空值标记。 */
+const NONE_RE = /^[（(]?\s*(none|无)\s*[)）]?[。.]?$/i;
 const CAP_NAME_RE = /^[a-z0-9][a-z0-9-]*$/;
 
-/** 以「、」「,」「，」切項，括號與引號內的分隔符不切。 */
+/** 以「、」「,」「，」切项，括号与引号内的分隔符不切。 */
 function splitTopLevel(value: string): string[] {
   const out: string[] = [];
   let depth = 0;
@@ -204,7 +204,7 @@ function splitTopLevel(value: string): string[] {
   return out.map((s) => s.replace(/`/g, "").trim().replace(/。$/, "")).filter(Boolean);
 }
 
-/** 一個項：本體與緊接的括號附註（如「a.ts（整合測試）」）。本體含空白或其後還有文字時回 null。 */
+/** 一个项：本体与紧接的括号附注（如「a.ts（集成测试）」）。本体含空白或其后还有文本时回 null。 */
 function withNote(token: string): { head: string; note: string | null } | null {
   const m = /^([^\s（(]+)\s*(?:[（(](.*)[）)])?$/.exec(token);
   return m ? { head: m[1], note: m[2]?.trim() || null } : null;
@@ -216,14 +216,14 @@ export interface ImpactPath {
 }
 
 export interface ImpactData {
-  /** 「Affected specs:」列：names 為能力名（不成形為 null，照 raw 原文顯示）；整列缺席為 null。 */
+  /** 「Affected specs:」列：names 为能力名（不成形为 null，照 raw 原文显示）；整列缺席为 null。 */
   specs: { names: string[] | null; raw: string } | null;
   code: { new: ImpactPath[]; modified: ImpactPath[]; removed: ImpactPath[] };
-  /** 兩列之外的其他列點（照一般列排）。 */
+  /** 两列之外的其他列点（照一般列排）。 */
   notes: ListItem[];
 }
 
-/** Impact 段：「Affected code:」之下的 New／Modified／Removed 三組路徑是必要形狀，缺了或路徑不成形回 null。 */
+/** Impact 段：「Affected code:」之下的 New／Modified／Removed 三组路径是必要形状，缺了或路径不成形回 null。 */
 export function parseImpact(md: string): ImpactData | null {
   let specs: ImpactData["specs"] = null;
   let code: ImpactData["code"] | null = null;
@@ -266,13 +266,13 @@ export function parseImpact(md: string): ImpactData | null {
   return code ? { specs, code, notes } : null;
 }
 
-/** 能力列：name 為能力名（不成形的列為 null，整列當一般列）。 */
+/** 能力列：name 为能力名（不成形的列为 null，整列当一般列）。 */
 export interface CapabilityRow {
   name: string | null;
   text: string;
 }
 
-/** Capabilities 子段：每個「`name`: 說明」列點；「(none)」為空。 */
+/** Capabilities 子段：每个「`name`: 说明」列点；「(none)」为空。 */
 export function parseCapabilities(md: string): CapabilityRow[] {
   return parseListItems(md).flatMap((block): CapabilityRow[] => {
     if (block.kind === "prose") return NONE_RE.test(block.text) ? [] : [{ name: null, text: block.text }];
@@ -284,7 +284,7 @@ export function parseCapabilities(md: string): CapabilityRow[] {
   });
 }
 
-/** 提案 Capabilities 段「New Capabilities」列出的能力名——作用中變更裡它們還沒有正式規格。 */
+/** 提案 Capabilities 段「New Capabilities」列出的能力名——作用中变更里它们还没有正式规格。 */
 export function newCapabilities(proposal: string): string[] {
   const caps = splitH2Sections(proposal)?.sections.find((s) => s.key === "sections.capabilities");
   const sub = caps?.subsections.find((s) => s.key === "sections.newCapabilities");
@@ -294,7 +294,7 @@ export function newCapabilities(proposal: string): string[] {
 const GOALS_RE = /^\s*\*\*Goals\s*[:：]?\*\*\s*[:：]?\s*(.*)$/i;
 const NON_GOALS_RE = /^\s*\*\*Non-Goals\s*[:：]?\*\*\s*[:：]?\s*(.*)$/i;
 
-/** Goals / Non-Goals 段：以兩個粗體標籤切兩欄（各為 Markdown 原文）；缺任一標籤回 null。 */
+/** Goals / Non-Goals 段：以两个粗体标签切两栏（各为 Markdown 原文）；缺任一标签回 null。 */
 export function parseGoalsNonGoals(md: string): { intro: string; goals: string; nonGoals: string } | null {
   const lines = md.split(/\r?\n/);
   const g = lines.findIndex((l) => GOALS_RE.test(l));
@@ -310,16 +310,16 @@ export function parseGoalsNonGoals(md: string): { intro: string; goals: string; 
 }
 
 export interface DecisionData {
-  /** 標題開頭的 D 編號；無則 null。 */
+  /** 标题开头的 D 编号；无则 null。 */
   id: string | null;
-  /** 去掉 D 編號的標題。 */
+  /** 去掉 D 编号的标题。 */
   title: string;
-  /** 卡內頂層列點數。 */
+  /** 卡内顶层列点数。 */
   bullets: number;
   body: string;
 }
 
-/** Decisions 段：每個 `### ` 開一張卡；第一張之前的內容為 intro。 */
+/** Decisions 段：每个 `### ` 开一张卡；第一张之前的内容为 intro。 */
 export function parseDecisions(md: string): { intro: string; cards: DecisionData[] } {
   const lines = md.split(/\r?\n/);
   const inFence = fenceFlags(lines);
@@ -345,7 +345,7 @@ export function parseDecisions(md: string): { intro: string; cards: DecisionData
   };
 }
 
-/** Implementation Contract：「- **鍵**：值」列點成鍵值列；有 prose 或任一列不符回 null。 */
+/** Implementation Contract：「- **键**：值」列点成键值列；有 prose 或任一列不符回 null。 */
 export function parseContractRows(md: string): { key: string; value: string }[] | null {
   const blocks = parseListItems(md);
   if (blocks.length === 0 || blocks.some((b) => b.kind === "prose")) return null;
@@ -359,8 +359,8 @@ export function parseContractRows(md: string): { key: string; value: string }[] 
 }
 
 /**
- * 風險一列：首個「→」切風險與對策（風險外圍的方括號剝除）；切不到時整條為風險。風險只取首行當標題，
- * 其餘行（巢狀子項、續行）接到對策之前。
+ * 风险一列：首个「→」切风险与对策（风险外围的方括号剥除）；切不到时整条为风险。风险只取首行当标题，
+ * 其余行（嵌套子项、续行）接到对策之前。
  */
 export function splitRisk(text: string): { risk: string; mitigation: string | null } {
   const i = text.indexOf("→");
@@ -372,28 +372,28 @@ export function splitRisk(text: string): { risk: string; mitigation: string | nu
 }
 
 export interface TaskTextParts {
-  /** 描述開頭的「X.Y」序號；無則 null。 */
+  /** 描述开头的「X.Y」序号；无则 null。 */
   number: string | null;
   title: string;
   body: string | null;
   verify: string | null;
-  /** 標題緊接的 design 括號裡的 D 編號。 */
+  /** 标题紧接的 design 括号里的 D 编号。 */
   decisions: string[];
-  /** design 括號裡 D 編號以外的文字（歸入內文首行）。 */
+  /** design 括号里 D 编号以外的文本（归入内文首行）。 */
   note: string | null;
 }
 
-/** 標題尾的「（design D1、D3；spec「…」）」或「(design D1, D3)」。 */
+/** 标题尾的「（design D1、D3；spec「…」）」或「(design D1, D3)」。 */
 const DESIGN_PAREN_RE = /[（(]\s*design\s+([^）)]*)[）)]\s*$/i;
 
-/** 描述開頭的「X.Y」序號（tasks.md 的寫法）。 */
+/** 描述开头的「X.Y」序号（tasks.md 的写法）。 */
 const TASK_NUMBER_RE = /^(\d+(?:\.\d+)*)\s+([\s\S]*)$/;
 
-/** 任務描述拆三層：先剝開頭序號，再以首個「驗證：」切驗證，再以首個全形「：」切標題與內文。 */
+/** 任务描述拆三层：先剥开头序号，再以首个「验证：」切验证，再以首个全角「：」切标题与内文。 */
 export function splitTaskText(raw: string): TaskTextParts {
   const numbered = TASK_NUMBER_RE.exec(raw);
   const text = numbered ? numbered[2] : raw;
-  const v = text.indexOf("驗證：");
+  const v = text.indexOf("验证：");
   const front = v < 0 ? text : text.slice(0, v);
   const verify = v < 0 ? null : text.slice(v + 3).trim() || null;
   const c = front.indexOf("：");
@@ -415,7 +415,7 @@ export function splitTaskText(raw: string): TaskTextParts {
 const REMOVED_SCENARIO_RE = /^\s*<!--\s*REMOVED-SCENARIO:\s*(.*?)\s*-->\s*$/;
 const BEFORE_RE = /^\s*<!--\s*BEFORE:.*-->\s*$/;
 
-/** 取 REMOVED-SCENARIO 宣告的名稱，並回去掉這些行與 BEFORE 註解行的內文。 */
+/** 取 REMOVED-SCENARIO 声明的名称，并回去掉这些行与 BEFORE 注解行的内文。 */
 export function removedScenarios(block: string): { names: string[]; content: string } {
   const lines = block.split(/\r?\n/);
   const inFence = fenceFlags(lines);
@@ -433,7 +433,7 @@ export type ScenarioStepLabel = "GIVEN" | "WHEN" | "THEN" | "AND";
 
 const STEP_RE = /^[-*]\s+\*\*(GIVEN|WHEN|THEN|AND)\*\*\s*(.*)$/;
 
-/** Scenario 開頭的「- **WHEN** …」等列點成步驟，其後的內容（如 Example 區塊）為 rest；沒有步驟回 null。 */
+/** Scenario 开头的「- **WHEN** …」等列点成步骤，其后的内容（如 Example 区块）为 rest；没有步骤回 null。 */
 export function splitScenarioSteps(
   body: string,
 ): { steps: { label: ScenarioStepLabel; text: string }[]; rest: string } | null {
@@ -454,7 +454,7 @@ export function splitScenarioSteps(
 
 export type FindingAxis = "Correctness" | "Standards" | "Coherence";
 
-/** 工單描述開頭的軸向前綴（「Correctness:」等）：取出軸向並去前綴；無前綴時 axis 為 null。 */
+/** 工单描述开头的轴向前缀（「Correctness:」等）：取出轴向并去前缀；无前缀时 axis 为 null。 */
 export function findingAxis(text: string): { axis: FindingAxis | null; text: string } {
   const m = /^(Correctness|Standards|Coherence)\s*[:：]\s*/.exec(text);
   return m ? { axis: m[1] as FindingAxis, text: text.slice(m[0].length) } : { axis: null, text };
@@ -462,7 +462,7 @@ export function findingAxis(text: string): { axis: FindingAxis | null; text: str
 
 export type ProposalShape = "bugFix" | "refactor" | "feature";
 
-/** 提案模板形狀：Problem＋Root Cause、Summary＋Motivation、Why＋What Changes；皆非為 null。 */
+/** 提案模板形状：Problem＋Root Cause、Summary＋Motivation、Why＋What Changes；皆非为 null。 */
 export function proposalShape(doc: SplitDoc): ProposalShape | null {
   const keys = new Set(doc.sections.map((s) => s.key));
   const has = (...names: string[]) => names.every((n) => keys.has(`sections.${n}`));

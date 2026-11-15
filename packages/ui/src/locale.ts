@@ -1,24 +1,24 @@
-// UI 語言偏好：localStorage 單鍵，null 表跟隨系統；與 config.yaml 的 locale
-//（AI artifacts 產出語言）互不影響。
+// UI 语言偏好：localStorage 单键，null 表跟随系统；与 config.yaml 的 locale
+//（AI artifacts 产出语言）互不影响。
 //
-// 這四個函式與哪個 app 無關，Desktop 與 Server 兩端都要用——抄第二份就是這類工具漂移
-// 的起點，所以放在共用套件，Desktop 的 i18n/locale.ts 改為自此 re-export。
+// 这四个函数与哪个 app 无关，Desktop 与 Server 两端都要用——抄第二份就是这类工具漂移
+// 的起点，所以放在共用套件，Desktop 的 i18n/locale.ts 改为自此 re-export。
 import type { UiLocale } from "./i18n";
 
-/** null＝跟隨系統語言。 */
+/** null＝跟随系统语言。 */
 export type LocalePreference = UiLocale | null;
 
-const STORAGE_KEY = "speclink.uiLocale";
+const STORAGE_KEY = "specseal.uiLocale";
 
-/** 系統語言判定：以 zh 開頭 → zh-TW，其餘（含未知）→ en。 */
+/** 系统语言判定：以 zh 开头 → zh-CN，其余（含未知）→ en。 */
 export function detectSystemLocale(language: string | undefined): UiLocale {
-  return language?.toLowerCase().startsWith("zh") ? "zh-TW" : "en";
+  return language?.toLowerCase().startsWith("zh") ? "zh-CN" : "en";
 }
 
-/** 讀取偏好；缺鍵或非法值（手改 localStorage）一律視為未設定。 */
+/** 读取偏好；缺键或非法值（手改 localStorage）一律视为未设置。 */
 export function readLocalePreference(storage: Storage = localStorage): LocalePreference {
   const v = storage.getItem(STORAGE_KEY);
-  return v === "zh-TW" || v === "en" ? v : null;
+  return v === "zh-CN" || v === "en" ? v : null;
 }
 
 export function writeLocalePreference(pref: LocalePreference, storage: Storage = localStorage): void {
@@ -26,7 +26,7 @@ export function writeLocalePreference(pref: LocalePreference, storage: Storage =
   else storage.setItem(STORAGE_KEY, pref);
 }
 
-/** 有效 UI 語言：明示偏好優先，null 跟隨系統。 */
+/** 有效 UI 语言：明示偏好优先，null 跟随系统。 */
 export function resolveUiLocale(pref: LocalePreference, systemLanguage: string | undefined): UiLocale {
   return pref ?? detectSystemLocale(systemLanguage);
 }

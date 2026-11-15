@@ -4,13 +4,13 @@ import { BadgeAlert, BadgeCheck, BadgeX, Stamp } from "lucide-react";
 import { SEMANTIC_TONE } from "../tone";
 import type { StatusPillTone } from "./ui/status-pill";
 
-/* 審查標示配色（spec desktop-app「看板卡片的審查標示」「詳情抽屜的審查資訊列」
-   「已封存側的審查標示」共用）：四態各給可辨識的色，不落回灰階。
-   審查中＝進行中的藍；已審查＝蓋章紫；其後有變動＝警示琥珀；
-   曾審查未通過＝紅（destructive，永久結局，警示層級最高）。
-   紫是品質站蓋章專屬（spec desktop-app「品質站蓋章配色與主色分離」）：主色 teal
-   同時承載進度條、分頁、連結籤，蓋章引用主色會淹在滿版 teal 裡，因此讓出主色，
-   改用 stamp token。色值都在 theme.css；驗證站與本表共用同一張 tone 表，不另立一份。 */
+/* 审查标示配色（spec desktop-app「看板卡片的审查标示」「详情抽屉的审查信息列」
+   「已封存侧的审查标示」共用）：四态各给可辨识的色，不落回灰阶。
+   审查中＝进行中的蓝；已审查＝盖章紫；其后有变动＝警示琥珀；
+   曾审查未通过＝红（destructive，永久结局，警示层级最高）。
+   紫是品质站盖章专属（spec desktop-app「品质站盖章配色与主色分离」）：主色 teal
+   同时承载进度条、分页、链接签，盖章引用主色会淹在满版 teal 里，因此让出主色，
+   改用 stamp token。色值都在 theme.css；验证站与本表共用同一张 tone 表，不另立一份。 */
 export const REVIEW_TONE = {
   inReview: SEMANTIC_TONE.inProgress,
   reviewed: "text-stamp",
@@ -18,8 +18,8 @@ export const REVIEW_TONE = {
   reviewedNotPassed: SEMANTIC_TONE.danger,
 } as const;
 
-/** 審查狀態 → 狀態籤 tone（design D5）：與 `REVIEW_TONE` 同一組語意——已審查＝蓋章、
-   審查中＝進行中、其後有變動＝警示、未通過＝危險；詳情頁的章籤用。 */
+/** 审查状态 → 状态签 tone（design D5）：与 `REVIEW_TONE` 同一组语意——已审查＝盖章、
+   审查中＝进行中、其后有变动＝警示、未通过＝危险；详情页的章签用。 */
 export const REVIEW_PILL_TONE = {
   inReview: "progress",
   reviewed: "stamp",
@@ -27,9 +27,9 @@ export const REVIEW_PILL_TONE = {
   reviewedNotPassed: "destructive",
 } as const satisfies Record<keyof typeof REVIEW_TONE, StatusPillTone>;
 
-/** 審查狀態 → i18n 詞條 key（active 四態與 archived 三態同一張表）：狀態詞在
-   卡片、詳情抽屜與已封存兩處各出現一次，對照只此一份。`none` 與缺席不入表
-   ——查不到即不渲染任何審查元素。 */
+/** 审查状态 → i18n 词条 key（active 四态与 archived 三态同一张表）：状态词在
+   卡片、详情抽屉与已封存两处各出现一次，对照只此一份。`none` 与缺席不入表
+   ——查不到即不渲染任何审查元素。 */
 export const REVIEW_LABEL_KEY = {
   inReview: "review.inReview",
   reviewed: "review.reviewed",
@@ -37,11 +37,11 @@ export const REVIEW_LABEL_KEY = {
   reviewedNotPassed: "review.notPassed",
 } as const;
 
-/** 有標示的審查狀態——`REVIEW_TONE`／`REVIEW_LABEL_KEY` 的共同鍵集。 */
+/** 有标示的审查状态——`REVIEW_TONE`／`REVIEW_LABEL_KEY` 的共同键集。 */
 export type ReviewBadgeStatus = keyof typeof REVIEW_TONE;
 
-/** 審查狀態 → 行內小章圖示：進行中的印章、已審查的實心徽章、其後有變動的
-   警示徽章、未通過的叉號徽章。與 tone／label 同一組鍵，三處標示共用。 */
+/** 审查状态 → 行内小章图标：进行中的印章、已审查的实心徽章、其后有变动的
+   警示徽章、未通过的叉号徽章。与 tone／label 同一组键，三处标示共用。 */
 export const REVIEW_ICON: Record<ReviewBadgeStatus, ReactElement> = {
   inReview: <Stamp className="h-3.5 w-3.5" />,
   reviewed: <BadgeCheck className="h-3.5 w-3.5" />,

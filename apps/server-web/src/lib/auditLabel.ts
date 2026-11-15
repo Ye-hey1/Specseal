@@ -1,5 +1,5 @@
-/** 稽核動作與來源的顯示名稱（稽核紀錄頁與總覽的最近活動共用）。兩者是伺服器的封閉集合；未知值
- *  原樣呈現而不猜——那代表伺服器新增了這裡還沒跟上的種類，顯示原始字串比顯示空白誠實。 */
+/** 稽核动作与来源的显示名称（稽核纪录页与总览的最近活动共用）。两者是服务器的封闭集合；未知值
+ *  原样呈现而不猜——那代表服务器添加了这里还没跟上的种类，显示原始字符串比显示空白诚实。 */
 export function auditLabel(t: (key: string) => string, namespace: "action" | "source", value: string): string {
   const key = `audit.${namespace}.${value}`;
   const text = t(key);

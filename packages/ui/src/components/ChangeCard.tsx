@@ -23,19 +23,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/t
 export interface ChangeCardProps {
   change: ChangeItem;
   onOpen?: (name: string) => void;
-  /** 封存請求（僅「已就緒」階段的卡片顯示封存鈕）。 */
+  /** 封存请求（仅「已就绪」阶段的卡片显示封存钮）。 */
   onArchive?: (name: string) => void;
-  /** 退回提案中請求（僅派生「進行中」的卡片顯示退回鈕；未提供時不渲染）。 */
+  /** 退回提案中请求（仅派生「进行中」的卡片显示退回钮；未提供时不渲染）。 */
   onRevert?: (name: string) => void;
-  /** 進度條填色 class（看板依階段配色）。 */
+  /** 进度条填色 class（看板依阶段配色）。 */
   barClass?: string;
-  /** 搜尋字串（design D7）：名稱子字串命中時高亮命中原文。 */
+  /** 搜索字符串（design D7）：名称子字符串命中时高亮命中原文。 */
   highlight?: string;
-  /** 全文命中（design D6）：卡身呈 snippet 行（artifact 名＋前後文）。 */
+  /** 全文命中（design D6）：卡身呈 snippet 行（artifact 名＋前后文）。 */
   hit?: SearchHit;
 }
 
-/** 看板卡片（極簡）：名稱＋複製鈕＋進度。點卡片開詳情頁；動作歸詳情頁，僅 ready 卡有封存。 */
+/** 看板卡片（极简）：名称＋拷贝钮＋进度。点卡片开详情页；动作归详情页，仅 ready 卡有封存。 */
 export function ChangeCard({
   change,
   onOpen,
@@ -49,9 +49,9 @@ export function ChangeCard({
   const pct =
     change.totalTasks > 0 ? Math.round((change.completedTasks / change.totalTasks) * 100) : 0;
   const stage = changeStage(change);
-  // 波次與被擋（spec「看板卡片的波次與阻擋標示」；add-change-plan-desktop design D4）：
-  // 判定歸 stage.ts 的 planWave／planBlockedBy 單一入口，缺 wave（remote、成環）
-  // 無章也不變淡。被擋＝整卡變淡，與系統匣面板被擋列同一種語言：淡＝現在不能做。
+  // 波次与被挡（spec「看板卡片的波次与阻挡标示」；add-change-plan-desktop design D4）：
+  // 判定归 stage.ts 的 planWave／planBlockedBy 单一入口，缺 wave（remote、成环）
+  // 无章也不变淡。被挡＝整卡变淡，与系统匣面板被挡列同一种语言：淡＝现在不能做。
   const wave = planWave(change);
   const blockedBy = planBlockedBy(change);
   const blocked = blockedBy.length > 0;
@@ -82,8 +82,8 @@ export function ChangeCard({
             <TooltipContent>{change.createdBy}</TooltipContent>
           </Tooltip>
         )}
-        {/* 認領人（remote-claim-ownership D4）：沿建立者頭像的同款圓標，位置
-            固定在其後——掃視看板時「誰在做」與「誰開的」讀成同一行。 */}
+        {/* 认领人（remote-claim-ownership D4）：沿创建者头像的同款圆标，位置
+            固定在其后——扫视看板时「谁在做」与「谁开的」读成同一行。 */}
         {change.claimedBy && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -99,8 +99,8 @@ export function ChangeCard({
             </TooltipContent>
           </Tooltip>
         )}
-        {/* 審查章（spec「看板卡片的審查標示」）：行內小章＋tooltip 狀態詞，
-            不加文字列維持卡片極簡；none 無任何審查元素。 */}
+        {/* 审查章（spec「看板卡片的审查标示」）：行内小章＋tooltip 状态词，
+            不加文本列维持卡片极简；none 无任何审查元素。 */}
         {change.reviewStatus && change.reviewStatus !== "none" && (() => {
           const status: ReviewBadgeStatus = change.reviewStatus;
           const labelKey = REVIEW_LABEL_KEY[status];
@@ -115,8 +115,8 @@ export function ChangeCard({
             </Tooltip>
           );
         })()}
-        {/* 驗證章（spec「看板卡片的驗證標示」）：與審查章同構、順序固定在其後
-            ——兩章位置每次刷新都一樣，掃視才有意義。 */}
+        {/* 验证章（spec「看板卡片的验证标示」）：与审查章同构、顺序固定在其后
+            ——两章位置每次刷新都一样，扫视才有意义。 */}
         {change.verifyStatus && change.verifyStatus !== "none" && (() => {
           const status: VerifyBadgeStatus = change.verifyStatus;
           const labelKey = VERIFY_LABEL_KEY[status];
@@ -131,10 +131,10 @@ export function ChangeCard({
             </Tooltip>
           );
         })()}
-        {/* 待手動章（spec「看板卡片的待手動標示」；design D5）：寫碼任務全完成、
-            尚有未勾 `[M]` 時浮現——判定歸 stage.ts 的 awaitingManualCount 單一
-            入口（含 remote 缺欄位與 codeTotal=0 空真值兩個不浮現邊界），元件
-            只讀結果。沿審查章的行內小章家族，不增加文字列。 */}
+        {/* 待手动章（spec「看板卡片的待手动标示」；design D5）：写码任务全完成、
+            尚有未勾 `[M]` 时浮现——判定归 stage.ts 的 awaitingManualCount 单一
+            入口（含 remote 缺字段与 codeTotal=0 空真值两个不浮现边界），组件
+            只读结果。沿审查章的行内小章家族，不增加文本列。 */}
         {awaitingManualCount(change) > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -165,7 +165,7 @@ export function ChangeCard({
         {change.worktree && (
           <Tooltip>
             <TooltipTrigger asChild>
-              {/* worktree 掛著＝工作正於副本進行中，屬狀態非靜態 metadata。 */}
+              {/* worktree 挂着＝工作正于副本进行中，属状态非静态 metadata。 */}
               <span
                 aria-label={t("card.worktree")}
                 className={`shrink-0 ${SEMANTIC_TONE.inProgress}`}
@@ -190,8 +190,8 @@ export function ChangeCard({
             </TooltipContent>
           </Tooltip>
         )}
-        {/* 最小 invalid 標記（design 決策四）：metadata 損壞卡照常顯示，
-            操作由引擎錯誤拒絕；tooltip 載解析原因供修復。 */}
+        {/* 最小 invalid 标记（design 决策四）：metadata 损坏卡照常显示，
+            操作由引擎错误拒绝；tooltip 载解析原因供修复。 */}
         {change.metaError && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -206,15 +206,15 @@ export function ChangeCard({
         )}
       </CardHeader>
       <CardContent className="p-3 pt-0 gap-2">
-        {/* 描述列（anatomy 三列骨架）：proposal Why 首句一行截斷；null 時整列缺席。 */}
+        {/* 描述列（anatomy 三列骨架）：proposal Why 首句一行截断；null 时整列缺席。 */}
         {change.whyExcerpt && (
           <div data-desc className="truncate text-[11px] text-muted-foreground">
             {change.whyExcerpt}
           </div>
         )}
         <div className="flex items-center gap-2">
-          {/* 波次章在進度列最左：圓圈數字（同波同號可並行），tooltip 帶前置清單；
-              放這裡而不放標題列，名稱的空間才不被排程資訊佔用。 */}
+          {/* 波次章在进度列最左：圆圈数字（同波同号可并行），tooltip 带前置清单；
+              放这里而不放标题列，名称的空间才不被调度信息占用。 */}
           {wave !== null && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -235,7 +235,7 @@ export function ChangeCard({
             {change.completedTasks}/{change.totalTasks}
           </span>
         </div>
-        {/* stopPropagation 掛在按鈕自身而非整列：鈕旁空白仍冒泡開卡片詳情。 */}
+        {/* stopPropagation 挂在按钮自身而非整列：钮旁空白仍冒泡开卡片详情。 */}
         {stage === "ready" && (
           <div>
             <Button
@@ -251,8 +251,8 @@ export function ChangeCard({
             </Button>
           </div>
         )}
-        {/* 退回提案中（樣式沿討論卡封存鈕）：僅派生進行中呈現；點擊交宿主先確認,
-            UI 不預判守門——引擎是唯一裁決點。 */}
+        {/* 退回提案中（样式沿讨论卡封存钮）：仅派生进行中呈现；点击交宿主先确认,
+            UI 不预判守门——引擎是唯一裁决点。 */}
         {stage === "in-progress" && onRevert && (
           <div>
             <Button
@@ -268,7 +268,7 @@ export function ChangeCard({
             </Button>
           </div>
         )}
-        {/* 全文命中 snippet 行（design D6/D7）：哪個 artifact 命中＋前後文＋命中高亮。 */}
+        {/* 全文命中 snippet 行（design D6/D7）：哪个 artifact 命中＋前后文＋命中高亮。 */}
         {hit && (
           <div
             data-snippet

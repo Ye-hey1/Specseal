@@ -1,14 +1,14 @@
-import { Button, REVEAL_ON_GROUP_HOVER, useI18n } from "@speclink/ui";
+import { Button, REVEAL_ON_GROUP_HOVER, useI18n } from "@specseal/ui";
 
-/** 撤銷鈕（server-web-list-pages design D8）：存取金鑰與裝置登入列上滑過才出現。顯隱只用不透明度——
- *  隱藏期間仍在 Tab 順序內、螢幕閱讀器讀得到；鍵盤聚焦時出現；沒有滑鼠移入能力的裝置恆常顯示。
- *  所在列要帶 `group`（ListRow、SettingsRow 都有）。 */
+/** 撤销钮（server-web-list-pages design D8）：访问密钥与设备登录列上滑过才出现。显隐只用不透明度——
+ *  隐藏期间仍在 Tab 顺序内、屏幕阅读器读得到；键盘聚焦时出现；没有鼠标移入能力的设备恒常显示。
+ *  所在列要带 `group`（ListRow、SettingsRow 都有）。 */
 export function RevokeButton({
   label,
   disabled,
   onClick,
 }: {
-  /** 無障礙名稱，指名要撤銷的對象。 */
+  /** 无障碍名称，指名要撤销的对象。 */
   label: string;
   disabled?: boolean;
   onClick: () => void;

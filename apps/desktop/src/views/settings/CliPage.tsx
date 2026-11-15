@@ -1,5 +1,5 @@
-// CLI 頁（desktop-settings-mode design D5；spec「安裝 CLI 指令到 PATH」）。「speclink CLI」列：
-// 狀態文字＋安裝／重新安裝鈕，說明為佈署方式，PATH 提示與錯誤在列下。
+// CLI 页（desktop-settings-mode design D5；spec「安装 CLI 指令到 PATH」）。「specseal CLI」列：
+// 状态文本＋安装／重新安装钮，说明为布署方式，PATH 提示与错误在列下。
 import { AlertTriangle } from "lucide-react";
 import {
   Button,
@@ -8,7 +8,7 @@ import {
   SettingsPageHeader,
   SettingsRow,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { CliInstallView } from "../../store";
 
@@ -17,7 +17,7 @@ export interface CliInstallProps {
   onInstall: () => void;
 }
 
-/** 狀態文字：三態＋版本。 */
+/** 状态文本：三态＋版本。 */
 function CliInstallStatus({ view }: { view: CliInstallView }) {
   const { t } = useI18n();
   switch (view.status.kind) {
@@ -38,7 +38,7 @@ function CliInstallStatus({ view }: { view: CliInstallView }) {
   }
 }
 
-/** 列說明依佈署方式：可佈署時說明用途；Windows 由安裝器管理、Linux 非 AppImage 無可佈署的 CLI。 */
+/** 列说明依布署方式：可布署时说明用途；Windows 由安装器管理、Linux 非 AppImage 无可布署的 CLI。 */
 function cliDescriptionKey(view: CliInstallView): string | null {
   if (view.platform === "windows") return "cliInstall.installerManaged";
   if (view.platform === "linux-unpackaged") return "cliInstall.unpackaged";

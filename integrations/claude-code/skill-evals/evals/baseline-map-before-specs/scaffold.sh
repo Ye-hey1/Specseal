@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# src/ 下兩個小模組（購物車與登入），還沒有任何規格。
+# src/ 下两个小模块（购物车与登录），还没有任何规格。
 source "$(dirname "$0")/../fixtures.sh"
 eval_init
 mkdir -p src

@@ -25,7 +25,7 @@ export const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
 >(({ className, children, ...props }, ref) => {
-  // 對話框內的浮層要 portal 進對話框自己（見 portal-container.tsx），同 SheetContent。
+  // 对话框内的浮层要 portal 进对话框自己（见 portal-container.tsx），同 SheetContent。
   const [content, setContent] = React.useState<HTMLElement | null>(null);
   return (
     <AlertDialogPortal>

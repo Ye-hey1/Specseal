@@ -6,26 +6,26 @@ import { REVEAL_ON_GROUP_HOVER } from "../reveal";
 import { Button } from "./ui/button";
 import { useCopied } from "./useCopied";
 
-/** hover 才顯現、複製成功期間保持可見——卡片標題旁的複製鈕共用這組 class。 */
+/** hover 才显现、拷贝成功期间保持可见——卡片标题旁的拷贝钮共用这组 class。 */
 export const REVEAL_ON_HOVER = `${REVEAL_ON_GROUP_HOVER} data-[copied]:opacity-100`;
 
 export interface CopyButtonProps {
   value: string;
-  /** 無障礙名稱與 hover 提示。 */
+  /** 无障碍名称与 hover 提示。 */
   label: string;
-  /** icon：只有圖示（列尾、標題旁）；sm：圖示＋「複製／已複製」文字的外框小鈕。 */
+  /** icon：只有图标（列尾、标题旁）；sm：图标＋「拷贝／已拷贝」文本的外框小钮。 */
   size?: "sm" | "icon";
-  /** 覆寫寫入剪貼簿的路徑（例如系統匣走 Tauri clipboard）；拋錯或 reject 視為失敗。 */
+  /** 覆写写入剪贴板的路径（例如系统匣走 Tauri clipboard）；抛错或 reject 视为失败。 */
   onCopy?: (value: string) => void | Promise<void>;
-  /** 退出 tab 順序用（系統匣面板）。 */
+  /** 退出 tab 顺序用（系统匣面板）。 */
   tabIndex?: number;
   className?: string;
 }
 
 /**
- * 複製鈕（spec desktop-app「共用元件唯一來源」；design D8）：點擊不冒泡（不觸發列本體
- * 的開啟）；寫入成功後呈主色勾號 1.5 秒並以 status 宣告，失敗靜默、不呈勾號。成功期間
- * 帶 `data-copied`，hover 才顯現的呼叫端以 `data-[copied]:opacity-100` 保持可見。
+ * 拷贝钮（spec desktop-app「共用组件唯一来源」；design D8）：点击不冒泡（不触发列本体
+ * 的打开）；写入成功后呈主色勾号 1.5 秒并以 status 声明，失败静默、不呈勾号。成功期间
+ * 带 `data-copied`，hover 才显现的调用端以 `data-[copied]:opacity-100` 保持可见。
  */
 export function CopyButton({ value, label, size = "icon", onCopy, tabIndex, className }: CopyButtonProps) {
   const { t } = useI18n();
@@ -63,7 +63,7 @@ export function CopyButton({ value, label, size = "icon", onCopy, tabIndex, clas
         {icon}
         {size === "sm" && (copied ? t("common.copied") : t("common.copy"))}
       </Button>
-      {/* sr-only 是 absolute：不釘位置會停在捲動區外的深處，撐高外層（desktop 的 main）。 */}
+      {/* sr-only 是 absolute：不钉位置会停在卷动区外的深处，撑高外层（desktop 的 main）。 */}
       <span role="status" aria-live="polite" className="sr-only top-0 left-0">
         {copied ? t("common.copied") : ""}
       </span>

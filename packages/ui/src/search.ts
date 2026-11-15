@@ -1,6 +1,6 @@
 /**
- * 看板與已封存頁共用的搜尋比對規則（spec「與已封存頁的搜尋規則一致」的單一真相）：
- * query 去頭尾空白、不分大小寫、以子字串命中任一欄位；空（或僅空白）query 恆命中。
+ * 看板与已封存页共用的搜索比对规则（spec「与已封存页的搜索规则一致」的单一真相）：
+ * query 去头尾空白、不分大小写、以子字符串命中任一字段；空（或仅空白）query 恒命中。
  */
 export function matchesQuery(query: string, ...fields: (string | null | undefined)[]): boolean {
   const q = query.trim().toLowerCase();
@@ -9,9 +9,9 @@ export function matchesQuery(query: string, ...fields: (string | null | undefine
 }
 
 /**
- * 名稱層模糊比對（design D7）：查詢字元依序出現於目標即命中（subsequence，
- * 不分大小寫、去頭尾空白）。僅套用於變更卡名稱與討論卡 slug——摘要與主題
- * 維持子字串（spec「名稱層模糊比對」）。空 query 恆命中。
+ * 名称层模糊比对（design D7）：查找字符依序出现于目标即命中（subsequence，
+ * 不分大小写、去头尾空白）。仅套用于变更卡名称与讨论卡 slug——摘要与主题
+ * 维持子字符串（spec「名称层模糊比对」）。空 query 恒命中。
  */
 export function matchesFuzzy(query: string, target: string | null | undefined): boolean {
   const q = query.trim().toLowerCase();
@@ -25,13 +25,13 @@ export function matchesFuzzy(query: string, target: string | null | undefined): 
   return false;
 }
 
-/** 看板篩選狀態（design D5）：三維度、null＝未啟用；多 chip 與搜尋字串 AND 交集。 */
+/** 看板筛选状态（design D5）：三维度、null＝未激活；多 chip 与搜索字符串 AND 交集。 */
 export interface BoardFilters {
-  /** 建立者（"Name <email>" 全等比對）。 */
+  /** 创建者（"Name <email>" 全等比对）。 */
   createdBy: string | null;
-  /** 建立時間窗：近 7 天／近 30 天／更早（超過 30 天）。 */
+  /** 创建时间窗：近 7 天／近 30 天／更早（超过 30 天）。 */
   createdWithin: "7d" | "30d" | "earlier" | null;
-  /** 來源討論 slug：命中該討論卡自身與來源討論含該 slug 的變更卡。 */
+  /** 来源讨论 slug：命中该讨论卡自身与来源讨论含该 slug 的变更卡。 */
   fromDiscussion: string | null;
 }
 
@@ -42,8 +42,8 @@ export const EMPTY_FILTERS: BoardFilters = {
 };
 
 /**
- * created 日期（YYYY-MM-DD）是否落在時間窗內（以 today 為基準）。
- * 未啟用（range null）恆命中；日期缺席或不可解析時不命中任何啟用中的窗。
+ * created 日期（YYYY-MM-DD）是否落在时间窗内（以 today 为基准）。
+ * 未激活（range null）恒命中；日期缺席或不可解析时不命中任何激活中的窗。
  */
 export function matchesCreatedRange(
   created: string | null | undefined,
@@ -60,9 +60,9 @@ export function matchesCreatedRange(
 }
 
 /**
- * 篩選 chips 的 AND 交集比對（design D5）：卡片（變更或討論）須同時滿足所有
- * 啟用中的維度。變更卡以 fromDiscussions 命中來源討論；討論卡以自身 slug 命中
- * （spec「來源討論篩選」：該討論卡自身與其衍生變更卡）。
+ * 筛选 chips 的 AND 交集比对（design D5）：卡片（变更或讨论）须同时满足所有
+ * 激活中的维度。变更卡以 fromDiscussions 命中来源讨论；讨论卡以自身 slug 命中
+ * （spec「来源讨论筛选」：该讨论卡自身与其衍生变更卡）。
  */
 export function matchesFilters(
   filters: BoardFilters,

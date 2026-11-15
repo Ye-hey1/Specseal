@@ -41,7 +41,7 @@ import {
   type Crumb,
   type DocumentTarget,
   type Verb,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import {
   createAppStore,
@@ -102,68 +102,68 @@ import { setAppT } from "./i18n/runtime";
 import { BUILTIN_TOOLS } from "./builtinTools";
 
 export interface AppProps {
-  /** local session 工廠（root 綁定 dataSource／settings／events；workspace-session 決策 3/6）。 */
+  /** local session 工厂（root 绑定 dataSource／settings／events；workspace-session 决策 3/6）。 */
   createSession: (root: string, name: string) => WorkspaceSession;
-  /** remote session 工廠（remote-data-source 決策 6/7）：handshake 成功回
-   * session、失敗上拋；未注入時 remote 開啟入口不啟用。 */
+  /** remote session 工厂（remote-data-source 决策 6/7）：handshake 成功回
+   * session、失败上抛；未注入时 remote 打开入口不激活。 */
   openRemote?: (
     connectionId: string,
     target: string,
     checkoutRoot?: string,
   ) => Promise<WorkspaceSession>;
-  /** workspace 探測面（開專案／init／統計／監看重掛）；未注入時對應 UI 不啟用。 */
+  /** workspace 探测面（开项目／init／统计／监看重挂）；未注入时对应 UI 不激活。 */
   workspace?: WorkspaceAdapter;
-  /** server 連線面（desktop-connections）；未注入時伺服器頁籤不啟用。 */
+  /** server 连接面（desktop-connections）；未注入时服务器页签不激活。 */
   connections?: ConnectionsAdapter;
-  /** 正式 local→remote 遷移命令；預設使用 Tauri adapter，測試可注入。 */
+  /** 正式 local→remote 迁移命令；缺省使用 Tauri adapter，测试可注入。 */
   migration?: MigrationAdapter;
-  /** 自動更新面（desktop-app「桌面自動更新」）；未注入時更新入口不啟用。 */
+  /** 自动更新面（desktop-app「桌面自动更新」）；未注入时更新入口不激活。 */
   updater?: UpdaterAdapter;
-  /** CLI 佈署面（desktop-app「安裝 CLI 指令到 PATH」）；未注入時 CLI 卡不啟用。 */
+  /** CLI 布署面（desktop-app「安装 CLI 指令到 PATH」）；未注入时 CLI 卡不激活。 */
   cliInstall?: CliInstallAdapter;
-  /** 專案層檔案系統動作面（desktop-app「專案層檔案系統動作」）；未注入時選單動作不動作。 */
+  /** 项目层文件系统动作面（desktop-app「项目层文件系统动作」）；未注入时菜单动作不动作。 */
   fsActions?: FsActionsAdapter;
-  /** 關於頁的版本資訊來源（desktop-about-page design D1）；未注入時版本列顯示「—」。 */
+  /** 关于页的版本信息来源（desktop-about-page design D1）；未注入时版本列显示「—」。 */
   loadAppInfo?: () => Promise<AppInfo>;
 }
 
 const DEFAULT_MIGRATION_ADAPTER = createMigrationAdapter();
 
 
-/** 關閉作用中專案（非 macOS 的 Ctrl+W 與原生選單「關閉專案」共用）。 */
+/** 关闭作用中项目（非 macOS 的 Ctrl+W 与原生菜单「关闭项目」共用）。 */
 function closeActiveProject(store: ReturnType<typeof createAppStore>) {
   const { activeKey, closeTab } = store.getState();
   if (activeKey) closeTab(activeKey);
 }
 
-/** 四種詳情頁任一開著（spec「詳情頁互斥」：同時至多一個）。 */
+/** 四种详情页任一开着（spec「详情页互斥」：同时至多一个）。 */
 function detailPageOpen(
   st: Pick<AppState, "detailChange" | "detailDiscussion" | "detailSpec" | "detailArchived">,
 ): boolean {
   return st.detailChange !== null || st.detailDiscussion !== null || st.detailSpec !== null || st.detailArchived !== null;
 }
 
-/** 處在兩種設定模式之一（專案設定模式要有專案；零分頁時專案設定落在空狀態，不算）。 */
+/** 处在两种设置模式之一（项目设置模式要有项目；零分页时项目设置落在空状态，不算）。 */
 function inSettingsMode(st: Pick<AppState, "boardView" | "tabs">): boolean {
   return st.boardView === "settings" || (st.boardView === "project-settings" && st.tabs.length > 0);
 }
 
-/** 有對話框開著（Radix 只在開啟時掛載內容）：返回屬於底下的頁面，不得連帶收掉對話框。 */
+/** 有对话框开着（Radix 只在打开时挂载内容）：返回属于底下的页面，不得连带收掉对话框。 */
 function dialogOpen(): boolean {
   return document.querySelector('[role="dialog"], [role="alertdialog"]') !== null;
 }
 
-/** 有確認框（封存、退回、刪除、討論封存）待確認：確認框屬於目前詳情頁，返回與切換都不作用。 */
+/** 有确认框（封存、退回、删除、讨论封存）待确认：确认框属于目前详情页，返回与切换都不作用。 */
 function confirmPending(
   st: Pick<AppState, "pendingArchive" | "pendingRevert" | "pendingDelete" | "pendingArchiveDiscussion">,
 ): boolean {
   return st.pendingArchive !== null || st.pendingRevert !== null || st.pendingDelete !== null || st.pendingArchiveDiscussion !== null;
 }
 
-/** 各清單頁回報的呈現順序（含搜尋與篩選）——詳情頁 ‹ › 序列的來源。 */
+/** 各清单页回报的呈现顺序（含搜索与筛选）——详情页 ‹ › 串行的来源。 */
 type VisibleOrder = Record<"changes" | "discussions" | "specs" | "archivedChanges" | "archivedDiscussions", string[]>;
 
-/** 開著的詳情頁：種類、目前項目、‹ › 序列與在序列內開啟某項的動作（與開啟同一個狀態層動作）。 */
+/** 开着的详情页：种类、目前项目、‹ › 串行与在串行内打开某项的动作（与打开同一个状态层动作）。 */
 interface OpenDetail {
   kind: "change" | "discussion" | "spec" | "archived";
   current: string;
@@ -172,9 +172,9 @@ interface OpenDetail {
 }
 
 /**
- * 詳情頁種類的唯一分派處（序列、麵包屑、切換、渲染共用）。規格與已封存的序列依宿主取：宿主是
- * 對應清單頁時用它回報的順序；否則（手冊頁、規格頁開已封存）用 store 清單的未過濾順序——規格
- * 依規格頁的預設排序，已封存沿清單序。
+ * 详情页种类的唯一分派处（串行、面包屑、切换、渲染共用）。规格与已封存的串行依宿主取：宿主是
+ * 对应清单页时用它回报的顺序；否则（手册页、规格页开已封存）用 store 清单的未过滤顺序——规格
+ * 依规格页的缺省排序，已封存沿清单序。
  */
 function openDetailOf(s: AppState, order: VisibleOrder): OpenDetail | null {
   const archivedHost = s.boardView === "archived";
@@ -204,14 +204,14 @@ const DISABLED_CHOOSER_CONNECTIONS: Pick<
 > = {
   scopes: async () => ({ projects: [] }),
   inspectCheckout: async () => {
-    throw new Error("此環境未提供 server 連線功能");
+    throw new Error("此环境未提供 server 连接功能");
   },
   bindCheckout: async () => {
-    throw new Error("此環境未提供 server 連線功能");
+    throw new Error("此环境未提供 server 连接功能");
   },
 };
 
-/** 對話框描述文字內嵌粗體名稱：以 {name} 佔位切分渲染。 */
+/** 对话框描述文本内嵌粗体名称：以 {name} 占位切分渲染。 */
 function BoldName({ text, name }: { text: string; name: string }) {
   const [before, after] = text.split("{name}");
   return (
@@ -223,7 +223,7 @@ function BoldName({ text, name }: { text: string; name: string }) {
   );
 }
 
-/** 桌面 app 進入點：解析 UI 語言（偏好優先、null 跟隨系統）並掛 I18nProvider。 */
+/** 桌面 app 进入点：解析 UI 语言（偏好优先、null 跟随系统）并挂 I18nProvider。 */
 export function App({
   createSession,
   openRemote,
@@ -236,7 +236,7 @@ export function App({
   loadAppInfo,
 }: AppProps) {
   const [localePref, setLocalePrefState] = useState<LocalePreference>(() => readLocalePreference());
-  // 切換即時生效並持久化（設定頁的 UI 語言三選接這裡）。
+  // 切换即时生效并持久化（设置页的 UI 语言三选接这里）。
   const setLocalePref = (pref: LocalePreference) => {
     writeLocalePreference(pref);
     setLocalePrefState(pref);
@@ -245,14 +245,14 @@ export function App({
     localePref,
     typeof navigator !== "undefined" ? navigator.language : undefined,
   );
-  // 外觀偏好（desktop-settings-mode design D4）：啟動套用在 index.html 的開機腳本；切換時寫入、套用並通知
-  // 系統匣面板 webview 重套（非 Tauri 環境靜默）。
+  // 外观偏好（desktop-settings-mode design D4）：启动套用在 index.html 的开机脚本；切换时写入、套用并通知
+  // 系统匣面板 webview 重套（非 Tauri 环境静默）。
   const [themePref, setThemePrefState] = useState<ThemePreference>(() => readThemePreference());
   const setThemePref = (pref: ThemePreference) => {
     writeThemePreference(pref);
     applyThemePreference(pref);
     setThemePrefState(pref);
-    void emit("speclink:theme-changed", pref).catch(() => {});
+    void emit("specseal:theme-changed", pref).catch(() => {});
   };
   return (
     <I18nProvider locale={uiLocale} messages={APP_MESSAGES}>
@@ -277,15 +277,15 @@ export function App({
 }
 
 interface AppInnerProps extends AppProps {
-  /** UI 語言偏好現值（null＝跟隨系統）；設定頁三選用。 */
+  /** UI 语言偏好现值（null＝跟随系统）；设置页三选用。 */
   localePref: LocalePreference;
   onLocalePrefChange: (pref: LocalePreference) => void;
-  /** 外觀偏好現值（null＝跟隨系統）；設定頁外觀列用。 */
+  /** 外观偏好现值（null＝跟随系统）；设置页外观列用。 */
   themePref: ThemePreference;
   onThemePrefChange: (pref: ThemePreference) => void;
 }
 
-/** 桌面主畫面：生命週期看板（主視圖）＋已封存獨立頁＋設定頁＋富詳情抽屜。 */
+/** 桌面主画面：生命周期看板（主视图）＋已封存独立页＋设置页＋富详情抽屉。 */
 function AppInner({
   createSession,
   openRemote,
@@ -317,8 +317,8 @@ function AppInner({
     [createSession, openRemote, workspace, connections, migration, updater, cliInstall, fsActions, loadAppInfo],
   );
   const s = useStore();
-  // 活躍 session（workspace-session 決策 6）：詳情／規格／封存抽屜的文件載入
-  // 與設定頁一律經它——App 不再持有全域 dataSource。
+  // 活跃 session（workspace-session 决策 6）：详情／规格／封存抽屉的文档加载
+  // 与设置页一律经它——App 不再持有全域 dataSource。
   const activeSession = s.activeKey ? s.sessions[s.activeKey] : undefined;
   const activeTab = s.activeKey
     ? s.tabs.find((tab) => locatorKey(tab.locator) === s.activeKey)
@@ -336,15 +336,15 @@ function AppInner({
     ? s.connections.find((connection) => connection.id === activeRecoveryConnectionId)
     : undefined;
   const dataSource = activeSession?.dataSource;
-  // capability 驅動停用（remote-data-source 決策 2）：remote session 依 server
-  // 端點覆蓋停用 affordance；本地 session 全真、同一路徑零分岐。
+  // capability 驱动停用（remote-data-source 决策 2）：remote session 依 server
+  // 端点覆盖停用 affordance；本地 session 全真、同一路径零分岐。
   const caps = activeSession?.capabilities;
   const connectionState = activeSession?.connectionState;
   const remoteArchiveScope =
     activeSession?.locator.kind === "remote" ? activeSession.descriptor.name : null;
-  // 封存入口守門（spec「封存入口三選項擴及驗證工單」）：待封存 change 仍有
-  // 未結工單的站 → 以該站的三選項對話框取代一般確認；雙工單並存時依序各彈
-  // 一次，全部處置完才走一般封存。
+  // 封存入口守门（spec「封存入口三选项扩及验证工单」）：待封存 change 仍有
+  // 未结工单的站 → 以该站的三选项对话框取代一般确认；双工单并存时依序各弹
+  // 一次，全部处置完才走一般封存。
   const pendingArchiveStation =
     s.pendingArchive === null
       ? null
@@ -367,7 +367,7 @@ function AppInner({
     onRemove: s.removeConnection,
     onRefresh: s.refreshConnections,
     focusConnectionId: s.reauthConnectionId,
-    // 開著的 remote session 回報需重新登入的連線：伺服器頁列為登入過期。
+    // 开着的 remote session 回报需重新登录的连接：服务器页列为登录过期。
     expiredConnectionIds: Object.values(s.sessions).flatMap((session) =>
       session.connectionState?.state === "needs-reauth" ? [session.connectionState.connectionId] : [],
     ),
@@ -376,10 +376,10 @@ function AppInner({
     defaultConnectionId: s.defaultConnectionId,
     onDefaultConnectionChange: s.setDefaultConnectionId,
   };
-  // 設定頁軟體更新卡的常駐現版號（updater 注入時啟動取一次；非 Tauri 環境靜默）。
+  // 设置页软件更新卡的常驻现版号（updater 注入时启动取一次；非 Tauri 环境静默）。
   const [currentVersion, setCurrentVersion] = useState<string | null>(null);
-  // 更新日誌對話框（desktop-app「更新日誌彈窗」）：純 UI 開關，不進 store。whatsNew＝
-  // 版號變更後首次啟動自動彈出（關閉即記下現版號）；browse＝設定頁按鈕（關閉不寫記錄）。
+  // 更新日志对话框（desktop-app「更新日志弹窗」）：纯 UI 开关，不进 store。whatsNew＝
+  // 版号变更后首次启动自动弹出（关闭即记下现版号）；browse＝设置页按钮（关闭不写记录）。
   const [releaseNotes, setReleaseNotes] = useState<
     { mode: "whatsNew"; entries: ReleaseNotesEntry[] } | { mode: "browse"; focusVersion?: string } | null
   >(null);
@@ -403,16 +403,16 @@ function AppInner({
         .catch(() => {});
     }
   }, [updater]);
-  // 變更詳情或討論抽屜開啟或換開另一個時收掉更新日誌（spec「detail 抽屜互斥」）：被
-  // 抽屜頂掉不走關閉鈕，whatsNew 不記為已看過、下次啟動照舊彈出。以名稱為鍵，重載
-  // 換掉同一個 change 的物件不算換開。
+  // 变更详情或讨论抽屉打开或换开另一个时收掉更新日志（spec「detail 抽屉互斥」）：被
+  // 抽屉顶掉不走关闭钮，whatsNew 不记为已看过、下次启动照旧弹出。以名称为键，重载
+  // 换掉同一个 change 的对象不算换开。
   const openedDrawer = s.detailChange
     ? `change:${s.detailChange.name}`
     : s.detailDiscussion
       ? `discussion:${s.detailDiscussion.slug}`
       : null;
-  // 技能檔提示確認框（desktop-notice-relocation design D1）：純 UI 開關，與 releaseNotes 同型；
-  // 抽屜開啟時一併收掉（可取消浮層互斥），提示消失（更新成功、保留現狀、切分頁）時也關。
+  // 技能档提示确认框（desktop-notice-relocation design D1）：纯 UI 开关，与 releaseNotes 同型；
+  // 抽屉打开时一并收掉（可取消浮层互斥），提示消失（更新成功、保留现状、切分页）时也关。
   const [assetDialogOpen, setAssetDialogOpen] = useState(false);
   const assetPromptNow = selectAssetPrompt(s);
   useEffect(() => {
@@ -421,38 +421,38 @@ function AppInner({
       setAssetDialogOpen(false);
     }
   }, [openedDrawer]);
-  // 遷移完成態（desktop-spec-dir-migration D2）在提示消失後仍留著，直到使用者按「知道了」；
-  // 它屬於套用的分頁——更新途中切走的，切回來才開框顯示。
+  // 迁移完成态（desktop-spec-dir-migration D2）在提示消失后仍留着，直到用户按「知道了」；
+  // 它属于套用的分页——更新途中切走的，切回来才开框显示。
   const assetMigratedNow = selectAssetMigrated(s);
   useEffect(() => {
     if (assetMigratedNow) setAssetDialogOpen(true);
     else if (!assetPromptNow) setAssetDialogOpen(false);
   }, [assetPromptNow, assetMigratedNow]);
-  // 初始化確認框的工具多選（預設勾 claude）；對話框每次開啟重設。
+  // 初始化确认框的工具多选（缺省勾 claude）；对话框每次打开重设。
   const [initTools, setInitTools] = useState<string[]>(["claude"]);
   useEffect(() => {
     if (s.pendingInit) setInitTools(["claude"]);
   }, [s.pendingInit]);
-  // 啟用確認框的工具多選（決策 3：與初始化框同型、獨立狀態）。
+  // 激活确认框的工具多选（决策 3：与初始化框同型、独立状态）。
   const [adoptTools, setAdoptTools] = useState<string[]>(["claude"]);
   useEffect(() => {
     if (s.pendingAdopt) setAdoptTools(["claude"]);
   }, [s.pendingAdopt]);
   const { t } = useI18n();
-  // 同步 store 層（非 React）的 t 橋——store 組使用者可見訊息時取當前語言。
+  // 同步 store 层（非 React）的 t 桥——store 组用户可见消息时取当前语言。
   useEffect(() => {
     setAppT(t);
   }, [t]);
-  // 寫入面的停用說明（server-reader-write-guard D5）：離線時是連線原因；連線
-  // 正常仍停用的寫入只剩角色原因——server 對 reader 的每個寫入都回 403。
+  // 写入面的停用说明（server-reader-write-guard D5）：脱机时是连接原因；连接
+  // 正常仍停用的写入只剩角色原因——server 对 reader 的每个写入都回 403。
   const writeDisabledReason = t(stale ? "remote.writeUnavailable" : "remote.readerRole");
 
-  // 看板拖曳手勢讓路（design D6、TaskList 同款）：手勢中暫緩 workspace-changed
-  // 的整批 refresh（避免拖曳中卡片重排打斷手勢），放開後補跑一次。
+  // 看板拖曳手势让路（design D6、TaskList 同款）：手势中暂缓 workspace-changed
+  // 的整批 refresh（避免拖曳中卡片重排打断手势），放开后补跑一次。
   const boardDragActive = useRef(false);
   const pendingRefresh = useRef(false);
-  // 詳情頁內的確認（封存、刪除、退回）在途時，成功／失敗由 store 決定是否關頁——
-  // 這段期間 Esc 不關頁，免得確認框收合的 Esc 尾巴誤清 detailChange。
+  // 详情页内的确认（封存、删除、退回）在途时，成功／失败由 store 决定是否关页——
+  // 这段期间 Esc 不关页，免得确认框收合的 Esc 尾巴误清 detailChange。
   const detailConfirmInFlight = useRef(false);
   const handleBoardDragActive = (active: boolean) => {
     boardDragActive.current = active;
@@ -463,19 +463,19 @@ function AppInner({
   };
 
   useEffect(() => {
-    // 啟動：有 workspace 即還原分頁列（依持久化 activeKey 切回上次活躍專案、
-    // 背景徽章快照）；否則維持既有的整批 refresh（無活躍 session 時為無事）。
-    // speclink 網址（desktop-app「以 speclink 網址開啟詳情頁」）排隊到分頁還原之後才處理。
+    // 启动：有 workspace 即还原分页列（依持久化 activeKey 切回上次活跃项目、
+    // 背景徽章快照）；否则维持既有的整批 refresh（无活跃 session 时为无事）。
+    // specseal 网址（desktop-app「以 specseal 网址打开详情页」）排队到分页还原之后才处理。
     const uninstallDeepLinks = workspace
       ? installDeepLinks(useStore, useStore.getState().restoreTabs())
       : null;
     if (!workspace) void useStore.getState().refresh();
     if (connections) void useStore.getState().refreshConnections();
-    // 啟動背景檢查更新（非阻塞；失敗靜默——desktop-app「檢查失敗靜默」）。
+    // 启动背景检查更新（非阻塞；失败静默——desktop-app「检查失败静默」）。
     if (updater) void useStore.getState().checkForUpdates(false);
-    // 主視窗回到前景時重檢（desktop-app「回到前景逾一小時即重檢」；design D3）：
-    // 只對取得焦點反應，節流由 store 判定；訂閱失敗（非 Tauri）靜默。unlisten 走
-    // Promise 鏈取消，卸載早於訂閱完成也不漏。
+    // 主窗口回到前景时重检（desktop-app「回到前景逾一小时即重检」；design D3）：
+    // 只对取得焦点反应，节流由 store 判定；订阅失败（非 Tauri）静默。unlisten 走
+    // Promise 链取消，卸载早于订阅完成也不漏。
     const focusUnlisten = updater?.onFocusChanged
       ? updater
           .onFocusChanged((focused) => {
@@ -483,52 +483,52 @@ function AppInner({
           })
           .catch(() => null)
       : null;
-    // CLI 佈署狀態探測（含 AppImage 版本不符的啟動自我修復）。
+    // CLI 布署状态探测（含 AppImage 版本不符的启动自我修复）。
     if (cliInstall) void useStore.getState().refreshCliInstall();
     return () => {
       uninstallDeepLinks?.();
       void focusUnlisten?.then((unlisten) => unlisten?.());
-      // 卸載時取消漏出的搜尋去抖，杜絕在途 timer 於 store 卸載後才開火。
+      // 卸载时取消漏出的搜索去抖，杜绝在途 timer 于 store 卸载后才开火。
       useStore.getState().disposeSearch();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useStore, connections, workspace, updater, cliInstall]);
 
-  // 檔案監看的宿主層 wiring（workspace-session 決策 5）：訂閱活躍 session 的
-  // 事件來源（workspace-changed 以自身 root 過濾），觸發既有整批 refresh；
-  // 切換活躍分頁即換訂閱、卸載時解除。
+  // 文件监看的宿主层 wiring（workspace-session 决策 5）：订阅活跃 session 的
+  // 事件来源（workspace-changed 以自身 root 过滤），触发既有整批 refresh；
+  // 切换活跃分页即换订阅、卸载时解除。
   useEffect(() => {
     const st = useStore.getState();
     const session = st.activeKey ? st.sessions[st.activeKey] : undefined;
     if (!session) return;
     return session.events.subscribe(
       () => {
-        // 監看重掛先於刷新（worktree 增減會改變監看拓撲；目標不變時 Rust 端
-        // 沿用原監看）——拖曳手勢只暫緩畫面刷新，不暫緩重掛。
+        // 监看重挂先于刷新（worktree 增减会改变监看拓扑；目标不变时 Rust 端
+        // 沿用原监看）——拖曳手势只暂缓画面刷新，不暂缓重挂。
         void useStore.getState().rearmWatch();
         if (boardDragActive.current) {
           pendingRefresh.current = true;
           return;
         }
         void useStore.getState().refresh();
-        // 外部 speclink update 也要讓提示自然消失（決策 4：workspace-changed 重查）。
+        // 外部 specseal update 也要让提示自然消失（决策 4：workspace-changed 重查）。
         void useStore.getState().refreshAssetPrompt();
       },
       (event) => {
         const store = useStore.getState();
         store.applyRemoteConnectionState(event);
-        // Rust runtime 是連線狀態單一真相；worker 收斂回 online 時以同一事件
-        // 驅動全量 Query 重查，使用者不需再等下一筆 SSE 或手動重整。
+        // Rust runtime 是连接状态单一真相；worker 收敛回 online 时以同一事件
+        // 驱动全量 Query 重查，用户不需再等下一笔 SSE 或手动重整。
         if (event.state === "online") void store.refresh();
       },
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useStore, s.activeKey, s.sessionEpoch]);
 
-  // 指令檔過期探測（desktop-instruction-staleness-prompt 決策 4）：本地專案與有 checkout
-  // 的 remote 專案分頁成為活躍時查一次；沒有 checkout 的 remote 分頁由 store 自行略過。
-  // 有 checkout 的 remote 專案另外監看 checkout 的技能檔：在終端機改動技能檔之後，提示卡
-  // 不必切換分頁就會更新。這個通知只重新探測，不重新載入專案資料。
+  // 指令档过期探测（desktop-instruction-staleness-prompt 决策 4）：本地项目与有 checkout
+  // 的 remote 项目分页成为活跃时查一次；没有 checkout 的 remote 分页由 store 自行略过。
+  // 有 checkout 的 remote 项目另外监看 checkout 的技能档：在终端机改动技能档之后，提示卡
+  // 不必切换分页就会更新。这个通知只重新探测，不重新加载项目数据。
   useEffect(() => {
     if (!workspace) return;
     const store = useStore.getState();
@@ -537,20 +537,20 @@ function AppInner({
     if (locator?.kind !== "remote" || !locator.checkoutRoot) return;
     void store.rearmWatch();
     return workspace.onCheckoutSkillsChanged(locator.checkoutRoot, () => {
-      // 技能目錄可能剛出現：重掛讓監看換成它本身，再重新探測。
+      // 技能目录可能刚出现：重挂让监看换成它本身，再重新探测。
       void useStore.getState().rearmWatch();
       void useStore.getState().refreshAssetPrompt();
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useStore, workspace, s.activeKey, s.sessionEpoch]);
 
-  // 系統匣狀態選單（tray-status-menu）：訂閱同一 store 於選單列／系統匣呈現狀態並可切專案。
-  // store 為本元件範圍，故於此接線（非 main.tsx）。建立失敗（如非 Tauri 環境）只靜默降級——
-  // app 照常、僅無系統匣（與檔案監看不可用時的降級一致）。卸載時 dispose。
+  // 系统匣状态菜单（tray-status-menu）：订阅同一 store 于菜单列／系统匣呈现状态并可切项目。
+  // store 为本组件范围，故于此接线（非 main.tsx）。创建失败（如非 Tauri 环境）只静默降级——
+  // app 照常、仅无系统匣（与文件监看不可用时的降级一致）。卸载时 dispose。
   useEffect(() => {
     let controller: TrayController | null = null;
     let disposed = false;
-    // 面板樣式（macOS）：點擊圖示 toggle 面板；建立失敗退回原生選單並於設定頁浮出錯誤。
+    // 面板样式（macOS）：点击图标 toggle 面板；创建失败退回原生菜单并于设置页浮出错误。
     const onPanelToggle = () => {
       void invoke("toggle_tray_panel").catch((e) => {
         useStore.getState().panelFallback(String(e));
@@ -562,7 +562,7 @@ function AppInner({
         else controller = c;
       })
       .catch(() => {
-        /* 系統匣不可用：app 照常運作 */
+        /* 系统匣不可用：app 照常运作 */
       });
     return () => {
       disposed = true;
@@ -571,8 +571,8 @@ function AppInner({
   }, [useStore]);
 
   const platform = useMemo(() => detectPlatform(), []);
-  // 詳情頁序列（design D2；desktop-readonly-detail-pages D4）：各清單頁回報的呈現順序（含搜尋
-  // 與篩選），‹ › 與 ⌥↑／⌥↓ 共用。
+  // 详情页串行（design D2；desktop-readonly-detail-pages D4）：各清单页回报的呈现顺序（含搜索
+  // 与筛选），‹ › 与 ⌥↑／⌥↓ 共用。
   const [visibleOrder, setVisibleOrder] = useState<VisibleOrder>({
     changes: [],
     discussions: [],
@@ -584,25 +584,25 @@ function AppInner({
   const pageOpen = detail !== null;
   const detailCurrent = detail?.current ?? null;
   const detailIndex = detail ? detail.sequence.indexOf(detail.current) : -1;
-  // 確認（封存、刪除、退回）框開著或在途時，切換與返回都不作用：確認框屬於目前詳情頁，
-  // 會被一起收掉；在途確認成功後 store 關掉的是「目前」詳情頁，切過去的新頁會被誤關。
-  // 以 getState 讀：window 事件處理器只掛一次。
+  // 确认（封存、删除、退回）框开着或在途时，切换与返回都不作用：确认框属于目前详情页，
+  // 会被一起收掉；在途确认成功后 store 关掉的是「目前」详情页，切过去的新页会被误关。
+  // 以 getState 读：window 事件处理器只挂一次。
   const detailActionsBlocked = () => detailConfirmInFlight.current || confirmPending(useStore.getState());
-  /** 在序列內切換：越界不動、不循環；經與開啟相同的狀態層動作（互斥與浮層規則同樣適用）。 */
+  /** 在串行内切换：越界不动、不循环；经与打开相同的状态层动作（互斥与浮层规则同样适用）。 */
   const stepDetail = (delta: -1 | 1) => {
     const next = detail?.sequence[detailIndex + delta];
     if (!detail || detailIndex < 0 || next === undefined || detailActionsBlocked()) return;
     detail.open(next);
   };
-  // 專案設定的未存修改（ProjectSettingsView 回報）：離開前先問要不要捨棄。
+  // 项目设置的未存修改（ProjectSettingsView 回报）：离开前先问要不要舍弃。
   const projectSettingsDirty = useRef(false);
   const onProjectSettingsDirty = useCallback((dirty: boolean) => {
     projectSettingsDirty.current = dirty;
   }, []);
   const [discardPrompt, setDiscardPrompt] = useState(false);
-  // 全系統唯一的返回：返回鈕、Esc、⌘[（非 macOS 為 Alt+←）、滑鼠側鍵、觸控板滑動都經此決定
-  // 去處——詳情頁開著時關頁回宿主頁（確認框待確認或確認在途時不作用）；設定與專案設定模式
-  // 回到進入前的頁面（專案設定有未存修改時先問）；其餘頁面沒有返回（null）。
+  // 全系统唯一的返回：返回钮、Esc、⌘[（非 macOS 为 Alt+←）、鼠标侧键、触摸板滑动都经此决定
+  // 去处——详情页开着时关页回宿主页（确认框待确认或确认在途时不作用）；设置与项目设置模式
+  // 回到进入前的页面（项目设置有未存修改时先问）；其余页面没有返回（null）。
   const backTarget = (st: AppState): (() => void) | null => {
     if (detailPageOpen(st)) return detailActionsBlocked() ? null : st.closeDetailPage;
     if (!inSettingsMode(st)) return null;
@@ -610,18 +610,18 @@ function AppInner({
       ? () => setDiscardPrompt(true)
       : st.leaveSettings;
   };
-  // 觸發當下才看有沒有對話框開著（渲染時讀到的 DOM 還是上一刻，不能拿來決定滑動開關）。
+  // 触发当下才看有没有对话框开着（渲染时读到的 DOM 还是上一刻，不能拿来决定滑动开关）。
   const resolveBack = (st: AppState) => (dialogOpen() ? null : backTarget(st));
-  // 以呼叫當下的狀態決定去處（事件處理器與手勢結束時的狀態可能已不同於渲染時）。
+  // 以调用当下的状态决定去处（事件处理器与手势结束时的状态可能已不同于渲染时）。
   const goBack = () => resolveBack(useStore.getState())?.();
-  // 標題列的動作插槽（desktop-detail-doc-tree design D3）：詳情頁以 portal 把變更層動作送進來。
+  // 标题列的动作插槽（desktop-detail-doc-tree design D3）：详情页以 portal 把变更层动作送进来。
   const [actionsSlot, setActionsSlot] = useState<HTMLDivElement | null>(null);
-  // 切換項目時頁層捲回頂端：捲動容器不重掛，否則沿用上一項的捲動位置。
+  // 切换项目时页层卷回顶端：卷动容器不重挂，否则沿用上一项的卷动位置。
   const detailLayerRef = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (detailLayerRef.current) detailLayerRef.current.scrollTop = 0;
   }, [detailCurrent]);
-  // window keydown 處理器只掛一次：以 ref 讀最新的序列與切換動作。
+  // window keydown 处理器只挂一次：以 ref 读最新的串行与切换动作。
   const stepDetailRef = useRef(stepDetail);
   stepDetailRef.current = stepDetail;
   const handleNavKey = (e: KeyboardEvent): boolean => {
@@ -631,7 +631,7 @@ function AppInner({
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
       return false;
     }
-    // 返回（design D8）：Esc 與 ⌘[、⌘←（非 macOS 為 Alt+←）等效於返回鈕。
+    // 返回（design D8）：Esc 与 ⌘[、⌘←（非 macOS 为 Alt+←）等效于返回钮。
     const escape = e.key === "Escape" && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey;
     const back = escape || isBackShortcut(e, platform) ? resolveBack(st) : null;
     if (back) {
@@ -646,13 +646,13 @@ function AppInner({
     }
     return false;
   };
-  // 鍵盤切換分頁：Ctrl+Tab 循環、Ctrl+1..9 直達（spec「專案分頁列存於 app 本機」）；
-  // 專案動作選單標示的 ⌘R／Ctrl+R 重新整理、Ctrl+W 關閉專案（spec「專案層檔案系統動作」）。
-  // macOS 的 ⌘W 先被系統預設選單攔走（關閉視窗），由原生選單承接，這裡不接。
+  // 键盘切换分页：Ctrl+Tab 循环、Ctrl+1..9 直达（spec「项目分页列存于 app 本机」）；
+  // 项目动作菜单标示的 ⌘R／Ctrl+R 刷新、Ctrl+W 关闭项目（spec「项目层文件系统动作」）。
+  // macOS 的 ⌘W 先被系统缺省菜单拦走（关闭窗口），由原生菜单承接，这里不接。
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // 返回快捷鍵（Esc、⌘[／Alt+←）與詳情頁的 ⌥↑／⌥↓ 切上一個／下一個（spec「詳情頁的導覽與返回」）。
-      // 浮層已處理（defaultPrevented）或焦點在文字輸入時不作用。
+      // 返回快捷键（Esc、⌘[／Alt+←）与详情页的 ⌥↑／⌥↓ 切上一个／下一个（spec「详情页的导览与返回」）。
+      // 浮层已处理（defaultPrevented）或焦点在文本输入时不作用。
       if (handleNavKey(e)) return;
       const key = e.key.toLowerCase();
       if (key === "r" && (platform === "macos" ? e.metaKey : e.ctrlKey)) {
@@ -675,7 +675,7 @@ function AppInner({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [useStore, platform]);
-  // 滑鼠側鍵「上一頁」（button 3）：WebView 是否送出此事件依平台而異，以真機驗收為準。
+  // 鼠标侧键「上一页」（button 3）：WebView 是否送出此事件依平台而异，以真机验收为准。
   useEffect(() => {
     const onMouseUp = (e: MouseEvent) => {
       const back = e.button === 3 ? resolveBack(useStore.getState()) : null;
@@ -687,23 +687,23 @@ function AppInner({
     return () => window.removeEventListener("mouseup", onMouseUp);
   }, [useStore]);
 
-  // macOS 原生選單列（desktop-native-menu design D3／D4）：語言或專案有無改變時重裝，cleanup
-  // 取消尚未套用的上一次；非 macOS 由 installAppMenu 自行 no-op。選單動作只派發到 store 既有
-  // 動作、看板搜尋列的 window 事件、更新日誌對話框，或外部瀏覽器。
+  // macOS 原生菜单列（desktop-native-menu design D3／D4）：语言或项目有无改变时重装，cleanup
+  // 取消尚未套用的上一次；非 macOS 由 installAppMenu 自行 no-op。菜单动作只派发到 store 既有
+  // 动作、看板搜索列的 window 事件、更新日志对话框，或外部浏览器。
   const hasProject = s.activeKey !== null;
-  // 「搜尋看板」的共用入口（選單項，以及路線圖顯示中的搜尋快捷鍵）：看板的卡片檢視顯示中直接聚焦；
-  // 不在看板頁或正顯示路線圖時先切回卡片，等搜尋列掛上且不再藏著（子元件的 effect 先於本元件）
+  // 「搜索看板」的共用入口（菜单项，以及路线图显示中的搜索快捷键）：看板的卡片查看显示中直接聚焦；
+  // 不在看板页或正显示路线图时先切回卡片，等搜索列挂上且不再藏着（子组件的 effect 先于本组件）
   // 再聚焦。
   const pendingSearchFocus = useRef(false);
   useEffect(() => {
     if (s.boardView !== "board" || s.boardMode !== "cards" || !pendingSearchFocus.current) return;
     pendingSearchFocus.current = false;
-    window.dispatchEvent(new CustomEvent("speclink:focus-search"));
+    window.dispatchEvent(new CustomEvent("specseal:focus-search"));
   }, [s.boardView, s.boardMode]);
   const focusBoardSearch = useCallback(() => {
     const st = useStore.getState();
     if (st.boardView === "board" && st.boardMode === "cards") {
-      window.dispatchEvent(new CustomEvent("speclink:focus-search"));
+      window.dispatchEvent(new CustomEvent("specseal:focus-search"));
       return;
     }
     pendingSearchFocus.current = true;
@@ -714,7 +714,7 @@ function AppInner({
     const dispatch = (action: AppMenuAction) => {
       const st = useStore.getState();
       switch (action) {
-        // 原生選單各入口進設定模式的對應分類（desktop-settings-mode design D1；
+        // 原生菜单各入口进设置模式的对应分类（desktop-settings-mode design D1；
         // desktop-about-page design D4）。
         case "about":
           st.setBoardView("settings");
@@ -726,14 +726,14 @@ function AppInner({
           st.setBoardView("settings");
           return st.setSettingsSection("cli");
         case "checkUpdates":
-          // 手動檢查的進度與結果呈現在更新頁的「最新版本」列。
+          // 手动检查的进度与结果呈现在更新页的「最新版本」列。
           st.setBoardView("settings");
           st.setSettingsSection("updates");
           return void st.checkForUpdates(true);
         case "openProject":
           return st.openWorkspaceChooser();
         case "closeProject":
-          // 系統匣面板（nonactivating NSPanel）在前景時 ⌘W 也會進到 app 選單：主視窗為焦點才關。
+          // 系统匣面板（nonactivating NSPanel）在前景时 ⌘W 也会进到 app 菜单：主窗口为焦点才关。
           return void getCurrentWindow()
             .isFocused()
             .then((focused) => focused && closeActiveProject(useStore));
@@ -777,15 +777,15 @@ function AppInner({
     try {
       await confirm();
     } finally {
-      // 讓 AlertDialog 的收合 callback 先完成；之後使用者仍可正常手動關閉抽屜。
+      // 让 AlertDialog 的收合 callback 先完成；之后用户仍可正常手动关闭抽屉。
       queueMicrotask(() => {
         detailConfirmInFlight.current = false;
       });
     }
   };
 
-  // 同源連結資料：來源討論清單（記錄已不在時以 slug 充當 topic，出身討論在前）與
-  // 同源刀（與此變更共享至少一份來源討論的 active 變更，可互跳）。
+  // 同源链接数据：来源讨论清单（记录已不在时以 slug 充当 topic，出身讨论在前）与
+  // 同源刀（与此变更共享至少一份来源讨论的 active 变更，可互跳）。
   const fromSlugs = s.detailChange?.fromDiscussions ?? [];
   const allDiscussions = [...s.discussions.active, ...s.discussions.archived];
   const sourceDiscussions = fromSlugs.map((slug) => ({
@@ -793,12 +793,12 @@ function AppInner({
     topic: allDiscussions.find((d) => d.slug === slug)?.topic ?? slug,
   }));
   const siblingChanges = siblingChangesOf(s.changes, fromSlugs, s.detailChange?.name ?? "");
-  // 封存變更抽屜的來源討論（design D1 增補）：自封存清單以 datedName 查 fromDiscussions，
-  // topic 同上解析、記錄已不在時退回 slug。
+  // 封存变更抽屉的来源讨论（design D1 增补）：自封存清单以 datedName 查 fromDiscussions，
+  // topic 同上解析、记录已不在时退回 slug。
   const detailArchived = s.detailArchived;
   const archivedItem =
     detailArchived?.kind === "change" ? s.archived.find((a) => a.datedName === detailArchived.datedName) : undefined;
-  // 封存討論的記錄 live 優先、封存後備（與載入同一序）。
+  // 封存讨论的记录 live 优先、封存后备（与加载同一序）。
   const archivedDiscussion =
     detailArchived?.kind === "discussion" ? allDiscussions.find((d) => d.slug === detailArchived.slug) : undefined;
   const archivedFromSlugs = archivedItem?.fromDiscussions ?? [];
@@ -806,9 +806,9 @@ function AppInner({
     slug,
     topic: allDiscussions.find((d) => d.slug === slug)?.topic ?? slug,
   }));
-  // 封存討論抽屜的衍生列（drawer-provenance-links design D4）：自封存討論清單項的 promotedTo
-  // 派生三態——封存清單命中→副標封存日期；活躍清單命中→副標看板階段詞；皆無→不可點「無封存記錄」。
-  // 順序沿 promotedTo 原序（轉出順序、出身在前）。
+  // 封存讨论抽屉的衍生列（drawer-provenance-links design D4）：自封存讨论清单项的 promotedTo
+  // 派生三态——封存清单命中→副标封存日期；活跃清单命中→副标看板阶段词；皆无→不可点「无封存记录」。
+  // 顺序沿 promotedTo 原序（转出顺序、出身在前）。
   const archivedPromotedChanges = (archivedDiscussion?.promotedTo ?? []).map(
         (name) => {
           const archivedHit = s.archived.find((a) => a.name === name);
@@ -819,44 +819,44 @@ function AppInner({
           return { slug: name, topic: t("rdrawer.noArchiveRecord"), disabled: true };
         },
       );
-  // 討論文件的名稱籤（desktop-discussion-doc-views design D8）：正式規格名與全部討論 slug。
+  // 讨论文档的名称签（desktop-discussion-doc-views design D8）：正式规格名与全部讨论 slug。
   const specNames = s.specs.map((x) => x.id);
   const discussionSlugs = allDiscussions.map((d) => d.slug);
-  // 已封存討論頁背景文件的討論籤：作用中的開討論詳情頁，其餘開已封存討論頁（來源討論籤恆開已封存頁）。
+  // 已封存讨论页背景文档的讨论签：作用中的开讨论详情页，其余开已封存讨论页（来源讨论签恒开已封存页）。
   const openAnyDiscussion = (slug: string) =>
     s.discussions.active.some((d) => d.slug === slug)
       ? s.openDiscussion(slug)
       : s.openArchived({ kind: "discussion", slug });
-  // 點衍生籤：已封存→封存抽屜（底層不切頁）；活躍→詳情抽屜（openDetail 依正典落回看板）。
+  // 点衍生签：已封存→封存抽屉（底层不切页）；活跃→详情抽屉（openDetail 依正典落回看板）。
   const openPromotedChange = (name: string) => {
     const archivedHit = s.archived.find((a) => a.name === name);
     if (archivedHit) s.openArchived({ kind: "change", datedName: archivedHit.datedName });
     else if (s.changes.some((c) => c.name === name)) s.openDetail(name);
   };
-  // 封存抽屜出身列的三欄（desktop-archived-parity D4）：一律自封存清單項帶入，
-  // 抽屜零新查詢。封存討論無封存日期欄位——該欄自然缺席。
+  // 封存抽屉出身列的三栏（desktop-archived-parity D4）：一律自封存清单项带入，
+  // 抽屉零新查找。封存讨论无封存日期字段——该栏自然缺席。
   const archivedProvenance = archivedItem
     ? { createdBy: archivedItem.createdBy, created: archivedItem.created, archivedDate: archivedItem.date }
     : { createdBy: archivedDiscussion?.createdBy, created: archivedDiscussion?.created };
 
-  // 殼（design D2）：標題列文字與麵包屑依模式——設定、有作用中專案、零專案（留白）。
-  // projectTab＝標題列要呈現的專案（設定模式時沒有）。
+  // 壳（design D2）：标题列文本与面包屑依模式——设置、有作用中项目、零项目（留白）。
+  // projectTab＝标题列要呈现的项目（设置模式时没有）。
   const projectTab = s.boardView === "settings" ? undefined : activeTab;
-  // 看板頁兩種檢視共用的載入狀態。骨架的前提是「首訪的載入正在進行」：探測中
-  // （pendingTabKey）或整批載入中（loadingActive），且尚無真值。只看 loaded 會讓探測
-  // 失敗或讀取失敗的 workspace 永遠停在載入中——讀不到不等於還在讀。
+  // 看板页两种查看共用的加载状态。骨架的前提是「首访的加载正在进行」：探测中
+  // （pendingTabKey）或整批加载中（loadingActive），且尚无真值。只看 loaded 会让探测
+  // 失败或读取失败的 workspace 永远停在加载中——读不到不等于还在读。
   const boardLoading = (s.pendingTabKey !== null || s.loadingActive) && !s.loaded;
   const boardLoadFailed = !s.loaded && s.loadFailed;
   const boardViewSwitch = <BoardViewSwitch value={s.boardMode} onChange={s.setBoardMode} />;
-  // 設定模式（desktop-settings-mode design D1／D2）：遠端專案沒有 .speclink.yaml 頁，記住的分類
-  // 落在那頁時退回專案說明。
+  // 设置模式（desktop-settings-mode design D1／D2）：远程项目没有 .specseal.yaml 页，记住的分类
+  // 落在那页时退回项目说明。
   const remoteProject = activeTab?.locator.kind === "remote";
   const projectSettingsSection =
-    remoteProject && s.projectSettingsSection === "speclink" ? "context" : s.projectSettingsSection;
+    remoteProject && s.projectSettingsSection === "specseal" ? "context" : s.projectSettingsSection;
   const settingsMode = s.boardView === "settings";
   const projectSettingsMode = inSettingsMode(s) && !settingsMode;
-  // 專案設定分類欄的解析失敗警示點：由專案設定頁讀到設定快照後回報。
-  const [projectParseErrors, setProjectParseErrors] = useState({ config: false, speclink: false });
+  // 项目设置分类栏的解析失败警示点：由项目设置页读到设置快照后回报。
+  const [projectParseErrors, setProjectParseErrors] = useState({ config: false, specseal: false });
   const connectionNames = Object.fromEntries(s.connections.map((c) => [c.id, c.name]));
   const PAGE_LABEL_KEY: Record<Exclude<typeof s.boardView, "settings">, string> = {
     board: "app.navChanges",
@@ -865,8 +865,8 @@ function AppInner({
     manual: "app.navManual",
     "project-settings": "app.navProjectSettings",
   };
-  // 詳情頁開啟時三段（spec「詳情頁的導覽與返回」）：專案名與頁名點擊關頁回宿主，
-  // 項目名等寬不可點。
+  // 详情页打开时三段（spec「详情页的导览与返回」）：项目名与页名点击关页回宿主，
+  // 项目名等宽不可点。
   const crumbs: Crumb[] =
     s.boardView === "settings"
       ? [
@@ -877,7 +877,7 @@ function AppInner({
         ? [
             { label: projectTab.name, onClick: () => s.setBoardView("board") },
             { label: t("app.navProjectSettings"), onClick: () => s.setProjectSettingsSection("context") },
-            // 子項的頁多一段上層分類，點了開它指定的頁（品質關卡 → 審查規則）；最後一段不可點。
+            // 子项的页多一段上层分类，点了开它指定的页（品质关卡 → 审查规则）；最后一段不可点。
             ...projectSettingsTrail(projectSettingsSection).map(({ labelKey, opens }) => ({
               label: t(labelKey),
               onClick: opens && (() => s.setProjectSettingsSection(opens)),
@@ -893,7 +893,7 @@ function AppInner({
               },
             },
             { label: t(PAGE_LABEL_KEY[s.boardView]), onClick: s.closeDetailPage },
-            // 已封存變更以變更名呈現（序列與複製用含日期前綴的封存目錄名）。
+            // 已封存变更以变更名呈现（串行与拷贝用含日期前缀的封存目录名）。
             { label: archivedItem?.name ?? detail.current, mono: true },
           ]
         : projectTab
@@ -902,13 +902,13 @@ function AppInner({
               { label: t(PAGE_LABEL_KEY[s.boardView]) },
             ]
           : [];
-  // 「開啟 ▾」（design D4）：頁回報文件，位置由 core 解析；本機目錄缺席（remote 無 checkout）時只剩複製內容。
+  // 「打开 ▾」（design D4）：页回报文档，位置由 core 解析；本机目录缺席（remote 无 checkout）时只剩拷贝内容。
   const hasLocalDir = activeTab ? projectDirOf(activeTab.locator) !== null : false;
-  // 提案影響段路徑籤的顯示鈕：文案與「開啟 ▾」選單同一組平台詞條（macOS「在 Finder 顯示」）。
+  // 提案影响段路径签的显示钮：文案与「打开 ▾」菜单同一组平台词条（macOS「在 Finder 显示」）。
   const pathReveal = hasLocalDir
     ? { label: t(`fs.revealIn.${platform}`), reveal: (path: string) => void s.revealProjectPath(path) }
     : undefined;
-  // 規格與手冊閱讀卡出處行的檔案路徑同樣由 core 解析（跟著 spec 目錄名走）；無本機目錄時不查、該段缺席。
+  // 规格与手册阅读卡出处行的文件路径同样由 core 解析（跟着 spec 目录名走）；无本机目录时不查、该段缺席。
   const locateDocument = hasLocalDir ? s.locateDocument : undefined;
   const renderDocumentActions = (target: DocumentTarget | null) => (
     <DocumentActionsMenu
@@ -927,12 +927,12 @@ function AppInner({
     openTerminal: (key) => void s.openProjectInTerminal(key),
     openEditor: (key) => void s.openProjectInEditor(key),
     copyPath: (key) => void s.copyProjectPath(key),
-    // 背景專案沒有載入中的資料可重整：切過去即重新載入。
+    // 背景项目没有加载中的数据可重整：切过去即重新加载。
     refresh: (key) => (key === s.activeKey ? void s.refresh() : void s.activateTab(key)),
     close: s.closeTab,
   };
 
-  // 變更詳情頁（design D6）：props 自原抽屜接線搬移，另接「開啟 ▾」。
+  // 变更详情页（design D6）：props 自原抽屉接线搬移，另接「打开 ▾」。
   const changeDetailPage = (
     <ChangeDetailPage
       change={s.detailChange}
@@ -941,9 +941,9 @@ function AppInner({
       loadStationTicket={(change, station) =>
         dataSource?.getStationTicket(change, station) ?? Promise.resolve(null)
       }
-      // changeCapabilities/changeMeta 於 remote 亦直達（status payload 映射，
-      // remote-read-parity）；capability 為假時仍以空集呈現——同一條停用法則，
-      // 不偽造、也不讓詳情頁載入失敗。
+      // changeCapabilities/changeMeta 于 remote 亦直达（status payload 映射，
+      // remote-read-parity）；capability 为假时仍以空集呈现——同一条停用法则，
+      // 不伪造、也不让详情页加载失败。
       loadCapabilities={(change) =>
         caps && !caps.changeCapabilities
           ? Promise.resolve([])
@@ -958,12 +958,12 @@ function AppInner({
       detailVerb={s.detailVerb}
       onClearVerb={s.clearDetailVerb}
       onDelete={s.requestDelete}
-      // 認領是 RemoteOnly：後端沒有這個方法（本地）就整段不接線，詳情頁因此
-      // 連停用的入口都不長出來。
+      // 认领是 RemoteOnly：后端没有这个方法（本地）就整段不接线，详情页因此
+      // 连停用的入口都不长出来。
       onClaim={dataSource?.claim ? s.claimChange : undefined}
       onRevert={s.requestRevert}
-      // 排程分頁：同波夥伴自清單派生；前置編輯只在 capability 為真時接線（remote 的
-      // reader 為假，分頁唯讀）；資料源提供候選名冊時以它為準（worktree 映射時為副本）。
+      // 调度分页：同波伙伴自清单派生；前置编辑只在 capability 为真时接线（remote 的
+      // reader 为假，分页唯读）；数据源提供候选名册时以它为准（worktree 映射时为副本）。
       changes={s.changes}
       onSetDepends={
         caps && !caps.setDepends
@@ -1015,11 +1015,11 @@ function AppInner({
       onOpenSibling={s.openDetail}
       renderDocumentActions={renderDocumentActions}
       onOpenSpec={s.openSpec}
-      // 路徑籤的顯示鈕只在有本機目錄時接（remote 無 checkout 時只有複製鈕）。
+      // 路径签的显示钮只在有本机目录时接（remote 无 checkout 时只有拷贝钮）。
       pathReveal={pathReveal}
     />
   );
-  // 討論詳情頁（design D7）。
+  // 讨论详情页（design D7）。
   const discussionDetailPage = (
     <DiscussionDetailPage
       discussion={s.detailDiscussion}
@@ -1034,8 +1034,8 @@ function AppInner({
       onOpenSpec={s.openSpec}
       onOpenDiscussion={s.openDiscussion}
       onArchiveDiscussion={
-        // 已封存的討論(自來源討論 chip 開啟)與 capability 缺口不提供封存;
-        // 其餘走與討論卡同一確認流程。
+        // 已封存的讨论(自来源讨论 chip 打开)与 capability 缺口不提供封存;
+        // 其余走与讨论卡同一确认流程。
         (caps && !caps.archiveDiscussion) ||
         s.discussions.archived.some((d) => d.slug === s.detailDiscussion?.slug)
           ? undefined
@@ -1045,7 +1045,7 @@ function AppInner({
       specDir={s.discussions.specDir}
     />
   );
-  // 規格詳情頁（desktop-readonly-detail-pages design D2）：宿主為規格頁或手冊頁，皆不切頁。
+  // 规格详情页（desktop-readonly-detail-pages design D2）：宿主为规格页或手册页，皆不切页。
   const specDetailPage = (
     <SpecDetailPage
       capability={s.detailSpec}
@@ -1057,7 +1057,7 @@ function AppInner({
       locateDocument={locateDocument}
     />
   );
-  // 已封存詳情頁（design D3）：props 自原已封存抽屜的接線搬移。
+  // 已封存详情页（design D3）：props 自原已封存抽屉的接线搬移。
   const archivedDetailPage = (
     <ArchivedDetailPage
       target={s.detailArchived}
@@ -1090,15 +1090,15 @@ function AppInner({
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* 左側（design D2）：圖示列與專案欄共用一條 48px 標題列；零專案時只剩圖示列 */}
+      {/* 左侧（design D2）：图标列与项目栏共用一条 48px 标题列；零项目时只剩图标列 */}
       <div
         className={cn(
           "flex shrink-0 flex-col overflow-hidden border-r border-border bg-sidebar",
           settingsMode || s.tabs.length > 0 ? "w-[256px]" : "w-14",
         )}
       >
-        {/* 零專案且非設定模式時 56px 放不下文字（macOS 紅綠燈也佔住這段），標題列留白；
-            設定模式左端為「← 設定」，專案設定模式左端為「← 專案設定」、右端為等寬專案名 */}
+        {/* 零项目且非设置模式时 56px 放不下文本（macOS 红绿灯也占住这段），标题列留白；
+            设置模式左端为「← 设置」，项目设置模式左端为「← 项目设置」、右端为等宽项目名 */}
         <LeftTitleBar
           title={projectTab?.name}
           path={projectTab && tabPathHint(projectTab, connectionNames, t)}
@@ -1160,7 +1160,7 @@ function AppInner({
               section={projectSettingsSection}
               remote={remoteProject}
               configParseError={projectParseErrors.config}
-              speclinkParseError={projectParseErrors.speclink}
+              specsealParseError={projectParseErrors.specseal}
               onSelect={s.setProjectSettingsSection}
               notice={
                 <AssetNoticeCard prompt={assetPromptNow} onOpen={() => setAssetDialogOpen(true)} />
@@ -1181,8 +1181,8 @@ function AppInner({
         </div>
       </div>
 
-      {/* relative＋overflow-hidden：滑動返回指示定位在主區欄、裁掉左緣外那段；設定頁的 main
-          會捲動，指示不能放在 main 裡 */}
+      {/* relative＋overflow-hidden：滑动返回指示定位在主区栏、裁掉左缘外那段；设置页的 main
+          会卷动，指示不能放在 main 里 */}
       <DetailActionsSlotProvider value={actionsSlot}>
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <MainTitleBar
@@ -1245,20 +1245,20 @@ function AppInner({
             </div>
           )}
 
-          {/* 主內容：看板、規格頁、已封存頁填滿高度（清單於內部容器捲動、換頁控
-              制列沉底常駐）；設定頁維持整頁縱向捲動；手冊頁的三欄分隔線要貫穿
-              主內容全高，padding 由 ManualPage 各欄自管。flex 直欄讓各視圖根節點
-              （h-full min-h-0）填滿主區；技能檔提示住在專案欄，主區不為它扣高度 */}
+          {/* 主内容：看板、规格页、已封存页填满高度（清单于内部容器卷动、换页控
+              制列沉底常驻）；设置页维持整页纵向卷动；手册页的三栏分隔线要贯穿
+              主内容全高，padding 由 ManualPage 各栏自管。flex 直栏让各视图根节点
+              （h-full min-h-0）填满主区；技能档提示住在项目栏，主区不为它扣高度 */}
           <main
             className={cn(
               "relative flex flex-1 flex-col",
-              // 設定頁各頁自帶內距（desktop-settings-mode design D5）。
+              // 设置页各页自带内距（desktop-settings-mode design D5）。
               s.boardView === "manual" || isSettingsView(s.boardView) ? "p-0" : "p-5",
               isSettingsView(s.boardView) ? "overflow-y-auto" : "overflow-hidden",
             )}
           >
-            {/* 宿主頁（design D1）：詳情頁開啟期間保持掛載但不可見、不可互動——捲動位置、
-                搜尋字串與篩選原樣保留，關頁後即回到開頁前的樣子。 */}
+            {/* 宿主页（design D1）：详情页打开期间保持挂载但不可见、不可交互——卷动位置、
+                搜索字符串与筛选原样保留，关页后即回到开页前的样子。 */}
             <div
               data-testid="host-page"
               inert={pageOpen || undefined}
@@ -1298,7 +1298,7 @@ function AppInner({
                 about={{ appInfo: s.appInfo, onLoadAppInfo: s.loadAppInfo, onOpenUpdates: s.openSettingsUpdate }}
               />
             ) : workspace !== undefined && s.tabs.length === 0 ? (
-              // 零分頁（首次使用）：專案範圍頁面落入空狀態引導頁（取代空看板）；應用程式設定已於上方先行處理。
+              // 零分页（首次使用）：项目范围页面落入空状态引导页（取代空看板）；应用程序设置已于上方先行处理。
               <EmptyWorkspace
                 recents={visibleRecents(s.recents, s.tabs)}
                 connections={s.connections}
@@ -1350,9 +1350,9 @@ function AppInner({
                 onVisibleOrderChange={(specs) => setVisibleOrder((v) => ({ ...v, specs }))}
               />
             ) : s.boardView === "board" ? (
-              // 看板頁的兩種檢視（desktop-roadmap design「路線圖是看板頁的一種檢視」）：兩者同時
-              // 掛載、只顯示 boardMode 指定的一個——卡片的捲動、搜尋與篩選在切換間原樣保留，
-              // 詳情頁的 ‹ › 照舊依卡片順序；兩者吃同一份清單資料，不各自查詢。
+              // 看板页的两种查看（desktop-roadmap design「路线图是看板页的一种查看」）：两者同时
+              // 挂载、只显示 boardMode 指定的一个——卡片的卷动、搜索与筛选在切换间原样保留，
+              // 详情页的 ‹ › 照旧依卡片顺序；两者吃同一份清单数据，不各自查找。
               <>
                 <div
                   data-testid="board-cards"
@@ -1395,8 +1395,8 @@ function AppInner({
                     promotedExpanded={s.promotedExpanded}
                     onPromotedExpandedChange={s.setPromotedExpanded}
                     loading={boardLoading}
-                    // 首訪失敗的終態：讀不到 ≠ 確認是空的，故不落回空態文案。已有舊
-                    // 快取（loaded）時照舊靜默沿用最後成功快照，不顯示提示。
+                    // 首访失败的终态：读不到 ≠ 确认是空的，故不落回空态文案。已有旧
+                    // 缓存（loaded）时照旧静默沿用最后成功快照，不显示提示。
                     loadFailed={boardLoadFailed}
                   />
                 </div>
@@ -1445,7 +1445,7 @@ function AppInner({
               />
             )}
             </div>
-            {/* 詳情頁層（design D1／D9）：覆蓋主區，150ms 淡入＋4px 位移；關閉直接移除。 */}
+            {/* 详情页层（design D1／D9）：覆盖主区，150ms 淡入＋4px 位移；关闭直接移除。 */}
             {detail && (
               <div
                 ref={detailLayerRef}
@@ -1463,8 +1463,8 @@ function AppInner({
               </div>
             )}
           </main>
-          {/* 觸控板滑動返回（design D8）：左緣「←」指示，過門檻放開即返回（去處同返回鈕）。
-              手指放開的訊號只有 macOS 原生層提供，其他平台不提供（desktop-swipe-back-finger-lift D5）。 */}
+          {/* 触摸板滑动返回（design D8）：左缘「←」指示，过门槛放开即返回（去处同返回钮）。
+              手指放开的信号只有 macOS 原生层提供，其他平台不提供（desktop-swipe-back-finger-lift D5）。 */}
           <SwipeBack enabled={platform === "macos" && backTarget(s) !== null} onBack={goBack} />
       </div>
       </DetailActionsSlotProvider>
@@ -1509,8 +1509,8 @@ function AppInner({
         />
       )}
 
-      {/* 技能檔提示確認框（spec「指令檔過期提示」）：三列資訊、依狀態的按鈕；較新態的主
-          動作改開設定頁軟體更新卡。 */}
+      {/* 技能档提示确认框（spec「指令档过期提示」）：三列信息、依状态的按钮；较新态的主
+          动作改开设置页软件更新卡。 */}
       <AssetNoticeDialog
         open={assetDialogOpen}
         onOpenChange={setAssetDialogOpen}
@@ -1535,7 +1535,7 @@ function AppInner({
           focusVersion={releaseNotes?.mode === "browse" ? releaseNotes.focusVersion : undefined}
           onOpenChange={(isOpen) => {
             if (isOpen) return;
-            // 先關再寫：寫入失敗不能把 modal 卡在畫面上。
+            // 先关再写：写入失败不能把 modal 卡在画面上。
             const wasWhatsNew = releaseNotes?.mode === "whatsNew";
             setReleaseNotes(null);
             if (wasWhatsNew && currentVersion) writeLastSeenVersion(currentVersion);
@@ -1550,7 +1550,7 @@ function AppInner({
         onMigrateLocal={s.migrateLocalFromConflict}
       />
 
-      {/* 初始化確認（寫入型確認框：Radix 預設焦點落在取消） */}
+      {/* 初始化确认（写入型确认框：Radix 缺省焦点落在取消） */}
       <ConfirmDialog
         open={discardPrompt}
         onOpenChange={setDiscardPrompt}
@@ -1588,7 +1588,7 @@ function AppInner({
         </div>
       </ConfirmDialog>
 
-      {/* 啟用確認（spec「未啟用資料夾經確認後補齊啟用」；與初始化確認框同型、獨立狀態） */}
+      {/* 激活确认（spec「未激活文件夹经确认后补齐激活」；与初始化确认框同型、独立状态） */}
       <ConfirmDialog
         open={s.pendingAdopt !== null}
         onOpenChange={(o) => !o && s.cancelAdopt()}
@@ -1619,7 +1619,7 @@ function AppInner({
         </div>
       </ConfirmDialog>
 
-      {/* 討論封存確認 */}
+      {/* 讨论封存确认 */}
       <ConfirmDialog
         open={s.pendingArchiveDiscussion !== null}
         onOpenChange={(o) => !o && s.cancelArchiveDiscussion()}
@@ -1632,10 +1632,10 @@ function AppInner({
         onConfirm={s.confirmArchiveDiscussion}
       />
 
-      {/* 封存入口的未結工單三選項（spec「封存入口三選項擴及驗證工單」）：目標
-          change 該站工單未結時取代一般封存確認；未選擇前不執行封存。remote
-          專案同樣適用；連到不回報關卡狀態的舊版 Server 時清單項沒有
-          inReview／inVerify，走一般確認。 */}
+      {/* 封存入口的未结工单三选项（spec「封存入口三选项扩及验证工单」）：目标
+          change 该站工单未结时取代一般封存确认；未选择前不运行封存。remote
+          项目同样适用；连到不回报关卡状态的旧版 Server 时清单项没有
+          inReview／inVerify，走一般确认。 */}
       <ReviewArchiveDialog
         open={pendingArchiveStation !== null}
         change={s.pendingArchive}
@@ -1652,7 +1652,7 @@ function AppInner({
         onCarryReview={() => void s.confirmArchiveCarryTicket(pendingArchiveStation ?? "review")}
       />
 
-      {/* 封存確認 */}
+      {/* 封存确认 */}
       <ConfirmDialog
         open={s.pendingArchive !== null && pendingArchiveStation === null}
         onOpenChange={(o) => !o && s.cancelArchive()}
@@ -1672,7 +1672,7 @@ function AppInner({
         onConfirm={() => confirmDetailAction(s.confirmArchive)}
       />
 
-      {/* 退回提案中確認：確認後直接呼叫引擎動詞,UI 不預判守門。 */}
+      {/* 退回提案中确认：确认后直接调用引擎动词,UI 不预判守门。 */}
       <ConfirmDialog
         open={s.pendingRevert !== null}
         onOpenChange={(o) => !o && s.cancelRevert()}
@@ -1682,10 +1682,10 @@ function AppInner({
         onConfirm={() => confirmDetailAction(s.confirmRevert)}
       />
 
-      {/* 退回被守門擋下：列引擎證據與出路,無清理或強制退回的機械出路。 */}
+      {/* 退回被守门挡下：列引擎证据与出路,无清理或强制退回的机械出路。 */}
       <RevertBlockedDialog info={s.revertBlocked} onClose={s.dismissRevertBlocked} />
 
-      {/* 刪除確認 */}
+      {/* 删除确认 */}
       <ConfirmDialog
         open={s.pendingDelete !== null}
         onOpenChange={(o) => !o && s.cancelDelete()}

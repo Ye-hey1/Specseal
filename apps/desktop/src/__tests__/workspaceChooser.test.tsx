@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { I18nProvider } from "@speclink/ui";
+import { I18nProvider } from "@specseal/ui";
 
 import { WorkspaceChooser } from "../components/WorkspaceChooser";
 import { RemoteConflictDialog } from "../components/RemoteConflictDialog";
@@ -17,7 +17,7 @@ import { expectToolCheckboxes } from "./helpers/toolCheckboxes";
 const CONNECTION: ConnectionView = {
   id: "conn_1",
   origin: "https://spec.example.test",
-  name: "團隊 Server",
+  name: "团队 Server",
   lastActorDisplay: "Momo",
   loggedIn: true,
 };
@@ -26,8 +26,8 @@ const SCOPES = {
   projects: [
     {
       id: "prj_1",
-      key: "speclink",
-      name: "Speclink",
+      key: "specseal",
+      name: "Specseal",
       repos: [
         { id: "repo_1", key: "desktop", name: "Desktop" },
         { id: "repo_2", key: "server", name: "Server" },
@@ -37,14 +37,14 @@ const SCOPES = {
 };
 
 const zhWrapper = ({ children }: { children: ReactNode }) => (
-  <I18nProvider locale="zh-TW" messages={APP_MESSAGES}>
+  <I18nProvider locale="zh-CN" messages={APP_MESSAGES}>
     {children}
   </I18nProvider>
 );
 
-/** 元素 class 中的 hover token（含 enabled:hover: 這類組合變體）。 */
+/** 元素 class 中的 hover token（含 enabled:hover: 这类组合变体）。 */
 const hoverClasses = (el: HTMLElement) => el.className.split(/\s+/).filter((c) => c.includes("hover:"));
-/** 停用時不給 hover（spec desktop-app「可點元素的游標與 hover 回饋」；design D4）：hover token 全掛在
+/** 停用时不给 hover（spec desktop-app「可点元素的光标与 hover 回馈」；design D4）：hover token 全挂在
  * enabled: 之下，停用的 button 不命中。 */
 function expectHoverOnlyWhenEnabled(el: HTMLElement) {
   const hovers = hoverClasses(el);
@@ -70,9 +70,9 @@ function fakeConnections(over: Partial<ConnectionsAdapter> = {}): ConnectionsAda
   };
 }
 
-/** 走到 checkout 步驟並選好本機資料夾（inspect 完成後顯示工具 checkbox）。 */
+/** 走到 checkout 步骤并选好本机文档夹（inspect 完成后显示工具 checkbox）。 */
 async function reachCheckoutFolder() {
-  fireEvent.click(screen.getByRole("radio", { name: /選擇本機資料夾/ }));
+  fireEvent.click(screen.getByRole("radio", { name: /选择本机文档夹/ }));
   await waitFor(() =>
     expect(screen.getByRole("checkbox", { name: /claude/i })).toBeTruthy(),
   );
@@ -152,8 +152,8 @@ async function renderChooser({
     />,
     { wrapper: zhWrapper },
   );
-  // 掛載時的連線重整是唯一的非同步 setState——先沖乾淨，否則每個案例都噴
-  // "not wrapped in act(...)"，且錯誤態的判定會在斷言之後才落定。
+  // 挂载时的连接重整是唯一的异步 setState——先冲干净，否则每个案例都喷
+  // "not wrapped in act(...)"，且错误态的判定会在断言之后才落定。
   await act(async () => {});
   return {
     adapter,
@@ -167,13 +167,13 @@ async function renderChooser({
   };
 }
 
-/** 第一步：選取來源卡後按頁尾主要鈕（design D8：點卡只選取）。 */
+/** 第一步：选取来源卡后按页脚主要钮（design D8：点卡只选取）。 */
 function chooseSource(source: "local" | "server") {
-  fireEvent.click(screen.getByRole("button", { name: source === "local" ? /本機資料夾/ : /^Server/ }));
-  fireEvent.click(screen.getByRole("button", { name: source === "local" ? "選擇資料夾…" : "下一步" }));
+  fireEvent.click(screen.getByRole("button", { name: source === "local" ? /本机文档夹/ : /^Server/ }));
+  fireEvent.click(screen.getByRole("button", { name: source === "local" ? "选择文档夹…" : "下一步" }));
 }
 
-/** 最近開啟列的開啟鈕（移除鈕帶 aria-label，開啟鈕沒有）。 */
+/** 最近打开列的打开钮（移除钮带 aria-label，打开钮没有）。 */
 function recentOpenButton(name: RegExp): HTMLButtonElement {
   const found = screen
     .getAllByRole("button", { name })
@@ -184,61 +184,61 @@ function recentOpenButton(name: RegExp): HTMLButtonElement {
 
 async function chooseDesktopRepo() {
   chooseSource("server");
-  fireEvent.click(screen.getByRole("radio", { name: /團隊 Server/ }));
+  fireEvent.click(screen.getByRole("radio", { name: /团队 Server/ }));
   await waitFor(() => expect(screen.getByRole("radio", { name: /Desktop/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("radio", { name: /Desktop/ }));
   fireEvent.click(screen.getByRole("button", { name: "下一步" }));
 }
 
 describe("WorkspaceChooser", () => {
-  it("對話框標題為「新增專案」（en「New project」），使用者可見文案不出現 Workspace", async () => {
+  it("对话框标题为「添加项目」（en「New project」），用户可见文案不出现 Workspace", async () => {
     await renderChooser({ recents: [] });
     const dialog = screen.getByRole("alertdialog");
-    expect(within(dialog).getByRole("heading", { name: "新增專案" })).toBeTruthy();
+    expect(within(dialog).getByRole("heading", { name: "添加项目" })).toBeTruthy();
     expect(dialog.textContent).not.toMatch(/workspace/i);
     expect(APP_MESSAGES.en["chooser.sourceTitle"]).toBe("New project");
-    // 說明先講清楚：本機資料夾沒有 speclink/ 時會先問要不要初始化。
-    expect(within(dialog).getByText(APP_MESSAGES["zh-TW"]["chooser.sourceDesc"]).textContent).toContain(
-      "speclink/",
+    // 说明先讲清楚：本机文档夹没有 specseal/ 时会先问要不要初始化。
+    expect(within(dialog).getByText(APP_MESSAGES["zh-CN"]["chooser.sourceDesc"]).textContent).toContain(
+      "specseal/",
     );
-    expect(APP_MESSAGES.en["chooser.sourceDesc"]).toContain("speclink/");
+    expect(APP_MESSAGES.en["chooser.sourceDesc"]).toContain("specseal/");
   });
 
-  // 來源卡不綁產品品牌：卡名與其下一步標題都只稱 Server。定位錨在開頭，
-  // 否則會連最近開啟的 remote 列（顯示名含 Server）一起命中。
-  it("第一步來源卡稱「Server」，點入後標題為「選擇 Server」", async () => {
+  // 来源卡不绑产品品牌：卡名与其下一步标题都只称 Server。定位锚在开头，
+  // 否则会连最近打开的 remote 列（显示名含 Server）一起命中。
+  it("第一步来源卡称「Server」，点入后标题为「选择 Server」", async () => {
     await renderChooser({ recents: [] });
 
     const source = screen.getByRole("button", { name: /^Server/ });
     expect(source.textContent).toContain("Server");
-    expect(source.textContent).not.toContain("Speclink Server");
+    expect(source.textContent).not.toContain("Specseal Server");
 
     fireEvent.click(source);
     fireEvent.click(screen.getByRole("button", { name: "下一步" }));
-    expect(screen.getByText("選擇 Server")).toBeTruthy();
+    expect(screen.getByText("选择 Server")).toBeTruthy();
   });
 
-  it("來源→已登入 server→scopes 分組單選→略過 checkout 開啟 spec-only 分頁", async () => {
+  it("来源→已登录 server→scopes 分组单选→略过 checkout 打开 spec-only 分页", async () => {
     const open = vi.fn().mockResolvedValue(undefined);
     const { adapter, onOpenChange } = await renderChooser({ onOpenRemote: open });
 
     await chooseDesktopRepo();
-    fireEvent.click(screen.getByRole("radio", { name: /略過（規格模式）/ }));
-    fireEvent.click(screen.getByRole("button", { name: "開啟專案" }));
+    fireEvent.click(screen.getByRole("radio", { name: /略过（规格模式）/ }));
+    fireEvent.click(screen.getByRole("button", { name: "打开项目" }));
 
     await waitFor(() =>
-      expect(open).toHaveBeenCalledWith("conn_1", "speclink/desktop", undefined),
+      expect(open).toHaveBeenCalledWith("conn_1", "specseal/desktop", undefined),
     );
     expect(adapter.scopes).toHaveBeenCalledWith("conn_1");
     expect(screen.queryByPlaceholderText("project 或 project/repo")).toBeNull();
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  // spec/design「Desktop IPC and UI contract」：先 inspect（零寫入的先檢查）
-  it("選擇 checkout 會先走 inspect marker 驗證，拒絕訊息指出 marker 指向且不顯示工具選集", async () => {
+  // spec/design「Desktop IPC and UI contract」：先 inspect（零写入的先检查）
+  it("选择 checkout 会先走 inspect marker 验证，拒绝消息指出 marker 指向且不显示工具选集", async () => {
     const inspect = vi.fn().mockRejectedValue(
       new Error(
-        "此資料夾的 remote marker 指向 https://other.example.test / api，與所選不一致",
+        "此文档夹的 remote marker 指向 https://other.example.test / api，与所选不一致",
       ),
     );
     const bind = vi.fn();
@@ -248,7 +248,7 @@ describe("WorkspaceChooser", () => {
     await renderChooser({ adapter, workspace, onOpenRemote: open });
 
     await chooseDesktopRepo();
-    fireEvent.click(screen.getByRole("radio", { name: /選擇本機資料夾/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /选择本机文档夹/ }));
 
     await waitFor(() =>
       expect(screen.getByRole("alert").textContent).toContain(
@@ -258,7 +258,7 @@ describe("WorkspaceChooser", () => {
     expect(inspect).toHaveBeenCalledWith(
       "/work/desktop",
       "https://spec.example.test",
-      "speclink",
+      "specseal",
       "desktop",
     );
     expect(bind).not.toHaveBeenCalled();
@@ -266,9 +266,9 @@ describe("WorkspaceChooser", () => {
     expect(open).not.toHaveBeenCalled();
   });
 
-  // spec/design「Desktop IPC and UI contract」：inspect 後顯示既有選集，
-  // submit 依序 bind（帶選集）後才 openRemote（帶 checkoutRoot）。
-  it("folder mode：inspect 預選既有工具，開啟時先 bind 後 openRemote", async () => {
+  // spec/design「Desktop IPC and UI contract」：inspect 后显示既有选集，
+  // submit 依序 bind（带选集）后才 openRemote（带 checkoutRoot）。
+  it("folder mode：inspect 预选既有工具，打开时先 bind 后 openRemote", async () => {
     const inspect = vi
       .fn()
       .mockResolvedValue({ root: "/work/desktop", tools: ["codex"] });
@@ -281,10 +281,10 @@ describe("WorkspaceChooser", () => {
     await chooseDesktopRepo();
     await reachCheckoutFolder();
 
-    // checkout 步驟的五個勾選依 claude、codex、copilot、pi、cursor 順序出現；
-    // inspect 回傳 codex → 只有 codex 勾選。
+    // checkout 步骤的五个勾选依 claude、codex、copilot、pi、cursor 顺序出现；
+    // inspect 回传 codex → 只有 codex 勾选。
     expectToolCheckboxes(document.body, ["codex"]);
-    // inspect 回傳 codex → codex 勾選、claude 與 copilot 未勾。
+    // inspect 回传 codex → codex 勾选、claude 与 copilot 未勾。
     expect(
       (screen.getByRole("checkbox", { name: /codex/i }) as HTMLInputElement).getAttribute(
         "aria-checked",
@@ -301,26 +301,26 @@ describe("WorkspaceChooser", () => {
       ),
     ).toBe("false");
 
-    fireEvent.click(screen.getByRole("button", { name: "開啟專案" }));
+    fireEvent.click(screen.getByRole("button", { name: "打开项目" }));
 
     await waitFor(() =>
       expect(bind).toHaveBeenCalledWith(
         "/work/desktop",
         "https://spec.example.test",
-        "speclink",
+        "specseal",
         "desktop",
         ["codex"],
       ),
     );
     await waitFor(() =>
-      expect(open).toHaveBeenCalledWith("conn_1", "speclink/desktop", "/work/desktop"),
+      expect(open).toHaveBeenCalledWith("conn_1", "specseal/desktop", "/work/desktop"),
     );
-    // 同步成功才開啟：bind 先於 openRemote。
+    // 同步成功才打开：bind 先于 openRemote。
     expect(bind.mock.invocationCallOrder[0]).toBeLessThan(open.mock.invocationCallOrder[0]);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("folder mode：空工具選集時「開啟專案」停用且不 bind", async () => {
+  it("folder mode：空工具选集时「打开项目」停用且不 bind", async () => {
     const inspect = vi.fn().mockResolvedValue({ root: "/work/desktop", tools: [] });
     const bind = vi.fn();
     const adapter = fakeConnections({ inspectCheckout: inspect, bindCheckout: bind });
@@ -331,23 +331,23 @@ describe("WorkspaceChooser", () => {
     await reachCheckoutFolder();
 
     expect(
-      (screen.getByRole("button", { name: "開啟專案" }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "打开项目" }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    // 勾一個工具後啟用。
+    // 勾一个工具后激活。
     fireEvent.click(screen.getByRole("checkbox", { name: /claude/i }));
     await waitFor(() =>
       expect(
-        (screen.getByRole("button", { name: "開啟專案" }) as HTMLButtonElement).disabled,
+        (screen.getByRole("button", { name: "打开项目" }) as HTMLButtonElement).disabled,
       ).toBe(false),
     );
     expect(bind).not.toHaveBeenCalled();
   });
 
-  it("folder mode：bind 失敗保留 path 與工具選集且不 openRemote", async () => {
+  it("folder mode：bind 失败保留 path 与工具选集且不 openRemote", async () => {
     const inspect = vi
       .fn()
       .mockResolvedValue({ root: "/work/desktop", tools: ["claude", "codex"] });
-    const bind = vi.fn().mockRejectedValue(new Error("同步技能時發生檔案系統錯誤"));
+    const bind = vi.fn().mockRejectedValue(new Error("同步技能时发生文档系统错误"));
     const adapter = fakeConnections({ inspectCheckout: inspect, bindCheckout: bind });
     const workspace = fakeWorkspace({ pickFolder: vi.fn().mockResolvedValue("/work/desktop") });
     const open = vi.fn().mockResolvedValue(undefined);
@@ -355,14 +355,14 @@ describe("WorkspaceChooser", () => {
 
     await chooseDesktopRepo();
     await reachCheckoutFolder();
-    fireEvent.click(screen.getByRole("button", { name: "開啟專案" }));
+    fireEvent.click(screen.getByRole("button", { name: "打开项目" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain("同步技能時發生檔案系統錯誤"),
+      expect(screen.getByRole("alert").textContent).toContain("同步技能时发生文档系统错误"),
     );
     expect(open).not.toHaveBeenCalled();
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    // 選集與 path 留存：checkbox 仍在、仍勾選，可重試。
+    // 选集与 path 留存：checkbox 仍在、仍勾选，可重试。
     expect(
       (screen.getByRole("checkbox", { name: /claude/i }) as HTMLInputElement).getAttribute(
         "aria-checked",
@@ -370,8 +370,8 @@ describe("WorkspaceChooser", () => {
     ).toBe("true");
   });
 
-  // spec「缺少工具選集時導向 checkout 選擇」：intent 直達 checkout 步驟並預填 scope／path
-  it("缺選集 intent：直達 checkout 步驟、依 scope inspect 預填 path 並要求明示選擇", async () => {
+  // spec「缺少工具选集时导向 checkout 选择」：intent 直达 checkout 步骤并预填 scope／path
+  it("缺选集 intent：直达 checkout 步骤、依 scope inspect 预填 path 并要求明示选择", async () => {
     const inspect = vi.fn().mockResolvedValue({ root: "/work/desktop", tools: [] });
     const adapter = fakeConnections({ inspectCheckout: inspect });
     const open = vi.fn().mockResolvedValue(undefined);
@@ -379,28 +379,28 @@ describe("WorkspaceChooser", () => {
       adapter,
       onOpenRemote: open,
       initialConnectionId: "conn_1",
-      initialScope: { projectKey: "speclink", repoKey: "desktop" },
+      initialScope: { projectKey: "specseal", repoKey: "desktop" },
       initialCheckoutPath: "/work/desktop",
     });
 
-    // 直達 checkout 步驟並以預填 path inspect（不必再走 source→server→scopes）。
+    // 直达 checkout 步骤并以预填 path inspect（不必再走 source→server→scopes）。
     await waitFor(() =>
       expect(screen.getByRole("checkbox", { name: /claude/i })).toBeTruthy(),
     );
     expect(inspect).toHaveBeenCalledWith(
       "/work/desktop",
       "https://spec.example.test",
-      "speclink",
+      "specseal",
       "desktop",
     );
-    // 缺選集 → Open 停用，需使用者明示勾選。
+    // 缺选集 → Open 停用，需用户明示勾选。
     expect(
-      (screen.getByRole("button", { name: "開啟專案" }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "打开项目" }) as HTMLButtonElement).disabled,
     ).toBe(true);
     expect(open).not.toHaveBeenCalled();
   });
 
-  it("folder mode：bind 進行中不得重複送出", async () => {
+  it("folder mode：bind 进行中不得重复送出", async () => {
     let release: (value: string) => void = () => {};
     const inspect = vi
       .fn()
@@ -417,7 +417,7 @@ describe("WorkspaceChooser", () => {
 
     await chooseDesktopRepo();
     await reachCheckoutFolder();
-    const openButton = screen.getByRole("button", { name: "開啟專案" });
+    const openButton = screen.getByRole("button", { name: "打开项目" });
     fireEvent.click(openButton);
     await waitFor(() => expect((openButton as HTMLButtonElement).disabled).toBe(true));
     fireEvent.click(openButton);
@@ -427,91 +427,91 @@ describe("WorkspaceChooser", () => {
     release("/work/desktop");
   });
 
-  it("initialStep: \"server\" 起始於 Server 步驟（空狀態「連線 Server」入口）", async () => {
+  it("initialStep: \"server\" 起始于 Server 步骤（空状态「连接 Server」入口）", async () => {
     await renderChooser({ initialStep: "server" });
-    expect(screen.getByText("選擇 Server")).toBeTruthy();
-    expect(screen.getByText("步驟 2 / 4")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /本機資料夾/ })).toBeNull();
+    expect(screen.getByText("选择 Server")).toBeTruthy();
+    expect(screen.getByText("步骤 2 / 4")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /本机文档夹/ })).toBeNull();
   });
 
-  it("第一步未選來源卡時頁尾主要鈕停用；「取消」為 ghost", async () => {
+  it("第一步未选来源卡时页脚主要钮停用；「取消」为 ghost", async () => {
     await renderChooser();
-    const primary = screen.getByRole("button", { name: "選擇來源" }) as HTMLButtonElement;
+    const primary = screen.getByRole("button", { name: "选择来源" }) as HTMLButtonElement;
     expect(primary.disabled).toBe(true);
-    const local = screen.getByRole("button", { name: /本機資料夾/ });
+    const local = screen.getByRole("button", { name: /本机文档夹/ });
     expect(local.getAttribute("aria-pressed")).toBe("false");
     expect(screen.getByRole("button", { name: "取消" }).className).not.toContain("border");
   });
 
-  it("選本機卡：卡片為選取態、主要鈕為「選擇資料夾…」，按下才開資料夾選擇器", async () => {
+  it("选本机卡：卡片为选取态、主要钮为「选择文档夹…」，按下才开文档夹选择器", async () => {
     const workspace = fakeWorkspace();
     await renderChooser({ workspace });
-    const local = screen.getByRole("button", { name: /本機資料夾/ });
+    const local = screen.getByRole("button", { name: /本机文档夹/ });
     fireEvent.click(local);
     expect(local.getAttribute("aria-pressed")).toBe("true");
     expect(local.className).toContain("border-primary");
     expect(workspace.pickFolder).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "選擇資料夾…" }));
+    fireEvent.click(screen.getByRole("button", { name: "选择文档夹…" }));
     await waitFor(() => expect(workspace.pickFolder).toHaveBeenCalledTimes(1));
   });
 
-  it("選 Server 卡：主要鈕為「下一步」，按下進 Server 步驟，清單為整列單選", async () => {
+  it("选 Server 卡：主要钮为「下一步」，按下进 Server 步骤，清单为整列单选", async () => {
     await renderChooser();
     fireEvent.click(screen.getByRole("button", { name: /^Server/ }));
     fireEvent.click(screen.getByRole("button", { name: "下一步" }));
-    expect(screen.getByText("選擇 Server")).toBeTruthy();
+    expect(screen.getByText("选择 Server")).toBeTruthy();
     const group = screen.getByRole("radiogroup");
-    const row = within(group).getByRole("radio", { name: /團隊 Server/ });
+    const row = within(group).getByRole("radio", { name: /团队 Server/ });
     expect(row.getAttribute("aria-checked")).toBe("false");
   });
 
-  it("checkout 步驟的兩個選項是單選列", async () => {
+  it("checkout 步骤的两个选项是单选列", async () => {
     await renderChooser();
     await chooseDesktopRepo();
-    const skip = await screen.findByRole("radio", { name: /略過/ });
+    const skip = await screen.findByRole("radio", { name: /略过/ });
     fireEvent.click(skip);
     expect(skip.getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("radio", { name: /選擇本機資料夾/ }).getAttribute("aria-checked")).toBe(
+    expect(screen.getByRole("radio", { name: /选择本机文档夹/ }).getAttribute("aria-checked")).toBe(
       "false",
     );
   });
 
-  it("scopes 沒有 membership 時顯示繁中空清單說明", async () => {
+  it("scopes 没有 membership 时显示繁中空清单说明", async () => {
     const adapter = fakeConnections({ scopes: vi.fn().mockResolvedValue({ projects: [] }) });
     await renderChooser({ adapter });
 
     chooseSource("server");
-    fireEvent.click(screen.getByRole("radio", { name: /團隊 Server/ }));
+    fireEvent.click(screen.getByRole("radio", { name: /团队 Server/ }));
 
     expect((await screen.findByTestId("scopes-empty")).textContent).toContain(
-      "此帳號目前沒有任何 Project／Repo membership",
+      "此帐号目前没有任何 Project／Repo membership",
     );
     expect((screen.getByRole("button", { name: "下一步" }) as HTMLButtonElement).disabled).toBe(
       true,
     );
   });
 
-  it("server 清單可就地新增並登入，完成後回到清單步驟", async () => {
+  it("server 清单可就地添加并登录，完成后回到清单步骤", async () => {
     const add = vi.fn().mockResolvedValue(undefined);
     await renderChooser({ connections: [], onAddServer: add });
 
     chooseSource("server");
-    expect(screen.getByText(/目前沒有已登入的 server/)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "新增 server" }));
-    fireEvent.change(screen.getByLabelText("伺服器位址（http://…）"), {
+    expect(screen.getByText(/目前没有已登录的 server/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "添加 server" }));
+    fireEvent.change(screen.getByLabelText("服务器地址（http://…）"), {
       target: { value: "https://new.example.test" },
     });
-    fireEvent.change(screen.getByLabelText("顯示名"), { target: { value: "新 Server" } });
-    fireEvent.click(screen.getByRole("button", { name: "新增並登入" }));
+    fireEvent.change(screen.getByLabelText("显示名"), { target: { value: "新 Server" } });
+    fireEvent.click(screen.getByRole("button", { name: "添加并登录" }));
 
     await waitFor(() =>
       expect(add).toHaveBeenCalledWith("https://new.example.test", "新 Server"),
     );
-    // add 被呼叫≠完成：status 訊息在 promise resolve 後才渲染，須非同步等。
-    expect((await screen.findByRole("status")).textContent).toContain("連線已新增");
+    // add 被调用≠完成：status 消息在 promise resolve 后才渲染，须异步等。
+    expect((await screen.findByRole("status")).textContent).toContain("连接已添加");
   });
 
-  it("本機資料夾分流沿用既有開啟流程", async () => {
+  it("本机文档夹分流沿用既有打开流程", async () => {
     const local = vi.fn().mockResolvedValue(undefined);
     const workspace = fakeWorkspace({
       pickFolder: vi.fn().mockResolvedValue("/work/local"),
@@ -524,13 +524,13 @@ describe("WorkspaceChooser", () => {
     const { onOpenChange } = await renderChooser({ workspace, onOpenLocal: local });
 
     chooseSource("local");
-    fireEvent.click(await screen.findByRole("button", { name: "開啟本機" }));
+    fireEvent.click(await screen.findByRole("button", { name: "打开本机" }));
 
     await waitFor(() => expect(local).toHaveBeenCalledWith("/work/local"));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("選到含 openspec 的本機專案後提供遷移到 server 次要動作", async () => {
+  it("选到含 openspec 的本机项目后提供迁移到 server 次要动作", async () => {
     const migrate = vi.fn().mockResolvedValue(undefined);
     const workspace = fakeWorkspace({
       pickFolder: vi.fn().mockResolvedValue("/work/local"),
@@ -546,45 +546,45 @@ describe("WorkspaceChooser", () => {
     });
 
     chooseSource("local");
-    fireEvent.click(await screen.findByRole("button", { name: "遷移到 Server…" }));
+    fireEvent.click(await screen.findByRole("button", { name: "迁移到 Server…" }));
 
     await waitFor(() => expect(migrate).toHaveBeenCalledWith("/work/local"));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
 
-// 停用的選擇卡與單選列為箭頭且無 hover（spec desktop-app「可點元素的游標與 hover 回饋」；design D4）。
-describe("開啟專案畫面停用態", () => {
-  it("最近開啟列開啟中，停用的本機選擇卡為箭頭且無 hover", async () => {
+// 停用的选择卡与单选列为箭头且无 hover（spec desktop-app「可点元素的光标与 hover 回馈」；design D4）。
+describe("打开项目画面停用态", () => {
+  it("最近打开列打开中，停用的本机选择卡为箭头且无 hover", async () => {
     const workspace = fakeWorkspace({ openProject: vi.fn(() => new Promise(() => {})) });
     await renderChooser({
       workspace,
-      recents: [{ locator: { kind: "local", root: "/work/speclink" }, name: "speclink" }],
+      recents: [{ locator: { kind: "local", root: "/work/specseal" }, name: "specseal" }],
     });
-    fireEvent.click(screen.getByRole("button", { name: /\/work\/speclink/ }));
-    const card = screen.getByRole("button", { name: /本機資料夾/ }) as HTMLButtonElement;
+    fireEvent.click(screen.getByRole("button", { name: /\/work\/specseal/ }));
+    const card = screen.getByRole("button", { name: /本机文档夹/ }) as HTMLButtonElement;
     await waitFor(() => expect(card.disabled).toBe(true));
     expectHoverOnlyWhenEnabled(card);
     expect(card.className).toContain("cursor-default");
   });
 
-  it("bind 進行中，停用的「選擇本機資料夾」單選列為箭頭且無 hover", async () => {
+  it("bind 进行中，停用的「选择本机文档夹」单选列为箭头且无 hover", async () => {
     const adapter = fakeConnections({ bindCheckout: vi.fn(() => new Promise<string>(() => {})) });
     const workspace = fakeWorkspace({ pickFolder: vi.fn().mockResolvedValue("/work/desktop") });
     await renderChooser({ adapter, workspace });
     await chooseDesktopRepo();
     await reachCheckoutFolder();
-    fireEvent.click(screen.getByRole("button", { name: "開啟專案" }));
-    const row = screen.getByRole("radio", { name: /選擇本機資料夾/ }) as HTMLButtonElement;
+    fireEvent.click(screen.getByRole("button", { name: "打开项目" }));
+    const row = screen.getByRole("radio", { name: /选择本机文档夹/ }) as HTMLButtonElement;
     await waitFor(() => expect(row.disabled).toBe(true));
-    // 已選中的單選列本來就沒有 hover；只確認沒有未受 enabled: 約束的 hover token。
+    // 已选中的单选列本来就没有 hover；只确认没有未受 enabled: 约束的 hover token。
     expect(hoverClasses(row).filter((c) => !c.startsWith("enabled:"))).toEqual([]);
     expect(row.className).toContain("cursor-default");
   });
 });
 
-describe("remote marker 與本機 openspec 並存", () => {
-  it("強制呈現繼續本機、以 server 為準、遷移本機內容三個出口", async () => {
+describe("remote marker 与本机 openspec 并存", () => {
+  it("强制呈现继续本机、以 server 为准、迁移本机内容三个出口", async () => {
     const continueLocal = vi.fn().mockResolvedValue(undefined);
     const useServer = vi.fn().mockResolvedValue(undefined);
     const migrateLocal = vi.fn();
@@ -592,7 +592,7 @@ describe("remote marker 與本機 openspec 並存", () => {
       <RemoteConflictDialog
         conflict={{
           path: "/work/coexists",
-          url: "https://spec.example.test/api/speclink/v1/projects/demo",
+          url: "https://spec.example.test/api/specseal/v1/projects/demo",
           repo: "backend",
         }}
         onContinueLocal={continueLocal}
@@ -602,40 +602,40 @@ describe("remote marker 與本機 openspec 並存", () => {
       { wrapper: zhWrapper },
     );
 
-    expect(screen.getByText(/備份後棄用本機內容.*不會上傳或合併/)).toBeTruthy();
-    // 三個出口是平等的選擇，不是狀態：語彙統一為中性卡，顏色不暗示「哪個比較對」。
-    for (const name of [/^繼續本機/, /^以 Server 為準/, /^遷移本機內容/]) {
+    expect(screen.getByText(/备份后弃用本机内容.*不会上传或合并/)).toBeTruthy();
+    // 三个出口是平等的选择，不是状态：语汇统一为中性卡，颜色不暗示「哪个比较对」。
+    for (const name of [/^继续本机/, /^以 Server 为准/, /^迁移本机内容/]) {
       const cls = screen.getByRole("button", { name }).className;
       expect(cls).toContain("border-border");
       expect(cls).not.toContain("status-warning");
       expect(cls).not.toContain("bg-primary");
     }
-    fireEvent.click(screen.getByRole("button", { name: /^繼續本機/ }));
-    fireEvent.click(screen.getByRole("button", { name: /^以 Server 為準/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^继续本机/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^以 Server 为准/ }));
     await waitFor(() => expect(useServer).toHaveBeenCalledTimes(1));
     await waitFor(() =>
       expect(
-        (screen.getByRole("button", { name: /^遷移本機內容/ }) as HTMLButtonElement).disabled,
+        (screen.getByRole("button", { name: /^迁移本机内容/ }) as HTMLButtonElement).disabled,
       ).toBe(false),
     );
-    fireEvent.click(screen.getByRole("button", { name: /^遷移本機內容/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^迁移本机内容/ }));
 
     await waitFor(() => expect(continueLocal).toHaveBeenCalledTimes(1));
     expect(migrateLocal).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("button", { name: "取消" })).toBeNull();
   });
 
-  it("處理中三張卡停用：無 hover 底色（spec desktop-app「可點元素的游標與 hover 回饋」；design D4）", async () => {
+  it("处理中三张卡停用：无 hover 底色（spec desktop-app「可点元素的光标与 hover 回馈」；design D4）", async () => {
     render(
       <RemoteConflictDialog
-        conflict={{ path: "/work/coexists", url: "https://spec.example.test/api/speclink/v1/projects/demo", repo: "backend" }}
+        conflict={{ path: "/work/coexists", url: "https://spec.example.test/api/specseal/v1/projects/demo", repo: "backend" }}
         onContinueLocal={vi.fn().mockResolvedValue(undefined)}
         onUseServer={vi.fn(() => new Promise<void>(() => {}))}
         onMigrateLocal={vi.fn()}
       />,
       { wrapper: zhWrapper },
     );
-    const names = [/^繼續本機/, /^以 Server 為準/, /^遷移本機內容/];
+    const names = [/^继续本机/, /^以 Server 为准/, /^迁移本机内容/];
     fireEvent.click(screen.getByRole("button", { name: names[1] }));
     for (const name of names) {
       const card = screen.getByRole("button", { name }) as HTMLButtonElement;
@@ -645,11 +645,11 @@ describe("remote marker 與本機 openspec 並存", () => {
   });
 });
 
-// --- chooser 內就地登入回饋（規格「device login 預設與 PAT fallback」的
-// 「從工作區選擇器發起登入同樣呈現等待授權面」；design 決策三）：真 store 驅動
-// ——新增並登入後，等待授權面／PAT 輸入就在選擇器的 server 步驟渲染。 ---
+// --- chooser 内就地登录回馈（规格「device login 缺省与 PAT fallback」的
+// 「从工作区选择器发起登录同样呈现等待授权面」；design 决策三）：真 store 驱动
+// ——添加并登录后，等待授权面／PAT 输入就在选择器的 server 步骤渲染。 ---
 
-describe("WorkspaceChooser 登入回饋", () => {
+describe("WorkspaceChooser 登录回馈", () => {
   const APPROVAL: LoginPhase = {
     kind: "awaitingApproval",
     userCode: "ABCD-EFGH",
@@ -662,7 +662,7 @@ describe("WorkspaceChooser 登入回饋", () => {
     expiresAt: Date.now() + 300_000,
   };
 
-  /** 停在等待面的登入：送出階段後一直等，直到 loginCancel 或測試代為完成。 */
+  /** 停在等待面的登录：送出阶段后一直等，直到 loginCancel 或测试代为完成。 */
   function waitingLogin(phase: LoginPhase) {
     let resolve: (result: LoginResult) => void = () => {};
     const loginStart = vi.fn(
@@ -676,7 +676,7 @@ describe("WorkspaceChooser 登入回饋", () => {
     return { loginStart, loginCancel, finish: (result: LoginResult) => resolve(result) };
   }
 
-  /** 假 adapter：in-memory registry；啟動段行為由測試覆寫。 */
+  /** 假 adapter：in-memory registry；启动段行为由测试覆写。 */
   function storeAdapter(over: Partial<ConnectionsAdapter> = {}): ConnectionsAdapter {
     const entries: Array<Omit<ConnectionView, "loggedIn">> = [];
     const loggedIn = new Set<string>();
@@ -735,17 +735,17 @@ describe("WorkspaceChooser 登入回饋", () => {
     return useStore;
   }
 
-  /** 走到 server 步驟並送出新增並登入。 */
+  /** 走到 server 步骤并送出添加并登录。 */
   function addAndLogin() {
     chooseSource("server");
-    fireEvent.click(screen.getByRole("button", { name: "新增 server" }));
-    fireEvent.change(screen.getByLabelText("伺服器位址（http://…）"), {
+    fireEvent.click(screen.getByRole("button", { name: "添加 server" }));
+    fireEvent.change(screen.getByLabelText("服务器地址（http://…）"), {
       target: { value: "http://localhost:8080" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "新增並登入" }));
+    fireEvent.click(screen.getByRole("button", { name: "添加并登录" }));
   }
 
-  it("新增並登入後選擇器內就地顯示等待授權面", async () => {
+  it("添加并登录后选择器内就地显示等待授权面", async () => {
     renderWithStore(storeAdapter());
     addAndLogin();
 
@@ -753,25 +753,25 @@ describe("WorkspaceChooser 登入回饋", () => {
     expect(waiting.textContent).toContain("ABCD-EFGH");
     expect(waiting.textContent).toContain("http://localhost:8080/activate");
     expect(waiting.textContent).toMatch(/\d+:\d{2}/);
-    expect(screen.getByRole("button", { name: "取消登入" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "取消登录" })).toBeTruthy();
   });
 
-  it("取消即呼叫取消、面消失且停留在 server 步驟", async () => {
+  it("取消即调用取消、面消失且停留在 server 步骤", async () => {
     const login = waitingLogin(APPROVAL);
     renderWithStore(storeAdapter(login));
     addAndLogin();
     await screen.findByTestId("awaiting-approval-http://localhost:8080");
 
-    fireEvent.click(screen.getByRole("button", { name: "取消登入" }));
+    fireEvent.click(screen.getByRole("button", { name: "取消登录" }));
     await waitFor(() =>
       expect(screen.queryByTestId("awaiting-approval-http://localhost:8080")).toBeNull(),
     );
     expect(login.loginCancel).toHaveBeenCalledWith("http://localhost:8080");
-    // 仍在 server 步驟（新增 server 的開關還在）。
-    expect(screen.getByRole("button", { name: "新增 server" })).toBeTruthy();
+    // 仍在 server 步骤（添加 server 的开关还在）。
+    expect(screen.getByRole("button", { name: "添加 server" })).toBeTruthy();
   });
 
-  it("新增並登入宣告瀏覽器登入的 server 時就地顯示等待瀏覽器登入面，完成後出現在已登入清單", async () => {
+  it("添加并登录声明浏览器登录的 server 时就地显示等待浏览器登录面，完成后出现在已登录清单", async () => {
     const login = waitingLogin(BROWSER);
     const adapter = storeAdapter(login);
     let signedIn = false;
@@ -793,7 +793,7 @@ describe("WorkspaceChooser 登入回饋", () => {
     await waitFor(() => expect(screen.getByText(/Momo/)).toBeTruthy());
   });
 
-  it("需要存取金鑰時選擇器內就地現 PAT 輸入並可完成登入", async () => {
+  it("需要访问密钥时选择器内就地现 PAT 输入并可完成登录", async () => {
     renderWithStore(
       storeAdapter({ loginStart: async () => ({ status: "patRequired" }) }),
     );
@@ -801,16 +801,16 @@ describe("WorkspaceChooser 登入回饋", () => {
 
     const patInput = await screen.findByPlaceholderText("spk_pat_…");
     fireEvent.change(patInput, { target: { value: "spk_pat_good" } });
-    fireEvent.click(screen.getByRole("button", { name: "以 PAT 登入" }));
-    // 登入完成：連線出現在已登入清單（ChoiceCard 標題）。
+    fireEvent.click(screen.getByRole("button", { name: "以 PAT 登录" }));
+    // 登录完成：连接出现在已登录清单（ChoiceCard 标题）。
     await waitFor(() => expect(screen.getByText(/Momo/)).toBeTruthy());
   });
 });
 
-describe("最近開啟清單（spec 需求「最近開啟清單」；design D3 顯示期過濾、D4 點擊開啟與失效錯誤態）", () => {
+describe("最近打开清单（spec 需求「最近打开清单」；design D3 显示期过滤、D4 点击打开与失效错误态）", () => {
   const LOCAL_RECENT: RecentEntry = {
-    locator: { kind: "local", root: "/work/speclink" },
-    name: "speclink",
+    locator: { kind: "local", root: "/work/specseal" },
+    name: "specseal",
   };
   const REMOTE_RECENT: RecentEntry = {
     locator: {
@@ -820,108 +820,108 @@ describe("最近開啟清單（spec 需求「最近開啟清單」；design D3 �
       repoId: "repo_1",
       checkoutRoot: "/work/desktop",
     },
-    name: "Speclink/Desktop",
+    name: "Specseal/Desktop",
   };
 
-  it("recents 為空時第一步沒有「最近開啟」區段", () => {
+  it("recents 为空时第一步没有「最近打开」区段", () => {
     renderChooser();
-    expect(screen.queryByText("最近開啟")).toBeNull();
-    expect(screen.getByRole("button", { name: /本機資料夾/ })).toBeTruthy();
+    expect(screen.queryByText("最近打开")).toBeNull();
+    expect(screen.getByRole("button", { name: /本机文档夹/ })).toBeTruthy();
   });
 
-  it("本機列顯示名稱與路徑、remote 列顯示連線名稱與顯示名", async () => {
+  it("本机列显示名称与路径、remote 列显示连接名称与显示名", async () => {
     await renderChooser({ recents: [LOCAL_RECENT, REMOTE_RECENT] });
-    expect(screen.getByText("最近開啟")).toBeTruthy();
-    const local = screen.getByRole("button", { name: /\/work\/speclink/ });
-    expect(local.textContent).toContain("speclink");
-    const remote = screen.getByRole("button", { name: /團隊 Server/ });
-    expect(remote.textContent).toContain("Speclink/Desktop");
-    // 既有兩張來源卡仍在，且可及性名稱不變。
-    expect(screen.getByRole("button", { name: /本機資料夾/ })).toBeTruthy();
+    expect(screen.getByText("最近打开")).toBeTruthy();
+    const local = screen.getByRole("button", { name: /\/work\/specseal/ });
+    expect(local.textContent).toContain("specseal");
+    const remote = screen.getByRole("button", { name: /团队 Server/ });
+    expect(remote.textContent).toContain("Specseal/Desktop");
+    // 既有两张来源卡仍在，且可及性名称不变。
+    expect(screen.getByRole("button", { name: /本机文档夹/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /^Server/ })).toBeTruthy();
   });
 
-  it("點本機列先探測再沿既有本機開啟流程並關閉 chooser（spec Scenario 點本機條目直接開啟）", async () => {
+  it("点本机列先探测再沿既有本机打开流程并关闭 chooser（spec Scenario 点本机条目直接打开）", async () => {
     const workspace = fakeWorkspace({
       openProject: vi
         .fn()
-        .mockResolvedValue({ status: "project", root: "/work/speclink", name: "speclink" }),
+        .mockResolvedValue({ status: "project", root: "/work/specseal", name: "specseal" }),
     });
     const { onOpenLocal, onOpenChange } = await renderChooser({
       workspace,
       recents: [LOCAL_RECENT],
     });
-    fireEvent.click(screen.getByRole("button", { name: /\/work\/speclink/ }));
-    await waitFor(() => expect(onOpenLocal).toHaveBeenCalledWith("/work/speclink"));
-    expect(workspace.openProject).toHaveBeenCalledWith("/work/speclink");
+    fireEvent.click(screen.getByRole("button", { name: /\/work\/specseal/ }));
+    await waitFor(() => expect(onOpenLocal).toHaveBeenCalledWith("/work/specseal"));
+    expect(workspace.openProject).toHaveBeenCalledWith("/work/specseal");
     expect(onOpenChange).toHaveBeenCalledWith(false);
-    // 不走首次選資料夾的「開啟本機／遷移」子畫面。
-    expect(screen.queryByRole("button", { name: "開啟本機" })).toBeNull();
+    // 不走首次选文档夹的「打开本机／迁移」子画面。
+    expect(screen.queryByRole("button", { name: "打开本机" })).toBeNull();
   });
 
-  it("探測拋錯時該列轉錯誤態並顯示原因，不開啟（spec Scenario 本機資料夾已消失時轉錯誤態）", async () => {
+  it("探测抛错时该列转错误态并显示原因，不打开（spec Scenario 本机文档夹已消失时转错误态）", async () => {
     const workspace = fakeWorkspace({
-      openProject: vi.fn().mockRejectedValue(new Error("cannot open '/work/speclink'")),
+      openProject: vi.fn().mockRejectedValue(new Error("cannot open '/work/specseal'")),
     });
     const { onOpenLocal, onOpenChange } = await renderChooser({
       workspace,
       recents: [LOCAL_RECENT],
     });
-    fireEvent.click(screen.getByRole("button", { name: /\/work\/speclink/ }));
+    fireEvent.click(screen.getByRole("button", { name: /\/work\/specseal/ }));
     await waitFor(() =>
-      expect(screen.getByText(/cannot open '\/work\/speclink'/)).toBeTruthy(),
+      expect(screen.getByText(/cannot open '\/work\/specseal'/)).toBeTruthy(),
     );
     expect(onOpenLocal).not.toHaveBeenCalled();
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
-    // 錯誤態的列仍可再點重試，也仍可移除。
+    // 错误态的列仍可再点重试，也仍可移除。
     expect(
-      (screen.getByRole("button", { name: /\/work\/speclink/ }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: /\/work\/specseal/ }) as HTMLButtonElement).disabled,
     ).toBe(false);
-    expect(screen.getByRole("button", { name: "自最近開啟移除 speclink" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "自最近打开移除 specseal" })).toBeTruthy();
   });
 
-  it("點 remote 列以原 connection、projectId/repoId 與 checkoutRoot 開啟（spec Scenario 點 remote 條目以原綁定開啟）", async () => {
+  it("点 remote 列以原 connection、projectId/repoId 与 checkoutRoot 打开（spec Scenario 点 remote 条目以原绑定打开）", async () => {
     const { onOpenRemote } = await renderChooser({ recents: [REMOTE_RECENT] });
-    fireEvent.click(screen.getByRole("button", { name: /團隊 Server/ }));
+    fireEvent.click(screen.getByRole("button", { name: /团队 Server/ }));
     await waitFor(() =>
       expect(onOpenRemote).toHaveBeenCalledWith("conn_1", "prj_1/repo_1", "/work/desktop"),
     );
   });
 
-  it("remote handshake 拋錯時該列顯示原因", async () => {
+  it("remote handshake 抛错时该列显示原因", async () => {
     const onOpenRemote = vi.fn().mockRejectedValue(new Error("access denied — no access"));
     await renderChooser({ recents: [REMOTE_RECENT], onOpenRemote });
-    fireEvent.click(screen.getByRole("button", { name: /團隊 Server/ }));
+    fireEvent.click(screen.getByRole("button", { name: /团队 Server/ }));
     await waitFor(() => expect(screen.getByText(/access denied/)).toBeTruthy());
   });
 
-  it("連線已移除的 remote 列直接呈現錯誤態、開啟停用、可移除（spec Scenario remote 連線已移除時直接呈現錯誤態）", async () => {
+  it("连接已移除的 remote 列直接呈现错误态、打开停用、可移除（spec Scenario remote 连接已移除时直接呈现错误态）", async () => {
     const gone: RecentEntry = {
       ...REMOTE_RECENT,
       locator: { ...REMOTE_RECENT.locator, connectionId: "conn_gone" } as RecentEntry["locator"],
     };
     const { onRemoveRecent, onOpenRemote } = await renderChooser({ recents: [gone] });
-    await waitFor(() => expect(screen.getByText("連線已移除")).toBeTruthy());
-    const row = screen.getByRole("button", { name: /連線已移除/ }) as HTMLButtonElement;
+    await waitFor(() => expect(screen.getByText("连接已移除")).toBeTruthy());
+    const row = screen.getByRole("button", { name: /连接已移除/ }) as HTMLButtonElement;
     expect(row.disabled).toBe(true);
     fireEvent.click(row);
     expect(onOpenRemote).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "自最近開啟移除 Speclink/Desktop" }));
+    fireEvent.click(screen.getByRole("button", { name: "自最近打开移除 Specseal/Desktop" }));
     expect(onRemoveRecent).toHaveBeenCalledWith("remote:conn_gone/prj_1/repo_1");
   });
 
-  it("移除鈕以 locator key 呼叫 onRemoveRecent（spec Scenario 移除條目後重啟不再出現）", async () => {
+  it("移除钮以 locator key 调用 onRemoveRecent（spec Scenario 移除条目后重启不再出现）", async () => {
     const { onRemoveRecent, onOpenLocal } = await renderChooser({ recents: [LOCAL_RECENT] });
-    fireEvent.click(screen.getByRole("button", { name: "自最近開啟移除 speclink" }));
-    expect(onRemoveRecent).toHaveBeenCalledWith("local:/work/speclink");
+    fireEvent.click(screen.getByRole("button", { name: "自最近打开移除 specseal" }));
+    expect(onRemoveRecent).toHaveBeenCalledWith("local:/work/specseal");
     expect(onOpenLocal).not.toHaveBeenCalled();
   });
 });
 
-describe("最近開啟清單的補強（review／verify 第 1 輪 WARNING）", () => {
+describe("最近打开清单的补强（review／verify 第 1 轮 WARNING）", () => {
   const LOCAL: RecentEntry = {
-    locator: { kind: "local", root: "/work/speclink" },
-    name: "speclink",
+    locator: { kind: "local", root: "/work/specseal" },
+    name: "specseal",
   };
   const REMOTE: RecentEntry = {
     locator: {
@@ -931,37 +931,37 @@ describe("最近開啟清單的補強（review／verify 第 1 輪 WARNING）", (
       repoId: "repo_1",
       checkoutRoot: "/work/desktop",
     },
-    name: "Speclink/Desktop",
+    name: "Specseal/Desktop",
   };
 
-  it("點未初始化資料夾的條目仍轉交既有開啟流程（spec Scenario 點未初始化資料夾的條目仍走 init 確認）", async () => {
+  it("点未初始化文档夹的条目仍转交既有打开流程（spec Scenario 点未初始化文档夹的条目仍走 init 确认）", async () => {
     const workspace = fakeWorkspace({
-      openProject: vi.fn().mockResolvedValue({ status: "uninitialized", dir: "/work/speclink" }),
+      openProject: vi.fn().mockResolvedValue({ status: "uninitialized", dir: "/work/specseal" }),
     });
     const { onOpenLocal, onOpenChange } = await renderChooser({ workspace, recents: [LOCAL] });
-    fireEvent.click(screen.getByRole("button", { name: /\/work\/speclink/ }));
-    // 探測成功即交給既有 openProjectAt——init 確認框由它負責，chooser 不自行寫入。
-    await waitFor(() => expect(onOpenLocal).toHaveBeenCalledWith("/work/speclink"));
+    fireEvent.click(screen.getByRole("button", { name: /\/work\/specseal/ }));
+    // 探测成功即交给既有 openProjectAt——init 确认框由它负责，chooser 不自行写入。
+    await waitFor(() => expect(onOpenLocal).toHaveBeenCalledWith("/work/specseal"));
     expect(onOpenChange).toHaveBeenCalledWith(false);
-    expect(screen.queryByRole("button", { name: "開啟本機" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "打开本机" })).toBeNull();
   });
 
-  it("連線已登出時該列以錯誤態呈現且停用開啟", async () => {
+  it("连接已注销时该列以错误态呈现且停用打开", async () => {
     const loggedOut: ConnectionView = { ...CONNECTION, loggedIn: false };
     await renderChooser({ recents: [REMOTE], connections: [loggedOut] });
-    await waitFor(() => expect(screen.getByText("連線已登出")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("连接已注销")).toBeTruthy());
     expect(
-      (screen.getByRole("button", { name: /連線已登出/ }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: /连接已注销/ }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
-  it("點 remote 列先驗證 checkout 綁定，失敗即轉錯誤態不開啟", async () => {
-    const inspect = vi.fn().mockRejectedValue(new Error("找不到 checkout 資料夾 /work/desktop"));
+  it("点 remote 列先验证 checkout 绑定，失败即转错误态不打开", async () => {
+    const inspect = vi.fn().mockRejectedValue(new Error("找不到 checkout 文档夹 /work/desktop"));
     const adapter = fakeConnections({ inspectCheckout: inspect });
     const { onOpenRemote } = await renderChooser({ adapter, recents: [REMOTE] });
-    fireEvent.click(screen.getByRole("button", { name: /團隊 Server/ }));
+    fireEvent.click(screen.getByRole("button", { name: /团队 Server/ }));
     await waitFor(() =>
-      expect(screen.getByText(/找不到 checkout 資料夾/)).toBeTruthy(),
+      expect(screen.getByText(/找不到 checkout 文档夹/)).toBeTruthy(),
     );
     expect(inspect).toHaveBeenCalledWith(
       "/work/desktop",
@@ -972,14 +972,14 @@ describe("最近開啟清單的補強（review／verify 第 1 輪 WARNING）", (
     expect(onOpenRemote).not.toHaveBeenCalled();
   });
 
-  it("無 checkout 綁定的 remote 列不做 inspect，直接開啟", async () => {
+  it("无 checkout 绑定的 remote 列不做 inspect，直接打开", async () => {
     const specOnly: RecentEntry = {
       ...REMOTE,
       locator: { ...REMOTE.locator, checkoutRoot: undefined } as RecentEntry["locator"],
     };
     const adapter = fakeConnections();
     const { onOpenRemote } = await renderChooser({ adapter, recents: [specOnly] });
-    fireEvent.click(screen.getByRole("button", { name: /團隊 Server/ }));
+    fireEvent.click(screen.getByRole("button", { name: /团队 Server/ }));
     await waitFor(() =>
       expect(onOpenRemote).toHaveBeenCalledWith("conn_1", "prj_1/repo_1", undefined),
     );
@@ -987,7 +987,7 @@ describe("最近開啟清單的補強（review／verify 第 1 輪 WARNING）", (
   });
 });
 
-describe("連線清單載入結果決定錯誤態（review 第 2 輪 WARNING）", () => {
+describe("连接清单加载结果决定错误态（review 第 2 轮 WARNING）", () => {
   const REMOTE_ROW: RecentEntry = {
     locator: {
       kind: "remote",
@@ -996,27 +996,27 @@ describe("連線清單載入結果決定錯誤態（review 第 2 輪 WARNING）"
       repoId: "repo_1",
       checkoutRoot: "/work/desktop",
     },
-    name: "Speclink/Desktop",
+    name: "Specseal/Desktop",
   };
 
-  it("連線清單讀取失敗時不把 remote 列判成已移除", async () => {
+  it("连接清单读取失败时不把 remote 列判成已移除", async () => {
     const onRefreshConnections = vi.fn().mockResolvedValue(false);
     await renderChooser({ recents: [REMOTE_ROW], connections: [], onRefreshConnections });
     await waitFor(() => expect(onRefreshConnections).toHaveBeenCalled());
-    expect(screen.queryByText("連線已移除")).toBeNull();
-    expect(recentOpenButton(/Speclink\/Desktop/).disabled).toBe(false);
+    expect(screen.queryByText("连接已移除")).toBeNull();
+    expect(recentOpenButton(/Specseal\/Desktop/).disabled).toBe(false);
   });
 
-  it("讀取成功且清單真的空時才判成已移除", async () => {
+  it("读取成功且清单真的空时才判成已移除", async () => {
     const onRefreshConnections = vi.fn().mockResolvedValue(true);
     await renderChooser({ recents: [REMOTE_ROW], connections: [], onRefreshConnections });
-    await waitFor(() => expect(screen.getByText("連線已移除")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("连接已移除")).toBeTruthy());
     expect(
-      (screen.getByRole("button", { name: /連線已移除/ }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: /连接已移除/ }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
-  it("重整仍在進行中時 remote 列不判為已移除（尚未 settle 的視窗）", async () => {
+  it("重整仍在进行中时 remote 列不判为已移除（尚未 settle 的窗口）", async () => {
     let release: (value: boolean) => void = () => {};
     const pending = new Promise<boolean>((resolve) => {
       release = resolve;
@@ -1026,17 +1026,17 @@ describe("連線清單載入結果決定錯誤態（review 第 2 輪 WARNING）"
       connections: [],
       onRefreshConnections: vi.fn().mockReturnValue(pending),
     });
-    // renderChooser 的 act 沖洗不會讓一個尚未 resolve 的 promise 落定。
-    expect(screen.queryByText("連線已移除")).toBeNull();
-    expect(recentOpenButton(/Speclink\/Desktop/).disabled).toBe(false);
+    // renderChooser 的 act 冲洗不会让一个尚未 resolve 的 promise 落定。
+    expect(screen.queryByText("连接已移除")).toBeNull();
+    expect(recentOpenButton(/Specseal\/Desktop/).disabled).toBe(false);
     await act(async () => {
       release(true);
     });
-    // 讀取成功且清單真的空——此時才判定。
-    await waitFor(() => expect(screen.getByText("連線已移除")).toBeTruthy());
+    // 读取成功且清单真的空——此时才判定。
+    await waitFor(() => expect(screen.getByText("连接已移除")).toBeTruthy());
   });
 
-  it("清單未就緒時規格模式的 remote 列照樣開得起來", async () => {
+  it("清单未就绪时规格模式的 remote 列照样开得起来", async () => {
     const specOnly: RecentEntry = {
       ...REMOTE_ROW,
       locator: { ...REMOTE_ROW.locator, checkoutRoot: undefined } as RecentEntry["locator"],
@@ -1048,14 +1048,14 @@ describe("連線清單載入結果決定錯誤態（review 第 2 輪 WARNING）"
       onRefreshConnections: vi.fn().mockResolvedValue(false),
       onOpenRemote,
     });
-    fireEvent.click(recentOpenButton(/Speclink\/Desktop/));
+    fireEvent.click(recentOpenButton(/Specseal\/Desktop/));
     await waitFor(() =>
       expect(onOpenRemote).toHaveBeenCalledWith("conn_1", "prj_1/repo_1", undefined),
     );
-    expect(screen.queryByText("連線已移除")).toBeNull();
+    expect(screen.queryByText("连接已移除")).toBeNull();
   });
 
-  it("清單未就緒時點 checkout 綁定的 remote 列不留下帶 Error 前綴的訊息", async () => {
+  it("清单未就绪时点 checkout 绑定的 remote 列不留下带 Error 前缀的消息", async () => {
     const onRefreshConnections = vi.fn().mockResolvedValue(false);
     const onOpenRemote = vi.fn().mockResolvedValue(undefined);
     const adapter = fakeConnections();
@@ -1066,44 +1066,44 @@ describe("連線清單載入結果決定錯誤態（review 第 2 輪 WARNING）"
       onRefreshConnections,
       onOpenRemote,
     });
-    fireEvent.click(recentOpenButton(/Speclink\/Desktop/));
-    await waitFor(() => expect(screen.getByText("連線已移除")).toBeTruthy());
+    fireEvent.click(recentOpenButton(/Specseal\/Desktop/));
+    await waitFor(() => expect(screen.getByText("连接已移除")).toBeTruthy());
     expect(screen.queryByText(/^Error: /)).toBeNull();
     expect(adapter.inspectCheckout).not.toHaveBeenCalled();
     expect(onOpenRemote).not.toHaveBeenCalled();
   });
 });
 
-// 伺服器頁「預設」卡（desktop-settings-mode design D7；spec「預設連線於新增專案預選」）。
-describe("新增遠端專案時預設使用的連線", () => {
-  const OTHER: ConnectionView = { ...CONNECTION, id: "conn_2", origin: "https://b.example.test", name: "備援 Server" };
+// 服务器页「缺省」卡（desktop-settings-mode design D7；spec「缺省连接于添加项目预选」）。
+describe("添加远程项目时缺省使用的连接", () => {
+  const OTHER: ConnectionView = { ...CONNECTION, id: "conn_2", origin: "https://b.example.test", name: "备援 Server" };
 
-  it("指向已登入連線時 Server 步驟預選該列（仍可改選）、不自動前進", async () => {
+  it("指向已登录连接时 Server 步骤预选该列（仍可改选）、不自动前进", async () => {
     await renderChooser({ connections: [CONNECTION, OTHER], defaultConnectionId: "conn_2" });
     chooseSource("server");
-    expect(screen.getByRole("radio", { name: /備援 Server/ }).getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByRole("radio", { name: /團隊 Server/ }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByRole("radio", { name: /备援 Server/ }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: /团队 Server/ }).getAttribute("aria-checked")).toBe("false");
     expect(screen.queryByRole("radio", { name: /Desktop/ })).toBeNull();
   });
 
-  it("帶入口意圖（marker 指向的伺服器、未登入的連線）開啟時不預選預設連線", async () => {
-    // remote marker 指向尚未登入的伺服器：預選預設連線會讓「下一步」把資料夾綁到錯的伺服器。
+  it("带入口意图（marker 指向的服务器、未登录的连接）打开时不预选缺省连接", async () => {
+    // remote marker 指向尚未登录的服务器：预选缺省连接会让「下一步」把文档夹绑到错的服务器。
     await renderChooser({
       connections: [CONNECTION, OTHER],
       defaultConnectionId: "conn_2",
       initialServerUrl: "https://marker.example.test",
     });
-    expect(screen.getByRole("radio", { name: /備援 Server/ }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByRole("radio", { name: /备援 Server/ }).getAttribute("aria-checked")).toBe("false");
     expect(screen.queryByRole("button", { name: "下一步" })).toBeNull();
   });
 
-  it("指向已登出或不存在的連線時不預選", async () => {
+  it("指向已注销或不存在的连接时不预选", async () => {
     await renderChooser({
       connections: [CONNECTION, { ...OTHER, loggedIn: false }],
       defaultConnectionId: "conn_2",
     });
     chooseSource("server");
-    expect(screen.getByRole("radio", { name: /團隊 Server/ }).getAttribute("aria-checked")).toBe("false");
-    expect(screen.queryByRole("radio", { name: /備援 Server/ })).toBeNull();
+    expect(screen.getByRole("radio", { name: /团队 Server/ }).getAttribute("aria-checked")).toBe("false");
+    expect(screen.queryByRole("radio", { name: /备援 Server/ })).toBeNull();
   });
 });

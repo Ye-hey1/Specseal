@@ -2,7 +2,7 @@
 
 **简体中文** · [English](server-backup.md)
 
-官方 `speclink-server` 内置三个子命令，负责备份、验证与还原：
+官方 `specseal-server` 内置三个子命令，负责备份、验证与还原：
 
 | 子命令 | 做什幺 | server 要停吗 |
 | --- | --- | --- |
@@ -39,9 +39,9 @@
 ## <a id="backup"></a>备份
 
 ```bash
-speclink-server backup \
-  --config /etc/speclink/server.yaml \
-  --output /var/backups/speclink/speclink-$(date -u +%Y%m%dT%H%M%SZ).tar
+specseal-server backup \
+  --config /etc/specseal/server.yaml \
+  --output /var/backups/specseal/specseal-$(date -u +%Y%m%dT%H%M%SZ).tar
 ```
 
 `--config` 用来找到保存后端与帐号数据库；帐号数据库必须是 `sqlite`。输出文档名由你决定，本文的范例都用 UTC 时间戳命名。
@@ -49,7 +49,7 @@ speclink-server backup \
 **预期输出**：
 
 ```text
-备份完成：1 个 scope、2 个成员 → /var/backups/speclink/speclink-20261007T084144Z.tar
+备份完成：1 个 scope、2 个成员 → /var/backups/specseal/specseal-20261007T084144Z.tar
 ```
 
 「scope」是项目／保存库的组合，「成员」是 tar 里的数据档数。备份成功后，server 会在帐号数据库留一笔纪录；在主控台的 `/admin/audit` 用动作「备份纪录」筛选就看得到。
@@ -59,7 +59,7 @@ speclink-server backup \
 `verify-backup` 只读备份档，不需要停 server，也不需要空目标。它会比对清单与每个成员档的哈希值、检查导出档的结构，并确认备份格式版本是这个 server 认得的。
 
 ```bash
-speclink-server verify-backup --input /var/backups/speclink/speclink-20261007T084144Z.tar
+specseal-server verify-backup --input /var/backups/specseal/specseal-20261007T084144Z.tar
 ```
 
 **预期输出**：
@@ -83,9 +83,9 @@ backup integrity check failed: digest mismatch for bundles/0.json
 先确认目标是空的（见[两条规则](#rules)），而且目标的 server 停着。
 
 ```bash
-speclink-server restore \
-  --config /etc/speclink/target.yaml \
-  --input /var/backups/speclink/speclink-20261007T084144Z.tar
+specseal-server restore \
+  --config /etc/specseal/target.yaml \
+  --input /var/backups/specseal/specseal-20261007T084144Z.tar
 ```
 
 `restore` 依序做四件事：
@@ -113,7 +113,7 @@ restore target is not empty (restore only into an empty target): 1 user(s) exist
 
 ## <a id="docker"></a>在 Docker 里备份与还原
 
-映像的进入点就是 `speclink-server`，所以 `docker compose run` 后面接的参数就是子命令。下面的范例在 `deploy/` 目录、用 SQLite 版的 compose 档运行。
+映像的进入点就是 `specseal-server`，所以 `docker compose run` 后面接的参数就是子命令。下面的范例在 `deploy/` 目录、用 SQLite 版的 compose 档运行。
 
 容器以 uid 10001 运行。挂进去的主机目录必须让这个 uid 写得进去，否则会看到 `backup io failed: Permission denied (os error 13)`。在 Linux 主机上，先运行一次：
 
@@ -126,8 +126,8 @@ mkdir -p backups && sudo chown 10001:10001 backups
 ```bash
 docker compose stop server
 docker compose run --rm -v ./backups:/backups server \
-  backup --config /etc/speclink/config.yaml \
-  --output /backups/speclink-$(date -u +%Y%m%dT%H%M%SZ).tar
+  backup --config /etc/specseal/config.yaml \
+  --output /backups/specseal-$(date -u +%Y%m%dT%H%M%SZ).tar
 docker compose start server
 ```
 
@@ -135,7 +135,7 @@ docker compose start server
 
 ```bash
 docker compose run --rm -v ./backups:/backups server \
-  verify-backup --input /backups/speclink-20261007T084144Z.tar
+  verify-backup --input /backups/specseal-20261007T084144Z.tar
 ```
 
 还原到全新的环境：先创建容器与空的 volume，但不要启动 server，也不要走 `/setup`。
@@ -143,53 +143,53 @@ docker compose run --rm -v ./backups:/backups server \
 ```bash
 docker compose create server
 docker compose run --rm -v ./backups:/backups server \
-  restore --config /etc/speclink/config.yaml \
-  --input /backups/speclink-20261007T084144Z.tar
+  restore --config /etc/specseal/config.yaml \
+  --input /backups/specseal-20261007T084144Z.tar
 docker compose start server
 ```
 
 ## <a id="schedule"></a>调度备份
 
-因为备份要停机，调度的流程固定是：停 server → 备份 → 验证 → 启动 server。下面把流程写成一个脚本，再交给 systemd timer 或 cron 运行。脚本假设 server 是名为 `speclink-server` 的 systemd 服务。
+因为备份要停机，调度的流程固定是：停 server → 备份 → 验证 → 启动 server。下面把流程写成一个脚本，再交给 systemd timer 或 cron 运行。脚本假设 server 是名为 `specseal-server` 的 systemd 服务。
 
-`/usr/local/bin/speclink-backup.sh`：
+`/usr/local/bin/specseal-backup.sh`：
 
 ```sh
 #!/bin/sh
 set -eu
-CONFIG=/etc/speclink/server.yaml
-DIR=/var/backups/speclink
-F="$DIR/speclink-$(date -u +%Y%m%dT%H%M%SZ).tar"
+CONFIG=/etc/specseal/server.yaml
+DIR=/var/backups/specseal
+F="$DIR/specseal-$(date -u +%Y%m%dT%H%M%SZ).tar"
 
-systemctl stop speclink-server
+systemctl stop specseal-server
 # 不论备份成功或失败，脚本结束时都把 server 启动回来。
-trap 'systemctl start speclink-server' EXIT
-speclink-server backup --config "$CONFIG" --output "$F"
-speclink-server verify-backup --input "$F" --config "$CONFIG"
+trap 'systemctl start specseal-server' EXIT
+specseal-server backup --config "$CONFIG" --output "$F"
+specseal-server verify-backup --input "$F" --config "$CONFIG"
 # 只保留 14 天内的备份。
-find "$DIR" -name 'speclink-*.tar' -mtime +14 -delete
+find "$DIR" -name 'specseal-*.tar' -mtime +14 -delete
 ```
 
-记得 `chmod +x /usr/local/bin/speclink-backup.sh`。任何一步失败，脚本会以非零结束，server 仍会被启动回来。
+记得 `chmod +x /usr/local/bin/specseal-backup.sh`。任何一步失败，脚本会以非零结束，server 仍会被启动回来。
 
 ### systemd timer
 
-`/etc/systemd/system/speclink-backup.service`：
+`/etc/systemd/system/specseal-backup.service`：
 
 ```ini
 [Unit]
-Description=Speclink server offline backup
+Description=Specseal server offline backup
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/speclink-backup.sh
+ExecStart=/usr/local/bin/specseal-backup.sh
 ```
 
-`/etc/systemd/system/speclink-backup.timer`：
+`/etc/systemd/system/specseal-backup.timer`：
 
 ```ini
 [Unit]
-Description=Nightly Speclink backup
+Description=Nightly Specseal backup
 
 [Timer]
 OnCalendar=*-*-* 03:30:00 UTC
@@ -199,14 +199,14 @@ Persistent=true
 WantedBy=timers.target
 ```
 
-激活：`systemctl enable --now speclink-backup.timer`。
+激活：`systemctl enable --now specseal-backup.timer`。
 
 ### cron
 
 在 root 的 crontab（`crontab -e`）加一行，每天 03:30 运行。时间以主机的时区为准：
 
 ```cron
-30 3 * * * /usr/local/bin/speclink-backup.sh
+30 3 * * * /usr/local/bin/specseal-backup.sh
 ```
 
 ### 异地保存与还原演练

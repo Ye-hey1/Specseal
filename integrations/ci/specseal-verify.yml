@@ -1,17 +1,17 @@
 # Specseal verify 门禁 — GitHub Actions 模板（下游项目用）。
 #
 # 推荐方式：直接引用本仓库的 composite action（一行接入，无需复制脚本）。
-# 把本文件放进你的项目 .github/workflows/specseal-verify.yml：
+# 把本文档放进你的项目 .github/workflows/specseal-verify.yml：
 #
 #   action 会做两件事：
-#     1. `speclink validate`——工作区结构校验（格式错的 proposal / 缺复选框的
+#     1. `specseal validate`——工作区结构校验（格式错的 proposal / 缺复选框的
 #        tasks.md / 缺操作段落的 delta 都会让 PR 失败）
 #     2. 盖章门禁——PR diff 触及的每个未归档变更必须已有 verify 章
 #        （.meta.yaml 的 verified_at，与桌面 app / Herdr 面板同源）；
 #        require-reviewed: true 时还要求 review 章。
 #
 #   自定义：
-#     install-engine: false   # runner 上已装好 speclink 时跳过 npm 安装
+#     install-engine: false   # runner 上已装好 specseal 时跳过 npm 安装
 #     require-reviewed: true  # 连 review 章一起要求
 #     changes: "a b"          # 显式指定要门禁的变更，默认取 PR diff 触及的
 
@@ -35,26 +35,26 @@ jobs:
 
       # 可选：依赖波次健全性检查
       - name: Plan
-        run: speclink plan
+        run: specseal plan
 
 # ── 手动版（不想引用外部 action 时，把上面 steps 换成以下内容）────────
 #
 #       - name: Install engine
-#         run: npm i -g @speclink/cli
+#         run: npm i -g @specseal/cli
 #
 #       - name: Validate workspace
-#         run: speclink validate
+#         run: specseal validate
 #
 #       - name: Stamp gate
 #         shell: bash
 #         run: |
 #           set -euo pipefail
 #           changed="$(git diff --name-only "origin/${{ github.base_ref }}..." \
-#             | grep -E '^speclink/changes/' | cut -d/ -f3 | grep -v '^archive$' | sort -u || true)"
-#           [ -z "$changed" ] && { echo "PR 未触及 speclink 变更——跳过。"; exit 0; }
+#             | grep -E '^specseal/changes/' | cut -d/ -f3 | grep -v '^archive$' | sort -u || true)"
+#           [ -z "$changed" ] && { echo "PR 未触及 specseal 变更——跳过。"; exit 0; }
 #           fail=0
 #           for change in $changed; do
-#             meta="speclink/changes/$change/.meta.yaml"
+#             meta="specseal/changes/$change/.meta.yaml"
 #             if [ ! -f "$meta" ] || ! grep -q '^verified_at:' "$meta"; then
 #               echo "::error::变更 '$change' 尚未盖章（verify）。先走验证站再合并。"
 #               fail=1
@@ -63,4 +63,4 @@ jobs:
 #           exit $fail
 #
 #       - name: Plan
-#         run: speclink plan
+#         run: specseal plan

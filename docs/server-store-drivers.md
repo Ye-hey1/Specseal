@@ -7,7 +7,7 @@ The storage backend (store driver) decides where the server keeps the project da
 Know these points first:
 
 - The server keeps accounts, memberships, and credentials in a separate SQLite file (the `identity` section of the configuration file). This file does not change with the storage backend.
-- All three storage backends pass the same conformance tests. The API and the CLI behave the same on each backend, so a change of backend does not change how you use Speclink.
+- All three storage backends pass the same conformance tests. The API and the CLI behave the same on each backend, so a change of backend does not change how you use Specseal.
 - Each storage backend supports only **one** server instance.
 
 For the run modes and all configuration fields, see [Server Deployment](server-deployment.md).
@@ -23,17 +23,17 @@ For the run modes and all configuration fields, see [Server Deployment](server-d
 
 If the configuration names an unknown storage backend, the server does not start. The error shows the supported names. A misspelled `serverfs` never falls back to a different backend.
 
-With npx, the environment variable `SPECLINK_STORE` selects the backend. Other run modes use the `store` section of the configuration file, as the sections below show.
+With npx, the environment variable `SPECSEAL_STORE` selects the backend. Other run modes use the `store` section of the configuration file, as the sections below show.
 
 ## <a id="sqlite"></a>sqlite (default)
 
 ```yaml
 store:
   driver: sqlite
-  path: /var/lib/speclink/store.db
+  path: /var/lib/specseal/store.db
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
+  path: /var/lib/specseal/identity.db
 ```
 
 - The database uses the SQLite WAL mode, so the `store.db-wal` and `store.db-shm` work files appear next to it. When you move or copy the data, include them, or use [`backup`](server-backup.md).
@@ -45,10 +45,10 @@ identity:
 ```yaml
 store:
   driver: serverfs
-  path: /var/lib/speclink/store     # a folder, not a file
+  path: /var/lib/specseal/store     # a folder, not a file
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
+  path: /var/lib/specseal/identity.db
 ```
 
 `path` points to a **data folder**. If the folder does not exist, the server makes it. The server sets up an empty folder as a new store.
@@ -80,17 +80,17 @@ In these cases, the server does not start, and it changes nothing in the folder:
 ```yaml
 store:
   driver: postgres
-  url: postgres://speclink@db.internal:5432/speclink   # no password here, see below
+  url: postgres://specseal@db.internal:5432/specseal   # no password here, see below
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
+  path: /var/lib/specseal/identity.db
 ```
 
 The server makes four tables in the current schema of the connection: `documents`, `history`, `outbox`, and `meta`. So with a different `search_path`, several stores can share one database. The server sets up an empty schema.
 
 ### Password
 
-Put the password in the environment variable `SPECLINK_POSTGRES_PASSWORD`. If the connection URL has no password, the server adds the password from this variable.
+Put the password in the environment variable `SPECSEAL_POSTGRES_PASSWORD`. If the connection URL has no password, the server adds the password from this variable.
 
 A password in the URL also works, but the server prints a warning to stderr. People often copy, compare, and paste configuration files into issues, so the files must not contain passwords. If the URL contains a password, the environment variable does not replace it.
 
@@ -105,7 +105,7 @@ A password in the URL also works, but the server prints a warning to stderr. Peo
 
 In these cases, the server does not start, and it changes nothing in the database:
 
-- The schema already contains tables that Speclink did not make (for example, a typo in the URL points to a different database).
+- The schema already contains tables that Specseal did not make (for example, a typo in the URL points to a different database).
 - The version in `meta` is newer than this server supports.
 - The authentication fails, or the database does not exist. The error includes the PostgreSQL message.
 

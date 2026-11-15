@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 
-/** 守門對話框的資料源：引擎回傳的工作痕跡證據＋被擋的 change 名。 */
+/** 守门对话框的数据源：引擎回传的工作痕迹证据＋被挡的 change 名。 */
 export interface RevertBlockedInfo {
   change: string;
   checkedTasks: number;
@@ -17,16 +17,16 @@ export interface RevertBlockedInfo {
 }
 
 export interface RevertBlockedDialogProps {
-  /** null＝關閉。 */
+  /** null＝关闭。 */
   info: RevertBlockedInfo | null;
   onClose: () => void;
 }
 
 /**
- * 退回提案中的守門對話框（spec「進行中變更可自看板退回提案中」）：列出引擎
- * 證據（已勾任務數、touched 檔案清單）與出路說明——已勾任務可於任務分頁取消
- * 後重試；touched 需請 agent 判斷。不提供任何清理或強制退回的機械出路，
- * 唯一按鈕只負責關閉。
+ * 退回提案中的守门对话框（spec「进行中变更可自看板退回提案中」）：列出引擎
+ * 证据（已勾任务数、touched 文件清单）与出路说明——已勾任务可于任务分页取消
+ * 后重试；touched 需请 agent 判断。不提供任何清理或强制退回的机械出路，
+ * 唯一按钮只负责关闭。
  */
 export function RevertBlockedDialog({ info, onClose }: RevertBlockedDialogProps) {
   const { t, tn } = useI18n();

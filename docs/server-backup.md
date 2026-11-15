@@ -2,7 +2,7 @@
 
 [简体中文](server-backup.zh-CN.md) · **English**
 
-The official `speclink-server` has three subcommands for backup, verification, and restore:
+The official `specseal-server` has three subcommands for backup, verification, and restore:
 
 | Subcommand | What it does | Stop the server? |
 | --- | --- | --- |
@@ -39,9 +39,9 @@ The "Export" area of the console "System" page lets you download the export file
 ## <a id="backup"></a>Back up
 
 ```bash
-speclink-server backup \
-  --config /etc/speclink/server.yaml \
-  --output /var/backups/speclink/speclink-$(date -u +%Y%m%dT%H%M%SZ).tar
+specseal-server backup \
+  --config /etc/specseal/server.yaml \
+  --output /var/backups/specseal/specseal-$(date -u +%Y%m%dT%H%M%SZ).tar
 ```
 
 `--config` tells the command where the storage backend and the account database are. The account database must be `sqlite`. You choose the output file name. The examples in this document use a UTC timestamp.
@@ -49,7 +49,7 @@ speclink-server backup \
 **Expected output**:
 
 ```text
-备份完成：1 个 scope、2 个成员 → /var/backups/speclink/speclink-20261007T084144Z.tar
+备份完成：1 个 scope、2 个成员 → /var/backups/specseal/specseal-20261007T084144Z.tar
 ```
 
 A "scope" is one project and repository pair. A "member" (成员) is one data file in the tar. After a successful backup, the server adds a record to the account database. To see it, filter `/admin/audit` in the console by the action "Backup recorded".
@@ -59,7 +59,7 @@ A "scope" is one project and repository pair. A "member" (成员) is one data fi
 `verify-backup` reads only the backup file. You do not need to stop the server, and you do not need an empty target. The command compares the list with the hash of each member file, checks the structure of the export files, and makes sure that this server knows the backup format version.
 
 ```bash
-speclink-server verify-backup --input /var/backups/speclink/speclink-20261007T084144Z.tar
+specseal-server verify-backup --input /var/backups/specseal/specseal-20261007T084144Z.tar
 ```
 
 **Expected output**:
@@ -83,9 +83,9 @@ Run `verify-backup` after each regular backup.
 First, make sure that the target is empty (see [Two rules](#rules)) and that the target server is stopped.
 
 ```bash
-speclink-server restore \
-  --config /etc/speclink/target.yaml \
-  --input /var/backups/speclink/speclink-20261007T084144Z.tar
+specseal-server restore \
+  --config /etc/specseal/target.yaml \
+  --input /var/backups/specseal/specseal-20261007T084144Z.tar
 ```
 
 `restore` does four things in this order:
@@ -113,7 +113,7 @@ After the restore, start the server. The account data is back, so the server doe
 
 ## <a id="docker"></a>Back up and restore in Docker
 
-The entry point of the image is `speclink-server`, so the arguments after `docker compose run` are the subcommand. Run the examples below in the `deploy/` folder with the SQLite compose file.
+The entry point of the image is `specseal-server`, so the arguments after `docker compose run` are the subcommand. Run the examples below in the `deploy/` folder with the SQLite compose file.
 
 The container runs as uid 10001. This uid must be able to write to the mounted host folder. If it cannot, you see `backup io failed: Permission denied (os error 13)`. On a Linux host, run this once:
 
@@ -126,8 +126,8 @@ Back up (the server stops for a short time):
 ```bash
 docker compose stop server
 docker compose run --rm -v ./backups:/backups server \
-  backup --config /etc/speclink/config.yaml \
-  --output /backups/speclink-$(date -u +%Y%m%dT%H%M%SZ).tar
+  backup --config /etc/specseal/config.yaml \
+  --output /backups/specseal-$(date -u +%Y%m%dT%H%M%SZ).tar
 docker compose start server
 ```
 
@@ -135,7 +135,7 @@ Verify (no downtime):
 
 ```bash
 docker compose run --rm -v ./backups:/backups server \
-  verify-backup --input /backups/speclink-20261007T084144Z.tar
+  verify-backup --input /backups/specseal-20261007T084144Z.tar
 ```
 
 Restore into a new environment: first make the container and the empty volume, but do not start the server and do not open `/setup`.
@@ -143,53 +143,53 @@ Restore into a new environment: first make the container and the empty volume, b
 ```bash
 docker compose create server
 docker compose run --rm -v ./backups:/backups server \
-  restore --config /etc/speclink/config.yaml \
-  --input /backups/speclink-20261007T084144Z.tar
+  restore --config /etc/specseal/config.yaml \
+  --input /backups/specseal-20261007T084144Z.tar
 docker compose start server
 ```
 
 ## <a id="schedule"></a>Scheduled backups
 
-A backup needs downtime, so a schedule always uses this procedure: stop the server → back up → verify → start the server. The script below contains this procedure. A systemd timer or cron then runs the script. The script assumes that the server is a systemd service with the name `speclink-server`.
+A backup needs downtime, so a schedule always uses this procedure: stop the server → back up → verify → start the server. The script below contains this procedure. A systemd timer or cron then runs the script. The script assumes that the server is a systemd service with the name `specseal-server`.
 
-`/usr/local/bin/speclink-backup.sh`:
+`/usr/local/bin/specseal-backup.sh`:
 
 ```sh
 #!/bin/sh
 set -eu
-CONFIG=/etc/speclink/server.yaml
-DIR=/var/backups/speclink
-F="$DIR/speclink-$(date -u +%Y%m%dT%H%M%SZ).tar"
+CONFIG=/etc/specseal/server.yaml
+DIR=/var/backups/specseal
+F="$DIR/specseal-$(date -u +%Y%m%dT%H%M%SZ).tar"
 
-systemctl stop speclink-server
+systemctl stop specseal-server
 # Start the server again when the script ends, after a success or a failure.
-trap 'systemctl start speclink-server' EXIT
-speclink-server backup --config "$CONFIG" --output "$F"
-speclink-server verify-backup --input "$F" --config "$CONFIG"
+trap 'systemctl start specseal-server' EXIT
+specseal-server backup --config "$CONFIG" --output "$F"
+specseal-server verify-backup --input "$F" --config "$CONFIG"
 # Keep only the backups of the last 14 days.
-find "$DIR" -name 'speclink-*.tar' -mtime +14 -delete
+find "$DIR" -name 'specseal-*.tar' -mtime +14 -delete
 ```
 
-Run `chmod +x /usr/local/bin/speclink-backup.sh`. If a step fails, the script stops with a non-zero code, and the server still starts again.
+Run `chmod +x /usr/local/bin/specseal-backup.sh`. If a step fails, the script stops with a non-zero code, and the server still starts again.
 
 ### systemd timer
 
-`/etc/systemd/system/speclink-backup.service`:
+`/etc/systemd/system/specseal-backup.service`:
 
 ```ini
 [Unit]
-Description=Speclink server offline backup
+Description=Specseal server offline backup
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/speclink-backup.sh
+ExecStart=/usr/local/bin/specseal-backup.sh
 ```
 
-`/etc/systemd/system/speclink-backup.timer`:
+`/etc/systemd/system/specseal-backup.timer`:
 
 ```ini
 [Unit]
-Description=Nightly Speclink backup
+Description=Nightly Specseal backup
 
 [Timer]
 OnCalendar=*-*-* 03:30:00 UTC
@@ -199,14 +199,14 @@ Persistent=true
 WantedBy=timers.target
 ```
 
-To turn it on, run `systemctl enable --now speclink-backup.timer`.
+To turn it on, run `systemctl enable --now specseal-backup.timer`.
 
 ### cron
 
 Add one line to the root crontab (`crontab -e`) to run the script each day at 03:30. The time uses the time zone of the host:
 
 ```cron
-30 3 * * * /usr/local/bin/speclink-backup.sh
+30 3 * * * /usr/local/bin/specseal-backup.sh
 ```
 
 ### Off-site copies and restore drills

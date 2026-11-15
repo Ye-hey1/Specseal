@@ -2,13 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 在地化宣告（design D9）。Tauri 建置時自動合併進 bundle。
-	     注意：光有這份宣告不會讓系統對話框（NSOpenPanel 等）跟隨語系——AppKit
-	     看的是 Contents/Resources/ 底下實際存在的 .lproj 目錄。實際的目錄由
-	     tauri.conf.json 的 bundle.resources 自 localizations/ 複製進去；此處
-	     必須與那些目錄同名，宣告了卻沒有對應目錄的語言會被選中後無資源可用。
-	     命名採 zh_TW 而非 zh-Hant：macOS 自家 app 與各大第三方 app 的 .lproj
-	     一律是這個寫法，zh-Hant 無實證。 -->
+	<!-- 在地化声明（design D9）。Tauri 建置时自动合并进 bundle。
+	     注意：光有这份声明不会让系统对话框（NSOpenPanel 等）跟随语系——AppKit
+	     看的是 Contents/Resources/ 底下实际存在的 .lproj 目录。实际的目录由
+	     tauri.conf.json 的 bundle.resources 自 localizations/ 拷贝进去；此处
+	     必须与那些目录同名，声明了却没有对应目录的语言会被选中后无资源可用。
+	     命名采 zh_TW 而非 zh-Hant：macOS 自家 app 与各大第三方 app 的 .lproj
+	     一律是这个写法，zh-Hant 无实证。 -->
 	<key>CFBundleLocalizations</key>
 	<array>
 		<string>zh_TW</string>

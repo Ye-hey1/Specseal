@@ -15,13 +15,13 @@
   <a href="README.zh-CN.md">简体中文</a> · <b>English</b>
 </p>
 
-> **About the name.** Specseal is a fork of [Speclink](https://github.com/MomoChenisMe/speclink) (MIT), rebuilt around one idea: an AI-built change is not done until it carries **recorded, checkable evidence** that it matches its spec. In this release the engine's command name is still `speclink` — the binary/package rename ships together with our own release channels, not before. See [REBRAND-NOTES.md](REBRAND-NOTES.md) for the migration plan.
+> **About the name.** Specseal is a fork of [Specseal](https://github.com/MomoChenisMe/speclink) (MIT), rebuilt around one idea: an AI-built change is not done until it carries **recorded, checkable evidence** that it matches its spec. In this release the engine's command name is still `specseal` — the binary/package rename ships together with our own release channels, not before. See [REBRAND-NOTES.md](REBRAND-NOTES.md) for the migration plan.
 
 Specseal is a Spec-Driven Development (SDD) engine written in Rust. Each change starts with a small spec that says what the change must do. An AI agent builds it. Before archive, two quality stations — **review** and **verify** — check the work, and `verify` produces a stamped ticket holding the scope, the rounds, and the findings. Specs are plain Markdown and YAML in your repo.
 
 Specseal has two deployment paths. One person needs only Local Repo. A team that wants shared specs connects a Remote Store.
 
-- **Local Repo**: Specs live in the `speclink/` folder of your repo. Git handles collaboration. No server is necessary.
+- **Local Repo**: Specs live in the `specseal/` folder of your repo. Git handles collaboration. No server is necessary.
 - **Remote Store**: Specs live in a shared Store. A Host handles authentication, revisions, transactions, events, and workflow decisions. The Host and Protocol are public contracts, so you can use the official server or write your own. At this team layer, PMs and POs take part in discussions and proposals, and they share one set of terms with engineers and AI agents: change, artifact, task, verify, and archive.
 
 ## <a id="why"></a>Why Specseal
@@ -35,26 +35,26 @@ Specseal has two deployment paths. One person needs only Local Repo. A team that
 ## <a id="demo"></a>See it in action
 
 ```text
-You: /speclink-propose add-dark-mode
-AI:  Created speclink/changes/add-dark-mode/
+You: /specseal-propose add-dark-mode
+AI:  Created specseal/changes/add-dark-mode/
      ✓ proposal.md — why we're doing this
      ✓ specs/      — requirements with concrete scenarios
      ✓ tasks.md    — implementation checklist
 
-You: /speclink-apply add-dark-mode
+You: /specseal-apply add-dark-mode
 AI:  ✓ 1.1 Theme context provider
      ✓ 1.2 Toggle component
      ✓ 2.1 CSS variables + persistence
      All tasks done.
 
-You: speclink verify scope add-dark-mode --json
+You: specseal verify scope add-dark-mode --json
      scope frozen: 4 files, 2 spec deltas
 
-You: /speclink-verify add-dark-mode
+You: /specseal-verify add-dark-mode
 AI:  Round 1: 1 must-fix (toggle state not persisted on reload)
      Fixed. Round 2 clean.
 
-You: speclink verify stamp add-dark-mode
+You: specseal verify stamp add-dark-mode
      ✓ Stamped verification for change 'add-dark-mode'
 ```
 
@@ -78,31 +78,31 @@ Full, honest detail in [docs/comparison.md](docs/comparison.md). Specseal's wedg
 1. Install the CLI (stable Rust toolchain):
 
    ```bash
-   cargo install --path crates/adapters/speclink-cli
-   speclink --version
+   cargo install --path crates/adapters/specseal-cli
+   specseal --version
    ```
 
-   Upstream channels (`npm i -g @speclink/cli`, `brew install MomoChenisMe/tap/speclink`, desktop installers) serve Speclink-branded builds of the same engine today; Specseal's own channels ship with the rename. See [Install](#install) and [REBRAND-NOTES.md](REBRAND-NOTES.md).
+   Upstream channels (`npm i -g @specseal/cli`, `brew install MomoChenisMe/tap/specseal`, desktop installers) serve Specseal-branded builds of the same engine today; Specseal's own channels ship with the rename. See [Install](#install) and [REBRAND-NOTES.md](REBRAND-NOTES.md).
 
 2. Initialize the repo where you want to use Specseal:
 
    ```bash
-   speclink init --tools claude,codex
+   specseal init --tools claude,codex
    ```
 
    `--tools` lists the agent tools that you use: `claude`, `codex`, `copilot`, `pi`, and `cursor`, in any comma-separated combination.
 
-3. Ask your agent to start a change. In Claude Code, GitHub Copilot, or Cursor, enter `/speclink-propose <change-name>`. In Codex, enter `$speclink-propose <change-name>`. In pi, enter `/skill:speclink-propose <change-name>`. The agent writes the proposal, the specs, and the task list.
+3. Ask your agent to start a change. In Claude Code, GitHub Copilot, or Cursor, enter `/specseal-propose <change-name>`. In Codex, enter `$specseal-propose <change-name>`. In pi, enter `/skill:specseal-propose <change-name>`. The agent writes the proposal, the specs, and the task list.
 
 For the full first round (propose, apply, check, archive), see [Getting started](docs/getting-started.md). To connect to a shared server, see [Remote getting started](docs/remote-getting-started.md). To let an AI do the setup for you, paste the [setup prompt](docs/ai-setup-prompt.md) into your coding assistant.
 
 ## <a id="features"></a>Features
 
-- **Plain text**: In Local mode, the files live under `speclink/` in your repo: `specs/<capability>/spec.md`, `changes/<name>/`, `changes/archive/`, and `config.yaml`. All content is Markdown and YAML. You can read and edit it without Specseal, and each change shows in the Git diff. Speclink adds only two items: `discussions/` (discussion records) and a `.meta.yaml` file in each change (lifecycle metadata). This applies to Local mode only. In remote mode, the specs live in the Store, and your machine has only a read-only projection. To import a project that uses OpenSpec, run `speclink init` in the project root. Specseal moves `openspec/` to `speclink/`, and after that the OpenSpec CLI cannot read the project. The import is one-way: you cannot convert the project back.
-- **Skills for AI agents**: `speclink init` writes skill files for Claude Code, Codex, GitHub Copilot, pi, and Cursor. Each stage, from discussion to archive, has a `/speclink-*` command (`$speclink-*` in Codex, `/skill:speclink-*` in pi). Any other agent works from the [universal instruction file](integrations/universal/SPECSEAL-AGENT-INSTRUCTIONS.md).
+- **Plain text**: In Local mode, the files live under `specseal/` in your repo: `specs/<capability>/spec.md`, `changes/<name>/`, `changes/archive/`, and `config.yaml`. All content is Markdown and YAML. You can read and edit it without Specseal, and each change shows in the Git diff. Specseal adds only two items: `discussions/` (discussion records) and a `.meta.yaml` file in each change (lifecycle metadata). This applies to Local mode only. In remote mode, the specs live in the Store, and your machine has only a read-only projection. To import a project that uses OpenSpec, run `specseal init` in the project root. Specseal moves `openspec/` to `specseal/`, and after that the OpenSpec CLI cannot read the project. The import is one-way: you cannot convert the project back.
+- **Skills for AI agents**: `specseal init` writes skill files for Claude Code, Codex, GitHub Copilot, pi, and Cursor. Each stage, from discussion to archive, has a `/specseal-*` command (`$specseal-*` in Codex, `/skill:specseal-*` in pi). Any other agent works from the [universal instruction file](integrations/universal/SPECSEAL-AGENT-INSTRUCTIONS.md).
 - **MCP server**: [`@specseal/mcp`](packages/mcp-npm/README.md) exposes 13 engine tools (list/plan/validate/verify scope→round→stamp…) to any MCP-capable agent over stdio — one integration covers Claude Code, Cursor, Codex, Windsurf and beyond, no per-tool skills needed. The engine still enforces the stamp rule (open must-fix ⇒ no stamp) at the protocol layer.
 - **Quality stations**: `review` checks code craft. `verify` checks that the delivery matches the specs and stamps the ticket. Both stations are optional.
-- **Execution order**: `speclink plan` puts changes into waves from their declared dependencies and shows the next change that is ready to start.
+- **Execution order**: `specseal plan` puts changes into waves from their declared dependencies and shows the next change that is ready to start.
 - **Manual and trace**: Specseal generates a readable manual from the specs, and `trace` shows how a capability came to be.
 - **Team sharing**: After you connect a server, the CLI, the desktop app, and AI agents read and write the same specs.
 - **CI gate**: a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)) fails a PR whose touched changes are unstamped or whose spec files no longer validate — one `uses:` line in your workflow.
@@ -139,43 +139,43 @@ The desktop app and the CLI are two ways to use the same engine.
 **From source (documented path for this fork):**
 
 ```bash
-cargo install --path crates/adapters/speclink-cli
-speclink --version
+cargo install --path crates/adapters/specseal-cli
+specseal --version
 ```
 
-**Upstream channels (work today, Speclink-branded builds of the same engine):**
+**Upstream channels (work today, Specseal-branded builds of the same engine):**
 
-- With Node.js (any platform): `npm i -g @speclink/cli`
-- macOS or Linux: `brew install MomoChenisMe/tap/speclink`, or the install script: `curl -fsSL https://raw.githubusercontent.com/MomoChenisMe/speclink/main/scripts/install.sh | sh`
+- With Node.js (any platform): `npm i -g @specseal/cli`
+- macOS or Linux: `brew install MomoChenisMe/tap/specseal`, or the install script: `curl -fsSL https://raw.githubusercontent.com/MomoChenisMe/speclink/main/scripts/install.sh | sh`
 - Desktop installers (macOS/Windows/Linux): upstream [Releases](https://github.com/MomoChenisMe/speclink/releases)
 
 Windows has no install script. With Node.js, use npm. Without Node.js, install the desktop app; its installer also puts the CLI on your PATH.
 
 ### Claude Code plugin (optional)
 
-`speclink-skills` adds a row of speclink skill buttons above the Claude Code input box, plus a side panel that lists changes, discussions, and open quality tickets:
+`specseal-skills` adds a row of specseal skill buttons above the Claude Code input box, plus a side panel that lists changes, discussions, and open quality tickets:
 
 ```
-/plugin install speclink-skills --marketplace MomoChenisMe/speclink
+/plugin install specseal-skills --marketplace MomoChenisMe/speclink
 ```
 
 ### Herdr mod (optional)
 
-`speclink` adds a panel to Herdr, next to your terminals: the changes and discussions of the current project, the review and verify stamps, the suggested next skill. Setup and shortcuts: [speclink for Herdr](integrations/herdr).
+`specseal` adds a panel to Herdr, next to your terminals: the changes and discussions of the current project, the review and verify stamps, the suggested next skill. Setup and shortcuts: [specseal for Herdr](integrations/herdr).
 
 ## <a id="self-hosting"></a>Self-hosting a server
 
 You need a server only when a team shares one set of specs. For one person in one repo, you do not need a server.
 
-`speclink-server` is the official reference implementation. Pick one way to run it:
+`specseal-server` is the official reference implementation. Pick one way to run it:
 
 | Method | Command |
 | --- | --- |
-| npx (needs only Node.js) | `npx @speclink/server` |
-| Docker | `docker run -d -p 8080:8080 -v speclink-data:/data ghcr.io/momochenisme/speclink-server:latest` |
+| npx (needs only Node.js) | `npx @specseal/server` |
+| Docker | `docker run -d -p 8080:8080 -v specseal-data:/data ghcr.io/momochenisme/speclink-server:latest` |
 | Docker Compose | `cd deploy && docker compose up -d` |
 
-On the first start, the server prints a one-time `/setup` link. The default Store is SQLite, and the data goes to `./speclink-data` (`/data` in the container). Environment variables, PostgreSQL, upgrades, and rollbacks: [Server deployment](docs/server-deployment.md). Remote mode does not depend on this server: `host-runtime` and `client-protocol` in `speclink/specs/` are public contracts, so you can write your own server and connect the CLI and the desktop app to it. To load the engine in your own program, see the [Node SDK](docs/sdk-node.md).
+On the first start, the server prints a one-time `/setup` link. The default Store is SQLite, and the data goes to `./specseal-data` (`/data` in the container). Environment variables, PostgreSQL, upgrades, and rollbacks: [Server deployment](docs/server-deployment.md). Remote mode does not depend on this server: `host-runtime` and `client-protocol` in `specseal/specs/` are public contracts, so you can write your own server and connect the CLI and the desktop app to it. To load the engine in your own program, see the [Node SDK](docs/sdk-node.md).
 
 ## <a id="docs"></a>Documentation
 
@@ -185,7 +185,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 | --- | --- |
 | [Getting started](docs/getting-started.md) | From install to your first archive |
 | [SDD workflow](docs/workflow.md) | The purpose, skill, done criteria, and next step of each stage |
-| [Configuration](docs/configuration.md) | `.speclink.yaml`, `speclink/config.yaml`, and remote settings |
+| [Configuration](docs/configuration.md) | `.specseal.yaml`, `specseal/config.yaml`, and remote settings |
 | [Principles](docs/principles.md) | The repo-level constitution, with a ready-to-copy template |
 | [AI setup prompt](docs/ai-setup-prompt.md) | Let your AI install and initialize Specseal for you |
 | [Comparison](docs/comparison.md) | Honest positioning against spec-kit, OpenSpec, BMAD, and task-master |
@@ -204,7 +204,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 
 | Document | Content |
 | --- | --- |
-| [Node SDK](docs/sdk-node.md) | Load `@speclink/engine`, the Store interface, and `dispatch` |
+| [Node SDK](docs/sdk-node.md) | Load `@specseal/engine`, the Store interface, and `dispatch` |
 | [Verb and flag contract](docs/verb-contract.md) | Local and remote verbs, output shapes, and HTTP endpoints |
 
 **Project status and direction**
@@ -215,15 +215,15 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 | [Roadmap](docs/roadmap.md) | The work that comes next |
 | [Changelog](CHANGELOG.md) | The changes in each version |
 
-`speclink/` is your project's own spec workspace, created by `speclink init`. This repository starts clean: no upstream dogfood history (specs, changes, or discussions) is carried over.
+`specseal/` is your project's own spec workspace, created by `specseal init`. This repository starts clean: no upstream dogfood history (specs, changes, or discussions) is carried over.
 
 ## <a id="status"></a>Project status
 
-- **Available**: Local Repo CLI, Local desktop app, agent skills (Claude, Codex, GitHub Copilot, pi, and Cursor), quality stations, execution order, manual and trace, Node SDK (`@speclink/engine`), three TeamStores (SQLite, Server FS, PostgreSQL), single-node server and admin console, Remote CLI, install channels, server operations (deployment, backup, and restore).
+- **Available**: Local Repo CLI, Local desktop app, agent skills (Claude, Codex, GitHub Copilot, pi, and Cursor), quality stations, execution order, manual and trace, Node SDK (`@specseal/engine`), three TeamStores (SQLite, Server FS, PostgreSQL), single-node server and admin console, Remote CLI, install channels, server operations (deployment, backup, and restore).
 - **Partial**: Remote workspaces in the desktop app, the Claude Code plugin, the Herdr mod.
 - **Planned upstream**: Agent tool packages and MCP, SSO, runtime plugins, multi-node deployment.
 
-Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename and desktop remote workspaces (upstream is also partial there). **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client), the verify CI gate as a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)), principles guidance baked into the propose/apply/review/verify skills, a spec-kit migration script ([`scripts/migrate-spec-kit.mjs`](scripts/migrate-spec-kit.mjs)), the `/speclink-bugfix` skill (reproduce → cause → change → verdict discipline), and the verify convergence loop (fix → re-freeze → next round → stamp only on a clean validation round).
+Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename and desktop remote workspaces (upstream is also partial there). **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client), the verify CI gate as a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)), principles guidance baked into the propose/apply/review/verify skills, a spec-kit migration script ([`scripts/migrate-spec-kit.mjs`](scripts/migrate-spec-kit.mjs)), the `/specseal-bugfix` skill (reproduce → cause → change → verdict discipline), and the verify convergence loop (fix → re-freeze → next round → stamp only on a clean validation round).
 
 ## <a id="contributing"></a>Contributing
 
@@ -235,13 +235,13 @@ Issues and pull requests are welcome, in English or Simplified Chinese.
 To build the CLI from source (stable Rust toolchain):
 
 ```bash
-cargo install --path crates/adapters/speclink-cli
-speclink --version
+cargo install --path crates/adapters/specseal-cli
+specseal --version
 ```
 
 ## <a id="acknowledgments"></a>Acknowledgments
 
-- **[Speclink](https://github.com/MomoChenisMe/speclink)** — this project is a direct fork. The engine, the workflow, the server, and the desktop app are its work; Specseal adds the evidence-first framing, the universal instruction path, the CI gate, and the principles layer. Thank you.
+- **[Specseal](https://github.com/MomoChenisMe/speclink)** — this project is a direct fork. The engine, the workflow, the server, and the desktop app are its work; Specseal adds the evidence-first framing, the universal instruction path, the CI gate, and the principles layer. Thank you.
 - **[OpenSpec](https://github.com/Fission-AI/OpenSpec)**: Local mode uses the OpenSpec folder layout for specs and changes.
 - **Spectra App 2.3.1**: the Local CLI started with its CLI as the behavior reference.
 - **[GitHub spec-kit](https://github.com/github/spec-kit)**: the project-principles ("constitution") idea.

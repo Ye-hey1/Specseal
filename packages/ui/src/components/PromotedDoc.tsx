@@ -12,7 +12,7 @@ import { discussionChipStage } from "./DiscussionColumn";
 import { InlineMarks, NAME_CHIP_CLS } from "./DocParts";
 import type { SourceLinkItem } from "./SourceDiscussionChip";
 
-/** 衍生變更的一列。`state` 為 null＝宿主沒給兩份清單、所在未知（已封存討論頁的退回）。 */
+/** 衍生变更的一列。`state` 为 null＝宿主没给两份清单、所在未知（已封存讨论页的退回）。 */
 export interface PromotedRow {
   name: string;
   stage: { label: string; tone: StatusPillTone };
@@ -25,8 +25,8 @@ export interface PromotedRow {
 }
 
 /**
- * 衍生列的單一推導（design D5）：依 `promoted_to` 原序——作用中取看板階段、任務完成數、兩章與最近蓋章日；
- * 已封存取封存清單的任務數、結局章與封存日期；兩者皆無為已刪除（不可開）。缺開啟回呼的那一類不可開。兩頁共用。
+ * 衍生列的单一推导（design D5）：依 `promoted_to` 原序——作用中取看板阶段、任务完成数、两章与最近盖章日；
+ * 已封访问封存清单的任务数、结局章与封存日期；两者皆无为已删除（不可开）。缺打开回呼的那一类不可开。两页共用。
  */
 export function promotedRows(
   names: string[],
@@ -72,7 +72,7 @@ export function promotedRows(
   });
 }
 
-/** 分刀卡變更籤的階段：取該名稱的衍生列（不在 `promoted_to` 為 null）。 */
+/** 分刀卡变更签的阶段：取该名称的衍生列（不在 `promoted_to` 为 null）。 */
 export function rowStage(rows: PromotedRow[]): (name: string) => CutStage | null {
   return (name) => {
     const row = rows.find((r) => r.name === name);
@@ -80,7 +80,7 @@ export function rowStage(rows: PromotedRow[]): (name: string) => CutStage | null
   };
 }
 
-/** 宿主沒給兩份清單時的退回：宿主派生的三態籤（副標當階段籤文字），所在未知、無任務與日期。 */
+/** 宿主没给两份清单时的退回：宿主派生的三态签（副标当阶段签文本），所在未知、无任务与日期。 */
 export function promotedRowsFromLinks(items: SourceLinkItem[], onOpen?: (name: string) => void): PromotedRow[] {
   return items.map((item) => ({
     name: item.slug,
@@ -94,7 +94,7 @@ export function promotedRowsFromLinks(items: SourceLinkItem[], onOpen?: (name: s
   }));
 }
 
-/** 一列：階段籤、等寬名、任務進度、審／驗章、日期、開啟鈕。 */
+/** 一列：阶段签、等宽名、任务进度、审／验章、日期、打开钮。 */
 function PromotedRowView({ row }: { row: PromotedRow }) {
   const { t } = useI18n();
   const pct = row.tasks && row.tasks.total > 0 ? Math.round((row.tasks.done / row.tasks.total) * 100) : 0;
@@ -151,8 +151,8 @@ function RowGroup({ rows }: { rows: PromotedRow[] }) {
 }
 
 /**
- * 衍生變更文件（design D5；spec「討論詳情頁檢視與轉出變更」）：結論讀得到分刀時依刀分組（組頭為本頁目錄錨點，
- * 沒有列的刀不出組），不屬任何刀的列接在最後、無組頭；讀不到時依轉出順序平面清單。唯讀、無轉出動作。
+ * 衍生变更文档（design D5；spec「讨论详情页查看与转出变更」）：结论读得到分刀时依刀分组（组头为本页目录锚点，
+ * 没有列的刀不出组），不属任何刀的列接在最后、无组头；读不到时依转出顺序平面清单。唯读、无转出动作。
  */
 export function PromotedDoc({ rows, cuts, empty }: { rows: PromotedRow[]; cuts: CutCard[]; empty?: string }) {
   const { t, tn } = useI18n();

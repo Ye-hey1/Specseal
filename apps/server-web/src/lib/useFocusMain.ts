@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from "react";
 
-// route 切換後 focus 移至 <main> 標題（D3／可存取性）。找不到 h1 時退回聚焦 main。
+// route 切换后 focus 移至 <main> 标题（D3／可访问性）。找不到 h1 时退回聚焦 main。
 export function useFocusMain(mainRef: RefObject<HTMLElement | null>, key: string) {
   useEffect(() => {
     const main = mainRef.current;

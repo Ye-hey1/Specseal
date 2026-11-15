@@ -1,6 +1,6 @@
-# npm 发布的共用 workflow（workflow_call）：release.yml 的三条 npm 通路——CLI（@speclink/cli，
+# npm 发布的共用 workflow（workflow_call）：release.yml 的三条 npm 通路——CLI（@specseal/cli，
 # cli-distribution spec「CLI 以 npm 套件发布」；release-assets-trim 设计 D4／D8）、server
-# （@speclink/server，server-release spec「npm 套件一行启动 server」）、engine（@speclink/engine，
+# （@specseal/server，server-release spec「npm 套件一行启动 server」）、engine（@specseal/engine，
 # node-sdk-release spec「npm 发布闸门与发布顺序」）——共用同一套闸门与发布循环，只以输入区分：
 #
 #   artifacts      download-artifact 的 pattern。物化路径给 <name>-<target> 目录（cli-*、server-*：
@@ -32,7 +32,7 @@ on:
         required: true
         type: string
       main-package:
-        description: '主套件名，例如 @speclink/cli；最后发并等它在 registry 可见'
+        description: '主套件名，例如 @specseal/cli；最后发并等它在 registry 可见'
         required: true
         type: string
       materialize:

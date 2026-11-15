@@ -1,14 +1,14 @@
-// 專案層檔案系統動作（design D5）：Tauri command 與剪貼簿的接線面。錯誤字串為
-// i18n 鍵（fs.noTerminal／fs.noEditor／fs.dirMissing）或 opener／剪貼簿的原文。
-// store 只依賴此介面，測試以假 adapter 注入。
+// 项目层文件系统动作（design D5）：Tauri command 与剪贴板的接线面。错误字符串为
+// i18n 键（fs.noTerminal／fs.noEditor／fs.dirMissing）或 opener／剪贴板的原文。
+// store 只依赖此接口，测试以假 adapter 注入。
 import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
-import type { DocumentRef } from "@speclink/ui";
+import type { DocumentRef } from "@specseal/ui";
 
 import type { WorkspaceLocator } from "../session";
 
-/** 文件在磁碟上的位置（core 回報）：絕對路徑，與相對所在 checkout 根的路徑（正斜線；
- * 「開啟 ▾」首列與失敗 toast 的主詞）。 */
+/** 文档在磁盘上的位置（core 回报）：绝对路径，与相对所在 checkout 根的路径（正斜线；
+ * 「打开 ▾」首列与失败 toast 的主词）。 */
 export interface DocumentLocation {
   path: string;
   relative: string;
@@ -16,14 +16,14 @@ export interface DocumentLocation {
 
 export interface FsActionsAdapter {
   reveal: (path: string) => Promise<void>;
-  /** 以系統預設 App 開啟文件（只收 .md，其餘回 fs.notDocument）。 */
+  /** 以系统缺省 App 打开文档（只收 .md，其余回 fs.notDocument）。 */
   openDefault: (path: string) => Promise<void>;
   openTerminal: (path: string) => Promise<void>;
   openEditor: (path: string) => Promise<void>;
-  /** 寫入剪貼簿（路徑或文件原文）。 */
+  /** 写入剪贴板（路径或文档原文）。 */
   copyText: (text: string) => Promise<void>;
-  /** 詳情頁與手冊頁文件的磁碟位置：core 以讀文件同一套解析（worktree 副本、spec 目錄名、
-   * 已封存討論的日期檔名、封存目錄）；找不到為 null。 */
+  /** 详情页与手册页文档的磁盘位置：core 以读文档同一套解析（worktree 副本、spec 目录名、
+   * 已封存讨论的日期文件名、封存目录）；找不到为 null。 */
   locate: (root: string, doc: DocumentRef) => Promise<DocumentLocation | null>;
 }
 
@@ -50,7 +50,7 @@ export function tauriFsActionsAdapter(): FsActionsAdapter {
   };
 }
 
-/** 檔案系統動作作用的本機目錄：local 為專案根、remote 為 checkout；remote 無 checkout 時為 null。 */
+/** 文件系统动作作用的本机目录：local 为项目根、remote 为 checkout；remote 无 checkout 时为 null。 */
 export function projectDirOf(locator: WorkspaceLocator): string | null {
   return locator.kind === "local" ? locator.root : (locator.checkoutRoot ?? null);
 }

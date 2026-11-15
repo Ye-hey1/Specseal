@@ -23,17 +23,17 @@
 
 组态里写了不认得的保存后端名称，server 不会启动，错误消息会列出支持的名称。拼错 `serverfs` 不会默默改用别的后端。
 
-npx 用环境变量 `SPECLINK_STORE` 选后端；其他跑法在组态档的 `store` 段设置，见下面各节。
+npx 用环境变量 `SPECSEAL_STORE` 选后端；其他跑法在组态档的 `store` 段设置，见下面各节。
 
 ## <a id="sqlite"></a>sqlite（缺省）
 
 ```yaml
 store:
   driver: sqlite
-  path: /var/lib/speclink/store.db
+  path: /var/lib/specseal/store.db
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
+  path: /var/lib/specseal/identity.db
 ```
 
 - 数据库用 SQLite 的 WAL 模式，旁边会多出 `store.db-wal` 与 `store.db-shm` 工作档。搬移或拷贝数据时要一起处理，或者直接用 [`backup`](server-backup.zh-CN.md)。
@@ -45,10 +45,10 @@ identity:
 ```yaml
 store:
   driver: serverfs
-  path: /var/lib/speclink/store     # 这是目录，不是文档
+  path: /var/lib/specseal/store     # 这是目录，不是文档
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
+  path: /var/lib/specseal/identity.db
 ```
 
 `path` 指向一个**数据目录**。目录不存在时，server 会创建它；空目录会被初始化成新的保存区。
@@ -80,17 +80,17 @@ serverfs 用操作系统的文档锁（`flock`）保证同一时间只有一个 
 ```yaml
 store:
   driver: postgres
-  url: postgres://speclink@db.internal:5432/speclink   # 不放密码，见下方
+  url: postgres://specseal@db.internal:5432/specseal   # 不放密码，见下方
 identity:
   driver: sqlite
-  path: /var/lib/speclink/identity.db
+  path: /var/lib/specseal/identity.db
 ```
 
 server 会在连接的目前 schema 建四张数据表：`documents`、`history`、`outbox` 与 `meta`。所以用不同的 `search_path`，就能让多个保存区共用一个数据库。空的 schema 会被初始化。
 
 ### 密码
 
-密码请放在环境变量 `SPECLINK_POSTGRES_PASSWORD`。连接 URL 不含密码时，server 会用这个变量补上。
+密码请放在环境变量 `SPECSEAL_POSTGRES_PASSWORD`。连接 URL 不含密码时，server 会用这个变量补上。
 
 URL 里直接写密码也能启动，但 server 会在 stderr 印一行警告：组态档常被拷贝、比对、贴进 issue，不该放密码。URL 已经带密码时，环境变量不会覆盖它。
 
@@ -105,7 +105,7 @@ URL 里直接写密码也能启动，但 server 会在 stderr 印一行警告：
 
 下列情况 server 不会启动，也不改动数据库的内容：
 
-- schema 里已经有数据表，但不是 Speclink 创建的（例如 URL 打错，指到别的数据库）。
+- schema 里已经有数据表，但不是 Specseal 创建的（例如 URL 打错，指到别的数据库）。
 - `meta` 记录的版本比这个 server 支持的还新。
 - 认证失败或数据库不存在。错误消息会附上 PostgreSQL 的原文。
 

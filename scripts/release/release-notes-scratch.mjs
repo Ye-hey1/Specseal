@@ -1,7 +1,7 @@
-// 更新日誌兩支腳本的測試夾具：腳本由自身位置解析 repo 根（JSON 與兩份更新日誌路徑固定），
-// 測試把腳本複製進暫存目錄、自建同樣的目錄形狀——不碰真 repo 的 CHANGELOG.md 與 CHANGELOG.zh-TW.md。
-// tmpdir 先 realpath：macOS 的 /var 是 /private/var 的 symlink，而 ESM 載入器會把
-// import.meta.url 解到真實路徑，腳本的「直接執行」守門才對得上。
+// 更新日志两支脚本的测试夹具：脚本由自身位置解析 repo 根（JSON 与两份更新日志路径固定），
+// 测试把脚本拷贝进暂存目录、自建同样的目录形状——不碰真 repo 的 CHANGELOG.md 与 CHANGELOG.zh-CN.md。
+// tmpdir 先 realpath：macOS 的 /var 是 /private/var 的 symlink，而 ESM 加载器会把
+// import.meta.url 解到真实路径，脚本的「直接运行」守门才对得上。
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,9 +11,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 /**
- * 建一個暫存 repo：複製指定腳本到 <dir>/scripts/release、把 notes 寫進固定的 JSON 路徑
- * （notes 為字串時原樣寫入，供壞 JSON 情境）。回傳 dir、英文 CHANGELOG.md 與繁中
- * CHANGELOG.zh-TW.md 的路徑與執行器。
+ * 建一个暂存 repo：拷贝指定脚本到 <dir>/scripts/release、把 notes 写进固定的 JSON 路径
+ * （notes 为字符串时原样写入，供坏 JSON 情境）。回传 dir、英文 CHANGELOG.md 与繁中
+ * CHANGELOG.zh-CN.md 的路径与运行器。
  */
 export function scratchRepo({ scripts, notes }) {
   const dir = mkdtempSync(path.join(realpathSync(tmpdir()), 'release-notes-'));
@@ -32,6 +32,6 @@ export function scratchRepo({ scripts, notes }) {
     dir,
     run,
     changelog: path.join(dir, 'CHANGELOG.md'),
-    changelogZh: path.join(dir, 'CHANGELOG.zh-TW.md'),
+    changelogZh: path.join(dir, 'CHANGELOG.zh-CN.md'),
   };
 }

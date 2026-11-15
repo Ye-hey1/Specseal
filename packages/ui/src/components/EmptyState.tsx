@@ -6,14 +6,14 @@ export interface EmptyStateProps {
   icon: ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
   title: string;
   description?: string;
-  /** 該頁的 primary action（通常為 default 按鈕）。 */
+  /** 该页的 primary action（通常为 default 按钮）。 */
   action?: ReactNode;
-  /** 只放版面（例如 h-full 填滿主區）；外觀由元件決定。 */
+  /** 只放版面（例如 h-full 填满主区）；外观由组件决定。 */
   className?: string;
 }
 
-/** 空狀態（spec desktop-app「共用元件唯一來源」；design D8）：置中直欄的圖示、標題、
- *  一句說明與動作。桌面零分頁引導頁與 server web 管理列表共用。 */
+/** 空状态（spec desktop-app「共用组件唯一来源」；design D8）：置中直栏的图标、标题、
+ *  一句说明与动作。桌面零分页引导页与 server web 管理列表共用。 */
 export function EmptyState({ icon: Icon, title, description, action, className }: EmptyStateProps) {
   return (
     <div className={cn("flex flex-col items-center justify-center gap-3 px-6 py-10 text-center", className)}>

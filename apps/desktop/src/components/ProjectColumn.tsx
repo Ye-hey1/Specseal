@@ -1,9 +1,9 @@
-// 專案欄（design D4）：每專案的四頁＋底部專案設定；點擊即切頁（無 toggle）。設定模式與
-// 專案設定模式下由分類欄取代（desktop-settings-mode design D2）。底部的 notice 槽放技能檔提示卡
-// （desktop-notice-relocation design D1）：提示是這個專案的事，住在專案欄、不佔主區。
+// 项目栏（design D4）：每项目的四页＋底部项目设置；点击即切页（无 toggle）。设置模式与
+// 项目设置模式下由分类栏取代（desktop-settings-mode design D2）。底部的 notice 槽放技能档提示卡
+// （desktop-notice-relocation design D1）：提示是这个项目的事，住在项目栏、不占主区。
 import type { ReactNode } from "react";
 import { Archive, BookOpen, FileText, GitBranch, SlidersHorizontal } from "lucide-react";
-import { NavItem, useI18n } from "@speclink/ui";
+import { NavItem, useI18n } from "@specseal/ui";
 
 import type { BoardView } from "../store";
 
@@ -16,7 +16,7 @@ export function ProjectColumn({
   boardView: BoardView;
   archivedCount: number;
   onNavigate: (view: BoardView) => void;
-  /** 彈性空白與專案設定項之間的提示卡（null＝無）。 */
+  /** 弹性空白与项目设置项之间的提示卡（null＝无）。 */
   notice?: ReactNode;
 }) {
   const { t } = useI18n();

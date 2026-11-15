@@ -1,9 +1,9 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { SessionData, WebClient } from "../api/client";
 
-// client 是 HTTP adapter（非 server 資料），放 context 供全 app 使用（D1 允許：
-// 「跨路由且非伺服器真相」）。session 是 App 開機讀取一次的角色真相，供導覽與
-// guard 使用；login／logout 後 reload。
+// client 是 HTTP adapter（非 server 数据），放 context 供全 app 使用（D1 允许：
+// 「跨路由且非服务器真相」）。session 是 App 开机读取一次的角色真相，供导览与
+// guard 使用；login／logout 后 reload。
 
 const ClientContext = createContext<WebClient | null>(null);
 
@@ -17,8 +17,8 @@ export function useClient(): WebClient {
   return client;
 }
 
-// refresh 重新讀取 session 並在完成後 resolve——login／logout 後須等它完成再導向，
-// 否則 guard 讀到舊 session 會把使用者彈回登入。
+// refresh 重新读取 session 并在完成后 resolve——login／logout 后须等它完成再导向，
+// 否则 guard 读到旧 session 会把用户弹回登录。
 export type SessionValue = { session: SessionData; refresh: () => Promise<void> };
 
 const SessionContext = createContext<SessionValue | null>(null);

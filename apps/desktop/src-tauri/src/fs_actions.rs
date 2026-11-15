@@ -1,10 +1,10 @@
-//! 專案層檔案系統動作（design D5）：候選組裝與依序啟動在 speclink-desktop-core，
-//! 這裡只委派。「在檔案管理員顯示」沿用既有的 `reveal_in_folder`。
+//! 项目层文件系统动作（design D5）：候选组装与依序启动在 specseal-desktop-core，
+//! 这里只委派。「在文件管理员显示」沿用既有的 `reveal_in_folder`。
 //!
-//! PATH 取使用者 login shell 的值：macOS 從 Dock 啟動的 app 只有系統預設 PATH，
+//! PATH 取用户 login shell 的值：macOS 从 Dock 启动的 app 只有系统缺省 PATH，
 //! 找不到 Homebrew 或 /usr/local/bin 下的 code 等指令。
 
-use speclink_desktop_core::fs_actions::{editor_candidates, launch_first, terminal_candidates, Platform};
+use specseal_desktop_core::fs_actions::{editor_candidates, launch_first, terminal_candidates, Platform};
 
 use crate::cli_install::user_shell_path;
 

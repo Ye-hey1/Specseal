@@ -1,0 +1,29 @@
+[package]
+name = "specseal-node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+# The cdylib only loads inside Node (napi symbols come from the host runtime);
+# its behavior is tested by `npm test` — cargo's test harness cannot host it.
+test = false
+doctest = false
+
+[dependencies]
+napi = { version = "2.16", default-features = false, features = ["napi5", "serde-json"] }
+napi-derive = "2.16"
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+specseal-core = { path = "../../engine/specseal-core" }
+specseal-fs = { path = "../../engine/specseal-fs" }
+specseal-host = { path = "../../host/specseal-host" }
+specseal-protocol = { path = "../../protocol/specseal-protocol" }
+specseal-store-port = { path = "../../store/specseal-store-port" }
+specseal-verbs = { path = "../specseal-verbs" }
+
+[build-dependencies]
+napi-build = "2"

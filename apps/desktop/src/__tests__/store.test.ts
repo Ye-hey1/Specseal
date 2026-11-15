@@ -4,10 +4,10 @@ import type {
   ChangeListPayload,
   ManualIndex,
   SearchHit,
-  SpeclinkDataSource,
+  SpecsealDataSource,
   StatusReport,
   UnpromotedCutItem,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { createAppStore, openTicketStation, selectAssetMigrated, selectAssetPrompt, type AppState } from "../store";
 import { assetPrompt } from "../assetPrompt";
@@ -20,7 +20,7 @@ import { LOCAL_CAPABILITIES, type WorkspaceSession } from "../session";
 import { REMOTE_CHECKOUT, REMOTE_STALE_PROBE, STALE_PROBE } from "./helpers/assetFixtures";
 import { changeList } from "./helpers/changeList";
 
-// sonner 雙面 mock：toast() 本體（背景檢查發現新版本的提示）與 toast.error（失敗路徑）。
+// sonner 双面 mock：toast() 本体（背景检查发现新版本的提示）与 toast.error（失败路径）。
 const { toastError, toastFn } = vi.hoisted(() => ({ toastError: vi.fn(), toastFn: vi.fn() }));
 vi.mock("sonner", () => ({ toast: Object.assign(toastFn, { error: toastError }) }));
 
@@ -32,7 +32,7 @@ const STATUS: StatusReport = {
   artifacts: [],
 };
 
-/** 兩站工單並存的 change——封存守門要連過兩站的測試共用這筆。 */
+/** 两站工单并存的 change——封存守门要连过两站的测试共用这笔。 */
 const BOTH_TICKETS_CHANGE = {
   name: "desktop-shell-and-browser",
   status: "in-progress",
@@ -42,7 +42,7 @@ const BOTH_TICKETS_CHANGE = {
   verifyStatus: "inVerify" as const,
 };
 
-function fakeDataSource(over: Partial<SpeclinkDataSource> = {}): SpeclinkDataSource {
+function fakeDataSource(over: Partial<SpecsealDataSource> = {}): SpecsealDataSource {
   return {
     listChanges: vi.fn().mockResolvedValue(changeList([
       { name: "desktop-shell-and-browser", status: "in-progress", totalTasks: 26, completedTasks: 24 },
@@ -75,8 +75,8 @@ function fakeDataSource(over: Partial<SpeclinkDataSource> = {}): SpeclinkDataSou
   };
 }
 
-/** 帶一則 active 討論 topic-a 的資料源（討論抽屜相關測試共用）。 */
-function withTopicA(over: Partial<SpeclinkDataSource> = {}): SpeclinkDataSource {
+/** 带一则 active 讨论 topic-a 的数据源（讨论抽屉相关测试共用）。 */
+function withTopicA(over: Partial<SpecsealDataSource> = {}): SpecsealDataSource {
   return fakeDataSource({
     listDiscussions: vi.fn().mockResolvedValue({
       active: [
@@ -88,8 +88,8 @@ function withTopicA(over: Partial<SpeclinkDataSource> = {}): SpeclinkDataSource 
   });
 }
 
-/** 假 session（workspace-session 決策 6）：資料載入一律經活躍 session 的 dataSource。 */
-function fakeSession(ds: SpeclinkDataSource, root = "A", name = "a"): WorkspaceSession {
+/** 假 session（workspace-session 决策 6）：数据加载一律经活跃 session 的 dataSource。 */
+function fakeSession(ds: SpecsealDataSource, root = "A", name = "a"): WorkspaceSession {
   return {
     id: `local:${root}`,
     locator: { kind: "local", root },
@@ -109,15 +109,15 @@ function fakeSession(ds: SpeclinkDataSource, root = "A", name = "a"): WorkspaceS
   };
 }
 
-/** 以活躍 session 預置 store（注入 session 工廠、無 workspace 探測面）。 */
-function storeWith(ds: SpeclinkDataSource) {
+/** 以活跃 session 预置 store（注入 session 工厂、无 workspace 探测面）。 */
+function storeWith(ds: SpecsealDataSource) {
   const store = trackedAppStore({ createSession: (root, name) => fakeSession(ds, root, name) });
   const session = fakeSession(ds);
   store.setState({ sessions: { [session.id]: session }, activeKey: session.id });
   return store;
 }
 
-function remoteSession(ds: SpeclinkDataSource, repoId: string): WorkspaceSession {
+function remoteSession(ds: SpecsealDataSource, repoId: string): WorkspaceSession {
   const locator = { kind: "remote" as const, connectionId: "c1", projectId: "demo", repoId };
   return {
     id: `remote:c1/demo/${repoId}`,
@@ -141,7 +141,7 @@ function remoteSession(ds: SpeclinkDataSource, repoId: string): WorkspaceSession
 function storeWithRemoteSessions(a: WorkspaceSession, b: WorkspaceSession) {
   const store = trackedAppStore({
     createSession: () => {
-      throw new Error("remote session 測試不得建立 local session");
+      throw new Error("remote session 测试不得创建 local session");
     },
     workspace: {} as WorkspaceAdapter,
   });
@@ -172,9 +172,9 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-// 追蹤本檔建立的每個 store，測後統一清掉搜尋去抖計時器：測試結束後才開火的
-// 200ms 計時器會打在已拆除的 mock 上（searchWorkspace 回 undefined），成為整包
-// 測試的 unhandled error flake——535 全過仍紅整個 run。
+// 追踪本档创建的每个 store，测后统一清掉搜索去抖计时器：测试结束后才开火的
+// 200ms 计时器会打在已拆除的 mock 上（searchWorkspace 回 undefined），成为整包
+// 测试的 unhandled error flake——535 全过仍红整个 run。
 const trackedStores: ReturnType<typeof createAppStore>[] = [];
 function trackedAppStore(...args: Parameters<typeof createAppStore>) {
   const store = createAppStore(...args);
@@ -196,7 +196,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("refresh increments the refreshGen generation (initial 0)", async () => {
-    // 刷新世代：內容元件據此重載已載入的文件（design D1）。
+    // 刷新世代：内容组件据此重载已加载的文档（design D1）。
     const store = storeWith(fakeDataSource());
     expect(store.getState().refreshGen).toBe(0);
     await store.getState().refresh();
@@ -228,7 +228,7 @@ describe("app store (Zustand)", () => {
     const afterReturningToB = store.getState().changes.map((change) => change.name);
 
     expect([afterReturningToA, afterReturningToB]).toEqual([["a-change"], ["b-change"]]);
-    const persisted = JSON.parse(localStorage.getItem("speclink.projectTabs") ?? "{}");
+    const persisted = JSON.parse(localStorage.getItem("specseal.projectTabs") ?? "{}");
     expect(Object.keys(persisted).sort()).toEqual(["activeKey", "tabs", "version"]);
     expect(JSON.stringify(persisted)).not.toContain("a-change");
     expect(JSON.stringify(persisted)).not.toContain("b-change");
@@ -251,7 +251,7 @@ describe("app store (Zustand)", () => {
     b.connectionState = {
       connectionId: "c1",
       state: "needs-reauth",
-      message: "請重新登入",
+      message: "请重新登录",
     };
     const store = storeWithRemoteSessions(a, b);
     await store.getState().refresh();
@@ -278,7 +278,7 @@ describe("app store (Zustand)", () => {
     );
     const store = trackedAppStore({
       createSession: () => {
-        throw new Error("remote session 測試不得建立 local session");
+        throw new Error("remote session 测试不得创建 local session");
       },
       workspace: {} as WorkspaceAdapter,
     });
@@ -369,7 +369,7 @@ describe("app store (Zustand)", () => {
     b.connectionState = {
       connectionId: "c1",
       state: "needs-reauth",
-      message: "請重新登入",
+      message: "请重新登录",
     };
     const store = storeWithRemoteSessions(a, b);
 
@@ -421,14 +421,14 @@ describe("app store (Zustand)", () => {
     expect(store.getState().view).toBe("archived");
     expect(store.getState().query).toBe("desk");
     expect(store.getState().expandedName).toBe("a");
-    // 再次 toggle 同一名稱收合
+    // 再次 toggle 同一名称收合
     store.getState().toggleExpand("a");
     expect(store.getState().expandedName).toBeNull();
   });
 
   it("boardView can switch to the specs page and keeps the specs list state", async () => {
-    // spec「規格頁提供清單、搜尋與展開檢視」：主視圖新增 specs 態
-    // （與看板、已封存、設定並列），切換不動已載入的 specs 清單。
+    // spec「规格页提供清单、搜索与展开查看」：主视图添加 specs 态
+    // （与看板、已封存、设置并列），切换不动已加载的 specs 清单。
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     store.getState().setBoardView("specs");
@@ -439,7 +439,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("boardQuery starts empty and setBoardQuery updates it", () => {
-    // 看板搜尋字串：純 UI 狀態、不入任何 persist 機制（spec「不跨啟動保留」）。
+    // 看板搜索字符串：纯 UI 状态、不入任何 persist 机制（spec「不跨启动保留」）。
     const store = storeWith(fakeDataSource());
     expect(store.getState().boardQuery).toBe("");
     store.getState().setBoardQuery("desk");
@@ -447,7 +447,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("boardQuery triggers the debounced full-text search (latest wins); clearing resets hits", async () => {
-    // design D6：200ms 去抖、latest-wins；空 query 清命中並取消在途。
+    // design D6：200ms 去抖、latest-wins；空 query 清命中并取消在途。
     vi.useFakeTimers();
     const hits = [{ kind: "change", id: "demo", artifact: "design.md", snippet: "…x…" }];
     const ds = fakeDataSource({ searchWorkspace: vi.fn().mockResolvedValue(hits) });
@@ -467,7 +467,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("full-text search failure falls back to field matching silently", async () => {
-    // spec「全文查詢失敗靜默退回欄位比對」：不彈錯、不阻斷輸入。
+    // spec「全文查找失败静默退回字段比对」：不弹错、不阻断输入。
     vi.useFakeTimers();
     const ds = fakeDataSource({ searchWorkspace: vi.fn().mockRejectedValue(new Error("ipc down")) });
     const store = storeWith(ds);
@@ -478,9 +478,9 @@ describe("app store (Zustand)", () => {
     vi.useRealTimers();
   });
 
-  it("disposeSearch cancels the pending debounced search（卸載後在途去抖不觸發）", async () => {
-    // 生命週期清理：元件卸載時取消漏出的去抖 timer 並作廢在途回填，
-    // 杜絕搜尋在擁有它的 store 卸載後才開火所致的未處理例外。
+  it("disposeSearch cancels the pending debounced search（卸载后在途去抖不触发）", async () => {
+    // 生命周期清理：组件卸载时取消漏出的去抖 timer 并作废在途回填，
+    // 杜绝搜索在拥有它的 store 卸载后才开火所致的未处理例外。
     vi.useFakeTimers();
     const ds = fakeDataSource({ searchWorkspace: vi.fn().mockResolvedValue([]) });
     const store = storeWith(ds);
@@ -492,7 +492,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("boardQuery and the archived-page query are independent", () => {
-    // spec「搜尋字串…與已封存頁獨立」：各自設值互不覆蓋。
+    // spec「搜索字符串…与已封存页独立」：各自设值互不覆盖。
     const store = storeWith(fakeDataSource());
     store.getState().setBoardQuery("kanban");
     store.getState().setQuery("archived");
@@ -521,7 +521,7 @@ describe("app store (Zustand)", () => {
     expect(ds.runVerb).not.toHaveBeenCalled();
   });
 
-  it("刪除、封存變更與封存討論成功時皆不發出 toast", async () => {
+  it("删除、封存变更与封存讨论成功时皆不发出 toast", async () => {
     const ds = fakeDataSource({
       runVerb: vi.fn().mockResolvedValue({ datedName: "2026-07-17-desktop-shell-and-browser" }),
     });
@@ -536,7 +536,7 @@ describe("app store (Zustand)", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("四條 store 失敗路徑皆發出含主詞、core 錯誤與相同固定 id 的 error toast", async () => {
+  it("四条 store 失败路径皆发出含主词、core 错误与相同固定 id 的 error toast", async () => {
     const ds = fakeDataSource({
       deleteChange: vi.fn().mockRejectedValue(new Error("delete locked")),
       runVerb: vi.fn().mockRejectedValue(new Error("archive blocked")),
@@ -569,9 +569,9 @@ describe("app store (Zustand)", () => {
     expect(ds.listChanges).toHaveBeenCalled();
   });
 
-  it("refresh：清單與頂層 planError 來自同一次 listChanges；無成環時 planError 為 null", async () => {
-    // add-change-plan-desktop design D1／D5：planError 隨清單 payload 進 store，
-    // 宿主據此讓看板出成環提示。
+  it("refresh：清单与顶层 planError 来自同一次 listChanges；无成环时 planError 为 null", async () => {
+    // add-change-plan-desktop design D1／D5：planError 随清单 payload 进 store，
+    // 宿主据此让看板出成环提示。
     const cyclic = fakeDataSource({
       listChanges: vi.fn().mockResolvedValue(
         changeList(
@@ -590,16 +590,16 @@ describe("app store (Zustand)", () => {
     expect(plain.getState().planError).toBeNull();
   });
 
-  // desktop-roadmap：路線圖的 next 與尚未轉出的刀隨同一次 listChanges 進 store。
+  // desktop-roadmap：路线图的 next 与尚未转出的刀随同一次 listChanges 进 store。
   const PANEL_CUT: UnpromotedCutItem = {
     discussion: "panel",
     cut: "cut 3",
-    title: "路線圖",
+    title: "路线图",
     changes: ["add-z"],
     unpromoted: ["add-z"],
   };
 
-  it("refresh：清單回應的 next 與 unpromotedCuts 進 store 的 planNext 與 unpromotedCuts", async () => {
+  it("refresh：清单回应的 next 与 unpromotedCuts 进 store 的 planNext 与 unpromotedCuts", async () => {
     const store = storeWith(
       fakeDataSource({
         listChanges: vi.fn().mockResolvedValue({
@@ -614,14 +614,14 @@ describe("app store (Zustand)", () => {
     expect(store.getState().unpromotedCuts).toEqual([PANEL_CUT]);
   });
 
-  it("refresh：清單回應的 next 為 null、unpromotedCuts 為空陣列時照樣寫入", async () => {
+  it("refresh：清单回应的 next 为 null、unpromotedCuts 为空数组时照样写入", async () => {
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     expect(store.getState().planNext).toBeNull();
     expect(store.getState().unpromotedCuts).toEqual([]);
   });
 
-  it("切到另一個 workspace 再切回時 planNext 與 unpromotedCuts 由快照還原", async () => {
+  it("切到另一个 workspace 再切回时 planNext 与 unpromotedCuts 由快照还原", async () => {
     const aChanges = vi.fn().mockResolvedValue({
       ...changeList([{ name: "a-change", status: "proposed", totalTasks: 1, completedTasks: 0 }]),
       next: "a-change",
@@ -636,19 +636,19 @@ describe("app store (Zustand)", () => {
     expect(store.getState().planNext).toBeNull();
     expect(store.getState().unpromotedCuts).toEqual([]);
 
-    // 切回 A 時重載失敗：畫面上的兩欄只能來自 A 的快照。
+    // 切回 A 时重载失败：画面上的两栏只能来自 A 的快照。
     aChanges.mockRejectedValue(new Error("alpha offline"));
     await store.getState().activateTab(a.id);
     expect(store.getState().planNext).toBe("a-change");
     expect(store.getState().unpromotedCuts).toEqual([PANEL_CUT]);
   });
 
-  // spec desktop-roadmap「看板頁的路線圖檢視」：卡片／路線圖是看板頁的兩種檢視。
-  it("boardMode 預設為 cards", () => {
+  // spec desktop-roadmap「看板页的路线图查看」：卡片／路线图是看板页的两种查看。
+  it("boardMode 缺省为 cards", () => {
     expect(storeWith(fakeDataSource()).getState().boardMode).toBe("cards");
   });
 
-  it("openDetail、openDiscussion 與關閉詳情頁都不改變 boardMode（自路線圖開詳情、關閉後回到路線圖）", async () => {
+  it("openDetail、openDiscussion 与关闭详情页都不改变 boardMode（自路线图开详情、关闭后回到路线图）", async () => {
     const store = storeWith(withTopicA());
     await store.getState().refresh();
     store.getState().setBoardMode("roadmap");
@@ -665,7 +665,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().boardMode).toBe("roadmap");
   });
 
-  it("切到其他頁再回到看板頁時維持上次選的檢視（Scenario「切到其他頁再回來維持路線圖」）", () => {
+  it("切到其他页再回到看板页时维持上次选的查看（Scenario「切到其他页再回来维持路线图」）", () => {
     const store = storeWith(fakeDataSource());
     store.getState().setBoardMode("roadmap");
     store.getState().setBoardView("specs");
@@ -673,7 +673,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().boardMode).toBe("roadmap");
   });
 
-  it("openRoadmap 關閉開著的詳情頁、切回看板頁並顯示路線圖（Scenario「以網址開啟路線圖」）", async () => {
+  it("openRoadmap 关闭开着的详情页、切回看板页并显示路线图（Scenario「以网址打开路线图」）", async () => {
     const store = storeWith(withTopicA());
     await store.getState().refresh();
     store.getState().openDetail("desktop-shell-and-browser");
@@ -687,7 +687,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().boardMode).toBe("roadmap");
   });
 
-  it("openBoard 從詳情頁、規格頁與路線圖檢視都回到看板頁的卡片檢視（Scenario「以網址切到專案並顯示看板」）", async () => {
+  it("openBoard 从详情页、规格页与路线图查看都回到看板页的卡片查看（Scenario「以网址切到项目并显示看板」）", async () => {
     const store = storeWith(withTopicA());
     await store.getState().refresh();
     const expectBoardCards = () =>
@@ -697,27 +697,27 @@ describe("app store (Zustand)", () => {
         detailChange: null,
         detailDiscussion: null,
       });
-    // 開著變更詳情頁，而且上次選的是路線圖。
+    // 开着变更详情页，而且上次选的是路线图。
     store.getState().setBoardMode("roadmap");
     store.getState().openDetail("desktop-shell-and-browser");
     store.getState().openBoard();
     expectBoardCards();
-    // 開著討論詳情頁。
+    // 开着讨论详情页。
     store.getState().setBoardMode("roadmap");
     store.getState().openDiscussion("topic-a");
     store.getState().openBoard();
     expectBoardCards();
-    // 規格頁。
+    // 规格页。
     store.getState().setBoardView("specs");
     store.getState().openBoard();
     expectBoardCards();
-    // 路線圖檢視。
+    // 路线图查看。
     store.getState().openRoadmap();
     store.getState().openBoard();
     expectBoardCards();
   });
 
-  it("boardMode 不寫進 localStorage", async () => {
+  it("boardMode 不写进 localStorage", async () => {
     const store = storeWith(withTopicA());
     await store.getState().refresh();
     store.getState().setBoardMode("roadmap");
@@ -731,9 +731,9 @@ describe("app store (Zustand)", () => {
     }
   });
 
-  it("setDepends：成功後刷新清單，失敗以同一單槽 toast 呈現引擎訊息", async () => {
-    // add-change-plan-desktop design D6：寫入經資料源 setDepends，成功刷新、
-    // 失敗單行錯誤（引擎拒絕文字）且畫面不變。
+  it("setDepends：成功后刷新清单，失败以同一单槽 toast 呈现引擎消息", async () => {
+    // add-change-plan-desktop design D6：写入经数据源 setDepends，成功刷新、
+    // 失败单行错误（引擎拒绝文本）且画面不变。
     const ds = fakeDataSource({
       setDepends: vi
         .fn()
@@ -755,7 +755,7 @@ describe("app store (Zustand)", () => {
     expect(message).toContain("dependency cycle: b -> a -> b");
   });
 
-  it("core 錯誤為空、超長或 HTML-like 字串時皆安全交給 sonner", async () => {
+  it("core 错误为空、超长或 HTML-like 字符串时皆安全交给 sonner", async () => {
     const longError = "x".repeat(20_000);
     const htmlLikeError = '<img src="x" onerror="globalThis.pwned=true">';
     const deleteChange = vi
@@ -780,7 +780,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("runVerb analyze runs validate and analyze together into one drawer result", async () => {
-    // design D1：「分析」單鍵雙動詞——validate＋analyze 合併為單一結構化抽屜結果。
+    // design D1：「分析」单键双动词——validate＋analyze 合并为单一结构化抽屉结果。
     const report = {
       change_id: "x",
       dimensions: [{ dimension: "Ambiguity", status: "1 issue(s) found", finding_count: 1 }],
@@ -808,7 +808,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("runVerb analyze failure surfaces the error in the drawer result", async () => {
-    // 任一動詞失敗不靜默：error 進抽屜結果呈現 core 訊息。
+    // 任一动词失败不静默：error 进抽屉结果呈现 core 消息。
     const ds = fakeDataSource({ runVerb: vi.fn().mockRejectedValue(new Error("parse boom")) });
     const store = storeWith(ds);
     await store.getState().runVerb("analyze", "desktop-shell-and-browser");
@@ -817,7 +817,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("clearDetailVerb closes the analysis result; switching change still clears it", async () => {
-    // design D2：分析面板可關閉——clearDetailVerb 收合；既有「換 change 清空」不回歸。
+    // design D2：分析面板可关闭——clearDetailVerb 收合；既有「换 change 清空」不回归。
     const ds = fakeDataSource();
     const store = storeWith(ds);
     await store.getState().refresh();
@@ -825,13 +825,13 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailVerb).not.toBeNull();
     store.getState().clearDetailVerb();
     expect(store.getState().detailVerb).toBeNull();
-    // 換 change 清空行為保留
+    // 换 change 清空行为保留
     await store.getState().runVerb("analyze", "desktop-shell-and-browser");
     store.getState().openDetail("desktop-shell-and-browser");
     expect(store.getState().detailVerb).toBeNull();
   });
 
-  it("runVerb archive 成功維持靜默", async () => {
+  it("runVerb archive 成功维持静默", async () => {
     const ds = fakeDataSource({ runVerb: vi.fn().mockResolvedValue({ datedName: "2026-07-09-x" }) });
     const store = storeWith(ds);
     await store.getState().runVerb("archive", "desktop-shell-and-browser");
@@ -840,7 +840,7 @@ describe("app store (Zustand)", () => {
     expect(ds.listChanges).toHaveBeenCalled();
   });
 
-  it("詳情抽屜中的封存成功會關閉抽屜，失敗則保留 change 上下文", async () => {
+  it("详情抽屉中的封存成功会关闭抽屉，失败则保留 change 上下文", async () => {
     const successStore = storeWith(fakeDataSource());
     await successStore.getState().refresh();
     successStore.getState().openDetail("desktop-shell-and-browser");
@@ -858,9 +858,9 @@ describe("app store (Zustand)", () => {
     expect(failureStore.getState().detailChange?.name).toBe("desktop-shell-and-browser");
   });
 
-  it("三選項「放棄審查」先刪工單再走既有封存流程", async () => {
-    // spec「封存入口的未結工單三選項」：等同 review discard 後封存——工單先刪，
-    // 之後照既有 archive 動詞走（含成功靜默與重載）。
+  it("三选项「放弃审查」先删工单再走既有封存流程", async () => {
+    // spec「封存入口的未结工单三选项」：等同 review discard 后封存——工单先删，
+    // 之后照既有 archive 动词走（含成功静默与重载）。
     const discardReview = vi.fn().mockResolvedValue(undefined);
     const ds = fakeDataSource({ discardReview });
     const store = storeWith(ds);
@@ -872,7 +872,7 @@ describe("app store (Zustand)", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("「放棄審查」刪工單失敗即不封存，且提示說的是刪工單而非封存", async () => {
+  it("「放弃审查」删工单失败即不封存，且提示说的是删工单而非封存", async () => {
     const ds = fakeDataSource({
       discardReview: vi.fn().mockRejectedValue(new Error("offline")),
     });
@@ -881,13 +881,13 @@ describe("app store (Zustand)", () => {
     await store.getState().confirmArchiveDiscardTicket("review");
     expect(ds.runVerb).not.toHaveBeenCalledWith("archive", "desktop-shell-and-browser");
     expect(toastError).toHaveBeenCalledWith(
-      expect.stringContaining("放棄審查失敗"),
+      expect.stringContaining("放弃审查失败"),
       expect.anything(),
     );
   });
 
-  it("後端不支援三選項處置時出聲，不靜默吞掉", async () => {
-    // remote 等未實作的後端：對話框關掉卻什麼都沒發生，使用者無從得知。
+  it("后端不支持三选项处置时出声，不静默吞掉", async () => {
+    // remote 等未实作的后端：对话框关掉却什幺都没发生，用户无从得知。
     for (const action of ["confirmArchiveDiscardTicket", "confirmArchiveCarryTicket"] as const) {
       toastError.mockClear();
       const store = storeWith(fakeDataSource());
@@ -898,8 +898,8 @@ describe("app store (Zustand)", () => {
     }
   });
 
-  it("不支援處置的提示不含工程方法名", async () => {
-    // openspec/LANGUAGE.md：工程詞不出現在使用者可見文案。
+  it("不支持处置的提示不含工程方法名", async () => {
+    // openspec/LANGUAGE.md：工程词不出现在用户可见文案。
     for (const [action, method] of [
       ["confirmArchiveDiscardTicket", "discardReview"],
       ["confirmArchiveCarryTicket", "archiveCarry"],
@@ -913,8 +913,8 @@ describe("app store (Zustand)", () => {
     }
   });
 
-  it("「放棄審查」後封存失敗的提示點名審查已放棄，而非單純封存失敗", async () => {
-    // 工單在 discard 已刪；封存此後被拒時，使用者必須知道審查紀錄已不在。
+  it("「放弃审查」后封存失败的提示点名审查已放弃，而非单纯封存失败", async () => {
+    // 工单在 discard 已删；封存此后被拒时，用户必须知道审查纪录已不在。
     const ds = fakeDataSource({
       discardReview: vi.fn().mockResolvedValue(undefined),
       runVerb: vi.fn().mockRejectedValue(new Error("tasks incomplete")),
@@ -923,14 +923,14 @@ describe("app store (Zustand)", () => {
     store.getState().requestArchive("desktop-shell-and-browser");
     await store.getState().confirmArchiveDiscardTicket("review");
     expect(toastError).toHaveBeenCalledWith(
-      expect.stringContaining("審查已放棄"),
+      expect.stringContaining("审查已放弃"),
       expect.anything(),
     );
   });
 
-  it("處置按鈕連點只發一次處置，不重複封存也不誤報失敗", async () => {
-    // 對話框在 await 期間保持開啟且按鈕未鎖——連點的第二擊必須被忽略，否則
-    // 第二次 discard 對已刪的工單失敗，錯誤提示配上「其實已封存」的矛盾。
+  it("处置按钮连点只发一次处置，不重复封存也不误报失败", async () => {
+    // 对话框在 await 期间保持打开且按钮未锁——连点的第二击必须被忽略，否则
+    // 第二次 discard 对已删的工单失败，错误提示配上「其实已封存」的矛盾。
     const discardReview = vi.fn().mockResolvedValue(undefined);
     const ds = fakeDataSource({ discardReview });
     const store = storeWith(ds);
@@ -947,9 +947,9 @@ describe("app store (Zustand)", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("先放棄審查、驗證照樣帶走：封存失敗仍點名審查紀錄已不在", async () => {
-    // 混合處置：review.md 已刪且不可回復——最終封存無論由哪站收尾，失敗提示
-    // 都不得退化成單純「封存失敗」。
+  it("先放弃审查、验证照样带走：封存失败仍点名审查纪录已不在", async () => {
+    // 混合处置：review.md 已删且不可回复——最终封存无论由哪站收尾，失败提示
+    // 都不得退化成单纯「封存失败」。
     const ds = fakeDataSource({
       discardReview: vi.fn().mockResolvedValue(undefined),
       archiveCarry: vi.fn().mockRejectedValue(new Error("refused")),
@@ -961,12 +961,12 @@ describe("app store (Zustand)", () => {
     await store.getState().confirmArchiveDiscardTicket("review");
     await store.getState().confirmArchiveCarryTicket("verify");
     expect(toastError).toHaveBeenCalledWith(
-      expect.stringContaining("審查已放棄"),
+      expect.stringContaining("审查已放弃"),
       expect.anything(),
     );
   });
 
-  it("兩站都放棄後封存失敗：提示點名兩站紀錄都已不在", async () => {
+  it("两站都放弃后封存失败：提示点名两站纪录都已不在", async () => {
     const ds = fakeDataSource({
       discardReview: vi.fn().mockResolvedValue(undefined),
       discardVerify: vi.fn().mockResolvedValue(undefined),
@@ -979,13 +979,13 @@ describe("app store (Zustand)", () => {
     await store.getState().confirmArchiveDiscardTicket("review");
     await store.getState().confirmArchiveDiscardTicket("verify");
     expect(toastError).toHaveBeenCalledWith(
-      expect.stringContaining("審查與驗證已放棄"),
+      expect.stringContaining("审查与验证已放弃"),
       expect.anything(),
     );
   });
 
-  it("處置途中工作區分頁已關閉：出聲而非靜默結束", async () => {
-    // settleStation 的 dataSource 早退不得靜默——其他處置路徑此情境都會出聲。
+  it("处置途中工作区分页已关闭：出声而非静默结束", async () => {
+    // settleStation 的 dataSource 早退不得静默——其他处置路径此情境都会出声。
     const store = storeWith(fakeDataSource());
     store.getState().requestArchive("desktop-shell-and-browser");
     store.setState({ sessions: {}, activeKey: null });
@@ -994,8 +994,8 @@ describe("app store (Zustand)", () => {
     expect(toastError).toHaveBeenCalled();
   });
 
-  it("「照樣帶走」封存成功會關閉抽屜，失敗則保留 change 上下文", async () => {
-    // 三選項的第三條與既有 archive 同為封存終局——抽屜不得停在已封存的 change。
+  it("「照样带走」封存成功会关闭抽屉，失败则保留 change 上下文", async () => {
+    // 三选项的第三条与既有 archive 同为封存终局——抽屉不得停在已封存的 change。
     const archiveCarry = vi.fn().mockResolvedValue(undefined);
     const successStore = storeWith(fakeDataSource({ archiveCarry }));
     await successStore.getState().refresh();
@@ -1017,9 +1017,9 @@ describe("app store (Zustand)", () => {
     expect(failureStore.getState().detailChange?.name).toBe("desktop-shell-and-browser");
   });
 
-  it("雙工單並存時兩站分別處置後才封存（旗標一次帶齊）", async () => {
-    // spec desktop-app Scenario「雙工單並存的封存」：處置第一站不封存，兩站
-    // 都處置完才真的封存，且兩個帶走旗標一起上路。
+  it("双工单并存时两站分别处置后才封存（旗标一次带齐）", async () => {
+    // spec desktop-app Scenario「双工单并存的封存」：处置第一站不封存，两站
+    // 都处置完才真的封存，且两个带走旗标一起上路。
     const archiveCarry = vi.fn().mockResolvedValue(undefined);
     const ds = fakeDataSource({
       archiveCarry,
@@ -1054,7 +1054,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().pendingArchive).toBeNull();
   });
 
-  it("兩站都選「放棄」時不帶旗標，走一般封存動詞", async () => {
+  it("两站都选「放弃」时不带旗标，走一般封存动词", async () => {
     const discardReview = vi.fn().mockResolvedValue(undefined);
     const discardVerify = vi.fn().mockResolvedValue(undefined);
     const ds = fakeDataSource({
@@ -1082,8 +1082,8 @@ describe("app store (Zustand)", () => {
     expect(ds.runVerb).toHaveBeenCalledWith("archive", "desktop-shell-and-browser");
   });
 
-  it("放棄工單途中開啟抽屜：已送出的處置照常走完封存，不遺失前一站的處置", async () => {
-    // 規格「detail 抽屜互斥」收掉的是未送出的確認；工單已刪、不可回復，封存不得默默不做。
+  it("放弃工单途中打开抽屉：已送出的处置照常走完封存，不遗失前一站的处置", async () => {
+    // 规格「detail 抽屉互斥」收掉的是未送出的确认；工单已删、不可回复，封存不得默默不做。
     const verifyDiscard = deferred<void>();
     const ds = fakeDataSource({
       discardReview: vi.fn().mockResolvedValue(undefined),
@@ -1103,7 +1103,7 @@ describe("app store (Zustand)", () => {
     expect(ds.runVerb).toHaveBeenCalledWith("archive", "desktop-shell-and-browser");
   });
 
-  it("放棄工單途中封存目標換成別的 change：不改寫新目標的守門狀態", async () => {
+  it("放弃工单途中封存目标换成别的 change：不改写新目标的守门状态", async () => {
     const reviewDiscard = deferred<void>();
     const ds = fakeDataSource({ discardReview: vi.fn().mockReturnValue(reviewDiscard.promise) });
     const store = storeWith(ds);
@@ -1122,7 +1122,7 @@ describe("app store (Zustand)", () => {
     });
   });
 
-  it("openTicketStation 的順序固定：審查站在前、驗證站在後", () => {
+  it("openTicketStation 的顺序固定：审查站在前、验证站在后", () => {
     const both = [
       {
         name: "c",
@@ -1141,7 +1141,7 @@ describe("app store (Zustand)", () => {
   });
 
   it("reorderCard passes neighbor ids through and refreshes on success", async () => {
-    // design D5：store 動作把 kind/id/prevId/nextId 原樣交給 data source，成功後整批 refresh。
+    // design D5：store 动作把 kind/id/prevId/nextId 原样交给 data source，成功后整批 refresh。
     const ds = fakeDataSource();
     const store = storeWith(ds);
     await store.getState().reorderCard("discussion", "slug-a", "prev-s", null);
@@ -1150,7 +1150,7 @@ describe("app store (Zustand)", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("remote reorder 在 server 寫回完成前先更新可見卡片順序", async () => {
+  it("remote reorder 在 server 写回完成前先更新可见卡片顺序", async () => {
     const writing = deferred<void>();
     const listed: ChangeItem[] = [
       { name: "alpha", status: "proposed", totalTasks: 0, completedTasks: 0 },
@@ -1172,7 +1172,7 @@ describe("app store (Zustand)", () => {
     await saving;
   });
 
-  it("remote reorder 寫回失敗且 refresh 失敗時仍立即還原最後成功順序", async () => {
+  it("remote reorder 写回失败且 refresh 失败时仍立即还原最后成功顺序", async () => {
     const writing = deferred<void>();
     const listed: ChangeItem[] = [
       { name: "alpha", status: "proposed", totalTasks: 0, completedTasks: 0 },
@@ -1194,10 +1194,10 @@ describe("app store (Zustand)", () => {
     expect(toastError).toHaveBeenCalledTimes(1);
   });
 
-  // 回退 fallback 快照必須是完整的 WorkspaceSnapshot：缺 loadFailed 鍵的快照
-  // 進了 Map，之後的翻頁 spread 不會覆蓋該欄位，前一個 workspace 的失敗記號
-  // 就漏進來——沒失敗過的 workspace 顯示失敗提示。
-  it("remote reorder 寫回失敗的回退快照保留 loadFailed 欄位，不受他 workspace 汙染", async () => {
+  // 回退 fallback 快照必须是完整的 WorkspaceSnapshot：缺 loadFailed 键的快照
+  // 进了 Map，之后的翻页 spread 不会覆盖该字段，前一个 workspace 的失败记号
+  // 就漏进来——没失败过的 workspace 显示失败提示。
+  it("remote reorder 写回失败的回退快照保留 loadFailed 字段，不受他 workspace 污染", async () => {
     const gate = deferred<ChangeListPayload>();
     const dsA = fakeDataSource({
       listChanges: vi.fn(() => gate.promise),
@@ -1210,15 +1210,15 @@ describe("app store (Zustand)", () => {
     const b = remoteSession(dsB, "repo-b");
     const store = storeWithRemoteSessions(a, b);
 
-    // A 的首批載入在途（尚無快照）時拖排失敗 → 回退走 fallback 字面量。
+    // A 的首批加载在途（尚无快照）时拖排失败 → 回退走 fallback 字面量。
     void store.getState().refresh();
     const saving = store.getState().reorderCard("change", "alpha", null, null);
 
-    // 翻到 B 且 B 載入失敗 → 現任 loadFailed 為 true。
+    // 翻到 B 且 B 加载失败 → 现任 loadFailed 为 true。
     await store.getState().activateTab(b.id);
     expect(store.getState().loadFailed).toBe(true);
 
-    // 切回 A：A 從未失敗過，翻頁當下不得顯示失敗記號。
+    // 切回 A：A 从未失败过，翻页当下不得显示失败记号。
     const back = store.getState().activateTab(a.id);
     expect(store.getState().loadFailed).toBe(false);
 
@@ -1226,7 +1226,7 @@ describe("app store (Zustand)", () => {
     await Promise.all([saving, back]);
   });
 
-  it("local reorder 維持既有流程，不在資料源寫回前改動可見順序", async () => {
+  it("local reorder 维持既有流程，不在数据源写回前改动可见顺序", async () => {
     const writing = deferred<void>();
     const listed: ChangeItem[] = [
       { name: "alpha", status: "proposed", totalTasks: 0, completedTasks: 0 },
@@ -1246,7 +1246,7 @@ describe("app store (Zustand)", () => {
     await saving;
   });
 
-  it("detailSpec 開閉 action 比照 detailChange（spec-archive-drawer design D2）", async () => {
+  it("detailSpec 开闭 action 比照 detailChange（spec-archive-drawer design D2）", async () => {
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     expect(store.getState().detailSpec).toBeNull();
@@ -1256,7 +1256,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailSpec).toBeNull();
   });
 
-  it("detailArchived 開閉 action：change 與 discussion 兩型 discriminated target", () => {
+  it("detailArchived 开闭 action：change 与 discussion 两型 discriminated target", () => {
     const store = storeWith(fakeDataSource());
     expect(store.getState().detailArchived).toBeNull();
     store.getState().openArchived({ kind: "change", datedName: "2026-07-04-x" });
@@ -1267,8 +1267,8 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailArchived).toBeNull();
   });
 
-  it("detail 抽屜互斥：任一 open* 動作清除其他三個 detail 欄位（後開者取代先開者）", async () => {
-    // 規格「detail 抽屜互斥」Example 表：討論→變更詳情→規格→封存→討論。
+  it("detail 抽屉互斥：任一 open* 动作清除其他三个 detail 字段（后开者取代先开者）", async () => {
+    // 规格「detail 抽屉互斥」Example 表：讨论→变更详情→规格→封存→讨论。
     const ds = withTopicA();
     const store = storeWith(ds);
     await store.getState().refresh();
@@ -1292,7 +1292,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailArchived).toBeNull();
   });
 
-  it("切換主區頁面先關閉變更／討論詳情頁（連同分析結果）", async () => {
+  it("切换主区页面先关闭变更／讨论详情页（连同分析结果）", async () => {
     const store = storeWith(withTopicA());
     await store.getState().refresh();
     store.getState().openDetail("desktop-shell-and-browser");
@@ -1308,8 +1308,8 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailDiscussion).toBeNull();
   });
 
-  it("重新登入（openConnectionReauth）切到設定頁時同樣先關閉詳情頁、聚焦該連線", async () => {
-    // 連線失效橫幅在主區外，詳情頁開著時仍點得到——不關頁設定頁就被詳情頁蓋住。
+  it("重新登录（openConnectionReauth）切到设置页时同样先关闭详情页、聚焦该连接", async () => {
+    // 连接失效横幅在主区外，详情页开着时仍点得到——不关页设置页就被详情页盖住。
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     store.getState().openSpec("desktop-app");
@@ -1319,7 +1319,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().reauthConnectionId).toBe("c1");
   });
 
-  it("詳情頁互斥：取代變更詳情頁時 detailVerb 一併清空（比照 closeDetailPage）", async () => {
+  it("详情页互斥：取代变更详情页时 detailVerb 一并清空（比照 closeDetailPage）", async () => {
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     store.getState().openDetail("desktop-shell-and-browser");
@@ -1330,12 +1330,12 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailVerb).toBeNull();
   });
 
-  it("closeDetailPage 一次清空四個詳情欄位與 detailVerb（Esc、麵包屑共用）", async () => {
+  it("closeDetailPage 一次清空四个详情字段与 detailVerb（Esc、面包屑共用）", async () => {
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     store.getState().openDetail("desktop-shell-and-browser");
     await store.getState().runVerb("analyze", "desktop-shell-and-browser");
-    // 四個欄位互斥，平常只有一個非 null；直接灌入全部非 null 以驗一次清空。
+    // 四个字段互斥，平常只有一个非 null；直接灌入全部非 null 以验一次清空。
     store.setState({
       detailDiscussion: store.getState().discussions.active[0] ?? null,
       detailSpec: "desktop-app",
@@ -1352,11 +1352,11 @@ describe("app store (Zustand)", () => {
       null,
       null,
     ]);
-    // 宿主頁不變：關頁只拿掉頁層。
+    // 宿主页不变：关页只拿掉页层。
     expect(st.boardView).toBe("board");
   });
 
-  it("openDetail 於已封存頁把底層頁面切回看板（規格「變更與討論詳情頁的宿主為看板」）", async () => {
+  it("openDetail 于已封存页把底层页面切回看板（规格「变更与讨论详情页的宿主为看板」）", async () => {
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
     store.getState().setBoardView("archived");
@@ -1367,7 +1367,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailChange?.name).toBe("desktop-shell-and-browser");
   });
 
-  it("openDiscussion 於規格頁把底層頁面切回看板", async () => {
+  it("openDiscussion 于规格页把底层页面切回看板", async () => {
     const ds = withTopicA();
     const store = storeWith(ds);
     await store.getState().refresh();
@@ -1379,7 +1379,7 @@ describe("app store (Zustand)", () => {
     expect(store.getState().detailDiscussion?.slug).toBe("topic-a");
   });
 
-  it("openSpec 與 openArchived 不切頁——宿主頁面即規格頁與已封存頁", async () => {
+  it("openSpec 与 openArchived 不切页——宿主页面即规格页与已封存页", async () => {
     const store = storeWith(fakeDataSource());
     await store.getState().refresh();
 
@@ -1392,8 +1392,8 @@ describe("app store (Zustand)", () => {
     expect(store.getState().boardView).toBe("archived");
   });
 
-  // 規格「detail 抽屜互斥」：變更詳情與討論抽屜的開啟動作同時收掉可取消浮層，
-  // 語意等同按「取消」——浮層欄位歸零，封存守門的站別處置一併還原。
+  // 规格「detail 抽屉互斥」：变更详情与讨论抽屉的打开动作同时收掉可取消浮层，
+  // 语意等同按「取消」——浮层字段归零，封存守门的站别处置一并还原。
   const OPENERS: [string, (s: AppState) => void, (s: AppState) => boolean][] = [
     [
       "openDetail",
@@ -1401,30 +1401,30 @@ describe("app store (Zustand)", () => {
       (s) => s.detailChange?.name === "desktop-shell-and-browser",
     ],
     ["openDiscussion", (s) => s.openDiscussion("topic-a"), (s) => s.detailDiscussion?.slug === "topic-a"],
-    // 路線圖網址（desktop-roadmap）與開詳情的網址一樣收掉可取消浮層。
+    // 路线图网址（desktop-roadmap）与开详情的网址一样收掉可取消浮层。
     ["openRoadmap", (s) => s.openRoadmap(), (s) => s.boardMode === "roadmap"],
-    // 專案網址（desktop-app）同樣收掉可取消浮層，並固定回到卡片檢視。
+    // 项目网址（desktop-app）同样收掉可取消浮层，并固定回到卡片查看。
     ["openBoard", (s) => s.openBoard(), (s) => s.boardMode === "cards" && s.detailChange === null],
   ];
-  describe.each(OPENERS)("open 動作清除可取消浮層：%s", (_name, open, drawerOpen) => {
+  describe.each(OPENERS)("open 动作清除可取消浮层：%s", (_name, open, drawerOpen) => {
     it.each<[string, Partial<AppState>]>([
-      ["新增專案", { workspaceChooser: {} }],
-      ["初始化確認", { pendingInit: "/tmp/new-project" }],
-      ["啟用確認", { pendingAdopt: "/tmp/old-project" }],
-      ["封存確認", { pendingArchive: "desktop-shell-and-browser" }],
+      ["添加项目", { workspaceChooser: {} }],
+      ["初始化确认", { pendingInit: "/tmp/new-project" }],
+      ["激活确认", { pendingAdopt: "/tmp/old-project" }],
+      ["封存确认", { pendingArchive: "desktop-shell-and-browser" }],
       [
-        "工單三選項框（已處置一站並選帶走）",
+        "工单三选项框（已处置一站并选带走）",
         {
           pendingArchive: "desktop-shell-and-browser",
           pendingArchiveSettled: { review: true, verify: false },
           pendingArchiveCarry: { review: true, verify: false },
         },
       ],
-      ["封存討論確認", { pendingArchiveDiscussion: "topic-a" }],
-      ["刪除確認", { pendingDelete: "desktop-shell-and-browser" }],
-      ["退回提案中確認", { pendingRevert: "desktop-shell-and-browser" }],
+      ["封存讨论确认", { pendingArchiveDiscussion: "topic-a" }],
+      ["删除确认", { pendingDelete: "desktop-shell-and-browser" }],
+      ["退回提案中确认", { pendingRevert: "desktop-shell-and-browser" }],
       [
-        "退回被擋說明",
+        "退回被挡说明",
         { revertBlocked: { change: "desktop-shell-and-browser", checkedTasks: 2, touchedFiles: ["a.rs"] } },
       ],
     ])("%s", async (_overlay, overlay) => {
@@ -1453,18 +1453,18 @@ describe("app store (Zustand)", () => {
         pendingRevert: null,
         revertBlocked: null,
       });
-      // 收掉等同按取消：沒有任何未確認的動作被送出（無封存、無刪除、工單維持未結）。
+      // 收掉等同按取消：没有任何未确认的动作被送出（无封存、无删除、工单维持未结）。
       for (const write of [ds.runVerb, ds.deleteChange, ds.archiveDiscussion, ds.discardReview, ds.discardVerify]) {
         expect(write).not.toHaveBeenCalled();
       }
     });
   });
 
-  // 遷移與遠端衝突不可取消：開啟動作靜默 no-op，連 set 都不呼叫（state 參考不變）。
-  describe.each(OPENERS)("不可取消浮層開啟中 open 動作不改狀態：%s", (_name, open) => {
+  // 迁移与远程冲突不可取消：打开动作静默 no-op，连 set 都不调用（state 参考不变）。
+  describe.each(OPENERS)("不可取消浮层打开中 open 动作不改状态：%s", (_name, open) => {
     it.each<[string, Partial<AppState>]>([
-      ["遷移對話框", { migrationRoot: "/tmp/migrating" }],
-      ["遠端衝突對話框", { pendingRemoteConflict: { path: "/tmp/x", url: "https://example.test", repo: null } }],
+      ["迁移对话框", { migrationRoot: "/tmp/migrating" }],
+      ["远程冲突对话框", { pendingRemoteConflict: { path: "/tmp/x", url: "https://example.test", repo: null } }],
     ])("%s", async (_overlay, overlay) => {
       const store = storeWith(withTopicA());
       await store.getState().refresh();
@@ -1480,40 +1480,40 @@ describe("app store (Zustand)", () => {
   });
 });
 
-// ---- 系統匣樣式由平台決定（tray-panel-windows：規格「系統匣圖示與原生選單」平台分流） ----
+// ---- 系统匣样式由平台决定（tray-panel-windows：规格「系统匣图标与原生菜单」平台分流） ----
 
-describe("系統匣樣式由平台決定", () => {
+describe("系统匣样式由平台决定", () => {
   const setUA = (value: string) =>
     Object.defineProperty(window.navigator, "userAgent", { value, configurable: true });
   const MAC_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)";
   const WIN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)";
   const LINUX_UA = "Mozilla/5.0 (X11; Linux x86_64)";
 
-  it("macOS 與 Windows 初值為 panel、Linux 為 native-menu，且不讀 localStorage 舊偏好", () => {
-    localStorage.setItem("speclink.trayStyle", "native-menu"); // 舊偏好殘留：不再被讀取
+  it("macOS 与 Windows 初值为 panel、Linux 为 native-menu，且不读 localStorage 旧偏好", () => {
+    localStorage.setItem("specseal.trayStyle", "native-menu"); // 旧偏好残留：不再被读取
     setUA(MAC_UA);
     expect(storeWith(fakeDataSource()).getState().trayStyle).toBe("panel");
     setUA(WIN_UA);
     expect(storeWith(fakeDataSource()).getState().trayStyle).toBe("panel");
     setUA(LINUX_UA);
     expect(storeWith(fakeDataSource()).getState().trayStyle).toBe("native-menu");
-    localStorage.removeItem("speclink.trayStyle");
+    localStorage.removeItem("specseal.trayStyle");
   });
 
-  it("panelFallback 退回 native-menu、浮出單行錯誤，且不寫 localStorage（規格「面板樣式」失敗退回）", () => {
+  it("panelFallback 退回 native-menu、浮出单行错误，且不写 localStorage（规格「面板样式」失败退回）", () => {
     setUA(MAC_UA);
     const store = storeWith(fakeDataSource());
     store.getState().panelFallback("tray panel window creation failed: boom");
     expect(store.getState().trayStyle).toBe("native-menu");
     expect(store.getState().trayPanelError).toBe("tray panel window creation failed: boom");
-    expect(localStorage.getItem("speclink.trayStyle")).toBeNull();
+    expect(localStorage.getItem("specseal.trayStyle")).toBeNull();
   });
 });
 
-// --- 登入階段（client-browser-login D7、D9）：等待的迴圈在 Rust，store 只把送來
-// 的階段放進 ConnectionPhase、依終態收場；輪詢、間隔與逾時都不在前端。 ---
+// --- 登录阶段（client-browser-login D7、D9）：等待的循环在 Rust，store 只把送来
+// 的阶段放进 ConnectionPhase、依终态收场；轮询、间隔与逾时都不在前端。 ---
 
-describe("登入階段", () => {
+describe("登录阶段", () => {
   const ORIGIN = "http://localhost:8080";
   const APPROVAL: LoginPhase = {
     kind: "awaitingApproval",
@@ -1527,7 +1527,7 @@ describe("登入階段", () => {
     expiresAt: Date.now() + 300_000,
   };
 
-  /** 可控的登入：測試決定何時送階段、何時結束。 */
+  /** 可控的登录：测试决定何时送阶段、何时结束。 */
   function controlledLogin() {
     let onPhase: (phase: LoginPhase) => void = () => {};
     let resolve: (result: LoginResult) => void = () => {};
@@ -1568,7 +1568,7 @@ describe("登入階段", () => {
     });
   }
 
-  it("收到的階段原樣成為連線的互動狀態", async () => {
+  it("收到的阶段原样成为连接的交互状态", async () => {
     const login = controlledLogin();
     const store = storeWithConnections(fakeConnections({ loginStart: login.loginStart }));
     const done = store.getState().loginConnection(ORIGIN);
@@ -1582,7 +1582,7 @@ describe("登入階段", () => {
     await done;
   });
 
-  it("登入成功即重整清單並回到 idle", async () => {
+  it("登录成功即重整清单并回到 idle", async () => {
     const login = controlledLogin();
     const adapter = fakeConnections({ loginStart: login.loginStart });
     const store = storeWithConnections(adapter);
@@ -1595,7 +1595,7 @@ describe("登入階段", () => {
     expect(adapter.list).toHaveBeenCalled();
   });
 
-  it("需要存取金鑰即就地收 PAT", async () => {
+  it("需要访问密钥即就地收 PAT", async () => {
     const store = storeWithConnections(
       fakeConnections({ loginStart: vi.fn().mockResolvedValue({ status: "patRequired" }) }),
     );
@@ -1604,12 +1604,12 @@ describe("登入階段", () => {
     expect(store.getState().connectionPhases[ORIGIN]).toEqual({ kind: "patInput", error: null });
   });
 
-  it("拒絕與逾時各自浮為可讀狀態，瀏覽器登入與裝置核准的說法不同", async () => {
+  it("拒绝与逾时各自浮为可读状态，浏览器登录与设备核准的说法不同", async () => {
     for (const [phase, method, status, message] of [
-      [APPROVAL, "device", "denied", "已在瀏覽器拒絕授權"],
-      [APPROVAL, "device", "expired", "授權逾時"],
-      [BROWSER, "browser", "denied", "已在登入服務拒絕登入"],
-      [BROWSER, "browser", "expired", "瀏覽器登入逾時"],
+      [APPROVAL, "device", "denied", "已在浏览器拒绝授权"],
+      [APPROVAL, "device", "expired", "授权逾时"],
+      [BROWSER, "browser", "denied", "已在登录服务拒绝登录"],
+      [BROWSER, "browser", "expired", "浏览器登录逾时"],
     ] as const) {
       const login = controlledLogin();
       const store = storeWithConnections(fakeConnections({ loginStart: login.loginStart }));
@@ -1624,7 +1624,7 @@ describe("登入階段", () => {
     }
   });
 
-  it("連線錯誤浮為錯誤狀態，不進 PAT 輸入", async () => {
+  it("连接错误浮为错误状态，不进 PAT 输入", async () => {
     const store = storeWithConnections(
       fakeConnections({ loginStart: vi.fn().mockRejectedValue("server unavailable — check the connection url") }),
     );
@@ -1636,7 +1636,7 @@ describe("登入階段", () => {
     });
   });
 
-  it("取消即呼叫取消並回未登入；之後送來的階段與結果都作廢", async () => {
+  it("取消即调用取消并回未登录；之后送来的阶段与结果都作废", async () => {
     const login = controlledLogin();
     const adapter = fakeConnections({ loginStart: login.loginStart });
     const store = storeWithConnections(adapter);
@@ -1653,7 +1653,7 @@ describe("登入階段", () => {
     expect(store.getState().connectionPhases[ORIGIN]).toEqual({ kind: "idle" });
   });
 
-  it("重按登入＝重來一次：前一輪的結果不得蓋掉新一輪", async () => {
+  it("重按登录＝重来一次：前一轮的结果不得盖掉新一轮", async () => {
     const first = controlledLogin();
     const second = controlledLogin();
     const loginStart = vi.fn().mockImplementationOnce(first.loginStart).mockImplementationOnce(second.loginStart);
@@ -1670,7 +1670,7 @@ describe("登入階段", () => {
   });
 });
 
-// --- 指令檔過期提示（desktop-instruction-staleness-prompt；規格「指令檔過期提示」） ---
+// --- 指令档过期提示（desktop-instruction-staleness-prompt；规格「指令档过期提示」） ---
 
 const MISSING_PROBE = {
   ...STALE_PROBE,
@@ -1678,7 +1678,7 @@ const MISSING_PROBE = {
   tools: [{ tool: "claude", workspaceVersion: null, stale: false, newer: false, missing: true }],
 };
 
-/** 專案檔案領先引擎：app 本體是舊版，任何改寫動作都不該被提供。 */
+/** 项目文档领先引擎：app 本体是旧版，任何改写动作都不该被提供。 */
 const NEWER_PROBE = {
   ...STALE_PROBE,
   status: "newer" as const,
@@ -1700,7 +1700,7 @@ function fakeInstructionWorkspace(over: Partial<WorkspaceAdapter> = {}) {
   } as unknown as WorkspaceAdapter;
 }
 
-/** 以單一 local session 預置 store 並注入 workspace 探測面。 */
+/** 以单一 local session 预置 store 并注入 workspace 探测面。 */
 function storeWithAssetProbe(ws: WorkspaceAdapter, ds = fakeDataSource()) {
   const store = trackedAppStore({
     createSession: (root, name) => fakeSession(ds, root, name),
@@ -1715,17 +1715,17 @@ function storeWithAssetProbe(ws: WorkspaceAdapter, ds = fakeDataSource()) {
   return store;
 }
 
-describe("監看重掛（rearmWatch）", () => {
-  // worktree 增減會改變監看拓撲（副本 change 目錄、.git/worktrees 登記簿）；
-  // workspace-changed 後由前端順手重掛，Rust 端目標集合不變時沿用原監看。
-  it("活躍 local session → 對其 root 重掛監看", async () => {
+describe("监看重挂（rearmWatch）", () => {
+  // worktree 增减会改变监看拓扑（副本 change 目录、.git/worktrees 登记簿）；
+  // workspace-changed 后由前端顺手重挂，Rust 端目标集合不变时沿用原监看。
+  it("活跃 local session → 对其 root 重挂监看", async () => {
     const ws = fakeInstructionWorkspace();
     const store = storeWithAssetProbe(ws);
     await store.getState().rearmWatch();
     expect(ws.watchWorkspace).toHaveBeenCalledWith("A");
   });
 
-  it("無活躍 session → 不動", async () => {
+  it("无活跃 session → 不动", async () => {
     const ws = fakeInstructionWorkspace();
     const store = trackedAppStore({
       createSession: (root, name) => fakeSession(fakeDataSource(), root, name),
@@ -1735,7 +1735,7 @@ describe("監看重掛（rearmWatch）", () => {
     expect(ws.watchWorkspace).not.toHaveBeenCalled();
   });
 
-  it("活躍 session 非 local → 不動", async () => {
+  it("活跃 session 非 local → 不动", async () => {
     const ws = fakeInstructionWorkspace();
     const store = storeWithAssetProbe(ws);
     const remote = {
@@ -1749,12 +1749,12 @@ describe("監看重掛（rearmWatch）", () => {
   });
 });
 
-describe("指令檔過期提示的顯示裁決", () => {
+describe("指令档过期提示的显示裁决", () => {
   beforeEach(() => {
-    localStorage.removeItem("speclink.assetSkips");
+    localStorage.removeItem("specseal.assetSkips");
   });
 
-  it("過期且未略過：以更新語意提示並帶差異檔數", async () => {
+  it("过期且未略过：以更新语意提示并带差异档数", async () => {
     const store = storeWithAssetProbe(fakeInstructionWorkspace());
     await store.getState().refreshAssetPrompt();
     expect(selectAssetPrompt(store.getState())).toEqual({
@@ -1766,17 +1766,17 @@ describe("指令檔過期提示的顯示裁決", () => {
     });
   });
 
-  it("缺失且未略過：以安裝語意提示", async () => {
+  it("缺失且未略过：以安装语意提示", async () => {
     const store = storeWithAssetProbe(
       fakeInstructionWorkspace({ probeAssets: vi.fn().mockResolvedValue(MISSING_PROBE) }),
     );
     await store.getState().refreshAssetPrompt();
     expect(selectAssetPrompt(store.getState())?.kind).toBe("missing");
-    // 從未安裝：tools 全無標記版號，確認框第一列顯示「—」的依據。
+    // 从未安装：tools 全无标记版号，确认框第一列显示「—」的依据。
     expect(selectAssetPrompt(store.getState())?.projectVersion).toBeNull();
   });
 
-  it("保留現狀後同版不再提示，且不寫入專案內任何檔案", async () => {
+  it("保留现状后同版不再提示，且不写入项目内任何文档", async () => {
     const ws = fakeInstructionWorkspace();
     const store = storeWithAssetProbe(ws);
     await store.getState().refreshAssetPrompt();
@@ -1788,7 +1788,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(ws.updateAssets).not.toHaveBeenCalled();
   });
 
-  it("領先引擎且未略過：以較新語意提示並帶差異檔數", async () => {
+  it("领先引擎且未略过：以较新语意提示并带差异档数", async () => {
     const store = storeWithAssetProbe(
       fakeInstructionWorkspace({ probeAssets: vi.fn().mockResolvedValue(NEWER_PROBE) }),
     );
@@ -1802,7 +1802,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     });
   });
 
-  it("較新態的保留現狀與過期共用同一略過記憶", async () => {
+  it("较新态的保留现状与过期共用同一略过记忆", async () => {
     const store = storeWithAssetProbe(
       fakeInstructionWorkspace({ probeAssets: vi.fn().mockResolvedValue(NEWER_PROBE) }),
     );
@@ -1812,7 +1812,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
   });
 
-  it("缺失態的保留現狀與過期共用同一略過記憶", async () => {
+  it("缺失态的保留现状与过期共用同一略过记忆", async () => {
     const store = storeWithAssetProbe(
       fakeInstructionWorkspace({ probeAssets: vi.fn().mockResolvedValue(MISSING_PROBE) }),
     );
@@ -1822,7 +1822,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
   });
 
-  it("已略過舊版、產物層版號變動後重新提示", async () => {
+  it("已略过旧版、产物层版号变动后重新提示", async () => {
     const probe = vi.fn().mockResolvedValue(STALE_PROBE);
     const store = storeWithAssetProbe(fakeInstructionWorkspace({ probeAssets: probe }));
     await store.getState().refreshAssetPrompt();
@@ -1833,7 +1833,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())?.version).toBe("v1.4.0");
   });
 
-  it("無法判定：不提示且不記入略過（後續判過期仍提示）", async () => {
+  it("无法判定：不提示且不记入略过（后续判过期仍提示）", async () => {
     const probe = vi.fn().mockResolvedValue({
       status: "unknown",
       currentVersion: "v1.3.0",
@@ -1843,14 +1843,14 @@ describe("指令檔過期提示的顯示裁決", () => {
     const store = storeWithAssetProbe(fakeInstructionWorkspace({ probeAssets: probe }));
     await store.getState().refreshAssetPrompt();
     expect(selectAssetPrompt(store.getState())).toBeNull();
-    expect(localStorage.getItem("speclink.assetSkips")).toBeNull();
+    expect(localStorage.getItem("specseal.assetSkips")).toBeNull();
 
     probe.mockResolvedValue(STALE_PROBE);
     await store.getState().refreshAssetPrompt();
     expect(selectAssetPrompt(store.getState())?.kind).toBe("stale");
   });
 
-  it("現版：不提示", async () => {
+  it("现版：不提示", async () => {
     const store = storeWithAssetProbe(
       fakeInstructionWorkspace({
         probeAssets: vi.fn().mockResolvedValue({
@@ -1866,12 +1866,12 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
   });
 
-  it("沒有 checkout 的 remote 分頁不執行探測", async () => {
+  it("没有 checkout 的 remote 分页不运行探测", async () => {
     const ws = fakeInstructionWorkspace();
     const ds = fakeDataSource();
     const store = trackedAppStore({
       createSession: () => {
-        throw new Error("remote 分頁不建 local session");
+        throw new Error("remote 分页不建 local session");
       },
       workspace: ws,
     });
@@ -1887,7 +1887,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
   });
 
-  it("更新成功：整套再生後重查，提示消失", async () => {
+  it("更新成功：整套再生后重查，提示消失", async () => {
     const probe = vi.fn().mockResolvedValue(STALE_PROBE);
     const ws = fakeInstructionWorkspace({ probeAssets: probe });
     const store = storeWithAssetProbe(ws);
@@ -1907,7 +1907,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(store.getState().assetUpdateError).toBeNull();
   });
 
-  it("更新失敗：錯誤留在提示原位、提示保持可重試", async () => {
+  it("更新失败：错误留在提示原位、提示保持可重试", async () => {
     const ws = fakeInstructionWorkspace({
       updateAssets: vi.fn().mockRejectedValue("CLAUDE.md: permission denied"),
     });
@@ -1919,13 +1919,13 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).not.toBeNull();
   });
 
-  it("外部 speclink update 後（workspace-changed 重查）提示自然消失", async () => {
+  it("外部 specseal update 后（workspace-changed 重查）提示自然消失", async () => {
     const probe = vi.fn().mockResolvedValue(STALE_PROBE);
     const store = storeWithAssetProbe(fakeInstructionWorkspace({ probeAssets: probe }));
     await store.getState().refreshAssetPrompt();
     expect(selectAssetPrompt(store.getState())).not.toBeNull();
 
-    // 使用者於終端跑 speclink update：受管檔成為現版，重查即收合。
+    // 用户于终端跑 specseal update：受管档成为现版，重查即收合。
     probe.mockResolvedValue({
       status: "current",
       currentVersion: "v1.3.0",
@@ -1937,8 +1937,8 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
   });
 
-  // --- 多分頁記憶（desktop-notice-relocation design D1）：探測結果以 locator key 為鍵
-  // 保留，assetPrompt 是作用中分頁的派生值；背景分頁的值供圖示列琥珀點用。 ---
+  // --- 多分页记忆（desktop-notice-relocation design D1）：探测结果以 locator key 为键
+  // 保留，assetPrompt 是作用中分页的派生值；背景分页的值供图标列琥珀点用。 ---
 
   const CURRENT_PROBE = {
     status: "current" as const,
@@ -1948,7 +1948,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     migration: { state: "none" as const },
   };
 
-  /** 兩個本地分頁 A（作用中）與 B，共用同一個 workspace 探測面。 */
+  /** 两个本地分页 A（作用中）与 B，共用同一个 workspace 探测面。 */
   function storeWithTwoLocalTabs(ws: WorkspaceAdapter) {
     const ds = fakeDataSource();
     const store = trackedAppStore({
@@ -1968,7 +1968,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     return store;
   }
 
-  it("探測後以 locator key 記下結果；projectVersion 取 tools 第一個非 null 的標記版號", async () => {
+  it("探测后以 locator key 记下结果；projectVersion 取 tools 第一个非 null 的标记版号", async () => {
     const store = storeWithAssetProbe(fakeInstructionWorkspace());
     await store.getState().refreshAssetPrompt();
     expect(store.getState().assetPrompts["local:A"]).toEqual({
@@ -1981,7 +1981,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toEqual(store.getState().assetPrompts["local:A"]);
   });
 
-  it("切到另一分頁後原分頁的探測結果保留；作用中提示改為新分頁的值", async () => {
+  it("切到另一分页后原分页的探测结果保留；作用中提示改为新分页的值", async () => {
     const probe = vi
       .fn()
       .mockImplementation((root: string) => Promise.resolve(root === "A" ? STALE_PROBE : CURRENT_PROBE));
@@ -1996,7 +1996,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(store.getState().assetPrompts["local:A"]?.kind).toBe("stale");
   });
 
-  it("保留現狀只清作用中分頁的記憶，背景分頁的值不受影響", async () => {
+  it("保留现状只清作用中分页的记忆，背景分页的值不受影响", async () => {
     const store = storeWithTwoLocalTabs(fakeInstructionWorkspace());
     await store.getState().refreshAssetPrompt();
     store.setState({ activeKey: "local:B" });
@@ -2007,13 +2007,13 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
     expect(store.getState().assetPrompts["local:B"]).toBeNull();
     expect(store.getState().assetPrompts["local:A"]?.kind).toBe("stale");
-    // 略過記憶以專案路徑為鍵：只記 B，A 下次探測照樣提示。
-    expect(JSON.parse(localStorage.getItem("speclink.instructionSkips") ?? "{}")).toEqual({
+    // 略过记忆以项目路径为键：只记 B，A 下次探测照样提示。
+    expect(JSON.parse(localStorage.getItem("specseal.instructionSkips") ?? "{}")).toEqual({
       B: "v1.3.0",
     });
   });
 
-  it("套用途中切走分頁：完成後重探套用的那個分頁，它的提示收合、另一分頁的記憶不受影響", async () => {
+  it("套用途中切走分页：完成后重探套用的那个分页，它的提示收合、另一分页的记忆不受影响", async () => {
     const update = deferred<{ migrated: { movedFolder: boolean; renamed: number } }>();
     const probe = vi.fn().mockResolvedValue(STALE_PROBE);
     const ws = fakeInstructionWorkspace({ probeAssets: probe, updateAssets: vi.fn(() => update.promise) });
@@ -2036,7 +2036,7 @@ describe("指令檔過期提示的顯示裁決", () => {
     expect(selectAssetPrompt(store.getState())?.kind).toBe("stale");
   });
 
-  it("projectVersion 依狀態挑工具：較新取領先的工具、過期取落後的工具、缺失為 null", () => {
+  it("projectVersion 依状态挑工具：较新取领先的工具、过期取落后的工具、缺失为 null", () => {
     const tool = (name: string, version: string | null, flags: { stale?: boolean; newer?: boolean; missing?: boolean }) => ({
       tool: name,
       workspaceVersion: version,
@@ -2065,10 +2065,10 @@ describe("指令檔過期提示的顯示裁決", () => {
   });
 });
 
-// --- remote 專案的技能檔提示：基準是 Server 提供的技能（remote-skill-delivery D6） ---
+// --- remote 项目的技能档提示：基准是 Server 提供的技能（remote-skill-delivery D6） ---
 
-describe("remote 專案的技能檔提示", () => {
-  const SKIPS = "speclink.instructionSkips";
+describe("remote 项目的技能档提示", () => {
+  const SKIPS = "specseal.instructionSkips";
   const CURRENT = { ...REMOTE_STALE_PROBE, status: "current" as const, differingFiles: [] };
 
   beforeEach(() => {
@@ -2083,7 +2083,7 @@ describe("remote 專案的技能檔提示", () => {
     });
   }
 
-  /** 有 checkout 的 remote 分頁（remote:c1/demo/backend）為作用中的 store。 */
+  /** 有 checkout 的 remote 分页（remote:c1/demo/backend）为作用中的 store。 */
   function storeWithRemoteCheckout(ws: WorkspaceAdapter) {
     const locator = {
       kind: "remote" as const,
@@ -2095,7 +2095,7 @@ describe("remote 專案的技能檔提示", () => {
     const remote: WorkspaceSession = { ...remoteSession(fakeDataSource(), "backend"), locator };
     const store = trackedAppStore({
       createSession: () => {
-        throw new Error("remote 分頁不建 local session");
+        throw new Error("remote 分页不建 local session");
       },
       workspace: ws,
     });
@@ -2107,7 +2107,7 @@ describe("remote 專案的技能檔提示", () => {
     return store;
   }
 
-  it("有 checkout：向 Server 探測，和 Server 不同時提示", async () => {
+  it("有 checkout：向 Server 探测，和 Server 不同时提示", async () => {
     const ws = remoteWorkspace();
     const store = storeWithRemoteCheckout(ws);
     await store.getState().refreshAssetPrompt();
@@ -2123,7 +2123,7 @@ describe("remote 專案的技能檔提示", () => {
     });
   });
 
-  it("Server 沒有提供技能：沒有提示，也沒有略過被記下", async () => {
+  it("Server 没有提供技能：没有提示，也没有略过被记下", async () => {
     const store = storeWithRemoteCheckout(remoteWorkspace({ probeRemoteAssets: vi.fn().mockResolvedValue(null) }));
     await store.getState().refreshAssetPrompt();
     expect(selectAssetPrompt(store.getState())).toBeNull();
@@ -2131,7 +2131,7 @@ describe("remote 專案的技能檔提示", () => {
     expect(localStorage.getItem(SKIPS)).toBeNull();
   });
 
-  it("探測失敗（連不上）：沒有提示、沒有略過；連線恢復後下一次探測照常", async () => {
+  it("探测失败（连不上）：没有提示、没有略过；连接恢复后下一次探测照常", async () => {
     const probe = vi.fn().mockRejectedValue("server unreachable");
     const store = storeWithRemoteCheckout(remoteWorkspace({ probeRemoteAssets: probe }));
     await store.getState().refreshAssetPrompt();
@@ -2143,7 +2143,7 @@ describe("remote 專案的技能檔提示", () => {
     expect(selectAssetPrompt(store.getState())?.kind).toBe("stale");
   });
 
-  it("更新：向 Server 取技能寫進 checkout，重查後提示消失", async () => {
+  it("更新：向 Server 取技能写进 checkout，重查后提示消失", async () => {
     const probe = vi.fn().mockResolvedValue(REMOTE_STALE_PROBE);
     const ws = remoteWorkspace({ probeRemoteAssets: probe });
     const store = storeWithRemoteCheckout(ws);
@@ -2158,7 +2158,7 @@ describe("remote 專案的技能檔提示", () => {
     expect(store.getState().assetMigrated).toBeNull();
   });
 
-  it("更新失敗：錯誤留在提示原位、可重試", async () => {
+  it("更新失败：错误留在提示原位、可重试", async () => {
     const ws = remoteWorkspace({ updateRemoteAssets: vi.fn().mockRejectedValue("server unavailable") });
     const store = storeWithRemoteCheckout(ws);
     await store.getState().refreshAssetPrompt();
@@ -2168,8 +2168,8 @@ describe("remote 專案的技能檔提示", () => {
     expect(selectAssetPrompt(store.getState())?.kind).toBe("stale");
   });
 
-  // design D8：有 checkout 的 remote 分頁監看 checkout 的技能檔，不監看規格資料夾。
-  it("監看重掛：有 checkout 的 remote 分頁掛 checkout 的監看，不掛本機的監看", async () => {
+  // design D8：有 checkout 的 remote 分页监看 checkout 的技能档，不监看规格文档夹。
+  it("监看重挂：有 checkout 的 remote 分页挂 checkout 的监看，不挂本机的监看", async () => {
     const ws = remoteWorkspace({ watchCheckoutSkills: vi.fn().mockResolvedValue(undefined) });
     const store = storeWithRemoteCheckout(ws);
     await store.getState().rearmWatch();
@@ -2177,18 +2177,18 @@ describe("remote 專案的技能檔提示", () => {
     expect(ws.watchWorkspace).not.toHaveBeenCalled();
   });
 
-  it("監看重掛：checkout 的監看掛不上時不拋錯（降級為沒有自動重新探測）", async () => {
+  it("监看重挂：checkout 的监看挂不上时不抛错（降级为没有自动重新探测）", async () => {
     const ws = remoteWorkspace({ watchCheckoutSkills: vi.fn().mockRejectedValue("watch unavailable") });
     const store = storeWithRemoteCheckout(ws);
     await expect(store.getState().rearmWatch()).resolves.toBeUndefined();
   });
 
-  it("監看重掛：沒有 checkout 的 remote 分頁什麼都不掛", async () => {
+  it("监看重挂：没有 checkout 的 remote 分页什幺都不挂", async () => {
     const ws = remoteWorkspace({ watchCheckoutSkills: vi.fn().mockResolvedValue(undefined) });
     const remote = remoteSession(fakeDataSource(), "backend");
     const store = trackedAppStore({
       createSession: () => {
-        throw new Error("remote 分頁不建 local session");
+        throw new Error("remote 分页不建 local session");
       },
       workspace: ws,
     });
@@ -2202,7 +2202,7 @@ describe("remote 專案的技能檔提示", () => {
     expect(ws.watchWorkspace).not.toHaveBeenCalled();
   });
 
-  it("保留現狀：以專案與 Server 的版本記下；同一版不再提示，Server 換版後再出現", async () => {
+  it("保留现状：以项目与 Server 的版本记下；同一版不再提示，Server 换版后再出现", async () => {
     const probe = vi.fn().mockResolvedValue(REMOTE_STALE_PROBE);
     const store = storeWithRemoteCheckout(remoteWorkspace({ probeRemoteAssets: probe }));
     await store.getState().refreshAssetPrompt();
@@ -2219,7 +2219,7 @@ describe("remote 專案的技能檔提示", () => {
   });
 });
 
-// --- 技能檔提示承載規格資料夾遷移（desktop-spec-dir-migration design D2） ---
+// --- 技能档提示承载规格文档夹迁移（desktop-spec-dir-migration design D2） ---
 
 const PENDING_PROBE = {
   ...STALE_PROBE,
@@ -2239,13 +2239,13 @@ const DEFERRED_MIGRATION = {
   worktrees: ["/work/side"],
 };
 
-describe("技能檔提示承載規格資料夾遷移", () => {
+describe("技能档提示承载规格文档夹迁移", () => {
   beforeEach(() => {
-    localStorage.removeItem("speclink.assetSkips");
-    localStorage.removeItem("speclink.instructionSkips");
+    localStorage.removeItem("specseal.assetSkips");
+    localStorage.removeItem("specseal.instructionSkips");
   });
 
-  it("更新完成且資料夾已改名：記下遷移結果，重掛監看並重新整理", async () => {
+  it("更新完成且文档夹已改名：记下迁移结果，重挂监看并刷新", async () => {
     const probe = vi.fn().mockResolvedValue(PENDING_PROBE);
     const updateAssets = vi.fn(async () => {
       probe.mockResolvedValue(SETTLED_PROBE);
@@ -2262,7 +2262,7 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     const watch = vi.mocked(ws.watchWorkspace);
     expect(watch).toHaveBeenCalledWith("A");
     expect(watch.mock.invocationCallOrder.at(-1)).toBeGreaterThan(updateAssets.mock.invocationCallOrder[0]);
-    // 改名後資料來源讀到的是 speclink/：整批重新整理（討論記錄路徑等跟著換）。
+    // 改名后数据源读到的是 specseal/：整批刷新（讨论记录路径等跟着换）。
     const listDiscussions = vi.mocked(ds.listDiscussions);
     expect(listDiscussions.mock.invocationCallOrder.at(-1)).toBeGreaterThan(updateAssets.mock.invocationCallOrder[0]);
     expect(selectAssetPrompt(store.getState())).toBeNull();
@@ -2271,7 +2271,7 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     expect(selectAssetMigrated(store.getState())).toBeNull();
   });
 
-  it("更新途中切走分頁：完成態屬於套用的分頁，切回來才顯示", async () => {
+  it("更新途中切走分页：完成态属于套用的分页，切回来才显示", async () => {
     const update = deferred<{ migrated: { movedFolder: boolean; renamed: number } }>();
     const probe = vi.fn().mockResolvedValue(PENDING_PROBE);
     const store = storeWithAssetProbe(fakeInstructionWorkspace({ probeAssets: probe, updateAssets: vi.fn(() => update.promise) }));
@@ -2287,7 +2287,7 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     expect(selectAssetMigrated(store.getState())).toMatchObject({ key: "local:A", movedFolder: true });
   });
 
-  it("按下前的重探失敗：錯誤留在對話框，不更新", async () => {
+  it("按下前的重探失败：错误留在对话框，不更新", async () => {
     const probe = vi.fn().mockResolvedValue(PENDING_PROBE);
     const ws = fakeInstructionWorkspace({ probeAssets: probe });
     const store = storeWithAssetProbe(ws);
@@ -2302,8 +2302,8 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     expect(selectAssetPrompt(store.getState())?.migration).toEqual(PENDING_PROBE.migration);
   });
 
-  it("更新失敗：錯誤原樣留在對話框，監看照樣重掛", async () => {
-    const message = "cannot move openspec/ to speclink/ — nothing was moved";
+  it("更新失败：错误原样留在对话框，监看照样重挂", async () => {
+    const message = "cannot move openspec/ to specseal/ — nothing was moved";
     const ws = fakeInstructionWorkspace({
       probeAssets: vi.fn().mockResolvedValue(PENDING_PROBE),
       updateAssets: vi.fn().mockRejectedValue(message),
@@ -2319,7 +2319,7 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     expect(ws.watchWorkspace).toHaveBeenCalledWith("A");
   });
 
-  it("暫緩時按更新：只更新技能檔，沒有遷移結果；技能檔成為現版後暫緩不再提示", async () => {
+  it("暂缓时按更新：只更新技能档，没有迁移结果；技能档成为现版后暂缓不再提示", async () => {
     const probe = vi.fn().mockResolvedValue({ ...STALE_PROBE, migration: DEFERRED_MIGRATION });
     const updateAssets = vi.fn(async () => {
       probe.mockResolvedValue({ ...SETTLED_PROBE, migration: DEFERRED_MIGRATION });
@@ -2335,7 +2335,7 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     expect(selectAssetPrompt(store.getState())).toBeNull();
   });
 
-  it("對話框寫著暫緩、按下前已可遷移：不執行更新，改顯示最新內容", async () => {
+  it("对话框写着暂缓、按下前已可迁移：不运行更新，改显示最新内容", async () => {
     const probe = vi.fn().mockResolvedValue({ ...STALE_PROBE, migration: DEFERRED_MIGRATION });
     const ws = fakeInstructionWorkspace({ probeAssets: probe });
     const store = storeWithAssetProbe(ws);
@@ -2349,11 +2349,11 @@ describe("技能檔提示承載規格資料夾遷移", () => {
     expect(store.getState().assetUpdating).toBe(false);
   });
 
-  it("remote 分頁沒有遷移提示", async () => {
+  it("remote 分页没有迁移提示", async () => {
     const ws = fakeInstructionWorkspace({ probeAssets: vi.fn().mockResolvedValue(PENDING_PROBE) });
     const store = trackedAppStore({
       createSession: () => {
-        throw new Error("remote 分頁不建 local session");
+        throw new Error("remote 分页不建 local session");
       },
       workspace: ws,
     });
@@ -2370,23 +2370,23 @@ describe("技能檔提示承載規格資料夾遷移", () => {
   });
 });
 
-// --- 背景檢查發現新版本的 toast（desktop-app「背景檢查的 toast 只發一次」；design D4） ---
+// --- 背景检查发现新版本的 toast（desktop-app「背景检查的 toast 只发一次」；design D4） ---
 
-describe("背景檢查發現新版本的 toast", () => {
+describe("背景检查发现新版本的 toast", () => {
   type ToastOptions = { id?: string; action?: { label: string; onClick: () => void } };
   function updaterStore(versions: string[]) {
     const check = vi.fn();
     for (const version of versions) {
       check.mockResolvedValueOnce({
         version,
-        download: vi.fn(() => new Promise<void>(() => {})), // 停在下載中，供「取消」回閒置
+        download: vi.fn(() => new Promise<void>(() => {})), // 停在下载中，供「取消」回闲置
         install: vi.fn(),
       });
     }
     return trackedAppStore({ createSession: vi.fn() as never, updater: { check, relaunch: vi.fn() } });
   }
 
-  it("背景檢查發現新版本：toast 一次（含版號、固定 id）；「查看」進設定頁並聚焦軟體更新卡", async () => {
+  it("背景检查发现新版本：toast 一次（含版号、固定 id）；「查看」进设置页并聚焦软件更新卡", async () => {
     const store = updaterStore(["0.5.1"]);
     await store.getState().checkForUpdates(false);
     expect(store.getState().updater).toEqual({ phase: "available", version: "0.5.1" });
@@ -2400,11 +2400,11 @@ describe("背景檢查發現新版本的 toast", () => {
     expect(store.getState().focusUpdater).toBe(true);
   });
 
-  it("Scenario「背景檢查的 toast 只發一次」：下載後取消回閒置，一小時後前景重檢回報同版本不再發；換了版本才再發", async () => {
+  it("Scenario「背景检查的 toast 只发一次」：下载后取消回闲置，一小时后前景重检回报同版本不再发；换了版本才再发", async () => {
     const store = updaterStore(["0.5.1", "0.5.1", "0.5.2"]);
     await store.getState().checkForUpdates(false);
     expect(toastFn).toHaveBeenCalledTimes(1);
-    // 待同意時前景重檢被擋（提示留到使用者處置）；取消下載回閒置後才會重檢。
+    // 待同意时前景重检被挡（提示留到用户处置）；取消下载回闲置后才会重检。
     void store.getState().acceptUpdate();
     store.getState().dismissUpdate();
     expect(store.getState().updater).toEqual({ phase: "idle" });
@@ -2420,7 +2420,7 @@ describe("背景檢查發現新版本的 toast", () => {
     expect((toastFn.mock.calls[1] as [string])[0]).toContain("0.5.2");
   });
 
-  it("手動檢查不發 toast：結果以卡內行內文字呈現", async () => {
+  it("手动检查不发 toast：结果以卡内行内文本呈现", async () => {
     const store = updaterStore(["0.5.1"]);
     await store.getState().checkForUpdates(true);
     expect(store.getState().updater).toEqual({ phase: "available", version: "0.5.1" });
@@ -2428,9 +2428,9 @@ describe("背景檢查發現新版本的 toast", () => {
   });
 });
 
-// --- 版本更新的取消（desktop-app「取消下載回到閒置」；desktop-notice-relocation design D3） ---
+// --- 版本更新的取消（desktop-app「取消下载回到闲置」；desktop-notice-relocation design D3） ---
 
-describe("取消下載", () => {
+describe("取消下载", () => {
   function pendingUpdate(version: string) {
     const download = deferred<void>();
     return {
@@ -2439,7 +2439,7 @@ describe("取消下載", () => {
     };
   }
 
-  it("取消後下載完成：不安裝、不進 restartPending，狀態留在閒置", async () => {
+  it("取消后下载完成：不安装、不进 restartPending，状态留在闲置", async () => {
     const first = pendingUpdate("0.2.0");
     const store = trackedAppStore({
       createSession: vi.fn() as never,
@@ -2458,7 +2458,7 @@ describe("取消下載", () => {
     expect(store.getState().updater).toEqual({ phase: "idle" });
   });
 
-  it("取消後重新檢查並再次下載：舊下載晚到完成不推進新下載、也不安裝舊包", async () => {
+  it("取消后重新检查并再次下载：旧下载晚到完成不推进新下载、也不安装旧包", async () => {
     const first = pendingUpdate("0.2.0");
     const second = pendingUpdate("0.2.0");
     const store = trackedAppStore({
@@ -2486,7 +2486,7 @@ describe("取消下載", () => {
     expect(store.getState().updater).toEqual({ phase: "restartPending", version: "0.2.0" });
   });
 
-  it("取消後重新檢查：舊下載晚到失敗不轉錯誤、不清掉新的待更新項（「下載」仍可用）", async () => {
+  it("取消后重新检查：旧下载晚到失败不转错误、不清掉新的待更新项（「下载」仍可用）", async () => {
     const first = pendingUpdate("0.2.0");
     const second = pendingUpdate("0.2.0");
     const store = trackedAppStore({
@@ -2512,10 +2512,10 @@ describe("取消下載", () => {
   });
 });
 
-// spec「分頁切換中即時回饋」（design D1）：本地分頁的專案探測擋在翻頁之前，
-// 期間 pendingTabKey 指向目標分頁——探測成功翻頁、失敗轉錯誤態，兩條路都清空。
-describe("切換中分頁（pendingTabKey）", () => {
-  /** 兩個本地分頁（活躍 A、待切 B），B 的探測以 deferred 控制完成時機。 */
+// spec「分页切换中即时回馈」（design D1）：本地分页的项目探测挡在翻页之前，
+// 期间 pendingTabKey 指向目标分页——探测成功翻页、失败转错误态，两条路都清空。
+describe("切换中分页（pendingTabKey）", () => {
+  /** 两个本地分页（活跃 A、待切 B），B 的探测以 deferred 控制完成时机。 */
   function storeWithTwoLocalTabs(probe: Promise<unknown>) {
     const ds = fakeDataSource();
     const ws = fakeInstructionWorkspace({
@@ -2538,12 +2538,12 @@ describe("切換中分頁（pendingTabKey）", () => {
     return { store, ws, keyB: b.id };
   }
 
-  it("初值為 null", () => {
+  it("初值为 null", () => {
     const store = storeWithAssetProbe(fakeInstructionWorkspace());
     expect(store.getState().pendingTabKey).toBeNull();
   });
 
-  it("探測進行中 → 指向目標分頁，活躍分頁不變", async () => {
+  it("探测进行中 → 指向目标分页，活跃分页不变", async () => {
     const d = deferred<unknown>();
     const { store, keyB } = storeWithTwoLocalTabs(d.promise);
     const activeBefore = store.getState().activeKey;
@@ -2554,7 +2554,7 @@ describe("切換中分頁（pendingTabKey）", () => {
     await activation;
   });
 
-  it("探測成功翻頁後 → 清為 null", async () => {
+  it("探测成功翻页后 → 清为 null", async () => {
     const d = deferred<unknown>();
     const { store, keyB } = storeWithTwoLocalTabs(d.promise);
     const activation = store.getState().activateTab(keyB);
@@ -2564,9 +2564,9 @@ describe("切換中分頁（pendingTabKey）", () => {
     expect(store.getState().activeKey).toBe(keyB);
   });
 
-  // spec「探測成功後切頁」：spinner 只涵蓋探測本身。翻頁後的整批載入由 skeleton
-  // 承擔——兩者並存會讓已切換完成的分頁持續掛「正在切換」。
-  it("探測完成即清除 → 後續整批載入期間不再掛切換中", async () => {
+  // spec「探测成功后切页」：spinner 只涵盖探测本身。翻页后的整批加载由 skeleton
+  // 承担——两者并存会让已切换完成的分页持续挂「正在切换」。
+  it("探测完成即清除 → 后续整批加载期间不再挂切换中", async () => {
     const probe = deferred<unknown>();
     const load = deferred<ChangeListPayload>();
     const ds = fakeDataSource({ listChanges: vi.fn(() => load.promise) });
@@ -2590,7 +2590,7 @@ describe("切換中分頁（pendingTabKey）", () => {
 
     const activation = store.getState().activateTab(b.id);
     probe.resolve({ status: "project", root: "B", name: "b" });
-    // 讓 enterProject 推進到整批載入的 await（清單仍未回）。
+    // 让 enterProject 推进到整批加载的 await（清单仍未回）。
     await new Promise((r) => setTimeout(r, 0));
 
     expect(store.getState().activeKey).toBe(b.id);
@@ -2601,7 +2601,7 @@ describe("切換中分頁（pendingTabKey）", () => {
     await activation;
   });
 
-  it("探測回非專案 → 清為 null，分頁錯誤照舊寫入", async () => {
+  it("探测回非项目 → 清为 null，分页错误照旧写入", async () => {
     const d = deferred<unknown>();
     const { store, keyB } = storeWithTwoLocalTabs(d.promise);
     const activation = store.getState().activateTab(keyB);
@@ -2612,7 +2612,7 @@ describe("切換中分頁（pendingTabKey）", () => {
     expect(store.getState().activeKey).not.toBe(keyB);
   });
 
-  it("探測上拋 → 清為 null，分頁錯誤照舊寫入", async () => {
+  it("探测上抛 → 清为 null，分页错误照旧写入", async () => {
     const d = deferred<unknown>();
     const { store, keyB } = storeWithTwoLocalTabs(d.promise);
     const activation = store.getState().activateTab(keyB);
@@ -2622,16 +2622,16 @@ describe("切換中分頁（pendingTabKey）", () => {
     expect(store.getState().tabErrors[keyB]).toBeTruthy();
   });
 
-  // 翻頁階段拋錯仍須轉分頁錯誤態——不得因 spinner 清除時機的重構而變成未處理的
-  // rejection（呼叫端多為 void activateTab(...)，逸出即靜默）。
-  it("翻頁階段拋錯 → 轉分頁錯誤態，不逸出", async () => {
+  // 翻页阶段抛错仍须转分页错误态——不得因 spinner 清除时机的重构而变成未处理的
+  // rejection（调用端多为 void activateTab(...)，逸出即静默）。
+  it("翻页阶段抛错 → 转分页错误态，不逸出", async () => {
     const ds = fakeDataSource();
     const ws = fakeInstructionWorkspace({
       openProject: vi.fn().mockResolvedValue({ status: "project", root: "B", name: "b" }),
     } as Partial<WorkspaceAdapter>);
     const store = trackedAppStore({
       createSession: () => {
-        throw new Error("翻頁失敗");
+        throw new Error("翻页失败");
       },
       workspace: ws,
     });
@@ -2651,8 +2651,8 @@ describe("切換中分頁（pendingTabKey）", () => {
     expect(store.getState().pendingTabKey).toBeNull();
   });
 
-  // 快速連點兩個分頁：先發的收尾不得清掉後發的標記，否則後發切換全程無回饋。
-  it("先發切換收尾 → 不清掉後發切換的標記", async () => {
+  // 快速连点两个分页：先发的收尾不得清掉后发的标记，否则后发切换全程无回馈。
+  it("先发切换收尾 → 不清掉后发切换的标记", async () => {
     const first = deferred<unknown>();
     const second = deferred<unknown>();
     const ds = fakeDataSource();
@@ -2683,9 +2683,9 @@ describe("切換中分頁（pendingTabKey）", () => {
     const toC = store.getState().activateTab(c.id);
     expect(store.getState().pendingTabKey).toBe(c.id);
 
-    first.reject("B 探測失敗");
+    first.reject("B 探测失败");
     await toB;
-    // B 的收尾走完，標記仍指向 C——C 的切換還在進行中。
+    // B 的收尾走完，标记仍指向 C——C 的切换还在进行中。
     expect(store.getState().pendingTabKey).toBe(c.id);
 
     second.resolve({ status: "project", root: "C", name: "c" });
@@ -2694,10 +2694,10 @@ describe("切換中分頁（pendingTabKey）", () => {
   });
 });
 
-// 骨架的終止條件是 loadingActive，不是 loaded：讀不到不等於「確認是空的」，
-// 所以失敗時 loaded 維持 false，但在途計數必須歸零讓骨架收掉。
-describe("整批載入的進行中旗標", () => {
-  it("載入進行中 → loadingActive 為 true；完成後落回 false", async () => {
+// 骨架的终止条件是 loadingActive，不是 loaded：读不到不等于「确认是空的」，
+// 所以失败时 loaded 维持 false，但在途计数必须归零让骨架收掉。
+describe("整批加载的进行中旗标", () => {
+  it("加载进行中 → loadingActive 为 true；完成后落回 false", async () => {
     const d = deferred<ChangeListPayload>();
     const store = storeWith(fakeDataSource({ listChanges: vi.fn(() => d.promise) }));
     const pending = store.getState().refresh();
@@ -2708,7 +2708,7 @@ describe("整批載入的進行中旗標", () => {
     expect(store.getState().loaded).toBe(true);
   });
 
-  it("首訪無快取且讀取失敗 → loadingActive 落回 false，loaded 維持 false", async () => {
+  it("首访无缓存且读取失败 → loadingActive 落回 false，loaded 维持 false", async () => {
     const store = storeWith(
       fakeDataSource({ listChanges: vi.fn().mockRejectedValue(new Error("offline")) }),
     );
@@ -2717,7 +2717,7 @@ describe("整批載入的進行中旗標", () => {
     expect(store.getState().loaded).toBe(false);
   });
 
-  it("已有快取時讀取失敗 → 沿用最後一次成功快照，不覆蓋", async () => {
+  it("已有缓存时读取失败 → 沿用最后一次成功快照，不覆盖", async () => {
     const listChanges = vi
       .fn()
       .mockResolvedValue(changeList([{ name: "kept", status: "in-progress", totalTasks: 1, completedTasks: 0 }]));
@@ -2732,10 +2732,10 @@ describe("整批載入的進行中旗標", () => {
   });
 });
 
-// 讀不到 ≠ 確認是空的：首訪失敗要留下終態記號，看板與面板才能顯示「載入失敗」
-// 而不是與真空 workspace 同貌的空態。記號隨快照走，切走再切回仍記得。
-describe("首訪載入失敗終態", () => {
-  it("首訪載入失敗 → loadFailed 為 true、loaded 維持 false", async () => {
+// 读不到 ≠ 确认是空的：首访失败要留下终态记号，看板与面板才能显示「加载失败」
+// 而不是与真空 workspace 同貌的空态。记号随快照走，切走再切回仍记得。
+describe("首访加载失败终态", () => {
+  it("首访加载失败 → loadFailed 为 true、loaded 维持 false", async () => {
     const store = storeWith(
       fakeDataSource({ listChanges: vi.fn().mockRejectedValue(new Error("offline")) }),
     );
@@ -2744,7 +2744,7 @@ describe("首訪載入失敗終態", () => {
     expect(store.getState().loaded).toBe(false);
   });
 
-  it("失敗後成功載入 → loadFailed 落回 false", async () => {
+  it("失败后成功加载 → loadFailed 落回 false", async () => {
     const listChanges = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue(changeList([]));
     const store = storeWith(fakeDataSource({ listChanges }));
     await store.getState().refresh();
@@ -2755,7 +2755,7 @@ describe("首訪載入失敗終態", () => {
     expect(store.getState().loaded).toBe(true);
   });
 
-  it("過期世代的失敗回來 → 不得覆寫後發的成功", async () => {
+  it("过期世代的失败回来 → 不得覆写后发的成功", async () => {
     const first = deferred<ChangeListPayload>();
     const second = deferred<ChangeListPayload>();
     const listChanges = vi
@@ -2774,7 +2774,7 @@ describe("首訪載入失敗終態", () => {
     expect(store.getState().loaded).toBe(true);
   });
 
-  it("切走再切回 → 失敗記錄隨快照存續（不重回骨架、不顯示空態）", async () => {
+  it("切走再切回 → 失败记录随快照存续（不重回骨架、不显示空态）", async () => {
     const gate = deferred<ChangeListPayload>();
     const dsA = fakeDataSource({
       listChanges: vi
@@ -2792,7 +2792,7 @@ describe("首訪載入失敗終態", () => {
     await store.getState().activateTab(b.id);
     expect(store.getState().loadFailed).toBe(false);
 
-    // 切回 A：重載才剛起跑，此刻的失敗記號來自快照而非這一發的結果。
+    // 切回 A：重载才刚起跑，此刻的失败记号来自快照而非这一发的结果。
     const back = store.getState().activateTab(a.id);
     expect(store.getState().loadFailed).toBe(true);
     expect(store.getState().loaded).toBe(false);
@@ -2803,10 +2803,10 @@ describe("首訪載入失敗終態", () => {
   });
 });
 
-// loadingActive 由 activeKey 的在途計數導出：計數按 key 記，導出值跟著活躍
-// workspace 走。一旦兩者錯位就會卡在 true——那正是骨架永久掛著的老問題復發。
-describe("整批載入旗標的記帳邊界", () => {
-  it("載入途中關掉該分頁 → 旗標不卡在 true", async () => {
+// loadingActive 由 activeKey 的在途计数导出：计数按 key 记，导出值跟着活跃
+// workspace 走。一旦两者错位就会卡在 true——那正是骨架永久挂着的老问题复发。
+describe("整批加载旗标的记帐边界", () => {
+  it("加载途中关掉该分页 → 旗标不卡在 true", async () => {
     const d = deferred<ChangeListPayload>();
     const ds = fakeDataSource({ listChanges: vi.fn(() => d.promise) });
     const store = trackedAppStore({ createSession: (root, name) => fakeSession(ds, root, name) });
@@ -2825,7 +2825,7 @@ describe("整批載入旗標的記帳邊界", () => {
     expect(store.getState().loadingActive).toBe(false);
   });
 
-  it("別的 workspace 的在途載入結束 → 不得清掉現任的旗標", async () => {
+  it("别的 workspace 的在途加载结束 → 不得清掉现任的旗标", async () => {
     const aLoad = deferred<ChangeListPayload>();
     const bLoad = deferred<ChangeListPayload>();
     const dsA = fakeDataSource({ listChanges: vi.fn(() => aLoad.promise) });
@@ -2843,12 +2843,12 @@ describe("整批載入旗標的記帳邊界", () => {
     });
 
     const aPending = store.getState().refresh();
-    // 翻到 B 並起 B 自己的載入：此時畫面上「正在載」的是 B。
+    // 翻到 B 并起 B 自己的加载：此时画面上「正在载」的是 B。
     store.setState({ activeKey: b.id, loaded: false });
     const bPending = store.getState().refresh();
     expect(store.getState().loadingActive).toBe(true);
 
-    // A 的在途載入這時才回來——它已不是現任，不得把 B 的旗標收掉。
+    // A 的在途加载这时才回来——它已不是现任，不得把 B 的旗标收掉。
     aLoad.resolve(changeList([]));
     await aPending;
     expect(store.getState().loadingActive).toBe(true);
@@ -2858,7 +2858,7 @@ describe("整批載入旗標的記帳邊界", () => {
     expect(store.getState().loadingActive).toBe(false);
   });
 
-  it("同 key 重疊載入：先發成功回來 → 不得清掉後發在途的旗標", async () => {
+  it("同 key 重叠加载：先发成功回来 → 不得清掉后发在途的旗标", async () => {
     const first = deferred<ChangeListPayload>();
     const second = deferred<ChangeListPayload>();
     const listChanges = vi
@@ -2871,7 +2871,7 @@ describe("整批載入旗標的記帳邊界", () => {
     const p2 = store.getState().refresh();
     expect(store.getState().loadingActive).toBe(true);
 
-    // 先發此刻已是過期世代——回來時後發還在載，旗標不得歸零。
+    // 先发此刻已是过期世代——回来时后发还在载，旗标不得归零。
     first.resolve(changeList([]));
     await p1;
     expect(store.getState().loadingActive).toBe(true);
@@ -2881,7 +2881,7 @@ describe("整批載入旗標的記帳邊界", () => {
     expect(store.getState().loadingActive).toBe(false);
   });
 
-  it("同 key 重疊載入：先發失敗 → 不得清掉後發在途的旗標", async () => {
+  it("同 key 重叠加载：先发失败 → 不得清掉后发在途的旗标", async () => {
     const first = deferred<ChangeListPayload>();
     const second = deferred<ChangeListPayload>();
     const listChanges = vi
@@ -2902,7 +2902,7 @@ describe("整批載入旗標的記帳邊界", () => {
     expect(store.getState().loadingActive).toBe(false);
   });
 
-  it("開修復頁（後面不接整批載入）→ 不得標載入中", () => {
+  it("开修复页（后面不接整批加载）→ 不得标加载中", () => {
     const ds = fakeDataSource();
     const a = remoteSession(ds, "repo-a");
     const b = remoteSession(ds, "repo-b");
@@ -2913,16 +2913,16 @@ describe("整批載入旗標的記帳邊界", () => {
 
     store.getState().showRemoteWorkspaceRecovery(b.id);
     expect(store.getState().activeKey).toBe(b.id);
-    // 這條翻頁路徑不會起整批載入——沒有在途就沒有載入中，入口無須表態。
+    // 这条翻页路径不会起整批加载——没有在途就没有加载中，入口无须表态。
     expect(store.getState().loadingActive).toBe(false);
   });
 });
 
-// 翻頁到首訪 workspace 的那一刻起就算載入中：翻頁入口不再自行表態，改由它
-// 同步接上的 refresh() 計數 +1 導出——中間不得有「已翻頁、尚未起載入」的空窗，
-// 那個窗口渲染的正是假空態。監看掛載慢時尤其明顯，故以卡住的 watch 把關。
-describe("翻頁與載入中標記同批", () => {
-  it("翻到首訪 workspace → activeKey 翻轉當下即為載入中", async () => {
+// 翻页到首访 workspace 的那一刻起就算加载中：翻页入口不再自行表态，改由它
+// 同步接上的 refresh() 计数 +1 导出——中间不得有「已翻页、尚未起加载」的空窗，
+// 那个窗口渲染的正是假空态。监看挂载慢时尤其明显，故以卡住的 watch 把关。
+describe("翻页与加载中标记同批", () => {
+  it("翻到首访 workspace → activeKey 翻转当下即为加载中", async () => {
     const load = deferred<ChangeListPayload>();
     const ds = fakeDataSource({ listChanges: vi.fn(() => load.promise) });
     let resolveWatch!: () => void;
@@ -2949,7 +2949,7 @@ describe("翻頁與載入中標記同批", () => {
     });
 
     const activation = store.getState().activateTab(b.id);
-    // 監看掛載卡住：此刻已翻頁但整批載入尚未開跑——不得出現三訊號全滅的空窗。
+    // 监看挂载卡住：此刻已翻页但整批加载尚未开跑——不得出现三信号全灭的空窗。
     await new Promise((r) => setTimeout(r, 0));
     expect(store.getState().activeKey).toBe(b.id);
     expect(store.getState().loaded).toBe(false);
@@ -2961,9 +2961,9 @@ describe("翻頁與載入中標記同批", () => {
     expect(store.getState().loadingActive).toBe(false);
   });
 
-  // 首批載入先於監看掛載起跑（消滅空窗）的代價：掛載完成前的檔案變動既無事件
-  // 也不在首批結果內。掛載成功後必須補一發整批載入，蓋掉這個靜默過時窗口。
-  it("監看掛載完成後補一發整批載入，涵蓋掛載窗口內的變動", async () => {
+  // 首批加载先于监看挂载起跑（消灭空窗）的代价：挂载完成前的文档变动既无事件
+  // 也不在首批结果内。挂载成功后必须补一发整批加载，盖掉这个静默过时窗口。
+  it("监看挂载完成后补一发整批加载，涵盖挂载窗口内的变动", async () => {
     const stale: ChangeItem[] = [];
     const fresh: ChangeItem[] = [
       { name: "landed-during-mount", status: "proposed", totalTasks: 0, completedTasks: 0 },
@@ -2994,7 +2994,7 @@ describe("翻頁與載入中標記同批", () => {
 
     const activation = store.getState().activateTab(b.id);
     await new Promise((r) => setTimeout(r, 0));
-    // 首批（過時）已在途；此刻監看才掛載完成——窗口內的變動只有補讀看得到。
+    // 首批（过时）已在途；此刻监看才挂载完成——窗口内的变动只有补读看得到。
     resolveWatch();
     await activation;
     expect(listChanges.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -3002,13 +3002,13 @@ describe("翻頁與載入中標記同批", () => {
   });
 });
 
-describe("認領撞 ownership 衝突的呈現", () => {
-  // server 的 409 訊息本身就寫了「誰持有、該去找誰協調」——桌面端必須原樣
-  // 轉印。退化成單純「認領失敗」,等於把撞工當下唯一有用的資訊丟掉。
+describe("认领撞 ownership 冲突的呈现", () => {
+  // server 的 409 消息本身就写了「谁持有、该去找谁协调」——桌面端必须原样
+  // 转印。退化成单纯「认领失败」,等于把撞工当下唯一有用的信息丢掉。
   const HELD =
     "change 'demo' is already claimed by Alice Chen <alice@example.com> — coordinate with them, or ask them to release it";
 
-  it("提示原樣帶出目前持有人與建議動作", async () => {
+  it("提示原样带出目前持有人与建议动作", async () => {
     const claim = vi.fn().mockRejectedValue(new Error(HELD));
     const store = storeWith(fakeDataSource({ claim }));
     await store.getState().claimChange("desktop-shell-and-browser");
@@ -3019,7 +3019,7 @@ describe("認領撞 ownership 衝突的呈現", () => {
     expect(message).toContain("coordinate with them");
   });
 
-  it("認領成功不出提示,且重新載入清單", async () => {
+  it("认领成功不出提示,且重新加载清单", async () => {
     const ds = fakeDataSource({ claim: vi.fn().mockResolvedValue(undefined) });
     const store = storeWith(ds);
     await store.getState().claimChange("desktop-shell-and-browser");
@@ -3028,13 +3028,13 @@ describe("認領撞 ownership 衝突的呈現", () => {
   });
 });
 
-// desktop-manual-page design「手冊頁的外部變更重載沿用既有 watcher 事件」：store 收到
-// 帶 root 的檔案變更事件（→ 整批 refresh）且手冊視圖活躍時重取索引；交錯回應以
-// 最新為準；不新增監看目標（沿用 refresh 這條路）。
-describe("手冊索引的重取（refreshManual）", () => {
+// desktop-manual-page design「手册页的外部变更重载沿用既有 watcher 事件」：store 收到
+// 带 root 的文档变更事件（→ 整批 refresh）且手册视图活跃时重取索引；交错回应以
+// 最新为准；不添加监看目标（沿用 refresh 这条路）。
+describe("手册索引的重取（refreshManual）", () => {
   const INDEX: ManualIndex = { present: true, reason: null, pages: [], uncoveredNew: [], malformed: [] };
 
-  it("切到手冊視圖即取索引；之後每次整批 refresh 在手冊視圖活躍時重取，非活躍不取", async () => {
+  it("切到手册视图即取索引；之后每次整批 refresh 在手册视图活跃时重取，非活跃不取", async () => {
     const ds = fakeDataSource({ listManualPages: vi.fn().mockResolvedValue(INDEX) });
     const store = storeWith(ds);
     await store.getState().refresh();
@@ -3045,7 +3045,7 @@ describe("手冊索引的重取（refreshManual）", () => {
     await vi.waitFor(() => expect(store.getState().manual).toEqual(INDEX));
     expect(ds.listManualPages).toHaveBeenCalledTimes(1);
 
-    // 兩筆假事件（workspace-changed → refresh）。
+    // 两笔假事件（workspace-changed → refresh）。
     await store.getState().refresh();
     await store.getState().refresh();
     expect(ds.listManualPages).toHaveBeenCalledTimes(3);
@@ -3055,7 +3055,7 @@ describe("手冊索引的重取（refreshManual）", () => {
     expect(ds.listManualPages).toHaveBeenCalledTimes(3);
   });
 
-  it("交錯回應以最新為準：先發後到的索引不得覆蓋後發先到的", async () => {
+  it("交错回应以最新为准：先发后到的索引不得覆盖后发先到的", async () => {
     const first = deferred<ManualIndex>();
     const second = deferred<ManualIndex>();
     const listManualPages = vi
@@ -3073,7 +3073,7 @@ describe("手冊索引的重取（refreshManual）", () => {
     expect(store.getState().manual?.uncoveredNew).toEqual(["new"]);
   });
 
-  it("索引讀取失敗：無舊索引時落成尚無手冊的空索引，有舊索引時沿用舊索引", async () => {
+  it("索引读取失败：无旧索引时落成尚无手册的空索引，有旧索引时沿用旧索引", async () => {
     const listManualPages = vi.fn().mockRejectedValueOnce(new Error("io"));
     const store = storeWith(fakeDataSource({ listManualPages }));
     store.getState().setBoardView("manual");
@@ -3086,7 +3086,7 @@ describe("手冊索引的重取（refreshManual）", () => {
     expect(store.getState().manual).toEqual(INDEX);
   });
 
-  it("手冊出處開規格抽屜：detailSpec 設定、boardView 維持手冊頁不切頁", () => {
+  it("手册出处开规格抽屉：detailSpec 设置、boardView 维持手册页不切页", () => {
     const store = storeWith(fakeDataSource());
     store.getState().setBoardView("manual");
     store.getState().openSpec("desktop-app");
@@ -3095,9 +3095,9 @@ describe("手冊索引的重取（refreshManual）", () => {
   });
 });
 
-// desktop-app「專案層檔案系統動作」（design D5）：成功靜默、失敗 toast；
-// remote 無 checkout 時沒有本機目錄，四個動作都不碰檔案系統。
-describe("專案層檔案系統動作", () => {
+// desktop-app「项目层文档系统动作」（design D5）：成功静默、失败 toast；
+// remote 无 checkout 时没有本机目录，四个动作都不碰文档系统。
+describe("项目层文档系统动作", () => {
   beforeEach(() => {
     toastError.mockReset();
   });
@@ -3141,7 +3141,7 @@ describe("專案層檔案系統動作", () => {
     return { store, fsActions };
   }
 
-  it("成功時四個動作都不呼叫 toast，路徑為專案根或 checkout", async () => {
+  it("成功时四个动作都不调用 toast，路径为项目根或 checkout", async () => {
     const { store, fsActions } = storeWithTabs();
     await store.getState().revealProject("local:/work/alpha");
     await store.getState().openProjectInTerminal("local:/work/alpha");
@@ -3154,7 +3154,7 @@ describe("專案層檔案系統動作", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("i18n 鍵的錯誤以對應文案顯示 toast（找不到終端機、找不到編輯器、目錄已不存在）", async () => {
+  it("i18n 键的错误以对应文案显示 toast（找不到终端机、找不到编辑器、目录已不存在）", async () => {
     const fsActions = fakeFsActions();
     fsActions.openTerminal.mockRejectedValueOnce("fs.noTerminal").mockRejectedValueOnce("fs.dirMissing");
     fsActions.openEditor.mockRejectedValue("fs.noEditor");
@@ -3163,23 +3163,23 @@ describe("專案層檔案系統動作", () => {
     await store.getState().openProjectInEditor("local:/work/alpha");
     await store.getState().openProjectInTerminal("local:/work/alpha");
     expect(toastError.mock.calls).toEqual([
-      ["找不到可用的終端機"],
-      ["找不到可用的編輯器（支援 VS Code、Cursor、Zed、Sublime）"],
-      ["專案目錄已不存在"],
+      ["找不到可用的终端机"],
+      ["找不到可用的编辑器（支持 VS Code、Cursor、Zed、Sublime）"],
+      ["项目目录已不存在"],
     ]);
   });
 
-  it("「找不到編輯器」文案列出的編輯器與 Rust 候選清單同一份、同順序（兩語系）", () => {
-    // 增減編輯器時，Rust 清單、兩語系文案要一起改；漏改任一處這裡就紅。
+  it("「找不到编辑器」文案列出的编辑器与 Rust 候选清单同一份、同顺序（两语系）", () => {
+    // 增减编辑器时，Rust 清单、两语系文案要一起改；漏改任一处这里就红。
     const LABEL: Record<string, string> = { code: "VS Code", cursor: "Cursor", zed: "Zed", subl: "Sublime" };
     const list = /Platform::MacOs \| Platform::Linux => \[([^\]]*)\]/.exec(fsActionsRs)?.[1] ?? "";
     const labels = [...list.matchAll(/"([^"]+)"/g)].map(([, program]) => LABEL[program] ?? `?${program}`);
     expect(labels.length).toBeGreaterThan(0);
-    expect(APP_MESSAGES["zh-TW"]["fs.noEditor"]).toBe(`找不到可用的編輯器（支援 ${labels.join("、")}）`);
+    expect(APP_MESSAGES["zh-CN"]["fs.noEditor"]).toBe(`找不到可用的编辑器（支持 ${labels.join("、")}）`);
     expect(APP_MESSAGES.en["fs.noEditor"]).toBe(`No editor found (supports ${labels.join(", ")})`);
   });
 
-  it("非 i18n 鍵的錯誤原樣顯示（如 opener 的路徑不存在）", async () => {
+  it("非 i18n 键的错误原样显示（如 opener 的路径不存在）", async () => {
     const fsActions = fakeFsActions();
     fsActions.reveal.mockRejectedValue("No such file or directory (os error 2)");
     fsActions.copyText.mockRejectedValue(new Error("clipboard denied"));
@@ -3192,7 +3192,7 @@ describe("專案層檔案系統動作", () => {
     ]);
   });
 
-  it("remote 無 checkout 時四個動作都不呼叫檔案系統面", async () => {
+  it("remote 无 checkout 时四个动作都不调用文档系统面", async () => {
     const { store, fsActions } = storeWithTabs();
     const key = "remote:c1/demo/api";
     await store.getState().revealProject(key);
@@ -3204,14 +3204,14 @@ describe("專案層檔案系統動作", () => {
   });
 });
 
-// desktop-app「詳情頁的文件動作」（design D4）：磁碟位置由 core 以讀文件同一套解析回報
-// （worktree 副本、spec 目錄名、已封存討論）；失敗以單槽失敗 toast 呈現、主詞為相對路徑；
-// remote 無 checkout 不查位置、只剩複製內容。
-describe("詳情頁文件動作", () => {
+// desktop-app「详情页的文档动作」（design D4）：磁盘位置由 core 以读文档同一套解析回报
+// （worktree 副本、spec 目录名、已封存讨论）；失败以单槽失败 toast 呈现、主词为相对路径；
+// remote 无 checkout 不查位置、只剩拷贝内容。
+describe("详情页文档动作", () => {
   const DOC = { change: "add-auth", artifact: "proposal.md" };
   const LOC = {
-    path: "/work/app-wt/add-auth/speclink/changes/add-auth/proposal.md",
-    relative: "speclink/changes/add-auth/proposal.md",
+    path: "/work/app-wt/add-auth/specseal/changes/add-auth/proposal.md",
+    relative: "specseal/changes/add-auth/proposal.md",
   };
 
   function fakeFsActions(): { [K in keyof FsActionsAdapter]: ReturnType<typeof vi.fn> } {
@@ -3247,13 +3247,13 @@ describe("詳情頁文件動作", () => {
     toastError.mockReset();
   });
 
-  it("locateDocument 以活躍專案的本機目錄向 core 查位置", async () => {
+  it("locateDocument 以活跃项目的本机目录向 core 查位置", async () => {
     const { store, fsActions } = storeActive("local:/work/app");
     expect(await store.getState().locateDocument(DOC)).toEqual(LOC);
     expect(fsActions.locate).toHaveBeenCalledWith("/work/app", DOC);
   });
 
-  it("三個動作作用於 core 回報的絕對路徑（worktree 副本），成功靜默", async () => {
+  it("三个动作作用于 core 回报的绝对路径（worktree 副本），成功静默", async () => {
     const { store, fsActions } = storeActive("local:/work/app");
     await store.getState().openDocumentDefault(LOC);
     await store.getState().revealDocument(LOC);
@@ -3264,7 +3264,7 @@ describe("詳情頁文件動作", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("revealDocument 失敗發失敗 toast 且主詞為相對路徑", async () => {
+  it("revealDocument 失败发失败 toast 且主词为相对路径", async () => {
     const fsActions = fakeFsActions();
     fsActions.reveal.mockRejectedValue("No such file or directory (os error 2)");
     const { store } = storeActive("local:/work/app", fsActions);
@@ -3276,8 +3276,8 @@ describe("詳情頁文件動作", () => {
     expect(options?.id).toBe("desktop-operation-failure");
   });
 
-  // desktop-change-doc-views design D11：提案影響段路徑籤的「在檔案管理員顯示」。
-  it("revealProjectPath 以專案目錄拼出路徑交 reveal；失敗發失敗 toast、主詞為相對路徑", async () => {
+  // desktop-change-doc-views design D11：提案影响段路径签的「在文档管理员显示」。
+  it("revealProjectPath 以项目目录拼出路径交 reveal；失败发失败 toast、主词为相对路径", async () => {
     const fsActions = fakeFsActions();
     const { store } = storeActive("local:/work/app", fsActions);
     await store.getState().revealProjectPath("packages/ui/src/docModel.ts");
@@ -3288,14 +3288,14 @@ describe("詳情頁文件動作", () => {
     expect((toastError.mock.calls[0] as [string])[0].startsWith("gone.ts · ")).toBe(true);
   });
 
-  it("revealProjectPath 在 remote 無 checkout 時不動作", async () => {
+  it("revealProjectPath 在 remote 无 checkout 时不动作", async () => {
     const { store, fsActions } = storeActive("remote:c1/demo/api");
     await store.getState().revealProjectPath("a.ts");
     expect(fsActions.reveal).not.toHaveBeenCalled();
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("core 查不到或回報錯誤時 locateDocument 為 null、不拋", async () => {
+  it("core 查不到或回报错误时 locateDocument 为 null、不抛", async () => {
     const fsActions = fakeFsActions();
     fsActions.locate.mockResolvedValueOnce(null).mockRejectedValueOnce("boom");
     const { store } = storeActive("local:/work/app", fsActions);
@@ -3303,49 +3303,49 @@ describe("詳情頁文件動作", () => {
     expect(await store.getState().locateDocument(DOC)).toBeNull();
   });
 
-  it("remote 無 checkout：不查位置；copyDocumentContent 寫入原文", async () => {
+  it("remote 无 checkout：不查位置；copyDocumentContent 写入原文", async () => {
     const { store, fsActions } = storeActive("remote:c1/demo/api");
     expect(await store.getState().locateDocument(DOC)).toBeNull();
     expect(fsActions.locate).not.toHaveBeenCalled();
-    await store.getState().copyDocumentContent("# 討論原文");
-    expect(fsActions.copyText).toHaveBeenCalledWith("# 討論原文");
+    await store.getState().copyDocumentContent("# 讨论原文");
+    expect(fsActions.copyText).toHaveBeenCalledWith("# 讨论原文");
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("copyDocumentContent 失敗與其他文件動作同樣以失敗 toast 呈現", async () => {
+  it("copyDocumentContent 失败与其他文档动作同样以失败 toast 呈现", async () => {
     const fsActions = fakeFsActions();
     fsActions.copyText.mockRejectedValue(new Error("clipboard denied"));
     const { store } = storeActive("remote:c1/demo/api", fsActions);
     await store.getState().copyDocumentContent("# 原文");
     const [message, options] = toastError.mock.calls[0] as [string, { id?: string }];
-    expect(message).toBe("複製內容 · 檔案動作失敗 ✗ Error: clipboard denied");
+    expect(message).toBe("拷贝内容 · 文档动作失败 ✗ Error: clipboard denied");
     expect(options?.id).toBe("desktop-operation-failure");
   });
 });
 
-// desktop-board-reskin design D2：看板討論欄底「已轉出」收合列的展開狀態存於 app 本機
-// （localStorage 鍵 speclink.board.promotedExpanded）跨啟動保留；壞值或缺席一律收合。
-describe("promotedExpanded（討論欄收合列的跨啟動記憶）", () => {
-  const KEY = "speclink.board.promotedExpanded";
+// desktop-board-reskin design D2：看板讨论栏底「已转出」收合列的展开状态存于 app 本机
+// （localStorage 键 specseal.board.promotedExpanded）跨启动保留；坏值或缺席一律收合。
+describe("promotedExpanded（讨论栏收合列的跨启动记忆）", () => {
+  const KEY = "specseal.board.promotedExpanded";
 
-  it("無鍵時為 false", () => {
+  it("无键时为 false", () => {
     const store = storeWith(fakeDataSource());
     expect(store.getState().promotedExpanded).toBe(false);
   });
 
-  it('鍵為 "true" 時為 true', () => {
+  it('键为 "true" 时为 true', () => {
     localStorage.setItem(KEY, "true");
     const store = storeWith(fakeDataSource());
     expect(store.getState().promotedExpanded).toBe(true);
   });
 
-  it("壞值視為 false、不拋錯", () => {
+  it("坏值视为 false、不抛错", () => {
     localStorage.setItem(KEY, "yes");
     const store = storeWith(fakeDataSource());
     expect(store.getState().promotedExpanded).toBe(false);
   });
 
-  it('setPromotedExpanded(true) 後鍵為 "true"；false 寫回 "false"', () => {
+  it('setPromotedExpanded(true) 后键为 "true"；false 写回 "false"', () => {
     const store = storeWith(fakeDataSource());
     store.getState().setPromotedExpanded(true);
     expect(store.getState().promotedExpanded).toBe(true);
@@ -3356,11 +3356,11 @@ describe("promotedExpanded（討論欄收合列的跨啟動記憶）", () => {
   });
 });
 
-// desktop-list-pages-reskin design D7：清單每頁筆數存於 app 本機（localStorage 鍵
-// speclink.list.pageSizes，JSON 物件）跨啟動保留；三個清單各自記住，缺席、壞 JSON 或
-// 不在 20／50／100 之內的欄位一律退回 20。spec scenario「每頁筆數跨啟動記住」Example。
-describe("pageSizes（清單每頁筆數的跨啟動記憶）", () => {
-  const KEY = "speclink.list.pageSizes";
+// desktop-list-pages-reskin design D7：清单每页笔数存于 app 本机（localStorage 键
+// specseal.list.pageSizes，JSON 对象）跨启动保留；三个清单各自记住，缺席、坏 JSON 或
+// 不在 20／50／100 之内的字段一律退回 20。spec scenario「每页笔数跨启动记住」Example。
+describe("pageSizes（清单每页笔数的跨启动记忆）", () => {
+  const KEY = "specseal.list.pageSizes";
 
   it.each<[string, string | null, { specs: number; archivedChanges: number; archivedDiscussions: number }]>([
     ["缺席", null, { specs: 20, archivedChanges: 20, archivedDiscussions: 20 }],
@@ -3374,14 +3374,14 @@ describe("pageSizes（清單每頁筆數的跨啟動記憶）", () => {
       JSON.stringify({ specs: 0, archivedChanges: 37 }),
       { specs: 20, archivedChanges: 20, archivedDiscussions: 20 },
     ],
-    ["無法解析的文字", "not json{", { specs: 20, archivedChanges: 20, archivedDiscussions: 20 }],
-  ])("記憶內容 %s", (_label, raw, expected) => {
+    ["无法解析的文本", "not json{", { specs: 20, archivedChanges: 20, archivedDiscussions: 20 }],
+  ])("记忆内容 %s", (_label, raw, expected) => {
     if (raw !== null) localStorage.setItem(KEY, raw);
     const store = storeWith(fakeDataSource());
     expect(store.getState().pageSizes).toEqual(expected);
   });
 
-  it("記憶內容不是物件（陣列、字串）時三個清單都退回 20", () => {
+  it("记忆内容不是对象（数组、字符串）时三个清单都退回 20", () => {
     localStorage.setItem(KEY, JSON.stringify([50, 50, 50]));
     expect(storeWith(fakeDataSource()).getState().pageSizes).toEqual({
       specs: 20,
@@ -3392,7 +3392,7 @@ describe("pageSizes（清單每頁筆數的跨啟動記憶）", () => {
     expect(storeWith(fakeDataSource()).getState().pageSizes.specs).toBe(20);
   });
 
-  it("setPageSize 更新該清單並把整個物件寫回鍵；其他清單不變", () => {
+  it("setPageSize 更新该清单并把整个对象写回键；其他清单不变", () => {
     const store = storeWith(fakeDataSource());
     store.getState().setPageSize("specs", 50);
     expect(store.getState().pageSizes).toEqual({ specs: 50, archivedChanges: 20, archivedDiscussions: 20 });
@@ -3407,7 +3407,7 @@ describe("pageSizes（清單每頁筆數的跨啟動記憶）", () => {
       archivedChanges: 20,
       archivedDiscussions: 100,
     });
-    // 新建的 store（重開 app）讀回同一組值。
+    // 新建的 store（重开 app）读回同一组值。
     expect(storeWith(fakeDataSource()).getState().pageSizes).toEqual({
       specs: 50,
       archivedChanges: 20,
@@ -3415,7 +3415,7 @@ describe("pageSizes（清單每頁筆數的跨啟動記憶）", () => {
     });
   });
 
-  it("localStorage 寫入失敗時本次執行期照常生效、不拋錯", () => {
+  it("localStorage 写入失败时本次运行期照常生效、不抛错", () => {
     const store = storeWith(fakeDataSource());
     const spy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
       throw new Error("quota");
@@ -3429,10 +3429,10 @@ describe("pageSizes（清單每頁筆數的跨啟動記憶）", () => {
   });
 });
 
-// desktop-settings-mode design D1／D6／D7：設定模式的分類（記住上次所在分類）、更新頁的自動檢查
-// 開關（speclink.updater.autoCheck，預設開）與伺服器頁的預設連線（speclink.defaultConnection）。
-describe("設定模式的分類與偏好", () => {
-  it("預設落在一般與專案說明；setter 改分類，切回設定模式不重設", () => {
+// desktop-settings-mode design D1／D6／D7：设置模式的分类（记住上次所在分类）、更新页的自动检查
+// 开关（specseal.updater.autoCheck，缺省开）与服务器页的缺省连接（specseal.defaultConnection）。
+describe("设置模式的分类与偏好", () => {
+  it("缺省落在一般与项目说明；setter 改分类，切回设置模式不重设", () => {
     const store = storeWith(fakeDataSource());
     expect(store.getState().settingsSection).toBe("general");
     expect(store.getState().projectSettingsSection).toBe("context");
@@ -3445,7 +3445,7 @@ describe("設定模式的分類與偏好", () => {
     expect(store.getState().projectSettingsSection).toBe("workflow");
   });
 
-  it("openSettingsUpdate 切到設定模式的更新頁並舉旗 focusUpdater", () => {
+  it("openSettingsUpdate 切到设置模式的更新页并举旗 focusUpdater", () => {
     const store = storeWith(fakeDataSource());
     store.getState().openSettingsUpdate();
     expect(store.getState().boardView).toBe("settings");
@@ -3453,7 +3453,7 @@ describe("設定模式的分類與偏好", () => {
     expect(store.getState().focusUpdater).toBe(true);
   });
 
-  it("openConnectionReauth 切到設定模式的伺服器頁並聚焦該連線", () => {
+  it("openConnectionReauth 切到设置模式的服务器页并聚焦该连接", () => {
     const store = storeWith(fakeDataSource());
     store.getState().openConnectionReauth("c1");
     expect(store.getState().boardView).toBe("settings");
@@ -3461,7 +3461,7 @@ describe("設定模式的分類與偏好", () => {
     expect(store.getState().reauthConnectionId).toBe("c1");
   });
 
-  it("進入設定模式記下來處，兩種設定模式之間切換不改寫；leaveSettings 回到來處", () => {
+  it("进入设置模式记下来处，两种设置模式之间切换不改写；leaveSettings 回到来处", () => {
     const store = storeWith(fakeDataSource());
     expect(store.getState().settingsReturnView).toBe("board");
     store.getState().setBoardView("specs");
@@ -3471,7 +3471,7 @@ describe("設定模式的分類與偏好", () => {
     expect(store.getState().settingsReturnView).toBe("specs");
     store.getState().leaveSettings();
     expect(store.getState().boardView).toBe("specs");
-    // 其他入口（更新鈕、重新登入）同樣經 setBoardView，記下的是當時所在頁。
+    // 其他入口（更新钮、重新登录）同样经 setBoardView，记下的是当时所在页。
     store.getState().setBoardView("manual");
     store.getState().openSettingsUpdate();
     store.getState().leaveSettings();
@@ -3479,7 +3479,7 @@ describe("設定模式的分類與偏好", () => {
   });
 
   describe("updaterAutoCheck", () => {
-    const KEY = "speclink.updater.autoCheck";
+    const KEY = "specseal.updater.autoCheck";
     const updaterStore = () => {
       const check = vi.fn().mockResolvedValue(null);
       const store = trackedAppStore({ createSession: vi.fn() as never, updater: { check, relaunch: vi.fn() } });
@@ -3491,12 +3491,12 @@ describe("設定模式的分類與偏好", () => {
       ["false", false],
       ["true", true],
       ["0", true],
-    ])("鍵 %j 讀為 %s（壞值視為預設開）", (stored, expected) => {
+    ])("键 %j 读为 %s（坏值视为缺省开）", (stored, expected) => {
       if (stored !== null) localStorage.setItem(KEY, stored);
       expect(updaterStore().store.getState().updaterAutoCheck).toBe(expected);
     });
 
-    it("setUpdaterAutoCheck 寫回同一鍵", () => {
+    it("setUpdaterAutoCheck 写回同一键", () => {
       const { store } = updaterStore();
       store.getState().setUpdaterAutoCheck(false);
       expect(store.getState().updaterAutoCheck).toBe(false);
@@ -3505,7 +3505,7 @@ describe("設定模式的分類與偏好", () => {
       expect(localStorage.getItem(KEY)).toBe("true");
     });
 
-    it("關閉時背景檢查與前景重檢不呼叫端點，手動檢查照常", async () => {
+    it("关闭时背景检查与前景重检不调用端点，手动检查照常", async () => {
       localStorage.setItem(KEY, "false");
       const { store, check } = updaterStore();
       await store.getState().checkForUpdates(false);
@@ -3519,15 +3519,15 @@ describe("設定模式的分類與偏好", () => {
   });
 
   describe("defaultConnectionId", () => {
-    const KEY = "speclink.defaultConnection";
+    const KEY = "specseal.defaultConnection";
 
-    it("無鍵為 null；有鍵讀回 connection id", () => {
+    it("无键为 null；有键读回 connection id", () => {
       expect(storeWith(fakeDataSource()).getState().defaultConnectionId).toBeNull();
       localStorage.setItem(KEY, "c1");
       expect(storeWith(fakeDataSource()).getState().defaultConnectionId).toBe("c1");
     });
 
-    it("setDefaultConnectionId 寫入；設回 null 移除鍵", () => {
+    it("setDefaultConnectionId 写入；设回 null 移除键", () => {
       const store = storeWith(fakeDataSource());
       store.getState().setDefaultConnectionId("c2");
       expect(store.getState().defaultConnectionId).toBe("c2");
@@ -3539,8 +3539,8 @@ describe("設定模式的分類與偏好", () => {
   });
 });
 
-// desktop-about-page design D1：關於頁的版本資訊（一次取得並快取）。
-describe("關於頁的版本資訊", () => {
+// desktop-about-page design D1：关于页的版本信息（一次取得并缓存）。
+describe("关于页的版本信息", () => {
   const INFO = {
     appVersion: "0.8.0",
     engineVersion: "v1.44.0",
@@ -3548,7 +3548,7 @@ describe("關於頁的版本資訊", () => {
     arch: "arm64",
   };
 
-  it("loadAppInfo 只呼叫 adapter 一次：併發與再次進頁都沿用快取", async () => {
+  it("loadAppInfo 只调用 adapter 一次：并发与再次进页都沿用缓存", async () => {
     const loadAppInfo = vi.fn().mockResolvedValue(INFO);
     const store = trackedAppStore({ createSession: vi.fn() as never, loadAppInfo });
     expect(store.getState().appInfo).toBeNull();
@@ -3558,7 +3558,7 @@ describe("關於頁的版本資訊", () => {
     expect(store.getState().appInfo).toEqual(INFO);
   });
 
-  it("取得失敗時維持 null，下次進頁重取", async () => {
+  it("取得失败时维持 null，下次进页重取", async () => {
     const loadAppInfo = vi.fn().mockRejectedValueOnce(new Error("ipc down")).mockResolvedValueOnce(INFO);
     const store = trackedAppStore({ createSession: vi.fn() as never, loadAppInfo });
     await store.getState().loadAppInfo();
@@ -3569,9 +3569,9 @@ describe("關於頁的版本資訊", () => {
   });
 });
 
-// speclink 網址（desktop-deep-link「專案一律走 openProjectAt，詳情等載入後再開」）：
-// 呼叫端靠回傳值知道是否進入了本機專案，再決定要不要開詳情頁。
-describe("openProjectAt 的回傳值", () => {
+// specseal 网址（desktop-deep-link「项目一律走 openProjectAt，详情等加载后再开」）：
+// 调用端靠回传值知道是否进入了本机项目，再决定要不要开详情页。
+describe("openProjectAt 的回传值", () => {
   function storeWithProbe(openProject: WorkspaceAdapter["openProject"], ds = fakeDataSource()) {
     return trackedAppStore({
       createSession: (root, name) => fakeSession(ds, root, name),
@@ -3579,7 +3579,7 @@ describe("openProjectAt 的回傳值", () => {
     });
   }
 
-  it("探測為本機專案：整批載入完成後才 resolve，值為該分頁的 locator key", async () => {
+  it("探测为本机项目：整批加载完成后才 resolve，值为该分页的 locator key", async () => {
     const load = deferred<ChangeListPayload>();
     const ds = fakeDataSource({ listChanges: vi.fn(() => load.promise) });
     const store = storeWithProbe(vi.fn().mockResolvedValue({ status: "project", root: "B", name: "b" }), ds);
@@ -3597,14 +3597,14 @@ describe("openProjectAt 的回傳值", () => {
 
   it.each([
     ["未初始化", { status: "uninitialized", dir: "C" }],
-    ["未啟用", { status: "unadopted", root: "C", needsImport: false }],
-  ])("探測為%s：回傳 null", async (_label, probe) => {
+    ["未激活", { status: "unadopted", root: "C", needsImport: false }],
+  ])("探测为%s：回传 null", async (_label, probe) => {
     const store = storeWithProbe(vi.fn().mockResolvedValue(probe));
     expect(await store.getState().openProjectAt("C")).toBeNull();
   });
 
-  // Scenario「專案網址指向未初始化的資料夾」：確認框接手，主區維持原本的頁面。
-  it("探測為未初始化：開初始化確認框，主區維持原本的頁面", async () => {
+  // Scenario「项目网址指向未初始化的文档夹」：确认框接手，主区维持原本的页面。
+  it("探测为未初始化：开初始化确认框，主区维持原本的页面", async () => {
     const store = storeWithProbe(vi.fn().mockResolvedValue({ status: "uninitialized", dir: "C" }));
     store.getState().setBoardView("specs");
     await store.getState().openProjectAt("C");
@@ -3612,21 +3612,21 @@ describe("openProjectAt 的回傳值", () => {
     expect(store.getState().boardView).toBe("specs");
   });
 
-  it("探測失敗：回傳 null", async () => {
+  it("探测失败：回传 null", async () => {
     const store = storeWithProbe(vi.fn().mockRejectedValue(new Error("gone")));
     expect(await store.getState().openProjectAt("C")).toBeNull();
   });
 
-  // 清單沒載進來時，呼叫端不得把空清單當成「找不到目標」。
-  it("整批載入失敗：回傳 null", async () => {
+  // 清单没载进来时，调用端不得把空清单当成「找不到目标」。
+  it("整批加载失败：回传 null", async () => {
     const ds = fakeDataSource({ listChanges: vi.fn().mockRejectedValue(new Error("io")) });
     const store = storeWithProbe(vi.fn().mockResolvedValue({ status: "project", root: "B", name: "b" }), ds);
     expect(await store.getState().openProjectAt("B")).toBeNull();
     expect(store.getState().loadFailed).toBe(true);
   });
 
-  // 回傳的 key 代表「現在可以拿這個專案的清單來用」：載入期間切走就不成立。
-  it("載入期間使用者切到別的分頁：回傳 null", async () => {
+  // 回传的 key 代表「现在可以拿这个项目的清单来用」：加载期间切走就不成立。
+  it("加载期间用户切到别的分页：回传 null", async () => {
     const load = deferred<ChangeListPayload>();
     const ds = fakeDataSource({ listChanges: vi.fn(() => load.promise) });
     const store = storeWithProbe(vi.fn().mockResolvedValue({ status: "project", root: "B", name: "b" }), ds);
@@ -3637,10 +3637,10 @@ describe("openProjectAt 的回傳值", () => {
     expect(await opening).toBeNull();
   });
 
-  describe("帶 remote 標記（已登入、checkout 已有工具選集）", () => {
+  describe("带 remote 标记（已登录、checkout 已有工具选集）", () => {
     const MARKER = {
       status: "remoteBinding",
-      url: "https://spec.example.test/api/speclink/v1/projects/demo",
+      url: "https://spec.example.test/api/specseal/v1/projects/demo",
       repo: "backend",
       hasLocalOpenspec: false,
     };
@@ -3662,15 +3662,15 @@ describe("openProjectAt 的回傳值", () => {
       return { store, connections, openRemote };
     }
 
-    it("既有流程自動同步並開 remote 分頁：回傳 null", async () => {
+    it("既有流程自动同步并开 remote 分页：回传 null", async () => {
       const { store, connections, openRemote } = storeWithMarker();
       expect(await store.getState().openProjectAt("/work/backend")).toBeNull();
       expect(connections.bindCheckout).toHaveBeenCalled();
       expect(openRemote).toHaveBeenCalled();
     });
 
-    // speclink 網址入口：確認前零寫入，交給使用者在選擇器確認。
-    it("remoteViaChooser：改開選擇器（預選連線、scope 與 checkout），不同步、不連線，回傳 null", async () => {
+    // specseal 网址入口：确认前零写入，交给用户在选择器确认。
+    it("remoteViaChooser：改开选择器（预选连接、scope 与 checkout），不同步、不连接，回传 null", async () => {
       const { store, connections, openRemote } = storeWithMarker();
       expect(await store.getState().openProjectAt("/work/backend", { remoteViaChooser: true })).toBeNull();
       expect(connections.inspectCheckout).not.toHaveBeenCalled();

@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 import { useClient, useSession } from "../app/context";
 import { Field } from "../components/Field";
 import { FocusFooter, FocusHeader } from "../layouts/FocusLayout";
 import { WebApiError } from "../api/client";
 import { fillUser } from "../lib/userLabel";
 
-// 裝置核准頁（server-device-auth「核准頁 session 保護且明確確認」, D3）。需已登入；未
-// 登入時導向登入頁並僅保留格式合格的裝置碼（成功登入後由 Server 依 device code 裁決導回
-// 此頁）。載入不查授權狀態，只預填 URL 帶入的碼；使用者提交後才得到明確的核准／拒絕。
+// 设备核准页（server-device-auth「核准页 session 保护且明确确认」, D3）。需已登录；未
+// 登录时导向登录页并仅保留格式合格的设备码（成功登录后由 Server 依 device code 裁决导回
+// 此页）。加载不查授权状态，只预填 URL 带入的码；用户提交后才得到明确的核准／拒绝。
 
 /** The confusable-free `XXXX-XXXX` device-code shape (matches the server). */
 const CODE = /^[A-HJ-KM-NP-Z2-9]{4}-[A-HJ-KM-NP-Z2-9]{4}$/;
@@ -26,7 +26,7 @@ export function ActivatePage() {
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  // 未登入：導向登入頁，只保留格式合格的裝置碼。
+  // 未登录：导向登录页，只保留格式合格的设备码。
   if (!session.authenticated) {
     const to = CODE.test(prefill) ? `/login?user_code=${encodeURIComponent(prefill)}` : "/login";
     return <Navigate to={to} replace />;
@@ -66,8 +66,8 @@ export function ActivatePage() {
     }
   }
 
-  // 結果頁不止於單行結果：核准與拒絕都接一句返回 app 的收尾指引，讓使用者知道這裡
-  // 已經結束、app 會自行取得結果（server-device-auth「核准頁 session 保護且明確確認」）。
+  // 结果页不止于单行结果：核准与拒绝都接一句返回 app 的收尾指引，让用户知道这里
+  // 已经结束、app 会自行取得结果（server-device-auth「核准页 session 保护且明确确认」）。
   if (phase === "done") {
     return (
       <>
@@ -102,7 +102,7 @@ export function ActivatePage() {
     );
   }
 
-  // 確認：大字代碼讓使用者對照裝置上的畫面，身分句說清楚核准後誰會登入。
+  // 确认：大字代码让用户对照设备上的画面，身分句说清楚核准后谁会登录。
   const user = session.user;
   const shown = code.trim();
   return (

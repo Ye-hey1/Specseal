@@ -1,6 +1,6 @@
-// desktop-app「抽屜與浮層的開關動畫」Scenario「減少動態偏好下無動畫」：jsdom 沒有版面
-// 與媒體查詢，比照 skeleton.test 以 motion-reduce: 變體 class 斷言（repo 既有慣例），
-// 並確認進出兩向的動畫 class 都在（出場 class 缺席＝關閉時直接消失）。
+// desktop-app「抽屉与浮层的开关动画」Scenario「减少动态偏好下无动画」：jsdom 没有版面
+// 与媒体查找，比照 skeleton.test 以 motion-reduce: 变体 class 断言（repo 既有惯例），
+// 并确认进出两向的动画 class 都在（出场 class 缺席＝关闭时直接消失）。
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
 
@@ -10,8 +10,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../com
 
 const REQUIRED = ["motion-reduce:animate-none", "data-[state=open]:animate-in", "data-[state=closed]:animate-out"];
 
-describe("抽屜與浮層的減少動態變體", () => {
-  it("Sheet 的遮罩與面板都帶進出動畫與 motion-reduce 變體", () => {
+describe("抽屉与浮层的减少动态变体", () => {
+  it("Sheet 的遮罩与面板都带进出动画与 motion-reduce 变体", () => {
     render(
       <Sheet open>
         <SheetContent>面板</SheetContent>
@@ -22,12 +22,12 @@ describe("抽屜與浮層的減少動態變體", () => {
     for (const el of layers) for (const cls of REQUIRED) expect(el.className).toContain(cls);
   });
 
-  it("Popover 與 Tooltip 的內容層同樣帶進出動畫與 motion-reduce 變體", () => {
+  it("Popover 与 Tooltip 的内容层同样带进出动画与 motion-reduce 变体", () => {
     render(
       <>
         <Popover open>
           <PopoverTrigger>p</PopoverTrigger>
-          <PopoverContent>浮層</PopoverContent>
+          <PopoverContent>浮层</PopoverContent>
         </Popover>
         <TooltipProvider>
           <Tooltip open>
@@ -37,8 +37,8 @@ describe("抽屜與浮層的減少動態變體", () => {
         </TooltipProvider>
       </>,
     );
-    // 兩種內容層都由 Radix 標上 data-side；trigger 沒有。Popover 的開啟態是 open，
-    // Tooltip 的是 delayed-open／instant-open——進場變體必須掛在實際會出現的值上。
+    // 两种内容层都由 Radix 标上 data-side；trigger 没有。Popover 的打开态是 open，
+    // Tooltip 的是 delayed-open／instant-open——进场变体必须挂在实际会出现的值上。
     const layers = Array.from(document.querySelectorAll<HTMLElement>("[data-side]"));
     expect(layers.length).toBe(2);
     const popover = layers.find((el) => el.getAttribute("role") === "dialog") as HTMLElement;

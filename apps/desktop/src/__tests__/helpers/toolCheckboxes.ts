@@ -1,11 +1,11 @@
-// 內建 AI 工具勾選的共用斷言：初始化確認、啟用確認與 checkout 步驟都依同一個順序列出五個工具。
-// 期望的順序寫在這裡，不讀被測的 BUILTIN_TOOLS。
+// 内置 AI 工具勾选的共用断言：初始化确认、激活确认与 checkout 步骤都依同一个顺串行出五个工具。
+// 期望的顺序写在这里，不读被测的 BUILTIN_TOOLS。
 import { expect } from "vitest";
 import { within } from "@testing-library/react";
 
 const TOOL_ORDER = ["claude", "codex", "copilot", "pi", "cursor"] as const;
 
-/** `container` 內恰好依 claude、codex、copilot、pi、cursor 順序出現五個勾選，且只有 `checked` 列出的工具是勾選狀態。 */
+/** `container` 内恰好依 claude、codex、copilot、pi、cursor 顺序出现五个勾选，且只有 `checked` 列出的工具是勾选状态。 */
 export function expectToolCheckboxes(container: HTMLElement, checked: readonly (typeof TOOL_ORDER)[number][]) {
   const boxes = within(container).getAllByRole("checkbox");
   expect(TOOL_ORDER.map((name) => boxes.indexOf(within(container).getByRole("checkbox", { name })))).toEqual([

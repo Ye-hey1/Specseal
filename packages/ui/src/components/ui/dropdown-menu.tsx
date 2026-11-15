@@ -1,4 +1,4 @@
-// 下拉選單原語（Radix，design D5）：class 常數與 context-menu.tsx 共用，樣式只寫一次。
+// 下拉列表原语（Radix，design D5）：class 常数与 context-menu.tsx 共用，样式只写一次。
 import * as React from "react";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Check } from "lucide-react";
@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { usePortalContainer } from "./portal-container";
 
-// 浮層底色用 bg-card：這份 theme 沒有 --popover（同 popover.tsx）。
+// 浮层底色用 bg-card：这份 theme 没有 --popover（同 popover.tsx）。
 export const menuContentClass =
   "z-50 min-w-56 overflow-hidden rounded-xl border border-border bg-card p-1.5 text-card-foreground shadow-lg shadow-black/5 outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 motion-reduce:animate-none";
 export const menuItemClass =
@@ -53,7 +53,7 @@ DropdownMenuItem.displayName = DropdownMenuPrimitive.Item.displayName;
 
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
-/** 單選項（角色 menuitemradio，aria-checked 由 Radix 處理）：左側固定寬的勾號槽，選中才顯示勾號。 */
+/** 单选项（角色 menuitemradio，aria-checked 由 Radix 处理）：左侧固定宽的勾号槽，选中才显示勾号。 */
 const DropdownMenuRadioItem = React.forwardRef<
   React.ElementRef<typeof DropdownMenuPrimitive.RadioItem>,
   React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>

@@ -6,16 +6,16 @@ import { Badge } from "./ui/badge";
 export interface SectionHeaderProps {
   icon?: ReactNode;
   label: string;
-  /** 項目計數；未給（例如載入中、計數未知）則不出徽章，不謊報 0。 */
+  /** 项目计数；未给（例如加载中、计数未知）则不出徽章，不谎报 0。 */
   count?: number;
-  /** 計數徽章配色（例如生命週期 STAGE_BADGE）；未給為中性（Badge 的 secondary 變體）。 */
+  /** 计数徽章配色（例如生命周期 STAGE_BADGE）；未给为中性（Badge 的 secondary 变体）。 */
   countClassName?: string;
-  /** 列尾動作。 */
+  /** 列尾动作。 */
   action?: ReactNode;
   className?: string;
 }
 
-/** 區段標題（spec desktop-app「共用元件唯一來源」；design D8）：xs 粗體灰字一列，計數為徽章。 */
+/** 区段标题（spec desktop-app「共用组件唯一来源」；design D8）：xs 粗体灰字一列，计数为徽章。 */
 export function SectionHeader({ icon, label, count, countClassName, action, className }: SectionHeaderProps) {
   return (
     <div className={cn("flex items-center gap-1.5 text-xs font-semibold text-muted-foreground", className)}>

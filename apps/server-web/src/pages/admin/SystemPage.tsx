@@ -8,19 +8,19 @@ import {
   StatusPill,
   useI18n,
   PageHeader,
-} from "@speclink/ui";
+} from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { useAsync } from "../../lib/useAsync";
 import { CardNote } from "../../components/CardNote";
 import { useTour } from "../../components/Tour";
 import { AdminError, AdminLoading } from "./states";
 
-// 系統頁（server-web-console「資料操作目的地已併入系統」；server-web-list-pages design D10）：
-// 原「資料操作」與「系統狀態」合併為一個目的地與一份 view model。768px 置中欄，四張設定型卡——
-// 執行環境、儲存狀態、匯出、危險區，各值為卡內的列。取得失敗時整頁呈現錯誤與重試，不部分渲染：
-// 儲存後端的健康狀態在整個介面只該有一處權威來源，半份資料比沒有資料更容易誤導。
+// 系统页（server-web-console「数据操作目的地已并入系统」；server-web-list-pages design D10）：
+// 原「数据操作」与「系统状态」合并为一个目的地与一份 view model。768px 置中栏，四张设置型卡——
+// 运行环境、保存状态、导出、危险区，各值为卡内的列。取得失败时整页呈现错误与重试，不部分渲染：
+// 保存后端的健康状态在整个接口只该有一处权威来源，半份数据比没有数据更容易误导。
 
-/** 列右側的等寬值。 */
+/** 列右侧的等宽值。 */
 function Mono({ children }: { children: string | number }) {
   return <span className="break-all font-mono text-[13px]">{children}</span>;
 }
@@ -47,7 +47,7 @@ export function SystemPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-[768px] flex-col gap-6">
-      {/* 導覽的重新啟動入口。放在系統頁而非各列表頁：它是「設定與維運」性質的動作，
+      {/* 导览的重新启动入口。放在系统页而非各列表页：它是「设置与维运」性质的动作，
           不是任何列表的 primary action。 */}
       <PageHeader
         level={1}
@@ -113,7 +113,7 @@ export function SystemPage() {
                   key={`${s.project}/${s.repo}`}
                   label={<span className="font-mono">{`${s.project}/${s.repo}`}</span>}
                   control={
-                    // 檔案下載用原生 <a href>，不是 router Link。
+                    // 文件下载用原生 <a href>，不是 router Link。
                     <Button asChild variant="outline" size="sm" className="gap-1.5">
                       <a
                         href={s.exportPath}

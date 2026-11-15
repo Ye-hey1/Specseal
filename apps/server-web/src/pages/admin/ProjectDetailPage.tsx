@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { FolderX } from "lucide-react";
-import { Button, PageHeader, SettingsRow, StatusPill, TabsContent, TabsTrigger, useI18n } from "@speclink/ui";
+import { Button, PageHeader, SettingsRow, StatusPill, TabsContent, TabsTrigger, useI18n } from "@specseal/ui";
 import { useClient } from "../../app/context";
 import { useAsync } from "../../lib/useAsync";
 import { userLabel } from "../../lib/userLabel";
@@ -13,23 +13,23 @@ import { DetailNotFound, DetailTabs } from "./detail";
 import { AdminCardState } from "./states";
 import type { AdminProject } from "../../api/client";
 
-// 專案詳情頁（server-web-console「管理列表以詳情頁與對話框承載檢視與建立」「不可變識別欄位唯讀且
-// 更名為顯式動作」；server-web-detail-pages design D6）：以使用者詳情頁為範本——768px 置中欄，頁標題
-// 為專案名稱、說明標示代號建立後不可變更、頁級動作為更名；其下卡片標頭分頁為儲存庫與成員。代號是
-// 身分，只以唯讀文字呈現（連 disabled 輸入框都不出現，避免暗示「某些條件下可改」）；名稱按「更名」
-// 才在對話框裡出現輸入框。成員由使用者清單反查，唯讀。
+// 项目详情页（server-web-console「管理列表以详情页与对话框承载查看与创建」「不可变识别字段唯读且
+// 更名为显式动作」；server-web-detail-pages design D6）：以用户详情页为范本——768px 置中栏，页标题
+// 为项目名称、说明标示代号创建后不可变更、页级动作为更名；其下卡片标头分页为保存库与成员。代号是
+// 身分，只以唯读文本呈现（连 disabled 输入框都不出现，避免暗示「某些条件下可改」）；名称按「更名」
+// 才在对话框里出现输入框。成员由用户清单反查，唯读。
 
-/** 更名對話框的對象：專案或儲存庫，在按下「更名」時就組好。 */
+/** 更名对话框的对象：项目或保存库，在按下「更名」时就组好。 */
 type RenameTarget = {
   title: string;
   label: string;
-  /** 不隨更名改變的代號。 */
+  /** 不随更名改变的代号。 */
   identity: string;
   current: string;
   rename: (name: string) => Promise<void>;
 };
 
-/** 專案詳情頁的網址：代號只擋空白，可能含 / ? # 這類字元，要編碼成一段路徑。 */
+/** 项目详情页的网址：代号只挡空白，可能含 / ? # 这类字符，要编码成一段路径。 */
 export function projectPath(key: string): string {
   return `/admin/registry/${encodeURIComponent(key)}`;
 }
@@ -40,7 +40,7 @@ export function ProjectDetailPage({
   reload,
 }: {
   projects: AdminProject[];
-  /** 列表目前呈現的項目（含搜尋）——‹ n / m › 的序列。 */
+  /** 列表目前呈现的项目（含搜索）——‹ n / m › 的串行。 */
   sequence: AdminProject[];
   reload: () => void;
 }) {
@@ -73,7 +73,7 @@ function ProjectDetail({
   const { t } = useI18n();
   const client = useClient();
   const navigate = useNavigate();
-  // 分頁是元件 state：‹ › 換專案時停在同一個分頁。
+  // 分页是组件 state：‹ › 换项目时停在同一个分页。
   const [tab, setTab] = useState("repos");
   const [rename, setRename] = useState<RenameTarget | null>(null);
   const [addingRepo, setAddingRepo] = useState(false);
@@ -199,8 +199,8 @@ function ProjectDetail({
   );
 }
 
-// 更名對話框（專案與儲存庫共用）：預填目前名稱、標示代號不隨更名改變；空白名稱時確認鈕停用。
-// 失敗保持開啟並保留輸入；成功關閉，頁標題、麵包屑或列標題隨重載換成新名稱。
+// 更名对话框（项目与保存库共用）：预填目前名称、标示代号不随更名改变；空白名称时确认钮停用。
+// 失败保持打开并保留输入；成功关闭，页标题、面包屑或列标题随重载换成新名称。
 function RenameDialog({
   target,
   onClose,

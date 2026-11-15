@@ -1,10 +1,10 @@
-// @speclink/ui — 跨桌面/web 共用的呈現元件庫。
+// @specseal/ui — 跨桌面/web 共用的呈现组件库。
 //
-// 元件為純呈現、資料由 props 注入；資料源經 SpeclinkDataSource 介面解耦（見 adapter.ts）。
+// 组件为纯呈现、数据由 props 注入；数据源经 SpecsealDataSource 接口解耦（见 adapter.ts）。
 
-export const UI_PACKAGE = "@speclink/ui";
+export const UI_PACKAGE = "@specseal/ui";
 
-// UI 介面 i18n（zh-TW／en；與 config locale 無關）
+// UI 接口 i18n（zh-CN／en；与 config locale 无关）
 export {
   I18nProvider,
   useI18n,
@@ -30,7 +30,7 @@ export {
   type ThemePreference,
 } from "./theme";
 
-// shadcn/ui 設計系統原語（跨桌面/web 共用）
+// shadcn/ui 设计系统原语（跨桌面/web 共用）
 export { cn } from "./lib/utils";
 export { Toaster } from "./components/ui/sonner";
 export { Button, buttonVariants, type ButtonProps } from "./components/ui/button";
@@ -76,7 +76,7 @@ export {
 } from "./components/ui/sheet";
 
 export type {
-  SpeclinkDataSource,
+  SpecsealDataSource,
   CardKind,
   ListView,
   ChangeItem,
@@ -123,10 +123,10 @@ export { TicketView, type TicketViewProps } from "./components/TicketView";
 export { SeverityTag } from "./components/SeverityTag";
 export { BaselineSmellList } from "./components/BaselineSmellList";
 
-// 列滑過才出現的控制項（複製鈕、撤銷鈕）共用的顯隱 class
+// 列滑过才出现的控制项（拷贝钮、撤销钮）共用的显隐 class
 export { REVEAL_ON_GROUP_HOVER } from "./reveal";
 
-// 狀態語意色（單一來源；三紅分工見 tone.ts 表頭）
+// 状态语意色（单一来源；三红分工见 tone.ts 表头）
 export { SEMANTIC_TONE, SEMANTIC_SURFACE, type SemanticTone } from "./tone";
 
 // 看板
@@ -158,7 +158,7 @@ export {
 } from "./components/DiscussionColumn";
 export { DiscussionDetailPage, type DiscussionDetailPageProps } from "./components/DiscussionDetailPage";
 
-// 清單 + 分頁 + 富文本
+// 清单 + 分页 + 富文本
 export { Markdown, type MarkdownProps } from "./components/Markdown";
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export { Input } from "./components/ui/input";
@@ -220,7 +220,7 @@ export {
   DocSkeleton,
 } from "./components/skeletons";
 
-// 富詳情
+// 富详情
 export type { ChangeMetaInfo } from "./adapter";
 export { specDeltaCounts, sumDeltaCounts, formatDeltaCounts, type DeltaCounts } from "./delta";
 export { ChangeDetailPage, type ChangeDetailPageProps } from "./components/ChangeDetailPage";
@@ -242,11 +242,11 @@ export {
   type DocHeaderProps,
 } from "./components/DetailShell";
 
-// 互動任務、彩色 delta、封存頁
+// 交互任务、彩色 delta、封存页
 export { parseTaskDoc, type TaskDocItem } from "./tasks";
 export { TaskList, type TaskListProps } from "./components/TaskList";
 export { DeltaBadges, CapabilityHeader } from "./components/DeltaBadges";
-// 變更文件渲染器（desktop-change-doc-views）：提案、設計、需求段、排程與閱讀卡標題區的推導。
+// 变更文档渲染器（desktop-change-doc-views）：提案、设计、需求段、调度与阅读卡标题区的推导。
 export { ProposalDoc, type ProposalDocProps } from "./components/ProposalDoc";
 export { DesignDoc, type DesignDocProps, type DecisionJump } from "./components/DesignDoc";
 export { PlanDoc } from "./components/PlanDoc";
@@ -278,7 +278,7 @@ export {
   type DecisionData,
   type TaskTextParts,
 } from "./docModel";
-// 討論文件渲染器（desktop-discussion-doc-views）：結論、討論過程、背景、衍生變更與閱讀卡標題區的推導。
+// 讨论文档渲染器（desktop-discussion-doc-views）：结论、讨论过程、背景、衍生变更与阅读卡标题区的推导。
 export { ConclusionDoc, type ConclusionDocProps, type CutStage } from "./components/ConclusionDoc";
 export { RoundsDoc } from "./components/RoundsDoc";
 export { ContextDoc, type ContextDocProps } from "./components/ContextDoc";
@@ -289,7 +289,7 @@ export {
   discussionDocData,
   type DiscussionDocData,
 } from "./components/discussionDocSummary";
-// 記錄解析器留在套件內部；只延續原本就公開的區段切分。
+// 记录解析器留在套件内部；只延续原本就公开的区段切分。
 export { splitDiscussionSections, type DiscussionSections } from "./discussionModel";
 export { CopyButton, type CopyButtonProps } from "./components/CopyButton";
 export { EmptyState, type EmptyStateProps } from "./components/EmptyState";
@@ -324,7 +324,7 @@ export {
   type VerifyBadgeStatus,
 } from "./components/verifyStyle";
 
-// 規格頁
+// 规格页
 export { SpecList, sortSpecs, type SpecListProps } from "./components/SpecList";
 export { SpecDetailPage, type SpecDetailPageProps } from "./components/SpecDetailPage";
 export {
@@ -334,5 +334,5 @@ export {
   type SpecSections,
 } from "./specSections";
 
-// 手冊頁（desktop-manual-page）
+// 手册页（desktop-manual-page）
 export { ManualPage, type ManualPageProps } from "./components/ManualPage";

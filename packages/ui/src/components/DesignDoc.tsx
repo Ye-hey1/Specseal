@@ -29,7 +29,7 @@ import {
 } from "./DocParts";
 import { Markdown } from "./Markdown";
 
-/** 跳到某張決策卡的請求：每次點 D 籤 seq 遞增，同一張卡可重跳。 */
+/** 跳到某张决策卡的请求：每次点 D 签 seq 递增，同一张卡可重跳。 */
 export interface DecisionJump {
   id: string;
   seq: number;
@@ -39,13 +39,13 @@ export interface DesignDocProps {
   content: string | null;
   empty?: string;
   jump: DecisionJump | null;
-  /** 跳轉處理完（命中或沒命中）——頁據此清掉請求。 */
+  /** 跳转处理完（命中或没命中）——页据此清掉请求。 */
   onJumped: () => void;
 }
 
 /**
- * 設計渲染器（spec「提案與設計章節以中文標籤呈現」；design D4）：背景細線列、目標／非目標兩欄、
- * 決策可收合卡、實作契約鍵值列、風險逐條 warning 提示框；其餘章節照 Markdown。
+ * 设计渲染器（spec「提案与设计章节以中文标签呈现」；design D4）：背景细线列、目标／非目标两栏、
+ * 决策可收合卡、实作契约键值列、风险逐条 warning 提示框；其余章节照 Markdown。
  */
 export function DesignDoc({ content, empty, jump, onJumped }: DesignDocProps) {
   const doc = content ? splitH2Sections(content) : null;
@@ -53,7 +53,7 @@ export function DesignDoc({ content, empty, jump, onJumped }: DesignDocProps) {
     .filter((s) => s.key === "sections.decisions")
     .flatMap((s) => parseDecisions(s.content).cards.map((c) => c.id));
   const hit = jump !== null && decisionIds.includes(jump.id);
-  // 沒命中：只回報完成（頁已切到設計文件、自頂端呈現）；命中由該卡自己的 effect 處理。
+  // 没命中：只回报完成（页已切到设计文档、自顶端呈现）；命中由该卡自己的 effect 处理。
   useEffect(() => {
     if (jump && !hit) onJumped();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -152,8 +152,8 @@ function DesignSection({ section, jump, onJumped }: { section: H2Section; jump: 
 }
 
 /**
- * 可收合的決策卡：預設收合，點卡頭或 D 籤跳轉才展開。收合只藏內文、標題常駐——本頁目錄的
- * 錨點集合不隨展開收合改變。捲動放在卡自己的 effect：Radix 的 TabsContent 切換後下一輪才掛內文。
+ * 可收合的决策卡：缺省收合，点卡头或 D 签跳转才展开。收合只藏内文、标题常驻——本页目录的
+ * 锚点集合不随展开收合改变。卷动放在卡自己的 effect：Radix 的 TabsContent 切换后下一轮才挂内文。
  */
 function DecisionCard({
   card,

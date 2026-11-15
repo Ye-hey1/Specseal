@@ -1,5 +1,5 @@
-// shadcn Table 原語（跨 Desktop／Server Web 共用）：語意 <table> 結構、themed 邊框、
-// 窄容器橫向捲動。server-web 管理頁的多個表格改用此原語，不再手刻原生 <table>。
+// shadcn Table 原语（跨 Desktop／Server Web 共用）：语意 <table> 结构、themed 边框、
+// 窄容器横向卷动。server-web 管理页的多个表格改用此原语，不再手刻原生 <table>。
 import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 
@@ -16,52 +16,52 @@ import {
 function sample() {
   return render(
     <Table>
-      <TableCaption>使用者清單</TableCaption>
+      <TableCaption>用户清单</TableCaption>
       <TableHeader>
         <TableRow>
-          <TableHead>名稱</TableHead>
-          <TableHead>狀態</TableHead>
+          <TableHead>名称</TableHead>
+          <TableHead>状态</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         <TableRow>
           <TableCell>alice</TableCell>
-          <TableCell>啟用</TableCell>
+          <TableCell>激活</TableCell>
         </TableRow>
       </TableBody>
     </Table>,
   );
 }
 
-describe("Table 原語", () => {
-  it("渲染語意 table／columnheader／cell 角色", () => {
+describe("Table 原语", () => {
+  it("渲染语意 table／columnheader／cell 角色", () => {
     sample();
     const table = screen.getByRole("table");
     expect(table).toBeTruthy();
-    // <caption> 供螢幕閱讀器辨識表格用途。
-    expect(within(table).getByText("使用者清單").tagName).toBe("CAPTION");
-    expect(screen.getByRole("columnheader", { name: "名稱" })).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "狀態" })).toBeTruthy();
+    // <caption> 供屏幕阅读器辨识表格用途。
+    expect(within(table).getByText("用户清单").tagName).toBe("CAPTION");
+    expect(screen.getByRole("columnheader", { name: "名称" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "状态" })).toBeTruthy();
     expect(screen.getByRole("cell", { name: "alice" })).toBeTruthy();
     expect(screen.getAllByRole("row")).toHaveLength(2);
   });
 
-  it("以 themed border-border 畫列邊框（非 Tailwind v4 預設的 currentColor 黑框）", () => {
+  it("以 themed border-border 画列边框（非 Tailwind v4 缺省的 currentColor 黑框）", () => {
     sample();
-    // 資料列帶 border-border——手刻裸 border 會落到 currentColor（≈黑），這正是要避免的。
+    // 数据列带 border-border——手刻裸 border 会落到 currentColor（≈黑），这正是要避免的。
     const bodyRow = screen.getByRole("cell", { name: "alice" }).closest("tr");
     expect(bodyRow?.className).toContain("border-border");
   });
 
-  it("外層容器可橫向捲動，窄視窗表格不撐破版面", () => {
+  it("外层容器可横向卷动，窄窗口表格不撑破版面", () => {
     sample();
     const wrapper = screen.getByRole("table").parentElement;
     expect(wrapper?.className).toContain("overflow-x-auto");
   });
 
-  // server-web-list-pages design D1、D7：呼叫端自己就是捲動區（列表卡）時不包外層容器——外層的
-  // overflow-x-auto 會自成捲動容器，表頭的 sticky 就黏在那層、隨列表卡捲走。
-  it("wrapped={false} 時不包外層捲動容器，表格直接在呼叫端的容器內", () => {
+  // server-web-list-pages design D1、D7：调用端自己就是卷动区（列表卡）时不包外层容器——外层的
+  // overflow-x-auto 会自成卷动容器，表头的 sticky 就黏在那层、随列表卡卷走。
+  it("wrapped={false} 时不包外层卷动容器，表格直接在调用端的容器内", () => {
     const { container } = render(
       <div data-host>
         <Table wrapped={false}>
@@ -78,13 +78,13 @@ describe("Table 原語", () => {
     expect(table.className).toContain("w-full");
   });
 
-  // 固定表頭由元件提供（呼叫端不以 className 補底色）：捲動時表頭留在頂端、帶卡片底色蓋住底下的列。
-  it("TableHeader sticky 時表頭固定在頂端並帶卡片底色；未給時沒有", () => {
+  // 固定表头由组件提供（调用端不以 className 补底色）：卷动时表头留在顶端、带卡片底色盖住底下的列。
+  it("TableHeader sticky 时表头固定在顶端并带卡片底色；未给时没有", () => {
     const { unmount } = render(
       <Table wrapped={false}>
         <TableHeader sticky>
           <TableRow>
-            <TableHead>名稱</TableHead>
+            <TableHead>名称</TableHead>
           </TableRow>
         </TableHeader>
       </Table>,
@@ -96,7 +96,7 @@ describe("Table 原語", () => {
     expect((screen.getByRole("table").querySelector("thead") as HTMLElement).className).not.toContain("sticky");
   });
 
-  it("className 併入 cn，不覆蓋基底樣式", () => {
+  it("className 并入 cn，不覆盖基底样式", () => {
     render(
       <Table className="custom-table">
         <TableBody>
@@ -111,8 +111,8 @@ describe("Table 原語", () => {
     expect(table.className).toContain("w-full");
   });
 
-  // desktop-subagent-model-page：列裡放控制項的表格（設定頁）不要滑過底色，由元件提供開關、呼叫端不蓋 className。
-  it("TableRow hoverable={false} 不帶滑過底色；未給時照常有", () => {
+  // desktop-subagent-model-page：列里放控制项的表格（设置页）不要滑过底色，由组件提供开关、调用端不盖 className。
+  it("TableRow hoverable={false} 不带滑过底色；未给时照常有", () => {
     render(
       <Table>
         <TableBody>

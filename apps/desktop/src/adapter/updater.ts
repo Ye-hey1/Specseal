@@ -1,16 +1,16 @@
-// updater 接線面（design D6）：Tauri 殼對 tauri-plugin-updater／plugin-process 的
-// 單行委派，加上主視窗焦點事件的委派（前景重檢的訊號；update-recheck-on-focus
-// design D1）。store 只依賴此介面，測試以假 adapter 注入。
+// updater 接线面（design D6）：Tauri 壳对 tauri-plugin-updater／plugin-process 的
+// 单行委派，加上主窗口焦点事件的委派（前景重检的信号；update-recheck-on-focus
+// design D1）。store 只依赖此接口，测试以假 adapter 注入。
 import { check } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { getVersion } from "@tauri-apps/api/app";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
-/** app 自身版本（設定頁軟體更新卡的常駐現版號）。 */
+/** app 自身版本（设置页软件更新卡的常驻现版号）。 */
 export const appVersion = (): Promise<string> => getVersion();
 
-/** check 找到的新版：版本號＋下載與安裝兩段（簽章驗證由 plugin 內建，失敗即 reject）。
- * 分兩段是為了「取消」：使用者在下載中取消後，下載完成也不安裝（desktop-app「取消下載回到閒置」）。 */
+/** check 找到的新版：版本号＋下载与安装两段（签章验证由 plugin 内置，失败即 reject）。
+ * 分两段是为了「取消」：用户在下载中取消后，下载完成也不安装（desktop-app「取消下载回到闲置」）。 */
 export interface PendingUpdate {
   version: string;
   download: () => Promise<void>;
@@ -18,14 +18,14 @@ export interface PendingUpdate {
 }
 
 export interface UpdaterAdapter {
-  /** 檢查更新端點；回 null＝已是最新。離線／端點不可達時 reject。 */
+  /** 检查更新端点；回 null＝已是最新。脱机／端点不可达时 reject。 */
   check: () => Promise<PendingUpdate | null>;
-  /** 套用更新後重啟 app。 */
+  /** 套用更新后重启 app。 */
   relaunch: () => Promise<void>;
   /**
-   * 訂閱主視窗焦點變化（前景重檢的訊號；design D1）：handler 收到 true＝取得焦點。
-   * 可選——既有假 adapter 與非 Tauri 環境不提供時，app 不訂閱、不重檢。
-   * 回傳取消訂閱函式的 Promise。
+   * 订阅主窗口焦点变化（前景重检的信号；design D1）：handler 收到 true＝取得焦点。
+   * 可选——既有假 adapter 与非 Tauri 环境不提供时，app 不订阅、不重检。
+   * 回传取消订阅函数的 Promise。
    */
   onFocusChanged?: (handler: (focused: boolean) => void) => Promise<() => void>;
 }
@@ -42,8 +42,8 @@ export function tauriUpdaterAdapter(): UpdaterAdapter {
       };
     },
     relaunch,
-    // async：getCurrentWindow() 在非 Tauri 環境是同步拋錯，包成 async 讓它一律
-    // 變成 reject，呼叫端只靠 .catch 即可靜默。
+    // async：getCurrentWindow() 在非 Tauri 环境是同步抛错，包成 async 让它一律
+    // 变成 reject，调用端只靠 .catch 即可静默。
     onFocusChanged: async (handler) =>
       getCurrentWindow().onFocusChanged(({ payload }) => handler(payload)),
   };

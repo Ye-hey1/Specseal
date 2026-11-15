@@ -1,4 +1,4 @@
-# Release: push a tag like `v0.1.0` and this builds speclink (CLI) and speclink-server
+# Release: push a tag like `v0.1.0` and this builds specseal (CLI) and specseal-server
 # for Windows / Linux / macOS (x86_64 + arm64 where applicable), desktop installers
 # (macOS universal dmg / Windows NSIS / Linux AppImage, each bundling the same-version
 # CLI as a Tauri sidecar) plus the updater manifest latest.json, publishes a GitHub
@@ -89,7 +89,7 @@ jobs:
       # 而它需要 GTK/WebKit 系统库与先行的 vite build（见 ci.yml），此 job 的
       # runner 都没有——桌面安装档由独立的 desktop job 产出。
       - name: Build
-        run: cargo build --release --locked --target ${{ matrix.target }} -p speclink-cli -p speclink-server
+        run: cargo build --release --locked --target ${{ matrix.target }} -p specseal-cli -p specseal-server
 
       # server-release smoke：把 release binary 放进「没有相邻 dist」的干净工作目录
       # 启动，证明 SPA 只能来自 binary 内嵌——GET /login 加载内嵌 index（HTML），
@@ -99,7 +99,7 @@ jobs:
         if: matrix.smoke
         shell: bash
         run: |
-          BIN="target/${{ matrix.target }}/release/speclink-server"
+          BIN="target/${{ matrix.target }}/release/specseal-server"
           [ -f "$BIN.exe" ] && BIN="$BIN.exe"
           # 刻意独立、无任何 dist 的工作目录：资产只能出自 binary 内嵌。
           rm -rf smoke-runtime && mkdir -p smoke-runtime
@@ -118,8 +118,8 @@ jobs:
           echo "$login_ctype" | grep -qi 'text/html' \
             || { echo "::error::/login 未回 HTML（内嵌 index 未加载）：$login_ctype"; exit 1; }
           # 未知 browser API 应为 JSON 404，禁止被 catch-all fallback 变成 200 HTML。
-          miss_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8188/api/speclink/v1/web/missing)"
-          miss_ctype="$(curl -s -o /dev/null -w '%{content_type}' http://127.0.0.1:8188/api/speclink/v1/web/missing)"
+          miss_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8188/api/specseal/v1/web/missing)"
+          miss_ctype="$(curl -s -o /dev/null -w '%{content_type}' http://127.0.0.1:8188/api/specseal/v1/web/missing)"
           [ "$miss_code" = "404" ] \
             || { echo "::error::未知 /api 未回 404（实际 $miss_code）"; exit 1; }
           echo "$miss_ctype" | grep -qi 'application/json' \
@@ -131,14 +131,14 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: cli-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/speclink${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+          path: target/${{ matrix.target }}/release/specseal${{ contains(matrix.target, 'windows') && '.exe' || '' }}
           if-no-files-found: error
 
       # server binary 同形：release job 的 dist 收集以 pattern 圈定，cli-*／server-* 都捞不到。
       - uses: actions/upload-artifact@v4
         with:
           name: server-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/speclink-server${{ contains(matrix.target, 'windows') && '.exe' || '' }}
+          path: target/${{ matrix.target }}/release/specseal-server${{ contains(matrix.target, 'windows') && '.exe' || '' }}
           if-no-files-found: error
 
   # 桌面安装档（desktop-release spec；design D1：沿用自组 matrix，不用 tauri-action）：
@@ -158,7 +158,7 @@ jobs:
           # 装好（rust_targets），sidecar 由 desktop-sidecar.mjs 对两架构各建一次再以
           # lipo 合成。bundles 仍要带 app：Tauri 只为 app／appimage／msi／nsis 产出
           # 更新包，dmg 不在其列——只建 dmg 时 bundler 印一行警告就跳过更新包，且把
-          # 中间产物 Speclink.app 清掉，下方收集步骤的 cp 随即找不到 app.tar.gz。
+          # 中间产物 Specseal.app 清掉，下方收集步骤的 cp 随即找不到 app.tar.gz。
           - os: macos-latest
             target: universal-apple-darwin
             rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
@@ -185,7 +185,7 @@ jobs:
       - uses: actions/checkout@v5
 
       # 版本闸门（fail-closed）：tag、tauri.conf.json、release-notes.json 顶端三者同版，
-      # 且 CHANGELOG.md、CHANGELOG.zh-TW.md 两份都与 JSON 重算一致（release-notes spec
+      # 且 CHANGELOG.md、CHANGELOG.zh-CN.md 两份都与 JSON 重算一致（release-notes spec
       # 「release 管线守门版号四处同版与渲染一致」）。版号不齐即红灯——否则 latest.json
       # 声明 tag 版、安装档与 app 自报版本停在旧版，形成每次启动都劝诱安装同一 build 的
       # 无尽更新循环（spec「描述档字段对齐发布内容」）；更新日志落后则 Release 说明与
@@ -206,7 +206,7 @@ jobs:
             exit 1
           fi
           if ! node scripts/release/release-notes-render.mjs --check; then
-            echo "::error::CHANGELOG.md 或 CHANGELOG.zh-TW.md 与 release-notes.json 重算结果不一致（--check 两份都比对，漂移的文件名与差异见上方输出）——运行 node scripts/release/release-notes-render.mjs --write 后提交 CHANGELOG.md 与 CHANGELOG.zh-TW.md 两份"
+            echo "::error::CHANGELOG.md 或 CHANGELOG.zh-CN.md 与 release-notes.json 重算结果不一致（--check 两份都比对，漂移的文档名与差异见上方输出）——运行 node scripts/release/release-notes-render.mjs --write 后提交 CHANGELOG.md 与 CHANGELOG.zh-CN.md 两份"
             exit 1
           fi
 
@@ -260,7 +260,7 @@ jobs:
       - name: Build desktop frontend (vite → dist)
         run: npm run build -w apps/desktop
 
-      # CLI sidecar（design D5）：把同版 speclink CLI 布到 externalBin 要求的
+      # CLI sidecar（design D5）：把同版 specseal CLI 布到 externalBin 要求的
       # target-triple 命名位置；缺档时 tauri build 直接失败（fail-closed）。
       - name: Stage CLI sidecar
         run: node scripts/desktop/desktop-sidecar.mjs --target ${{ matrix.target }}
@@ -269,7 +269,7 @@ jobs:
       # 无须改管线。macOS 六项一次注入——凭证三项让 Tauri 签章，公证三项让它在
       # 签章后送 Apple 公证并 staple 票证；少了公证，签过的 app 一样被 Gatekeeper 拦。
       - name: Enable macOS code signing and notarization (env-gated)
-        if: runner.os == 'macOS' && env.SPECLINK_MACOS_SIGNING == 'full'
+        if: runner.os == 'macOS' && env.SPECSEAL_MACOS_SIGNING == 'full'
         shell: bash
         run: |
           {
@@ -284,7 +284,7 @@ jobs:
       # Windows 仅本机凭证路径（SignPath 裁定不采用，design D2）；secrets 缺席
       # 即产出未签章安装档。
       - name: Enable Windows code signing (env-gated)
-        if: runner.os == 'Windows' && env.SPECLINK_WINDOWS_SIGNING == 'certificate'
+        if: runner.os == 'Windows' && env.SPECSEAL_WINDOWS_SIGNING == 'certificate'
         shell: bash
         run: |
           {
@@ -315,8 +315,8 @@ jobs:
           case "${{ matrix.platform }}" in
             darwin-universal)
               cp "$BUNDLE"/dmg/*.dmg installers/
-              cp "$BUNDLE/macos/Speclink.app.tar.gz" "$UPDATER/Speclink_${VERSION}_universal.app.tar.gz"
-              cp "$BUNDLE/macos/Speclink.app.tar.gz.sig" "$UPDATER/Speclink_${VERSION}_universal.app.tar.gz.sig"
+              cp "$BUNDLE/macos/Specseal.app.tar.gz" "$UPDATER/Specseal_${VERSION}_universal.app.tar.gz"
+              cp "$BUNDLE/macos/Specseal.app.tar.gz.sig" "$UPDATER/Specseal_${VERSION}_universal.app.tar.gz.sig"
               ;;
             windows-*)
               cp "$BUNDLE"/nsis/*-setup.exe installers/
@@ -384,7 +384,7 @@ jobs:
         id: build
         with:
           context: .
-          file: crates/host/speclink-server/Dockerfile
+          file: crates/host/specseal-server/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
@@ -521,7 +521,7 @@ jobs:
     with:
       artifacts: cli-*
       materialize: scripts/npm/npm-cli-package.mjs
-      main-package: '@speclink/cli'
+      main-package: '@specseal/cli'
       sums-artifact: cli-npm-sums
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -553,7 +553,7 @@ jobs:
 
       - name: Generate formula from npm tarball checksums
         if: steps.gate.outputs.enabled == 'true'
-        run: node scripts/release/homebrew-formula.mjs --tag "$GITHUB_REF_NAME" --sums cli-npm-sums.txt > speclink.rb
+        run: node scripts/release/homebrew-formula.mjs --tag "$GITHUB_REF_NAME" --sums cli-npm-sums.txt > specseal.rb
 
       - name: Push formula to tap
         if: steps.gate.outputs.enabled == 'true'
@@ -561,11 +561,11 @@ jobs:
           GH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
         run: |
           TAP="${{ github.repository_owner }}/homebrew-tap"
-          # 更新既有档要附现存 sha；首版（文件不存在）则不带。
-          SHA=$(gh api "/repos/$TAP/contents/Formula/speclink.rb" --jq .sha 2>/dev/null || true)
-          gh api -X PUT "/repos/$TAP/contents/Formula/speclink.rb" \
-            -f message="speclink ${GITHUB_REF_NAME}" \
-            -f "content=$(base64 -w0 speclink.rb)" \
+          # 更新既有档要附现存 sha；首版（文档不存在）则不带。
+          SHA=$(gh api "/repos/$TAP/contents/Formula/specseal.rb" --jq .sha 2>/dev/null || true)
+          gh api -X PUT "/repos/$TAP/contents/Formula/specseal.rb" \
+            -f message="specseal ${GITHUB_REF_NAME}" \
+            -f "content=$(base64 -w0 specseal.rb)" \
             ${SHA:+-f "sha=$SHA"}
 
   # server 的 npm 通路（server-release spec「npm 套件一行启动 server」；设计 D9）：
@@ -576,7 +576,7 @@ jobs:
     with:
       artifacts: server-*
       materialize: scripts/npm/npm-server-package.mjs
-      main-package: '@speclink/server'
+      main-package: '@specseal/server'
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -621,6 +621,6 @@ jobs:
     uses: ./.github/workflows/npm-publish.yml
     with:
       artifacts: npm-tarballs
-      main-package: '@speclink/engine'
+      main-package: '@specseal/engine'
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

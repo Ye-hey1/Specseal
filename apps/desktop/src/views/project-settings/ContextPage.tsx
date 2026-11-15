@@ -1,6 +1,6 @@
-// 專案說明頁（desktop-settings-mode design D8；desktop-settings-editors design D2；spec「設定頁編輯
-// 專案說明與產出規則」）：唯讀為 markdown 渲染全文（自成一頁，不收合）；編輯為 markdown 模式的
-// CodeEditor，頁標題右側「編輯／預覽」切換＋取消＋儲存 ⌘S，預覽渲染草稿、編輯器維持掛載。
+// 项目说明页（desktop-settings-mode design D8；desktop-settings-editors design D2；spec「设置页编辑
+// 项目说明与产出规则」）：唯读为 markdown 渲染全文（自成一页，不收合）；编辑为 markdown 模式的
+// CodeEditor，页标题右侧「编辑／预览」切换＋取消＋保存 ⌘S，预览渲染草稿、编辑器维持挂载。
 import { useState } from "react";
 import {
   Card,
@@ -11,7 +11,7 @@ import {
   TabsList,
   TabsTrigger,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import { CodeEditor } from "../../components/CodeEditor";
 import { CardEditControls, FieldHelp, PageAlerts, PageNote, useSaveShortcut } from "./parts";

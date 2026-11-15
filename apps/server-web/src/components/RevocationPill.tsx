@@ -1,6 +1,6 @@
-import { StatusPill, useI18n } from "@speclink/ui";
+import { StatusPill, useI18n } from "@specseal/ui";
 
-/** 憑證與登入工作階段的狀態籤：有效為綠系、已撤銷為中性（撤銷不可逆，得一眼看出哪一把還活著）。 */
+/** 凭证与登录工作阶段的状态签：有效为绿系、已撤销为中性（撤销不可逆，得一眼看出哪一把还活着）。 */
 export function RevocationPill({ revokedAt }: { revokedAt: string | null }) {
   const { t } = useI18n();
   return (

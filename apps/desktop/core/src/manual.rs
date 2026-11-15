@@ -1,11 +1,11 @@
-//! 手冊頁查詢（change desktop-manual-page design D1〜D3）：讀 `openspec/manual/`
-//! 各頁的 frontmatter、推導閱讀序、依 manual-pages 契約計算「可能過期」與
-//! 「生成後新增且未入冊」。純本機路徑、不經 store 抽象（v1 只有本機；remote
-//! 投影未定）；Tauri 殼各一行委派。
+//! 手册页查找（change desktop-manual-page design D1〜D3）：读 `openspec/manual/`
+//! 各页的 frontmatter、推导阅读序、依 manual-pages 契约计算「可能过期」与
+//! 「生成后添加且未入册」。纯本机路径、不经 store 抽象（v1 只有本机；remote
+//! 投影未定）；Tauri 壳各一行委派。
 //!
-//! 寬容降級：缺欄位的頁照常列出（缺 title 用檔名、缺 section 為 null、缺或非整數
-//! order 為 null 並置分區末）；frontmatter 無法解析的頁列入 `pages` 且進 `malformed`，
-//! 不報錯、不改檔。
+//! 宽容降级：缺字段的页照常列出（缺 title 用文件名、缺 section 为 null、缺或非整数
+//! order 为 null 并置分区末）；frontmatter 无法解析的页列入 `pages` 且进 `malformed`，
+//! 不报错、不改档。
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -14,13 +14,13 @@ use std::sync::LazyLock;
 use chrono::{DateTime, FixedOffset, NaiveDate};
 use regex::Regex;
 use serde_json::{json, Value};
-use speclink_core::archive::parse_canonical;
-use speclink_core::store::Store;
+use specseal_core::archive::parse_canonical;
+use specseal_core::store::Store;
 
 use crate::query::{is_safe_path_param, DocumentLocation};
 use crate::{init_core_context, ProjectContext};
 
-/// 一頁 frontmatter 解析後的索引資料；缺欄位以 `None`／空陣列表示。
+/// 一页 frontmatter 解析后的索引数据；缺字段以 `None`／空数组表示。
 struct Page {
     slug: String,
     title: String,
@@ -28,25 +28,25 @@ struct Page {
     order: Option<i64>,
     keywords: Vec<String>,
     sources: Vec<Source>,
-    /// 生成時戳；缺席或既非 RFC 3339 也非 `YYYY-MM-DD` 皆為 `None`——視為未生成，
-    /// 不判過期。
+    /// 生成时戳；缺席或既非 RFC 3339 也非 `YYYY-MM-DD` 皆为 `None`——视为未生成，
+    /// 不判过期。
     generated: Option<Generated>,
     malformed: bool,
 }
 
-/// `sources` 的一項（manual-pages「frontmatter 六欄」）：`<capability>` 或
-/// `<capability>#<Requirement 名>`。`raw` 原樣回給索引；判定只用拆開的兩半。
+/// `sources` 的一项（manual-pages「frontmatter 六栏」）：`<capability>` 或
+/// `<capability>#<Requirement 名>`。`raw` 原样回给索引；判定只用拆开的两半。
 struct Source {
     raw: String,
     capability: String,
-    /// 井號後的 Requirement 標題（去頭尾空白）；無井號即 `None`＝整份規格語意。
+    /// 井号后的 Requirement 标题（去头尾空白）；无井号即 `None`＝整份规格语意。
     anchor: Option<String>,
 }
 
 impl Source {
-    /// 以第一個 `#` 切開、兩半各去頭尾空白；空錨定（`cap#`）視同裸名。路徑守門只看井號前
-    /// （capability 之後會拼成 `specs/{cap}/spec.md` 去讀正典：只收單一路徑段、無 `..`、無 `:`），
-    /// 違者整項丟棄。錨定本身得含 `/` 或 `:`（正典確有「build/pack workflow …」這樣的標題）。
+    /// 以第一个 `#` 切开、两半各去头尾空白；空锚定（`cap#`）视同裸名。路径守门只看井号前
+    /// （capability 之后会拼成 `specs/{cap}/spec.md` 去读正典：只收单一路径段、无 `..`、无 `:`），
+    /// 违者整项丢弃。锚定本身得含 `/` 或 `:`（正典确有「build/pack workflow …」这样的标题）。
     fn parse(raw: &str) -> Option<Source> {
         let (capability, anchor) = match raw.split_once('#') {
             Some((cap, anchor)) => (cap.trim(), Some(anchor.trim()).filter(|a| !a.is_empty())),
@@ -62,8 +62,8 @@ impl Source {
         })
     }
 
-    /// 契約「過期判定基準」的單項判定：裸名看整份規格（規格不存在＝無時戳＝不過期）；
-    /// 帶錨定只看該段，段找不到或規格不存在即過期——改名／刪除要可見，不靜默失聯。
+    /// 契约「过期判定基准」的单项判定：裸名看整份规格（规格不存在＝无时戳＝不过期）；
+    /// 带锚定只看该段，段找不到或规格不存在即过期——改名／删除要可见，不静默失联。
     fn is_stale(&self, spec: Option<&SpecStamps>, page: Stamp) -> bool {
         let stamps: &[Stamp] = match (&self.anchor, spec) {
             (None, None) => &[],
@@ -78,7 +78,7 @@ impl Source {
     }
 }
 
-/// 一頁的 `generated`：索引回傳的原字串（已 trim）與判定用的解析值。
+/// 一页的 `generated`：索引回传的原字符串（已 trim）与判定用的解析值。
 struct Generated {
     raw: String,
     stamp: Stamp,
@@ -91,8 +91,8 @@ impl Generated {
     }
 }
 
-/// manual-pages 契約的時戳：純日（放寬前寫入的 `generated` 與舊封存的 `updated`）
-/// 或帶時區偏移量的瞬間（RFC 3339）。
+/// manual-pages 契约的时戳：纯日（放宽前写入的 `generated` 与旧封存的 `updated`）
+/// 或带时区偏移量的瞬间（RFC 3339）。
 #[derive(Clone, Copy, Debug)]
 enum Stamp {
     Day(NaiveDate),
@@ -100,7 +100,7 @@ enum Stamp {
 }
 
 impl Stamp {
-    /// 先試 RFC 3339（含 `Z` 與 `±hh:mm`），再試 `YYYY-MM-DD`；都不是即缺席。
+    /// 先试 RFC 3339（含 `Z` 与 `±hh:mm`），再试 `YYYY-MM-DD`；都不是即缺席。
     fn parse(s: &str) -> Option<Stamp> {
         let s = s.trim();
         if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
@@ -109,7 +109,7 @@ impl Stamp {
         NaiveDate::parse_from_str(s, "%Y-%m-%d").ok().map(Stamp::Day)
     }
 
-    /// 日曆日；帶時間的一方取其時戳自身偏移量下的日曆日。
+    /// 日历日；带时间的一方取其时戳自身偏移量下的日历日。
     fn day(self) -> NaiveDate {
         match self {
             Stamp::Day(d) => d,
@@ -117,9 +117,9 @@ impl Stamp {
         }
     }
 
-    /// 契約「過期判定基準」的「在之後」——名字說「算作」，因為第二段不是嚴格晚於：
-    /// 兩邊都是瞬間時比到秒、嚴格晚於才算（同秒與小數秒差都不算）；任一邊純日期時
-    /// 退回日曆日不早於（同日也算）——生成當天的封存不得漏判。
+    /// 契约「过期判定基准」的「在之后」——名字说「算作」，因为第二段不是严格晚于：
+    /// 两边都是瞬间时比到秒、严格晚于才算（同秒与小数秒差都不算）；任一边纯日期时
+    /// 退回日历日不早于（同日也算）——生成当天的封存不得漏判。
     fn counts_as_after(self, page: Stamp) -> bool {
         match (self, page) {
             (Stamp::Instant(spec), Stamp::Instant(page)) => spec.timestamp() > page.timestamp(),
@@ -128,8 +128,8 @@ impl Stamp {
     }
 }
 
-/// 沒有手冊可列時的索引；`reason` 恆為 null——「remote」那個值由前端 remote 資料源
-/// 自己填，Rust 端沒有第二種理由。
+/// 没有手册可列时的索引；`reason` 恒为 null——「remote」那个值由前端 remote 数据源
+/// 自己填，Rust 端没有第二种理由。
 fn empty_index() -> Value {
     json!({
         "present": false,
@@ -140,22 +140,22 @@ fn empty_index() -> Value {
     })
 }
 
-// 正式規格的 `@trace` 註解區塊與其中的 `updated:` 欄。區塊的抓法與前端 trace.ts 相同；
-// `updated:` 欄比前端的 `source:` 讀法寬：多行式與單行式 `<!-- @trace source: x updated: … -->`
-// 都認（archive 只寫多行式，這裡是超集）。
+// 正式规格的 `@trace` 注解区块与其中的 `updated:` 栏。区块的抓法与前端 trace.ts 相同；
+// `updated:` 栏比前端的 `source:` 读法宽：多行式与单行式 `<!-- @trace source: x updated: … -->`
+// 都认（archive 只写多行式，这里是超集）。
 static TRACE_BLOCK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?s)<!--\s*@trace\b(.*?)-->").expect("static regex"));
 static TRACE_UPDATED_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\bupdated:\s*(\S+)").expect("static regex"));
 
-/// 對應 Tauri command `list_manual_pages`：`{ present, reason, pages, uncoveredNew,
-/// malformed }`（欄位 camelCase）。目錄不存在、無 `.md`、不可讀或非專案時
-/// `present` 為 false（錯誤只記日誌）。
+/// 对应 Tauri command `list_manual_pages`：`{ present, reason, pages, uncoveredNew,
+/// malformed }`（字段 camelCase）。目录不存在、无 `.md`、不可读或非项目时
+/// `present` 为 false（错误只记日志）。
 pub fn list_manual_pages_at(root: &Path) -> Value {
     let Some(ctx) = init_core_context(root) else {
         return empty_index();
     };
-    // `openspec/manual/` 跟 spec 目錄名走（`.speclink.yaml` 的 spec_dir）。
+    // `openspec/manual/` 跟 spec 目录名走（`.specseal.yaml` 的 spec_dir）。
     let dir = ctx.workspace.spec_dir().join("manual");
     let entries = match std::fs::read_dir(&dir) {
         Ok(entries) => entries,
@@ -187,9 +187,9 @@ pub fn list_manual_pages_at(root: &Path) -> Value {
     }
     sort_reading_order(&mut pages);
 
-    // 每個 capability 的正典只讀一次（stale 與 uncoveredNew 共用）：整份的 @trace updated
-    // 時戳，加上按 `### Requirement:` 切段後各段自己的時戳；規格不存在即 `None`。
-    // 先把頁面引用的與正典既有的 capability 一次讀齊，之後只借用、不複製。
+    // 每个 capability 的正典只读一次（stale 与 uncoveredNew 共用）：整份的 @trace updated
+    // 时戳，加上按 `### Requirement:` 切段后各段自己的时戳；规格不存在即 `None`。
+    // 先把页面引用的与正典既有的 capability 一次读齐，之后只借用、不拷贝。
     let store: &dyn Store = &ctx.store;
     let canonical = store.list_canonical_capabilities();
     let specs: HashMap<String, Option<SpecStamps>> = pages
@@ -208,7 +208,7 @@ pub fn list_manual_pages_at(root: &Path) -> Value {
     let items: Vec<Value> = pages
         .iter()
         .map(|p| {
-            // manual-pages 契約「過期判定基準」：逐項判定，任一項過期即頁過期。
+            // manual-pages 契约「过期判定基准」：逐项判定，任一项过期即页过期。
             let stale = p
                 .generated
                 .as_ref()
@@ -227,9 +227,9 @@ pub fn list_manual_pages_at(root: &Path) -> Value {
         })
         .collect();
 
-    // 未入冊：正典 capability 的每一個 updated 都在每一頁 generated 之後（同一套
-    // 三段式；純日期與時戳混用時沒有全序，故以量詞取代最小／最大），且不在任何頁的
-    // sources。沒有任何頁帶 generated 時不判。
+    // 未入册：正典 capability 的每一个 updated 都在每一页 generated 之后（同一套
+    // 三段式；纯日期与时戳混用时没有全序，故以量词取代最小／最大），且不在任何页的
+    // sources。没有任何页带 generated 时不判。
     let generated: Vec<Stamp> = pages.iter().filter_map(|p| p.generated.as_ref().map(|g| g.stamp)).collect();
     let mut uncovered: Vec<String> = if generated.is_empty() {
         Vec::new()
@@ -255,8 +255,8 @@ pub fn list_manual_pages_at(root: &Path) -> Value {
     })
 }
 
-/// 一頁手冊的檔案位置與所屬專案：讀內文與「開啟 ▾」定位共用。slug 是單一檔名段——拒絕
-/// 路徑分隔與 `..`（與其他 document 讀取同一守門）；`manual/` 跟 spec 目錄名走。
+/// 一页手册的文件位置与所属项目：读内文与「打开 ▾」定位共用。slug 是单一文件名段——拒绝
+/// 路径分隔与 `..`（与其他 document 读取同一守门）；`manual/` 跟 spec 目录名走。
 fn manual_file(root: &Path, slug: &str) -> Option<(ProjectContext, PathBuf)> {
     if !is_safe_path_param(slug) || slug.contains(['/', '\\']) {
         return None;
@@ -266,8 +266,8 @@ fn manual_file(root: &Path, slug: &str) -> Option<(ProjectContext, PathBuf)> {
     Some((ctx, path))
 }
 
-/// 對應 Tauri command `get_manual_page`：去掉 frontmatter 的內文；frontmatter 壞掉
-/// 的頁回全文；頁不存在（或 slug 不安全）回 `None`。
+/// 对应 Tauri command `get_manual_page`：去掉 frontmatter 的内文；frontmatter 坏掉
+/// 的页回全文；页不存在（或 slug 不安全）回 `None`。
 pub fn manual_page_at(root: &Path, slug: &str) -> Option<String> {
     let (_, path) = manual_file(root, slug)?;
     let text = std::fs::read_to_string(path).ok()?;
@@ -277,16 +277,16 @@ pub fn manual_page_at(root: &Path, slug: &str) -> Option<String> {
     })
 }
 
-/// 對應 Tauri command `manual_location`（手冊頁「開啟 ▾」，desktop-spec-manual-pages design D8）：
-/// 與 [`manual_page_at`] 同一條守門與路徑解析。不檢查檔案存在（缺檔由 opener 回報）；slug 不安全
-/// 或不在專案內回 `None`。
+/// 对应 Tauri command `manual_location`（手册页「打开 ▾」，desktop-spec-manual-pages design D8）：
+/// 与 [`manual_page_at`] 同一条守门与路径解析。不检查文件存在（缺档由 opener 回报）；slug 不安全
+/// 或不在项目内回 `None`。
 pub fn manual_location_at(root: &Path, slug: &str) -> Option<DocumentLocation> {
     let (ctx, path) = manual_file(root, slug)?;
     Some(DocumentLocation::within(&ctx.workspace.root, path))
 }
 
-/// 切出 frontmatter：首行為 `---`、到下一個 `---` 行為止（皆容忍 `\r`）。回傳
-/// （YAML 原文、收尾行之後的內文）；不以 `---` 開頭或沒有收尾行時 `None`。
+/// 切出 frontmatter：首行为 `---`、到下一个 `---` 行为止（皆容忍 `\r`）。回传
+/// （YAML 原文、收尾行之后的内文）；不以 `---` 开头或没有收尾行时 `None`。
 fn split_frontmatter(text: &str) -> Option<(&str, &str)> {
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let mut lines = text.split_inclusive('\n');
@@ -305,9 +305,9 @@ fn split_frontmatter(text: &str) -> Option<(&str, &str)> {
     None
 }
 
-/// frontmatter YAML → 映射（全空白的 frontmatter 視為空映射）；解析失敗或非映射回
-/// `None`。只含 `#` 註解行的 YAML 也解成 Null，但那多半是「首行水平線＋標題」的
-/// 內文而非 frontmatter——不當空映射剝掉，讓它走 malformed 路徑保留全文。
+/// frontmatter YAML → 映射（全空白的 frontmatter 视为空映射）；解析失败或非映射回
+/// `None`。只含 `#` 注解行的 YAML 也解成 Null，但那多半是「首行水平线＋标题」的
+/// 内文而非 frontmatter——不当空映射剥掉，让它走 malformed 路径保留全文。
 fn parse_frontmatter_yaml(yaml: &str) -> Option<serde_yaml::Mapping> {
     let cleaned = yaml.replace('\r', "");
     match serde_yaml::from_str::<serde_yaml::Value>(&cleaned).ok()? {
@@ -341,7 +341,7 @@ fn parse_page(slug: String, text: &str) -> Page {
             .map(|seq| seq.iter().filter_map(scalar_to_string).collect())
             .unwrap_or_default()
     };
-    // 守門在 Source::parse（與 manual_page_at 的 slug 守門同一條線）。
+    // 守门在 Source::parse（与 manual_page_at 的 slug 守门同一条线）。
     let sources = list_field("sources").iter().filter_map(|s| Source::parse(s)).collect();
     Page {
         title: string_field("title").unwrap_or_else(|| slug.clone()),
@@ -364,9 +364,9 @@ fn scalar_to_string(v: &serde_yaml::Value) -> Option<String> {
     }
 }
 
-/// 閱讀序（manual-pages 契約「頁的排序僅由 order 決定；分區順序由分區內最小
-/// order 決定」）：分區依（最小 order、該 order 的最小檔名）排、分區內依
-/// （order、檔名）排；缺或非整數 order 以 i64::MAX 沉底。
+/// 阅读序（manual-pages 契约「页的排序仅由 order 决定；分区顺序由分区内最小
+/// order 决定」）：分区依（最小 order、该 order 的最小文件名）排、分区内依
+/// （order、文件名）排；缺或非整数 order 以 i64::MAX 沉底。
 fn sort_reading_order(pages: &mut [Page]) {
     let order_key = |p: &Page| (p.order.unwrap_or(i64::MAX), p.slug.clone());
     let mut section_rank: HashMap<Option<String>, (i64, String)> = HashMap::new();
@@ -384,17 +384,17 @@ fn sort_reading_order(pages: &mut [Page]) {
     pages.sort_by_cached_key(|p| (section_rank[&p.section].clone(), order_key(p)));
 }
 
-/// 一份正式規格的 @trace updated 時戳：整份的，與按 Requirement 段落分的。
+/// 一份正式规格的 @trace updated 时戳：整份的，与按 Requirement 段落分的。
 struct SpecStamps {
     all: Vec<Stamp>,
-    /// 鍵為 `### Requirement:` 之後的標題（去頭尾空白）；同名段落的時戳合併。
+    /// 键为 `### Requirement:` 之后的标题（去头尾空白）；同名段落的时戳合并。
     by_requirement: HashMap<String, Vec<Stamp>>,
 }
 
 impl SpecStamps {
-    /// 切段沿用引擎正典的唯一實作 `speclink_core::archive::parse_canonical`（行首
-    /// `### Requirement:` 為段界、`lines()` 已吃掉 `\r\n` 的 `\r`、標題前的內容不屬任何段），
-    /// 標題語法一動只改引擎那一處。
+    /// 切段沿用引擎正典的唯一实作 `specseal_core::archive::parse_canonical`（行首
+    /// `### Requirement:` 为段界、`lines()` 已吃掉 `\r\n` 的 `\r`、标题前的内容不属任何段），
+    /// 标题语法一动只改引擎那一处。
     fn parse(doc: &str) -> SpecStamps {
         let mut by_requirement: HashMap<String, Vec<Stamp>> = HashMap::new();
         for (title, block) in parse_canonical(doc).1 {
@@ -404,8 +404,8 @@ impl SpecStamps {
     }
 }
 
-/// 正式規格全文 `@trace` 註解區塊內每一行 `updated:` 的可解析時戳；無法解析的行
-/// 視為缺席、直接略過。
+/// 正式规格全文 `@trace` 注解区块内每一行 `updated:` 的可解析时戳；无法解析的行
+/// 视为缺席、直接略过。
 fn trace_updated_stamps(doc: &str) -> Vec<Stamp> {
     TRACE_BLOCK_RE
         .captures_iter(doc)
@@ -425,7 +425,7 @@ mod tests {
 
     fn page(fx: &FixtureRoot, slug: &str, frontmatter: &str, body: &str) {
         fx.write(
-            &format!("speclink/manual/{slug}.md"),
+            &format!("specseal/manual/{slug}.md"),
             &format!("---\n{frontmatter}\n---\n\n{body}\n"),
         );
     }
@@ -436,7 +436,7 @@ mod tests {
             .map(|d| format!("<!-- @trace\nsource: some-change\nupdated: {d}\n-->\n"))
             .collect();
         fx.write(
-            &format!("speclink/specs/{cap}/spec.md"),
+            &format!("specseal/specs/{cap}/spec.md"),
             &format!("# {cap} Specification\n\n## Purpose\n\nx\n\n{blocks}"),
         );
     }
@@ -461,37 +461,37 @@ mod tests {
 
     #[test]
     fn manual_location_resolves_under_the_manual_dir_and_refuses_escapes() {
-        // 手冊頁「開啟 ▾」（desktop-spec-manual-pages design D8）：spec 目錄下 manual/<slug>.md，
-        // 不檢查檔案存在；slug 守門與 manual_page_at 同一條。
+        // 手册页「打开 ▾」（desktop-spec-manual-pages design D8）：spec 目录下 manual/<slug>.md，
+        // 不检查文件存在；slug 守门与 manual_page_at 同一条。
         let fx = FixtureRoot::new("manual-loc");
         let loc = manual_location_at(fx.root(), "tray").expect("location");
-        assert_eq!(loc.relative, "speclink/manual/tray.md");
+        assert_eq!(loc.relative, "specseal/manual/tray.md");
         let abs = Path::new(&loc.path);
-        assert!(abs.starts_with(fx.root()), "{} 應在 {}", loc.path, fx.root().display());
-        assert!(abs.ends_with("speclink/manual/tray.md"), "{}", loc.path);
+        assert!(abs.starts_with(fx.root()), "{} 应在 {}", loc.path, fx.root().display());
+        assert!(abs.ends_with("specseal/manual/tray.md"), "{}", loc.path);
         assert!(manual_location_at(fx.root(), "../x").is_none());
         assert!(manual_location_at(fx.root(), "a/b").is_none());
         assert!(manual_location_at(fx.root(), "a\\b").is_none());
-        // spec 目錄名改設定時跟著走。
+        // spec 目录名改设置时跟着走。
         let custom = FixtureRoot::new("manual-loc-custom");
-        custom.write(".speclink.yaml", "spec_dir: docs/specs\n");
+        custom.write(".specseal.yaml", "spec_dir: docs/specs\n");
         let loc = manual_location_at(custom.root(), "tray").expect("custom location");
         assert_eq!(loc.relative, "docs/specs/manual/tray.md");
     }
 
     #[test]
     fn index_shape_and_reading_order_follow_the_spec_example() {
-        // spec「依 order 排序並依 section 分組」Example：四頁 10/20/30/40。
+        // spec「依 order 排序并依 section 分组」Example：四页 10/20/30/40。
         let fx = FixtureRoot::new("manual-shape");
-        page(&fx, "editor", "title: 編輯器\nsection: 文件協作\norder: 30\nsources: []\ngenerated: 2026-09-02", "e");
-        page(&fx, "about", "title: 本手冊的來源\nsection: 附錄\norder: 40\nsources: []\ngenerated: 2026-09-02", "a");
+        page(&fx, "editor", "title: 编辑器\nsection: 文档协作\norder: 30\nsources: []\ngenerated: 2026-09-02", "e");
+        page(&fx, "about", "title: 本手册的来源\nsection: 附录\norder: 40\nsources: []\ngenerated: 2026-09-02", "a");
         page(
             &fx,
             "first-login",
-            "title: 第一次登入\nsection: 開始使用\norder: 20\nkeywords: [登入, github, 審核]\nsources: [github-oauth, user-pending-blocked-pages]\ngenerated: 2026-09-05T23:31:00+08:00",
+            "title: 第一次登录\nsection: 开始使用\norder: 20\nkeywords: [登录, github, 审核]\nsources: [github-oauth, user-pending-blocked-pages]\ngenerated: 2026-09-05T23:31:00+08:00",
             "f",
         );
-        page(&fx, "index", "title: 手冊\nsection: 開始使用\norder: 10\nsources: []\ngenerated: 2026-09-02", "i");
+        page(&fx, "index", "title: 手册\nsection: 开始使用\norder: 10\nsources: []\ngenerated: 2026-09-02", "i");
         let v = list_manual_pages_at(fx.root());
         assert_eq!(v["present"], true);
         assert_eq!(v["reason"], Value::Null);
@@ -499,14 +499,14 @@ mod tests {
         assert_eq!(v["malformed"], serde_json::json!([]));
         assert_eq!(v["uncoveredNew"], serde_json::json!([]));
         let fl = page_of(&v, "first-login");
-        assert_eq!(fl["title"], "第一次登入");
-        assert_eq!(fl["section"], "開始使用");
+        assert_eq!(fl["title"], "第一次登录");
+        assert_eq!(fl["section"], "开始使用");
         assert_eq!(fl["order"], 20);
-        assert_eq!(fl["keywords"], serde_json::json!(["登入", "github", "審核"]));
+        assert_eq!(fl["keywords"], serde_json::json!(["登录", "github", "审核"]));
         assert_eq!(fl["sources"], serde_json::json!(["github-oauth", "user-pending-blocked-pages"]));
         assert_eq!(fl["generated"], "2026-09-05T23:31:00+08:00");
         assert_eq!(fl["stale"], false);
-        // 欄位名是對外契約：每頁恰好這八個 camelCase 鍵。
+        // 字段名是对外契约：每页恰好这八个 camelCase 键。
         let mut keys: Vec<&str> = fl.as_object().unwrap().keys().map(String::as_str).collect();
         keys.sort_unstable();
         assert_eq!(keys, ["generated", "keywords", "order", "section", "slug", "sources", "stale", "title"]);
@@ -514,8 +514,8 @@ mod tests {
 
     #[test]
     fn ties_break_by_slug_and_sections_rank_by_their_smallest_order() {
-        // 同 order 以檔名決斷；分區順序為分區內最小 order（交錯的 A10/B20/A30 →
-        // A 區整組在前）。
+        // 同 order 以文件名决断；分区顺序为分区内最小 order（交错的 A10/B20/A30 →
+        // A 区整组在前）。
         let fx = FixtureRoot::new("manual-order");
         page(&fx, "b-second", "section: B\norder: 20", "");
         page(&fx, "a-late", "section: A\norder: 30", "");
@@ -528,14 +528,14 @@ mod tests {
 
     #[test]
     fn missing_fields_degrade_without_error() {
-        // spec「缺欄位的頁寬容降級」：缺 title 用檔名、缺 section 為 null、非整數
-        // order 為 null 且置該分區末、缺 keywords/sources 為空陣列、缺 generated
-        // 為 null 且不判過期。
+        // spec「缺字段的页宽容降级」：缺 title 用文件名、缺 section 为 null、非整数
+        // order 为 null 且置该分区末、缺 keywords/sources 为空数组、缺 generated
+        // 为 null 且不判过期。
         let fx = FixtureRoot::new("manual-degrade");
-        page(&fx, "index", "title: 手冊\nsection: 開始使用\norder: 10", "");
+        page(&fx, "index", "title: 手册\nsection: 开始使用\norder: 10", "");
         page(&fx, "orphan", "order: abc", "");
-        page(&fx, "no-order", "section: 開始使用", "");
-        page(&fx, "float-order", "section: 開始使用\norder: 15.5", "");
+        page(&fx, "no-order", "section: 开始使用", "");
+        page(&fx, "float-order", "section: 开始使用\norder: 15.5", "");
         let v = list_manual_pages_at(fx.root());
         assert_eq!(slugs(&v), ["index", "float-order", "no-order", "orphan"]);
         let orphan = page_of(&v, "orphan");
@@ -552,13 +552,13 @@ mod tests {
 
     #[test]
     fn malformed_frontmatter_pages_are_listed_and_flagged() {
-        // spec「frontmatter 壞掉的頁仍可開」：不以 --- 開頭、YAML 壞掉、沒有收尾
-        // --- 的頁都以檔名為標題列出並進 malformed；其他頁順序與內容不受影響。
+        // spec「frontmatter 坏掉的页仍可开」：不以 --- 开头、YAML 坏掉、没有收尾
+        // --- 的页都以文件名为标题列出并进 malformed；其他页顺序与内容不受影响。
         let fx = FixtureRoot::new("manual-malformed");
-        page(&fx, "index", "title: 手冊\nsection: 開始使用\norder: 10", "");
-        fx.write("speclink/manual/plain.md", "# 沒有 frontmatter\n\n內文。\n");
-        fx.write("speclink/manual/broken.md", "---\ntitle: [unclosed\norder: 5\n---\n\n內文。\n");
-        fx.write("speclink/manual/unterminated.md", "---\ntitle: 永遠不收尾\n\n內文。\n");
+        page(&fx, "index", "title: 手册\nsection: 开始使用\norder: 10", "");
+        fx.write("specseal/manual/plain.md", "# 没有 frontmatter\n\n内文。\n");
+        fx.write("specseal/manual/broken.md", "---\ntitle: [unclosed\norder: 5\n---\n\n内文。\n");
+        fx.write("specseal/manual/unterminated.md", "---\ntitle: 永远不收尾\n\n内文。\n");
         let v = list_manual_pages_at(fx.root());
         assert_eq!(v["present"], true);
         assert_eq!(slugs(&v), ["index", "broken", "plain", "unterminated"]);
@@ -569,24 +569,24 @@ mod tests {
             assert_eq!(p["order"], Value::Null);
         }
         assert_eq!(v["malformed"], serde_json::json!(["broken", "plain", "unterminated"]));
-        assert_eq!(page_of(&v, "index")["title"], "手冊");
-        // 壞頁仍可開：回全文。
+        assert_eq!(page_of(&v, "index")["title"], "手册");
+        // 坏页仍可开：回全文。
         assert_eq!(
             manual_page_at(fx.root(), "broken").as_deref(),
-            Some("---\ntitle: [unclosed\norder: 5\n---\n\n內文。\n")
+            Some("---\ntitle: [unclosed\norder: 5\n---\n\n内文。\n")
         );
-        assert_eq!(manual_page_at(fx.root(), "plain").as_deref(), Some("# 沒有 frontmatter\n\n內文。\n"));
-        // 首行水平線、到下一條水平線之間只有標題行：YAML 解成 Null，不是 frontmatter——
-        // 走 malformed、全文保留，內容不得無聲消失。
-        fx.write("speclink/manual/ruled.md", "---\n# 標題\n---\n\n內文。\n");
+        assert_eq!(manual_page_at(fx.root(), "plain").as_deref(), Some("# 没有 frontmatter\n\n内文。\n"));
+        // 首行水平线、到下一条水平线之间只有标题行：YAML 解成 Null，不是 frontmatter——
+        // 走 malformed、全文保留，内容不得无声消失。
+        fx.write("specseal/manual/ruled.md", "---\n# 标题\n---\n\n内文。\n");
         let v = list_manual_pages_at(fx.root());
         assert!(v["malformed"].as_array().unwrap().contains(&serde_json::json!("ruled")));
-        assert_eq!(manual_page_at(fx.root(), "ruled").as_deref(), Some("---\n# 標題\n---\n\n內文。\n"));
+        assert_eq!(manual_page_at(fx.root(), "ruled").as_deref(), Some("---\n# 标题\n---\n\n内文。\n"));
     }
 
     #[test]
     fn stale_follows_the_max_trace_updated_of_the_sources() {
-        // spec「可能過期與未入冊的標示」Example 判定表。
+        // spec「可能过期与未入册的标示」Example 判定表。
         let fx = FixtureRoot::new("manual-stale");
         spec_with_trace(&fx, "x", &["2026-08-01", "2026-09-05"]);
         spec_with_trace(&fx, "y", &["2026-08-20"]);
@@ -600,34 +600,34 @@ mod tests {
         let v = list_manual_pages_at(fx.root());
         assert_eq!(page_of(&v, "px")["stale"], true);
         assert_eq!(page_of(&v, "py")["stale"], false);
-        assert_eq!(page_of(&v, "pxy")["stale"], true, "任一來源更新即過期");
+        assert_eq!(page_of(&v, "pxy")["stale"], true, "任一来源更新即过期");
         assert_eq!(page_of(&v, "p-empty")["stale"], false);
         assert_eq!(page_of(&v, "p-nogen")["stale"], false);
         assert_eq!(page_of(&v, "p-missing-spec")["stale"], false);
-        assert_eq!(page_of(&v, "p-same-day")["stale"], true, "同日算過期：生成當天的封存不得漏判");
+        assert_eq!(page_of(&v, "p-same-day")["stale"], true, "同日算过期：生成当天的封存不得漏判");
     }
 
     #[test]
     fn stamp_parses_rfc3339_with_offset_or_z_then_plain_date() {
-        // manual-pages「frontmatter 六欄」：generated／updated 先試 RFC 3339（含 Z 與 ±hh:mm），
-        // 再試 YYYY-MM-DD；都不是就視為缺席。
+        // manual-pages「frontmatter 六栏」：generated／updated 先试 RFC 3339（含 Z 与 ±hh:mm），
+        // 再试 YYYY-MM-DD；都不是就视为缺席。
         assert!(matches!(Stamp::parse("2026-09-05T23:17:28+08:00"), Some(Stamp::Instant(_))));
         assert!(matches!(Stamp::parse("2026-09-05T15:40:00Z"), Some(Stamp::Instant(_))));
         assert!(matches!(Stamp::parse("2026-09-05"), Some(Stamp::Day(_))));
         assert!(Stamp::parse("not-a-date").is_none());
         assert!(Stamp::parse("2026/09/01").is_none());
-        // 帶時間的一方取其自身偏移量下的日曆日。
+        // 带时间的一方取其自身偏移量下的日历日。
         let z = Stamp::parse("2026-09-05T20:30:00-05:00").unwrap();
         assert_eq!(z.day(), NaiveDate::from_ymd_opt(2026, 9, 5).unwrap());
     }
 
     #[test]
     fn single_line_trace_blocks_and_padded_generated_are_read() {
-        // 單行式 `<!-- @trace source: x updated: … -->` 也算一個 updated 時戳；
-        // generated 帶尾空白時解析後回傳的原字串已 trim。
+        // 单行式 `<!-- @trace source: x updated: … -->` 也算一个 updated 时戳；
+        // generated 带尾空白时解析后回传的原字符串已 trim。
         let fx = FixtureRoot::new("manual-single-line-trace");
         fx.write(
-            "speclink/specs/x/spec.md",
+            "specseal/specs/x/spec.md",
             "# x Specification\n\n## Purpose\n\nx\n\n<!-- @trace source: x updated: 2026-09-05T23:40:00+08:00 -->\n",
         );
         page(&fx, "p", "order: 10\nsources: [x]\ngenerated: \"2026-09-05T23:31:00+08:00 \"", "");
@@ -638,7 +638,7 @@ mod tests {
 
     #[test]
     fn generated_is_echoed_as_the_frontmatter_string() {
-        // 索引的 generated 欄位為 frontmatter 原字串（RFC 3339 或純日期），無法解析時 null。
+        // 索引的 generated 字段为 frontmatter 原字符串（RFC 3339 或纯日期），无法解析时 null。
         let fx = FixtureRoot::new("manual-gen-raw");
         spec_with_trace(&fx, "x", &["2026-08-01"]);
         page(&fx, "stamp", "order: 10\nsources: [x]\ngenerated: 2026-09-05T23:31:00+08:00", "");
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn stale_compares_at_second_precision_when_both_sides_carry_time() {
-        // design「Implementation Contract」判定表：兩邊帶時間嚴格晚於才算；任一邊純日期退回同日規則。
+        // design「Implementation Contract」判定表：两边带时间严格晚于才算；任一边纯日期退回同日规则。
         let fx = FixtureRoot::new("manual-stale-time");
         let rows: &[(&str, &str, &str, bool)] = &[
             ("earlier", "2026-09-05T23:31:00+08:00", "2026-09-05T23:17:28+08:00", false),
@@ -677,7 +677,7 @@ mod tests {
 
     #[test]
     fn uncovered_new_requires_every_stamp_after_every_page_at_second_precision() {
-        // 未入冊的對稱規則：規格每一個 updated 都在每一頁 generated 之後才計入。
+        // 未入册的对称规则：规格每一个 updated 都在每一页 generated 之后才计入。
         let fx = FixtureRoot::new("manual-uncovered-time");
         page(&fx, "index", "order: 10\nsources: []\ngenerated: 2026-09-05T23:31:00+08:00", "");
         page(&fx, "older", "order: 20\nsources: []\ngenerated: 2026-09-01", "");
@@ -692,7 +692,7 @@ mod tests {
 
     #[test]
     fn unparseable_generated_is_null_and_never_stale() {
-        // 既非 RFC 3339 也非 YYYY-MM-DD 的 generated 視同缺席：輸出 null、不判過期。
+        // 既非 RFC 3339 也非 YYYY-MM-DD 的 generated 视同缺席：输出 null、不判过期。
         let fx = FixtureRoot::new("manual-badgen");
         spec_with_trace(&fx, "x", &["2026-09-05"]);
         page(&fx, "index", "order: 10\nsources: [x]\ngenerated: 2026/09/01", "");
@@ -704,13 +704,13 @@ mod tests {
 
     #[test]
     fn uncovered_new_lists_specs_born_after_the_manual_and_absent_from_every_sources() {
-        // spec「生成後新增的規格計入未入冊」：規格的每一個 updated 都在每一頁 generated
-        // 之後、且不在任何 sources；加進某頁 sources 後消失。
+        // spec「生成后添加的规格计入未入册」：规格的每一个 updated 都在每一页 generated
+        // 之后、且不在任何 sources；加进某页 sources 后消失。
         let fx = FixtureRoot::new("manual-uncovered");
         spec_with_trace(&fx, "z", &["2026-09-03", "2026-09-04"]);
         spec_with_trace(&fx, "w", &["2026-09-03"]);
         spec_with_trace(&fx, "v", &["2026-08-01", "2026-09-04"]);
-        fx.write("speclink/specs/no-trace/spec.md", "# no-trace\n");
+        fx.write("specseal/specs/no-trace/spec.md", "# no-trace\n");
         page(&fx, "index", "order: 10\nsources: []\ngenerated: 2026-08-15", "");
         page(&fx, "pw", "order: 20\nsources: [w]\ngenerated: 2026-09-01", "");
         let v = list_manual_pages_at(fx.root());
@@ -722,7 +722,7 @@ mod tests {
 
     #[test]
     fn uncovered_new_counts_a_spec_first_traced_on_the_generation_day() {
-        // 生成當天封存的新規格同樣算「生成後新增」（與過期判定同一基準）。
+        // 生成当天封存的新规格同样算「生成后添加」（与过期判定同一基准）。
         let fx = FixtureRoot::new("manual-uncovered-sameday");
         spec_with_trace(&fx, "s", &["2026-09-01"]);
         spec_with_trace(&fx, "old", &["2026-08-31"]);
@@ -742,7 +742,7 @@ mod tests {
 
     #[test]
     fn absent_or_empty_manual_dir_reports_present_false() {
-        // spec「無手冊目錄」：目錄不存在、只有非 .md 檔、非 speclink 專案。
+        // spec「无手册目录」：目录不存在、只有非 .md 档、非 specseal 项目。
         let fx = FixtureRoot::new("manual-absent");
         let v = list_manual_pages_at(fx.root());
         assert_eq!(
@@ -755,7 +755,7 @@ mod tests {
                 "malformed": []
             })
         );
-        fx.write("speclink/manual/notes.txt", "not a page");
+        fx.write("specseal/manual/notes.txt", "not a page");
         let v = list_manual_pages_at(fx.root());
         assert_eq!(v["present"], false);
         assert_eq!(v["pages"], serde_json::json!([]));
@@ -768,30 +768,30 @@ mod tests {
 
     #[test]
     fn crlf_content_parses_and_body_keeps_its_line_endings() {
-        // design Risks：Windows 換行——frontmatter 以行為單位剝 \r；內文原樣回傳。
+        // design Risks：Windows 换行——frontmatter 以行为单位剥 \r；内文原样回传。
         let fx = FixtureRoot::new("manual-crlf");
         fx.write(
-            "speclink/manual/index.md",
-            "---\r\ntitle: 手冊\r\nsection: 開始使用\r\norder: 10\r\nkeywords: [a, b]\r\nsources: []\r\ngenerated: 2026-09-02\r\n---\r\n\r\n# 標題\r\n\r\n內文。\r\n",
+            "specseal/manual/index.md",
+            "---\r\ntitle: 手册\r\nsection: 开始使用\r\norder: 10\r\nkeywords: [a, b]\r\nsources: []\r\ngenerated: 2026-09-02\r\n---\r\n\r\n# 标题\r\n\r\n内文。\r\n",
         );
         let v = list_manual_pages_at(fx.root());
         let p = page_of(&v, "index");
-        assert_eq!(p["title"], "手冊");
-        assert_eq!(p["section"], "開始使用");
+        assert_eq!(p["title"], "手册");
+        assert_eq!(p["section"], "开始使用");
         assert_eq!(p["order"], 10);
         assert_eq!(p["keywords"], serde_json::json!(["a", "b"]));
         assert_eq!(p["generated"], "2026-09-02");
         assert_eq!(v["malformed"], serde_json::json!([]));
-        assert_eq!(manual_page_at(fx.root(), "index").as_deref(), Some("\r\n# 標題\r\n\r\n內文。\r\n"));
+        assert_eq!(manual_page_at(fx.root(), "index").as_deref(), Some("\r\n# 标题\r\n\r\n内文。\r\n"));
     }
 
     #[test]
     fn manual_page_strips_frontmatter_and_refuses_escapes() {
         let fx = FixtureRoot::new("manual-page");
-        page(&fx, "index", "title: 手冊\norder: 10", "# 手冊\n\n內文。");
-        fx.write("speclink/manual/empty-fm.md", "---\n---\nbody only\n");
-        fx.write("speclink/secret.md", "not a manual page");
-        assert_eq!(manual_page_at(fx.root(), "index").as_deref(), Some("\n# 手冊\n\n內文。\n"));
+        page(&fx, "index", "title: 手册\norder: 10", "# 手册\n\n内文。");
+        fx.write("specseal/manual/empty-fm.md", "---\n---\nbody only\n");
+        fx.write("specseal/secret.md", "not a manual page");
+        assert_eq!(manual_page_at(fx.root(), "index").as_deref(), Some("\n# 手册\n\n内文。\n"));
         assert_eq!(manual_page_at(fx.root(), "empty-fm").as_deref(), Some("body only\n"));
         assert_eq!(manual_page_at(fx.root(), "missing"), None);
         assert_eq!(manual_page_at(fx.root(), "../secret"), None);
@@ -802,18 +802,18 @@ mod tests {
     #[test]
     fn keywords_and_sources_accept_scalars_and_ignore_non_lists() {
         let fx = FixtureRoot::new("manual-lists");
-        page(&fx, "index", "order: 10\nkeywords: [登入, 42, true]\nsources: github-oauth", "");
+        page(&fx, "index", "order: 10\nkeywords: [登录, 42, true]\nsources: github-oauth", "");
         let v = list_manual_pages_at(fx.root());
         let p = page_of(&v, "index");
-        assert_eq!(p["keywords"], serde_json::json!(["登入", "42", "true"]));
-        assert_eq!(p["sources"], serde_json::json!([]), "非陣列的 sources 視為缺席");
+        assert_eq!(p["keywords"], serde_json::json!(["登录", "42", "true"]));
+        assert_eq!(p["sources"], serde_json::json!([]), "非数组的 sources 视为缺席");
     }
 
     #[test]
     fn sources_drop_values_that_are_not_a_single_path_segment() {
-        // sources 會拼成正典路徑去讀：`..`、分隔符、絕對路徑一律丟棄，不去讀 specs 外的檔。
+        // sources 会拼成正典路径去读：`..`、分隔符、绝对路径一律丢弃，不去读 specs 外的档。
         let fx = FixtureRoot::new("manual-sources-guard");
-        fx.write("speclink/secret/spec.md", "<!-- @trace\nsource: s\nupdated: 2026-09-09\n-->\n");
+        fx.write("specseal/secret/spec.md", "<!-- @trace\nsource: s\nupdated: 2026-09-09\n-->\n");
         spec_with_trace(&fx, "ok-cap", &["2026-08-01"]);
         page(
             &fx,
@@ -824,42 +824,42 @@ mod tests {
         let v = list_manual_pages_at(fx.root());
         let p = page_of(&v, "index");
         assert_eq!(p["sources"], serde_json::json!(["ok-cap"]));
-        assert_eq!(p["stale"], false, "被丟棄的來源不參與過期判定");
+        assert_eq!(p["stale"], false, "被丢弃的来源不参与过期判定");
     }
 
-    /// 正式規格夾具：每條 `### Requirement:` 段各帶自己的 @trace updated 時戳；`newline`
-    /// 可換成 `\r\n` 驗跨平台切段。
+    /// 正式规格夹具：每条 `### Requirement:` 段各带自己的 @trace updated 时戳；`newline`
+    /// 可换成 `\r\n` 验跨平台切段。
     fn spec_with_requirements(fx: &FixtureRoot, cap: &str, sections: &[(&str, &[&str])], newline: &str) {
         let mut doc = format!("# {cap} Specification\n\n## Purpose\n\nx\n\n## Requirements\n\n");
         for (title, updated) in sections {
-            doc.push_str(&format!("### Requirement: {title}\n\n內文\n\n#### Scenario: s\n\n- **WHEN** a\n- **THEN** b\n\n"));
+            doc.push_str(&format!("### Requirement: {title}\n\n内文\n\n#### Scenario: s\n\n- **WHEN** a\n- **THEN** b\n\n"));
             for d in updated.iter() {
                 doc.push_str(&format!("<!-- @trace\nsource: some-change\nupdated: {d}\n-->\n\n"));
             }
             doc.push_str("---\n");
         }
-        fx.write(&format!("speclink/specs/{cap}/spec.md"), &doc.replace('\n', newline));
+        fx.write(&format!("specseal/specs/{cap}/spec.md"), &doc.replace('\n', newline));
     }
 
     #[test]
     fn sources_keep_anchor_verbatim_and_guard_only_the_capability_part() {
-        // manual-pages「frontmatter 六欄」＋ desktop-manual-page「可能過期與未入冊的標示」：
-        // sources 回傳 frontmatter 原字串（含 #錨定）；路徑守門只看井號前，違者整項略去。
+        // manual-pages「frontmatter 六栏」＋ desktop-manual-page「可能过期与未入册的标示」：
+        // sources 回传 frontmatter 原字符串（含 #锚定）；路径守门只看井号前，违者整项略去。
         let fx = FixtureRoot::new("manual-anchor-parse");
-        spec_with_requirements(&fx, "desktop-app", &[("看板與任務", &["2026-08-14"])], "\n");
-        // 錨定本身得含 `/`（正典確有「build/pack workflow 可被 release 管線重用」）——守門不看井號後。
-        spec_with_requirements(&fx, "release-pipeline", &[("build/pack workflow 可被 release 管線重用", &["2026-08-14"])], "\n");
+        spec_with_requirements(&fx, "desktop-app", &[("看板与任务", &["2026-08-14"])], "\n");
+        // 锚定本身得含 `/`（正典确有「build/pack workflow 可被 release 管线重用」）——守门不看井号后。
+        spec_with_requirements(&fx, "release-pipeline", &[("build/pack workflow 可被 release 管线重用", &["2026-08-14"])], "\n");
         page(
             &fx,
             "p",
-            "order: 10\nsources: [\"desktop-app#看板與任務\", \"release-pipeline#build/pack workflow 可被 release 管線重用\", \"../evil#段\", \"a/b#段\"]\ngenerated: 2026-09-05",
+            "order: 10\nsources: [\"desktop-app#看板与任务\", \"release-pipeline#build/pack workflow 可被 release 管线重用\", \"../evil#段\", \"a/b#段\"]\ngenerated: 2026-09-05",
             "",
         );
         let v = list_manual_pages_at(fx.root());
         let p = page_of(&v, "p");
         assert_eq!(
             p["sources"],
-            serde_json::json!(["desktop-app#看板與任務", "release-pipeline#build/pack workflow 可被 release 管線重用"])
+            serde_json::json!(["desktop-app#看板与任务", "release-pipeline#build/pack workflow 可被 release 管线重用"])
         );
         assert!(p["sources"].as_array().unwrap().iter().all(Value::is_string));
         assert!(p["stale"].is_boolean());
@@ -867,62 +867,62 @@ mod tests {
 
     #[test]
     fn anchored_source_only_reads_the_named_requirement_section() {
-        // manual-pages「過期判定基準」Example 判定表：錨定項只看該段；裸名看整份；\r\n 同結果。
+        // manual-pages「过期判定基准」Example 判定表：锚定项只看该段；裸名看整份；\r\n 同结果。
         for (nl, tag) in [("\n", "lf"), ("\r\n", "crlf")] {
             let fx = FixtureRoot::new(&format!("manual-anchor-section-{tag}"));
             spec_with_requirements(
                 &fx,
                 "desktop-app",
-                &[("桌面上的品質關卡", &["2026-08-14"]), ("看板與任務", &["2026-09-10T17:15:24+08:00"])],
+                &[("桌面上的品质关卡", &["2026-08-14"]), ("看板与任务", &["2026-09-10T17:15:24+08:00"])],
                 nl,
             );
-            page(&fx, "quality", "order: 10\nsources: [\"desktop-app#桌面上的品質關卡\"]\ngenerated: 2026-09-05", "");
-            page(&fx, "board", "order: 20\nsources: [\"desktop-app#看板與任務\"]\ngenerated: 2026-09-05", "");
+            page(&fx, "quality", "order: 10\nsources: [\"desktop-app#桌面上的品质关卡\"]\ngenerated: 2026-09-05", "");
+            page(&fx, "board", "order: 20\nsources: [\"desktop-app#看板与任务\"]\ngenerated: 2026-09-05", "");
             page(&fx, "whole", "order: 30\nsources: [desktop-app]\ngenerated: 2026-09-05", "");
             let v = list_manual_pages_at(fx.root());
-            assert_eq!(page_of(&v, "quality")["stale"], false, "{tag}: 他段封存不影響錨定頁");
-            assert_eq!(page_of(&v, "board")["stale"], true, "{tag}: 錨定段自身封存即過期");
-            assert_eq!(page_of(&v, "whole")["stale"], true, "{tag}: 裸名維持整份規格語意");
+            assert_eq!(page_of(&v, "quality")["stale"], false, "{tag}: 他段封存不影响锚定页");
+            assert_eq!(page_of(&v, "board")["stale"], true, "{tag}: 锚定段自身封存即过期");
+            assert_eq!(page_of(&v, "whole")["stale"], true, "{tag}: 裸名维持整份规格语意");
         }
     }
 
     #[test]
     fn missing_anchor_or_missing_spec_behind_an_anchor_counts_as_stale() {
-        // manual-pages「錨定找不到即過期」：改名／刪除或規格不存在都可見；裸名對不存在規格維持不標。
+        // manual-pages「锚定找不到即过期」：改名／删除或规格不存在都可见；裸名对不存在规格维持不标。
         let fx = FixtureRoot::new("manual-anchor-missing");
-        spec_with_requirements(&fx, "desktop-app", &[("桌面上的品質關卡", &["2026-08-14"])], "\n");
+        spec_with_requirements(&fx, "desktop-app", &[("桌面上的品质关卡", &["2026-08-14"])], "\n");
         spec_with_trace(&fx, "x", &["2026-09-10T17:15:24+08:00"]);
         page(&fx, "renamed", "order: 10\nsources: [\"desktop-app#不存在的段\"]\ngenerated: 2026-09-05", "");
         page(&fx, "nospec-anchor", "order: 20\nsources: [\"not-exist#段\"]\ngenerated: 2026-09-05", "");
         page(&fx, "nospec-bare", "order: 30\nsources: [not-exist]\ngenerated: 2026-09-05", "");
-        page(&fx, "mixed", "order: 40\nsources: [\"desktop-app#桌面上的品質關卡\", x]\ngenerated: 2026-09-05", "");
+        page(&fx, "mixed", "order: 40\nsources: [\"desktop-app#桌面上的品质关卡\", x]\ngenerated: 2026-09-05", "");
         let v = list_manual_pages_at(fx.root());
         assert_eq!(page_of(&v, "renamed")["stale"], true);
         assert_eq!(page_of(&v, "nospec-anchor")["stale"], true);
         assert_eq!(page_of(&v, "nospec-bare")["stale"], false);
-        assert_eq!(page_of(&v, "mixed")["stale"], true, "任一項過期即頁過期");
+        assert_eq!(page_of(&v, "mixed")["stale"], true, "任一项过期即页过期");
         assert_eq!(page_of(&v, "renamed")["sources"], serde_json::json!(["desktop-app#不存在的段"]));
     }
 
     #[test]
     fn empty_anchor_means_bare_capability_and_both_halves_are_trimmed() {
-        // review 站 WARNING：`"cap#"` 不得永久過期（視同裸名）；`" cap # 段 "` 兩半都去空白後照常解析。
+        // review 站 WARNING：`"cap#"` 不得永久过期（视同裸名）；`" cap # 段 "` 两半都去空白后照常解析。
         let fx = FixtureRoot::new("manual-anchor-edges");
-        spec_with_requirements(&fx, "desktop-app", &[("桌面上的品質關卡", &["2026-08-14"])], "\n");
+        spec_with_requirements(&fx, "desktop-app", &[("桌面上的品质关卡", &["2026-08-14"])], "\n");
         page(&fx, "empty-anchor", "order: 10\nsources: [\"desktop-app#\"]\ngenerated: 2026-09-05", "");
-        page(&fx, "padded", "order: 20\nsources: [\" desktop-app # 桌面上的品質關卡 \"]\ngenerated: 2026-09-05", "");
-        page(&fx, "padded-old", "order: 30\nsources: [\" desktop-app # 桌面上的品質關卡 \"]\ngenerated: 2026-08-01", "");
+        page(&fx, "padded", "order: 20\nsources: [\" desktop-app # 桌面上的品质关卡 \"]\ngenerated: 2026-09-05", "");
+        page(&fx, "padded-old", "order: 30\nsources: [\" desktop-app # 桌面上的品质关卡 \"]\ngenerated: 2026-08-01", "");
         let v = list_manual_pages_at(fx.root());
-        // 裸名語意：整份規格最新 2026-08-14 早於 2026-09-05 → 不過期（而非「找不到段」的永久過期）。
+        // 裸名语意：整份规格最新 2026-08-14 早于 2026-09-05 → 不过期（而非「找不到段」的永久过期）。
         assert_eq!(page_of(&v, "empty-anchor")["stale"], false);
-        assert_eq!(page_of(&v, "padded")["stale"], false, "去空白後錨定命中該段，段時戳早於頁");
-        assert_eq!(page_of(&v, "padded-old")["stale"], true, "同一錨定對更早的頁照常判過期");
-        assert_eq!(page_of(&v, "padded")["sources"], serde_json::json!([" desktop-app # 桌面上的品質關卡 "]), "索引仍回原字串");
+        assert_eq!(page_of(&v, "padded")["stale"], false, "去空白后锚定命中该段，段时戳早于页");
+        assert_eq!(page_of(&v, "padded-old")["stale"], true, "同一锚定对更早的页照常判过期");
+        assert_eq!(page_of(&v, "padded")["sources"], serde_json::json!([" desktop-app # 桌面上的品质关卡 "]), "索引仍回原字符串");
     }
 
     #[test]
     fn uncovered_new_matches_the_capability_before_the_anchor() {
-        // manual-pages「錨定項不影響未入冊判定」：x 只以 "x#某段" 出現也算已入冊。
+        // manual-pages「锚定项不影响未入册判定」：x 只以 "x#某段" 出现也算已入册。
         let fx = FixtureRoot::new("manual-anchor-uncovered");
         spec_with_requirements(&fx, "x", &[("某段", &["2026-09-10T17:15:24+08:00"])], "\n");
         spec_with_trace(&fx, "y", &["2026-09-10T17:15:24+08:00"]);

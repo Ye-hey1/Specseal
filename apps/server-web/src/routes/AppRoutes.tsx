@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { Button, useI18n } from "@speclink/ui";
+import { Button, useI18n } from "@specseal/ui";
 import type { SessionData } from "../api/client";
 import { SessionProvider, useClient, useSession } from "../app/context";
 import { FocusLayout, FocusNotice } from "../layouts/FocusLayout";
@@ -20,7 +20,7 @@ import { AccountPage } from "../pages/AccountPage";
 import { RouteErrorBoundary } from "../components/RouteErrorBoundary";
 import { loginRedirect } from "../lib/returnTo";
 
-// 管理面切為獨立 lazy chunk：登入／帳號初載 bundle 不含管理程式碼（D1）。
+// 管理面切为独立 lazy chunk：登录／帐号初载 bundle 不含管理代码（D1）。
 const AdminSection = lazy(() => import("../pages/admin/AdminSection"));
 
 function BootLoading() {
@@ -50,7 +50,7 @@ function BootError({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-// 開機：讀取一次 session 真相並 gate 全 app。refresh 供 login／logout 後更新。
+// 开机：读取一次 session 真相并 gate 全 app。refresh 供 login／logout 后更新。
 function SessionGate({ children }: { children: ReactNode }) {
   const client = useClient();
   const [session, setSession] = useState<SessionData | null>(null);
@@ -81,7 +81,7 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-// 非 admin 一律明確 403，且不顯示管理導覽（焦點流程殼呈現無權限狀態）。
+// 非 admin 一律明确 403，且不显示管理导览（焦点流程壳呈现无权限状态）。
 function Forbidden() {
   const { t } = useI18n();
   return (

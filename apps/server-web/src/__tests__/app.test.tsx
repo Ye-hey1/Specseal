@@ -4,10 +4,10 @@ import userEvent from "@testing-library/user-event";
 import { App } from "../App";
 import { WebApiError } from "../api/client";
 
-// SPA 殼層、角色導覽與互動狀態（server-web-console「全部 browser route 由單一 SPA
-// 提供可發現導覽」「共用設計系統維持高密度可存取體驗」「Browser API 互動狀態一致
-// 且可恢復」, D3／D6）。App 注入 typed client（唯一 HTTP 入口）與 MemoryRouter 的
-// initialEntries，路由、殼層、導覽、focus、error boundary、單次提交與 Sheet 皆可測。
+// SPA 壳层、角色导览与交互状态（server-web-console「全部 browser route 由单一 SPA
+// 提供可发现导览」「共用设计系统维持高密度可访问体验」「Browser API 交互状态一致
+// 且可恢复」, D3／D6）。App 注入 typed client（唯一 HTTP 入口）与 MemoryRouter 的
+// initialEntries，路由、壳层、导览、focus、error boundary、单次提交与 Sheet 皆可测。
 
 type Session = {
   authenticated: boolean;
@@ -59,9 +59,9 @@ function renderAt(route: string, client: ReturnType<typeof makeClient>) {
   return render(<App client={client as never} initialEntries={[route]} />);
 }
 
-// 側欄六個目的地與帳號選單的完整契約在 admin-console-shell.test.tsx；
-// 此檔只保留殼層以外的路由、focus、互動狀態與 session 過期行為，避免同一份清單兩處維護。
-const ADMIN_DESTINATIONS = ["使用者", "憑證", "稽核紀錄", "系統"];
+// 侧栏六个目的地与帐号菜单的完整契约在 admin-console-shell.test.tsx；
+// 此档只保留壳层以外的路由、focus、交互状态与 session 过期行为，避免同一份清单两处维护。
+const ADMIN_DESTINATIONS = ["用户", "凭证", "稽核纪录", "系统"];
 
 beforeEach(() => {
   window.matchMedia = ((query: string) => ({
@@ -78,15 +78,15 @@ beforeEach(() => {
 
 // --- three shells ---
 
-describe("三種殼層與角色導覽", () => {
-  it("focus 流程殼呈現登入表單與 Speclink identity", async () => {
+describe("三种壳层与角色导览", () => {
+  it("focus 流程壳呈现登录表单与 Specseal identity", async () => {
     renderAt("/login", makeClient());
-    expect(await screen.findByLabelText(/email|電子郵件/i)).toBeTruthy();
-    expect(screen.getByLabelText(/密碼|password/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /登入/ })).toBeTruthy();
+    expect(await screen.findByLabelText(/email|电子邮件/i)).toBeTruthy();
+    expect(screen.getByLabelText(/密码|password/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /登录/ })).toBeTruthy();
   });
 
-  it("一般成員的帳號殼不顯示任何管理目的地", async () => {
+  it("一般成员的帐号壳不显示任何管理目的地", async () => {
     renderAt("/account", makeClient({ getSession: vi.fn(async () => MEMBER) }));
     await screen.findByRole("main");
     for (const dest of ADMIN_DESTINATIONS) {
@@ -94,33 +94,33 @@ describe("三種殼層與角色導覽", () => {
     }
   });
 
-  it("一般成員直接開 /admin 得到明確 403，不顯示管理導覽", async () => {
+  it("一般成员直接开 /admin 得到明确 403，不显示管理导览", async () => {
     renderAt("/admin", makeClient({ getSession: vi.fn(async () => MEMBER) }));
-    // 提示卡（design D7 FocusNotice）：標題與說明整塊以 role=alert 宣告。
+    // 提示卡（design D7 FocusNotice）：标题与说明整块以 role=alert 声明。
     const notice = await screen.findByRole("alert");
-    expect(within(notice).getByRole("heading", { level: 1, name: "沒有權限" })).toBeTruthy();
-    expect(notice.textContent).toContain("你沒有存取管理面的權限。");
+    expect(within(notice).getByRole("heading", { level: 1, name: "没有权限" })).toBeTruthy();
+    expect(notice.textContent).toContain("你没有访问管理面的权限。");
     expect(notice.querySelector("svg")?.getAttribute("class")).toContain("text-status-warning");
-    expect(screen.queryByText("稽核紀錄")).toBeNull();
+    expect(screen.queryByText("稽核纪录")).toBeNull();
   });
 
-  it("管理員深連結 /admin/audit 直接呈現稽核頁", async () => {
+  it("管理员深链接 /admin/audit 直接呈现稽核页", async () => {
     renderAt("/admin/audit", makeClient({ getSession: vi.fn(async () => ADMIN) }));
-    // lazy 管理 chunk 載入後呈現稽核頁標題。
+    // lazy 管理 chunk 加载后呈现稽核页标题。
     expect(await screen.findByRole("heading", { name: /稽核/ })).toBeTruthy();
-    expect(screen.getByRole("navigation", { name: "管理導覽" })).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "管理导览" })).toBeTruthy();
   });
 });
 
 // --- redirect / focus ---
 
-describe("導向與 focus", () => {
-  it("未登入開啟受保護 route 導向登入頁", async () => {
+describe("导向与 focus", () => {
+  it("未登录打开受保护 route 导向登录页", async () => {
     renderAt("/account", makeClient({ getSession: vi.fn(async () => UNAUTH) }));
-    expect(await screen.findByRole("button", { name: /登入/ })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /登录/ })).toBeTruthy();
   });
 
-  it("route 切換後 focus 移至 <main> 標題", async () => {
+  it("route 切换后 focus 移至 <main> 标题", async () => {
     renderAt("/admin", makeClient({ getSession: vi.fn(async () => ADMIN) }));
     const main = await screen.findByRole("main");
     await waitFor(() => {
@@ -129,9 +129,9 @@ describe("導向與 focus", () => {
     });
   });
 
-  it("第一個可聚焦元素是 skip link", async () => {
+  it("第一个可聚焦元素是 skip link", async () => {
     renderAt("/admin", makeClient({ getSession: vi.fn(async () => ADMIN) }));
-    const skip = await screen.findByRole("link", { name: /跳至主要內容|skip/i });
+    const skip = await screen.findByRole("link", { name: /跳至主要内容|skip/i });
     expect(skip).toBeTruthy();
     expect(skip.getAttribute("href")).toContain("#");
   });
@@ -139,44 +139,44 @@ describe("導向與 focus", () => {
 
 // --- focus-flow card ---
 
-// spec「共用設計系統維持高密度可存取體驗」的「專注流程以置中字標與對話框式卡片呈現」與
-// spec「介面語言支援中文與英文」的「登入前可切換語言」（design D7）。
-describe("登入這一族的卡片", () => {
-  beforeEach(() => localStorage.removeItem("speclink.uiLocale"));
-  afterEach(() => localStorage.removeItem("speclink.uiLocale"));
+// spec「共用设计系统维持高密度可访问体验」的「专注流程以置中字标与对话框式卡片呈现」与
+// spec「接口语言支持中文与英文」的「登录前可切换语言」（design D7）。
+describe("登录这一族的卡片", () => {
+  beforeEach(() => localStorage.removeItem("specseal.uiLocale"));
+  afterEach(() => localStorage.removeItem("specseal.uiLocale"));
 
-  it("登入頁為置中 40px 字標下的卡片：15px 標題「登入」、說明含目前主機名", async () => {
+  it("登录页为置中 40px 字标下的卡片：15px 标题「登录」、说明含目前主机名", async () => {
     renderAt("/login", makeClient());
-    const heading = await screen.findByRole("heading", { level: 1, name: "登入" });
+    const heading = await screen.findByRole("heading", { level: 1, name: "登录" });
     expect(heading.className).toContain("text-[15px]");
     const main = screen.getByRole("main");
-    expect(within(main).getAllByAltText("Speclink")[0].className).toContain("h-10");
-    expect(main.textContent).toContain(`用管理員給你的帳號登入 ${window.location.host}。`);
+    expect(within(main).getAllByAltText("Specseal")[0].className).toContain("h-10");
+    expect(main.textContent).toContain(`用管理员给你的帐号登录 ${window.location.host}。`);
   });
 
-  it("跟隨系統時點已標示的「中文」不寫入偏好", async () => {
+  it("跟随系统时点已标示的「中文」不写入偏好", async () => {
     renderAt("/login", makeClient());
     const user = userEvent.setup();
-    await screen.findByRole("heading", { level: 1, name: "登入" });
+    await screen.findByRole("heading", { level: 1, name: "登录" });
     await user.click(screen.getByRole("button", { name: "中文" }));
-    expect(localStorage.getItem("speclink.uiLocale")).toBeNull();
+    expect(localStorage.getItem("specseal.uiLocale")).toBeNull();
   });
 
-  it("卡片下方的「中文」「English」標示目前語言，點 English 立即切換且登入後維持英文", async () => {
+  it("卡片下方的「中文」「English」标示目前语言，点 English 立即切换且登录后维持英文", async () => {
     const client = makeClient({
       getSession: vi.fn().mockResolvedValueOnce(UNAUTH).mockResolvedValue(ADMIN),
       login: vi.fn(async () => ({ destination: "/admin" })),
     });
     renderAt("/login", client);
     const user = userEvent.setup();
-    await screen.findByRole("heading", { level: 1, name: "登入" });
+    await screen.findByRole("heading", { level: 1, name: "登录" });
     expect(screen.getByRole("button", { name: "中文" }).getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByRole("button", { name: "English" }).getAttribute("aria-pressed")).toBe("false");
 
     await user.click(screen.getByRole("button", { name: "English" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Sign in" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "English" }).getAttribute("aria-pressed")).toBe("true");
-    expect(localStorage.getItem("speclink.uiLocale")).toBe("en");
+    expect(localStorage.getItem("specseal.uiLocale")).toBe("en");
 
     await user.type(screen.getByLabelText(/email/i), "admin@example.com");
     await user.type(screen.getByLabelText(/password/i), "pw");
@@ -187,58 +187,58 @@ describe("登入這一族的卡片", () => {
 
 // --- login interaction states ---
 
-describe("登入互動狀態", () => {
-  it("登入成功後導向 Server 回傳的 destination", async () => {
+describe("登录交互状态", () => {
+  it("登录成功后导向 Server 回传的 destination", async () => {
     const client = makeClient({
       getSession: vi.fn(async () => UNAUTH),
       login: vi.fn(async () => ({ destination: "/account" })),
     });
     renderAt("/login", client);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/email|電子郵件/i), "member@example.com");
-    await user.type(screen.getByLabelText(/密碼|password/i), "pw");
-    await user.click(screen.getByRole("button", { name: /登入/ }));
+    await user.type(await screen.findByLabelText(/email|电子邮件/i), "member@example.com");
+    await user.type(screen.getByLabelText(/密码|password/i), "pw");
+    await user.click(screen.getByRole("button", { name: /登录/ }));
     await waitFor(() => expect(client.login).toHaveBeenCalledOnce());
     expect(client.login).toHaveBeenCalledWith(
       expect.objectContaining({ email: "member@example.com", password: "pw" }),
     );
   });
 
-  it("欄位驗證失敗保留輸入並以 role=alert 宣告錯誤", async () => {
+  it("字段验证失败保留输入并以 role=alert 声明错误", async () => {
     const client = makeClient({
       login: vi.fn(async () => {
-        throw new WebApiError(400, "validation_error", "欄位有誤", {
-          email: "email 格式不正確",
+        throw new WebApiError(400, "validation_error", "字段有误", {
+          email: "email 格式不正确",
         });
       }),
     });
     renderAt("/login", client);
     const user = userEvent.setup();
-    const email = await screen.findByLabelText(/email|電子郵件/i);
+    const email = await screen.findByLabelText(/email|电子邮件/i);
     await user.type(email, "bad");
-    await user.type(screen.getByLabelText(/密碼|password/i), "pw");
-    await user.click(screen.getByRole("button", { name: /登入/ }));
+    await user.type(screen.getByLabelText(/密码|password/i), "pw");
+    await user.click(screen.getByRole("button", { name: /登录/ }));
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("email 格式不正確");
-    // 非祕密輸入保留，可再次提交。
+    expect(alert.textContent).toContain("email 格式不正确");
+    // 非秘密输入保留，可再次提交。
     expect((email as HTMLInputElement).value).toBe("bad");
-    expect(screen.getByRole("button", { name: /登入/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /登录/ })).toBeTruthy();
   });
 
-  it("提交進行中停用按鈕，第二次點擊不重複送出", async () => {
+  it("提交进行中停用按钮，第二次点击不重复送出", async () => {
     let resolve!: (v: { destination: string }) => void;
     const login = vi.fn(() => new Promise<{ destination: string }>((r) => (resolve = r)));
     const client = makeClient({ login });
     renderAt("/login", client);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/email|電子郵件/i), "a@b.com");
-    await user.type(screen.getByLabelText(/密碼|password/i), "pw");
-    const submit = screen.getByRole("button", { name: /登入/ });
+    await user.type(await screen.findByLabelText(/email|电子邮件/i), "a@b.com");
+    await user.type(screen.getByLabelText(/密码|password/i), "pw");
+    const submit = screen.getByRole("button", { name: /登录/ });
     await user.click(submit);
     expect((submit as HTMLButtonElement).disabled).toBe(true);
     await user.click(submit);
     expect(login).toHaveBeenCalledOnce();
-    // resolve 後的 refresh／navigate 狀態更新明確等待，於 act 內結算（不壓制警告）。
+    // resolve 后的 refresh／navigate 状态更新明确等待，于 act 内结算（不压制警告）。
     await act(async () => {
       resolve({ destination: "/account" });
     });
@@ -247,35 +247,35 @@ describe("登入互動狀態", () => {
 
 // --- data page states ---
 
-describe("資料頁互動狀態", () => {
-  it("載入期間顯示載入狀態，不白屏", async () => {
+describe("数据页交互状态", () => {
+  it("加载期间显示加载状态，不白屏", async () => {
     const client = makeClient({
       getSession: vi.fn(async () => ADMIN),
-      // 永不 resolve：頁面停留在載入狀態（chunk 載入與資料載入皆呈現「載入中」）。
+      // 永不 resolve：页面停留在加载状态（chunk 加载与数据加载皆呈现「加载中」）。
       getAdminOverview: vi.fn(() => new Promise(() => {})),
     });
     renderAt("/admin", client);
-    expect(await screen.findByText(/載入中|loading/i)).toBeTruthy();
+    expect(await screen.findByText(/加载中|loading/i)).toBeTruthy();
   });
 
-  it("資料載入失敗顯示可恢復錯誤與重試，不白屏", async () => {
+  it("数据加载失败显示可恢复错误与重试，不白屏", async () => {
     const client = makeClient({
       getSession: vi.fn(async () => ADMIN),
       getAdminOverview: vi.fn(async () => {
-        throw new WebApiError(500, "internal", "伺服器錯誤");
+        throw new WebApiError(500, "internal", "服务器错误");
       }),
     });
     renderAt("/admin", client);
-    expect(await screen.findByRole("button", { name: /重試|retry/i })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: /重试|retry/i })).toBeTruthy();
   });
 });
 
-// server-web-console「Browser API 互動狀態一致且可恢復」的 Scenario「Session 過期回到
-// 登入並保留安全路徑」：已載入的受保護 route 呼叫 browser API 收到 401 即回登入頁。
-// 401 有兩種語意——unauthenticated（session 失效，要導向）與 invalid_credentials
-// （登入密碼錯，要留在原頁顯示錯誤），必須依 error code 分派。
-describe("Session 過期回到登入並保留安全路徑", () => {
-  it("受保護 route 收到 401 unauthenticated 後回登入頁，returnTo 為當前路徑", async () => {
+// server-web-console「Browser API 交互状态一致且可恢复」的 Scenario「Session 过期回到
+// 登录并保留安全路径」：已加载的受保护 route 调用 browser API 收到 401 即回登录页。
+// 401 有两种语意——unauthenticated（session 失效，要导向）与 invalid_credentials
+// （登录密码错，要留在原页显示错误），必须依 error code 分派。
+describe("Session 过期回到登录并保留安全路径", () => {
+  it("受保护 route 收到 401 unauthenticated 后回登录页，returnTo 为当前路径", async () => {
     const getSession = vi
       .fn()
       .mockResolvedValueOnce(ADMIN)
@@ -283,39 +283,39 @@ describe("Session 過期回到登入並保留安全路徑", () => {
     const client = makeClient({
       getSession,
       getAdminUsers: vi.fn(async () => {
-        throw new WebApiError(401, "unauthenticated", "請先登入");
+        throw new WebApiError(401, "unauthenticated", "请先登录");
       }),
       login: vi.fn(async () => ({ destination: "/admin/users" })),
     });
     renderAt("/admin/users", client);
-    // 401 觸發 session 重讀 → guard 判定未登入 → 導向登入頁。
-    expect(await screen.findByRole("button", { name: /登入/ })).toBeTruthy();
+    // 401 触发 session 重读 → guard 判定未登录 → 导向登录页。
+    expect(await screen.findByRole("button", { name: /登录/ })).toBeTruthy();
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/email|電子郵件/i), "admin@example.com");
-    await user.type(screen.getByLabelText(/密碼|password/i), "pw");
-    await user.click(screen.getByRole("button", { name: /登入/ }));
+    await user.type(screen.getByLabelText(/email|电子邮件/i), "admin@example.com");
+    await user.type(screen.getByLabelText(/密码|password/i), "pw");
+    await user.click(screen.getByRole("button", { name: /登录/ }));
     await waitFor(() => expect(client.login).toHaveBeenCalledOnce());
     expect(client.login).toHaveBeenCalledWith(
       expect.objectContaining({ returnTo: "/admin/users" }),
     );
   });
 
-  it("登入失敗的 401 invalid_credentials 留在登入頁顯示錯誤，不觸發導向迴圈", async () => {
+  it("登录失败的 401 invalid_credentials 留在登录页显示错误，不触发导向循环", async () => {
     const client = makeClient({
       getSession: vi.fn(async () => UNAUTH),
       login: vi.fn(async () => {
-        throw new WebApiError(401, "invalid_credentials", "電子郵件或密碼不正確");
+        throw new WebApiError(401, "invalid_credentials", "电子邮件或密码不正确");
       }),
     });
     renderAt("/login", client);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText(/email|電子郵件/i), "admin@example.com");
-    await user.type(screen.getByLabelText(/密碼|password/i), "wrong");
-    await user.click(screen.getByRole("button", { name: /登入/ }));
+    await user.type(await screen.findByLabelText(/email|电子邮件/i), "admin@example.com");
+    await user.type(screen.getByLabelText(/密码|password/i), "wrong");
+    await user.click(screen.getByRole("button", { name: /登录/ }));
     expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(screen.getByText("電子郵件或密碼不正確")).toBeTruthy();
-    // 仍在登入頁、輸入保留。
-    expect((screen.getByLabelText(/email|電子郵件/i) as HTMLInputElement).value).toBe(
+    expect(screen.getByText("电子邮件或密码不正确")).toBeTruthy();
+    // 仍在登录页、输入保留。
+    expect((screen.getByLabelText(/email|电子邮件/i) as HTMLInputElement).value).toBe(
       "admin@example.com",
     );
   });

@@ -29,12 +29,12 @@ jobs:
 
       # Smoke only needs the CLI; the full workspace compiles once via cargo test below.
       - name: Build (release)
-        run: cargo build --release --locked -p speclink-cli
+        run: cargo build --release --locked -p specseal-cli
 
       - name: Smoke test (init → new → artifact → status → validate)
         shell: bash
         run: |
-          BIN="$PWD/target/release/speclink"
+          BIN="$PWD/target/release/specseal"
           [ -f "$BIN.exe" ] && BIN="$BIN.exe"
           "$BIN" --version
           mkdir smoke && cd smoke
@@ -42,8 +42,8 @@ jobs:
           git config user.name CI
           git config user.email ci@example.com
           "$BIN" init . --tools claude,codex
-          test -f .claude/skills/speclink-propose/SKILL.md
-          test -f .agents/skills/speclink-propose/SKILL.md
+          test -f .claude/skills/specseal-propose/SKILL.md
+          test -f .agents/skills/specseal-propose/SKILL.md
           "$BIN" new change smoke-test --agent claude
           printf '## Why\nSmoke test\n## Impact\n- none\n' | "$BIN" new artifact proposal --change smoke-test --stdin
           "$BIN" status --change smoke-test
@@ -86,7 +86,7 @@ jobs:
 
       # 两个前端 production build 都必须在 cargo test 之前完成：desktop 供
       # tauri::generate_context! 于编译期内嵌 frontendDist；server-web 供
-      # speclink-server 的 compile-time asset embedding。Rust 的 embedded asset／
+      # specseal-server 的 compile-time asset embedding。Rust 的 embedded asset／
       # route 测试才会验到当次 source 产出的 index 与 manifest，而非过期产物。
       - name: Build desktop frontend (vite → dist)
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
@@ -96,7 +96,7 @@ jobs:
         if: ${{ !cancelled() && steps.npm-ci.outcome == 'success' }}
         run: npm run build -w apps/server-web
 
-      # speclink-desktop 的 build script 于编译期检查 tauri.conf.json 的 externalBin
+      # specseal-desktop 的 build script 于编译期检查 tauri.conf.json 的 externalBin
       # 是否就位，而 binaries/ 是 gitignored——没布 sidecar 的话 cargo test 会死在
       # build script（不是测试红字，是整个 crate 编不动）。CLI 上面已建过 release，
       # 这一步只是重用产物再拷贝到 target-triple 命名位置。
@@ -131,8 +131,8 @@ jobs:
           node-version: 20
 
       # 两份 dist 都要：desktop 供 tauri::generate_context! 内嵌 frontendDist；
-      # server-web 供 speclink-server 的 asset embedding——desktop 的 dev-dependencies
-      # 带 speclink-server，phase3 剧本正是拿它起真 server，缺 dist 则 RustEmbed
+      # server-web 供 specseal-server 的 asset embedding——desktop 的 dev-dependencies
+      # 带 specseal-server，phase3 剧本正是拿它起真 server，缺 dist 则 RustEmbed
       # 于编译期失败。
       - name: Build frontends (desktop + server-web)
         run: |
@@ -150,7 +150,7 @@ jobs:
         run: |
           mkdir -p "$PHASE3_E2E_ARTIFACT_DIR"
           set -o pipefail
-          cargo test --locked -p speclink-desktop --test it -- phase3_chain:: --nocapture 2>&1 \
+          cargo test --locked -p specseal-desktop --test it -- phase3_chain:: --nocapture 2>&1 \
             | tee "$PHASE3_E2E_ARTIFACT_DIR/test-output.log"
 
       - name: Upload Phase 3 failure diagnostics
@@ -170,12 +170,12 @@ jobs:
       - uses: actions/checkout@v5
 
       - name: Build image
-        run: docker build -f crates/host/speclink-server/Dockerfile -t speclink-server:smoke .
+        run: docker build -f crates/host/specseal-server/Dockerfile -t specseal-server:smoke .
 
       - name: Compose 档语法验证
         env:
           # postgres compose 对缺密码设计成大声失败（${VAR:?}），语法验证给假值通过。
-          SPECLINK_POSTGRES_PASSWORD: ci-syntax-check-only
+          SPECSEAL_POSTGRES_PASSWORD: ci-syntax-check-only
         run: |
           docker compose -f deploy/docker-compose.yml config --quiet
           docker compose -f deploy/docker-compose.postgres.yml config --quiet
@@ -211,7 +211,7 @@ jobs:
       - name: 冒烟 — 起容器（SQLite 组态）→ /healthz、/readyz → setup token 行
         shell: bash
         run: |
-          docker run -d --name smoke -p 8080:8080 speclink-server:smoke
+          docker run -d --name smoke -p 8080:8080 specseal-server:smoke
           ok=""
           for _ in $(seq 1 30); do
             if curl -fsS -o /dev/null http://127.0.0.1:8080/healthz \
@@ -240,7 +240,7 @@ jobs:
         run: |
           printf 'store: [unclosed\n' > bad-config.yaml
           docker run -d --name badcfg \
-            -v "$PWD/bad-config.yaml:/etc/speclink/config.yaml:ro" speclink-server:smoke
+            -v "$PWD/bad-config.yaml:/etc/specseal/config.yaml:ro" specseal-server:smoke
           for _ in $(seq 1 15); do
             st=$(docker inspect -f '{{.State.Status}}' badcfg)
             [ "$st" = "exited" ] && break
@@ -268,7 +268,7 @@ jobs:
 
   # The PostgreSQL driver needs a real database, which `services` can only give
   # a Linux runner — hence a job of its own rather than a step in the matrix
-  # above. There, with no SPECLINK_TEST_POSTGRES_URL set, those suites report
+  # above. There, with no SPECSEAL_TEST_POSTGRES_URL set, those suites report
   # `skipped` and the matrix stays green on machines without a database.
   postgres-store:
     runs-on: ubuntu-latest
@@ -279,7 +279,7 @@ jobs:
         # latest.
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: speclink
+          POSTGRES_PASSWORD: specseal
         ports:
           - 5432:5432
         options: >-
@@ -288,7 +288,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      SPECLINK_TEST_POSTGRES_URL: postgres://postgres:speclink@localhost:5432/postgres
+      SPECSEAL_TEST_POSTGRES_URL: postgres://postgres:specseal@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v5
 
@@ -300,7 +300,7 @@ jobs:
         with:
           node-version: 20
 
-      # 这个 job 也编 speclink-server，其 lib 于编译期内嵌 apps/server-web/dist
+      # 这个 job 也编 specseal-server，其 lib 于编译期内嵌 apps/server-web/dist
       # （gitignored）。没有这一步，postgres 套件根本走不到测试就编译失败。
       - name: Build server-web frontend (vite → dist)
         run: |
@@ -311,8 +311,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          cargo test --locked -p speclink-store-postgres 2>&1 | tee postgres-suites.log
-          cargo test --locked -p speclink-server --test postgres_store 2>&1 | tee -a postgres-suites.log
+          cargo test --locked -p specseal-store-postgres 2>&1 | tee postgres-suites.log
+          cargo test --locked -p specseal-server --test postgres_store 2>&1 | tee -a postgres-suites.log
 
       # The suites skip rather than fail when no database is configured — right
       # on a developer's laptop, useless here. Without this, a typo in the URL
@@ -322,6 +322,6 @@ jobs:
         shell: bash
         run: |
           if grep -q 'skipped' postgres-suites.log; then
-            echo "::error::the PostgreSQL suites reported skipped — the service or SPECLINK_TEST_POSTGRES_URL never reached them, so nothing was tested"
+            echo "::error::the PostgreSQL suites reported skipped — the service or SPECSEAL_TEST_POSTGRES_URL never reached them, so nothing was tested"
             exit 1
           fi

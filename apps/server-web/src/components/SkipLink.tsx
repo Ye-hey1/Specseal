@@ -1,5 +1,5 @@
-// 每頁第一個可聚焦元素（D6）。平時視覺隱藏，聚焦時顯示；跳至 <main id>。
-import { useI18n } from "@speclink/ui";
+// 每页第一个可聚焦元素（D6）。平时视觉隐藏，聚焦时显示；跳至 <main id>。
+import { useI18n } from "@specseal/ui";
 
 export function SkipLink() {
   const { t } = useI18n();

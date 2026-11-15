@@ -13,9 +13,9 @@ import type { Platform } from "../platform";
 
 vi.mock("@tauri-apps/api/menu", () => ({ Menu: { new: vi.fn() } }));
 
-const tOf = (locale: "zh-TW" | "en") => (key: string): string => APP_MESSAGES[locale][key] ?? key;
+const tOf = (locale: "zh-CN" | "en") => (key: string): string => APP_MESSAGES[locale][key] ?? key;
 
-/** 項目的識別：自訂項取動作 id、預設項取系統項名、分隔線為 "-"。 */
+/** 项目的识别：自订项取动作 id、缺省项取系统项名、分隔线为 "-"。 */
 const entryId = (e: AppMenuEntry): string =>
   e.kind === "item" ? e.id : e.kind === "predefined" ? e.item : "-";
 
@@ -23,9 +23,9 @@ const customItems = (model: AppMenuModel) =>
   model.flatMap((g) => g.items).filter((e) => e.kind === "item");
 
 describe("buildAppMenuModel（design D2）", () => {
-  const model = buildAppMenuModel({ t: tOf("zh-TW"), hasProject: true });
+  const model = buildAppMenuModel({ t: tOf("zh-CN"), hasProject: true });
 
-  it("六組依序為 Speclink、檔案、編輯、檢視、視窗、說明，各組項目依序排列", () => {
+  it("六组依序为 Specseal、文档、编辑、查看、窗口、说明，各组项目依序排列", () => {
     expect(model.map((g) => g.id)).toEqual(["app", "file", "edit", "view", "window", "help"]);
     expect(Object.fromEntries(model.map((g) => [g.id, g.items.map(entryId)]))).toEqual({
       app: [
@@ -61,7 +61,7 @@ describe("buildAppMenuModel（design D2）", () => {
     });
   });
 
-  it("自訂項目的快捷鍵字串", () => {
+  it("自订项目的快捷键字符串", () => {
     const accelerators = Object.fromEntries(
       customItems(model)
         .filter((e) => e.accelerator !== undefined)
@@ -81,7 +81,7 @@ describe("buildAppMenuModel（design D2）", () => {
     });
   });
 
-  it("隱藏、隱藏其他、結束、縮到最小是系統預設項（⌘H、⌥⌘H、⌘Q、⌘M 由系統自帶）", () => {
+  it("隐藏、隐藏其他、结束、缩到最小是系统缺省项（⌘H、⌥⌘H、⌘Q、⌘M 由系统自带）", () => {
     const predefined = model
       .flatMap((g) => g.items)
       .filter((e) => e.kind === "predefined")
@@ -91,12 +91,12 @@ describe("buildAppMenuModel（design D2）", () => {
     );
   });
 
-  it("有作用中專案時所有自訂項目可用", () => {
+  it("有作用中项目时所有自订项目可用", () => {
     expect(customItems(model).filter((e) => !e.enabled)).toEqual([]);
   });
 
-  it("沒有作用中專案時停用集合恰為關閉專案、檢視組八項與說明的手冊", () => {
-    const empty = buildAppMenuModel({ t: tOf("zh-TW"), hasProject: false });
+  it("没有作用中项目时停用集合恰为关闭项目、查看组八项与说明的手册", () => {
+    const empty = buildAppMenuModel({ t: tOf("zh-CN"), hasProject: false });
     expect(
       customItems(empty)
         .filter((e) => !e.enabled)
@@ -118,13 +118,13 @@ describe("buildAppMenuModel（design D2）", () => {
     );
   });
 
-  it("zh-TW 與 en 字典各建一次：文案皆取自字典（非 key 本身），兩語系的組標題不同", () => {
+  it("zh-CN 与 en 字典各建一次：文案皆取自字典（非 key 本身），两语系的组标题不同", () => {
     const texts = (m: AppMenuModel) =>
       m.flatMap((g) => [
         g.text,
         ...g.items.flatMap((e) => (e.kind === "separator" || e.text === undefined ? [] : [e.text])),
       ]);
-    const missing = (locale: "zh-TW" | "en") => {
+    const missing = (locale: "zh-CN" | "en") => {
       const keys: string[] = [];
       const recording = (key: string) => {
         keys.push(key);
@@ -133,22 +133,22 @@ describe("buildAppMenuModel（design D2）", () => {
       buildAppMenuModel({ t: recording, hasProject: true });
       return keys.filter((key) => !(key in APP_MESSAGES[locale]));
     };
-    expect(missing("zh-TW")).toEqual([]);
+    expect(missing("zh-CN")).toEqual([]);
     expect(missing("en")).toEqual([]);
 
-    const zh = buildAppMenuModel({ t: tOf("zh-TW"), hasProject: true });
+    const zh = buildAppMenuModel({ t: tOf("zh-CN"), hasProject: true });
     const en = buildAppMenuModel({ t: tOf("en"), hasProject: true });
     expect(texts(zh).some((text) => text.startsWith("menu."))).toBe(false);
     expect(texts(en).some((text) => text.startsWith("menu."))).toBe(false);
-    expect(zh.map((g) => g.text)).toEqual(["Speclink", "檔案", "編輯", "檢視", "視窗", "說明"]);
-    expect(en.map((g) => g.text)).toEqual(["Speclink", "File", "Edit", "View", "Window", "Help"]);
+    expect(zh.map((g) => g.text)).toEqual(["Specseal", "文档", "编辑", "查看", "窗口", "说明"]);
+    expect(en.map((g) => g.text)).toEqual(["Specseal", "File", "Edit", "View", "Window", "Help"]);
     expect(texts(zh)).not.toEqual(texts(en));
   });
 });
 
 type MenuOptionsTree = { text?: string; item?: unknown; action?: () => void; items?: MenuOptionsTree[] };
 
-/** 假的 Tauri 選單：記下每次 Menu.new 收到的整棵選項物件；setAsAppMenu 回傳被換下的舊選單。 */
+/** 假的 Tauri 菜单：记下每次 Menu.new 收到的整棵选项对象；setAsAppMenu 回传被换下的旧菜单。 */
 function fakeMenus() {
   const built: MenuOptionsTree[][] = [];
   const menus: Array<{ setAsAppMenu: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> }> = [];
@@ -184,7 +184,7 @@ describe("installAppMenu（design D3）", () => {
     const dispatch = vi.fn();
     const cancel = installAppMenu({
       isMacOS: true,
-      t: tOf("zh-TW"),
+      t: tOf("zh-CN"),
       hasProject: true,
       dispatch,
       ...overrides,
@@ -192,7 +192,7 @@ describe("installAppMenu（design D3）", () => {
     return { dispatch, cancel };
   };
 
-  it("macOS 建一次並設為 app 選單，再關掉被換下的舊選單", async () => {
+  it("macOS 建一次并设为 app 菜单，再关掉被换下的旧菜单", async () => {
     const { menus, replaced } = fakeMenus();
     install();
     await vi.waitFor(() => expect(replaced.close).toHaveBeenCalledTimes(1));
@@ -201,12 +201,12 @@ describe("installAppMenu（design D3）", () => {
     expect(menus[0].close).not.toHaveBeenCalled();
   });
 
-  it("依傳入的語言建出六組子選單", async () => {
+  it("依传入的语言建出六组子菜单", async () => {
     const { built } = fakeMenus();
     install({ t: tOf("en") });
     await vi.waitFor(() => expect(built).toHaveLength(1));
     expect(built[0].map((group) => group.text)).toEqual([
-      "Speclink",
+      "Specseal",
       "File",
       "Edit",
       "View",
@@ -215,23 +215,23 @@ describe("installAppMenu（design D3）", () => {
     ]);
   });
 
-  it("觸發選單項的 action 以對應動作 id 呼叫 dispatch", async () => {
+  it("触发菜单项的 action 以对应动作 id 调用 dispatch", async () => {
     const { built } = fakeMenus();
     const { dispatch } = install();
     await vi.waitFor(() => expect(built).toHaveLength(1));
-    findItem(built[0], "規格")?.action?.();
-    findItem(built[0], "回報問題")?.action?.();
+    findItem(built[0], "规格")?.action?.();
+    findItem(built[0], "回报问题")?.action?.();
     expect(dispatch.mock.calls).toEqual([["viewSpecs"], ["reportIssue"]]);
   });
 
-  it("非 macOS 不呼叫任何選單 API", () => {
+  it("非 macOS 不调用任何菜单 API", () => {
     fakeMenus();
     const { cancel } = install({ isMacOS: false });
     cancel();
     expect(Menu.new).not.toHaveBeenCalled();
   });
 
-  it("取消後才建好的選單不設為 app 選單，並關掉它", async () => {
+  it("取消后才建好的菜单不设为 app 菜单，并关掉它", async () => {
     const { menus } = fakeMenus();
     const { cancel } = install();
     cancel();
@@ -239,7 +239,7 @@ describe("installAppMenu（design D3）", () => {
     expect(menus[0].setAsAppMenu).not.toHaveBeenCalled();
   });
 
-  it("Menu.new 拋錯時記 console.error、不向外拋", async () => {
+  it("Menu.new 抛错时记 console.error、不向外抛", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(Menu.new).mockRejectedValue(new Error("menu unavailable"));
     install();
@@ -248,39 +248,39 @@ describe("installAppMenu（design D3）", () => {
 });
 
 describe("buildShortcutList（design D5）", () => {
-  const rows = (platform: Platform, locale: "zh-TW" | "en" = "zh-TW") =>
+  const rows = (platform: Platform, locale: "zh-CN" | "en" = "zh-CN") =>
     buildShortcutList({ t: tOf(locale), platform }).map((row) => [row.text, row.keys]);
 
-  it("macOS 回 11 列，逐列等於 spec Example「macOS 的卡片內容」", () => {
+  it("macOS 回 11 列，逐列等于 spec Example「macOS 的卡片内容」", () => {
     expect(rows("macos")).toEqual([
-      ["設定…", "⌘,"],
-      ["開啟專案…", "⌘O"],
-      ["關閉專案", "⌘W"],
-      ["變更", "⌘1"],
+      ["设置…", "⌘,"],
+      ["打开项目…", "⌘O"],
+      ["关闭项目", "⌘W"],
+      ["变更", "⌘1"],
       ["已封存", "⌘2"],
-      ["規格", "⌘3"],
-      ["手冊", "⌘4"],
-      ["搜尋看板", "⌘F"],
-      ["重新整理", "⌘R"],
-      ["下一個專案", "⌃Tab"],
-      ["跳到第 1–9 個專案", "⌃1–9"],
+      ["规格", "⌘3"],
+      ["手册", "⌘4"],
+      ["搜索看板", "⌘F"],
+      ["刷新", "⌘R"],
+      ["下一个项目", "⌃Tab"],
+      ["跳到第 1–9 个项目", "⌃1–9"],
     ]);
   });
 
   it.each(["windows", "linux"] as const)(
-    "%s 回 5 列，逐列等於 spec Example「Windows 與 Linux 的卡片內容」",
+    "%s 回 5 列，逐列等于 spec Example「Windows 与 Linux 的卡片内容」",
     (platform) => {
       expect(rows(platform)).toEqual([
-        ["關閉專案", "Ctrl+W"],
-        ["搜尋看板", "Ctrl+F"],
-        ["重新整理", "Ctrl+R"],
-        ["下一個專案", "Ctrl+Tab"],
-        ["跳到第 1–9 個專案", "Ctrl+1–9"],
+        ["关闭项目", "Ctrl+W"],
+        ["搜索看板", "Ctrl+F"],
+        ["刷新", "Ctrl+R"],
+        ["下一个项目", "Ctrl+Tab"],
+        ["跳到第 1–9 个项目", "Ctrl+1–9"],
       ]);
     },
   );
 
-  it("以 en 字典建時動作名稱為英文、按鍵不變", () => {
+  it("以 en 字典建时动作名称为英文、按键不变", () => {
     expect(rows("macos", "en")).toEqual([
       ["Settings…", "⌘,"],
       ["Open Project…", "⌘O"],

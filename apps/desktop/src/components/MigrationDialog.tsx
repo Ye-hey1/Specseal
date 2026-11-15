@@ -18,7 +18,7 @@ import {
   SEMANTIC_TONE,
   cn,
   useI18n,
-} from "@speclink/ui";
+} from "@specseal/ui";
 
 import type { MigrationAdapter, MigrationResult } from "../adapter/migration";
 import type {

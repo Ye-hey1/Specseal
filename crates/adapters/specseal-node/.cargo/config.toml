@@ -1,0 +1,5 @@
+# napi build 在本目录运行、就近读取此设置：中间产物落在
+# crates/adapters/specseal-node/target/，不写 workspace target/——否则 napi 与
+# cargo test 互踩缓存指纹，零改动也整批重链接。root 运行的 cargo 不受影响。
+[build]
+target-dir = "target"

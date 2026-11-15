@@ -1,18 +1,18 @@
 # @specseal/mcp — Specseal 的 MCP server
 
-把 Specseal 引擎的白名单动词暴露给任意支持 MCP（Model Context Protocol）的编码 agent。一个 server 覆盖所有 MCP 工具（Claude Code、Cursor、Codex、Windsurf、Gemini CLI…），不再逐家生成技能文件。
+把 Specseal 引擎的白名单动词暴露给任意支持 MCP（Model Context Protocol）的编码 agent。一个 server 覆盖所有 MCP 工具（Claude Code、Cursor、Codex、Windsurf、Gemini CLI…），不再逐家生成技能文档。
 
-工作方式：agent 调用 MCP 工具 → 本进程 spawn `speclink <动词> [--json]` → 把输出透传回去。**引擎代码零改动**；盖章规则（must-fix 未清不许 stamp）由引擎强制，协议层绕不过去。
+工作方式：agent 调用 MCP 工具 → 本进程 spawn `specseal <动词> [--json]` → 把输出透传回去。**引擎代码零改动**；盖章规则（must-fix 未清不许 stamp）由引擎强制，协议层绕不过去。
 
 ## 前置
 
-- `speclink` CLI（0.12+）在 PATH 上——server 由它干所有实际的活
+- `specseal` CLI（0.12+）在 PATH 上——server 由它干所有实际的活
 - Node.js ≥ 20
-- 项目跑过 `speclink init`
+- 项目跑过 `specseal init`
 
 ## 接入配置
 
-包安装后（`npm i -g @specseal/mcp`，发布渠道建立前可从仓库目录直接用 node 启动）：
+包安装后（`npm i -g @specseal/mcp`，发布渠道创建前可从仓库目录直接用 node 启动）：
 
 **Claude Code：**
 
@@ -39,7 +39,7 @@ claude mcp add specseal -- node <路径>/packages/mcp-npm/specseal-mcp.mjs
 
 | 工具 | CLI 动词 | 说明 |
 | --- | --- | --- |
-| `specseal_workflow_guide` | — | SDD 工作流指南（环路、各阶段职责、纪律）；不确定怎么走时先调它 |
+| `specseal_workflow_guide` | — | SDD 工作流指南（环路、各阶段职责、纪律）；不确定怎幺走时先调它 |
 | `specseal_status` | `status` | 工作区状态（文本） |
 | `specseal_list_changes` | `list --json` | 全部变更：阶段、任务进度、站点章 |
 | `specseal_show_change` | `show <name> --json` | 单个变更的 proposal/delta/tasks |

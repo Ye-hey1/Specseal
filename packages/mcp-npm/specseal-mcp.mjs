@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Specseal MCP server：把 Specseal 引擎的白名单动词暴露给任意支持 MCP 的编码 agent。
 //
-// 架构：MCP 工具调用 → 本进程 spawn `speclink <verb> [--json]` → 把 stdout 透传回 agent。
+// 架构：MCP 工具调用 → 本进程 spawn `specseal <verb> [--json]` → 把 stdout 透传回 agent。
 // 引擎不改动；工具表与参数构造在 tools.mjs（可单测），子进程封装在 exec.mjs。
 //
 // 启动：node specseal-mcp.mjs（stdio 传输；工作目录即 Specseal 项目，通常由 agent 在项目目录拉起）。
@@ -10,7 +10,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { pathToFileURL } from "node:url";
 import { resolve as pathResolve } from "node:path";
 import { TOOL_DEFS, guardArgs } from "./tools.mjs";
-import { runSpeclink } from "./exec.mjs";
+import { runSpecseal } from "./exec.mjs";
 
 const VERSION = "0.1.0";
 
@@ -30,13 +30,13 @@ async function runTool(def, args) {
   }
   let result;
   try {
-    result = await runSpeclink(argv, { cwd: process.cwd(), stdin: def.stdinArg ? args?.[def.stdinArg] : undefined });
+    result = await runSpecseal(argv, { cwd: process.cwd(), stdin: def.stdinArg ? args?.[def.stdinArg] : undefined });
   } catch (err) {
-    return textResult(`speclink failed: ${err.message}`, true);
+    return textResult(`specseal failed: ${err.message}`, true);
   }
   if (result.code !== 0) {
     const detail = (result.stderr || result.stdout || "").trim();
-    return textResult(`speclink ${argv.join(" ")} exited ${codeStr(result.code)}\n${detail}`.trim(), true);
+    return textResult(`specseal ${argv.join(" ")} exited ${codeStr(result.code)}\n${detail}`.trim(), true);
   }
   const out = def.text ? def.text(args) : result.stdout.trim();
   return textResult(out.length > 0 ? out : "(empty output)");

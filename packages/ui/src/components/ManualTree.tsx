@@ -7,20 +7,20 @@ import { SearchField } from "./SearchField";
 import { TREE_NODE_CLS } from "./ui/tabs";
 
 export interface ManualTreeProps {
-  /** 全部頁（已依閱讀序排好）。 */
+  /** 全部页（已依阅读序排好）。 */
   pages: ManualPageItem[];
   currentSlug: string;
   query: string;
   onQuery: (query: string) => void;
   onSelect: (slug: string) => void;
-  /** 手冊生成後新增且未入冊的規格數；0 不顯示提示。 */
+  /** 手册生成后添加且未入册的规格数；0 不显示提示。 */
   uncoveredCount: number;
 }
 
-/** 手冊頁左欄（spec「手冊頁的側欄樹與閱讀序」「手冊頁的搜尋列」「可能過期與未入冊的
- * 標示」；design D5：240px 淡灰底；desktop-spec-manual-pages design D7：頁列與詳情頁文件樹的
- * 節點同款）：搜尋列以大小寫不敏感比對 title 與 keywords、命中頁依分區分組列出（stale 者列尾
- * 帶「過期」籤）、底部在有未入冊規格時顯示計數提示。 */
+/** 手册页左栏（spec「手册页的侧栏树与阅读序」「手册页的搜索列」「可能过期与未入册的
+ * 标示」；design D5：240px 淡灰底；desktop-spec-manual-pages design D7：页列与详情页文档树的
+ * 节点同款）：搜索列以大小写不敏感比对 title 与 keywords、命中页依分区分组列出（stale 者列尾
+ * 带「过期」签）、底部在有未入册规格时显示计数提示。 */
 export function ManualTree({ pages, currentSlug, query, onQuery, onSelect, uncoveredCount }: ManualTreeProps) {
   const { t, tn } = useI18n();
   const visibleSections = groupSections(
@@ -37,7 +37,7 @@ export function ManualTree({ pages, currentSlug, query, onQuery, onSelect, uncov
           </div>
         ) : (
           visibleSections.map((section, i) => (
-            // 以位置為 key：明寫 section「其他」的組與缺 section 歸「其他」的組可能不相鄰。
+            // 以位置为 key：明写 section「其他」的组与缺 section 归「其他」的组可能不相邻。
             <section
               key={i}
               data-manual-section={section.label}

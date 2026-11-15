@@ -4531,7 +4531,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-cli"
+name = "specseal-cli"
 version = "0.12.0"
 dependencies = [
  "anyhow",
@@ -4541,18 +4541,18 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "speclink-core",
- "speclink-fs",
- "speclink-host",
- "speclink-protocol",
- "speclink-remote",
- "speclink-store-port",
- "speclink-verbs",
+ "specseal-core",
+ "specseal-fs",
+ "specseal-host",
+ "specseal-protocol",
+ "specseal-remote",
+ "specseal-store-port",
+ "specseal-verbs",
  "tiny_http",
 ]
 
 [[package]]
-name = "speclink-core"
+name = "specseal-core"
 version = "0.12.0"
 dependencies = [
  "anyhow",
@@ -4566,7 +4566,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-desktop"
+name = "specseal-desktop"
 version = "0.12.0"
 dependencies = [
  "axum",
@@ -4577,13 +4577,13 @@ dependencies = [
  "objc2-app-kit",
  "serde",
  "serde_json",
- "speclink-core",
- "speclink-desktop-core",
- "speclink-host",
- "speclink-protocol",
- "speclink-remote",
- "speclink-server",
- "speclink-store",
+ "specseal-core",
+ "specseal-desktop-core",
+ "specseal-host",
+ "specseal-protocol",
+ "specseal-remote",
+ "specseal-server",
+ "specseal-store",
  "tauri",
  "tauri-build",
  "tauri-nspanel",
@@ -4603,7 +4603,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-desktop-core"
+name = "specseal-desktop-core"
 version = "0.12.0"
 dependencies = [
  "chrono",
@@ -4612,21 +4612,21 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "speclink-core",
- "speclink-fs",
- "speclink-host",
+ "specseal-core",
+ "specseal-fs",
+ "specseal-host",
 ]
 
 [[package]]
-name = "speclink-fs"
+name = "specseal-fs"
 version = "0.12.0"
 dependencies = [
  "anyhow",
- "speclink-core",
+ "specseal-core",
 ]
 
 [[package]]
-name = "speclink-host"
+name = "specseal-host"
 version = "0.12.0"
 dependencies = [
  "anyhow",
@@ -4636,16 +4636,16 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "sha2 0.10.9",
- "speclink-core",
- "speclink-fs",
- "speclink-protocol",
- "speclink-store",
- "speclink-store-port",
+ "specseal-core",
+ "specseal-fs",
+ "specseal-protocol",
+ "specseal-store",
+ "specseal-store-port",
  "tempfile",
 ]
 
 [[package]]
-name = "speclink-node"
+name = "specseal-node"
 version = "0.12.0"
 dependencies = [
  "anyhow",
@@ -4654,16 +4654,16 @@ dependencies = [
  "napi-derive",
  "serde",
  "serde_json",
- "speclink-core",
- "speclink-fs",
- "speclink-host",
- "speclink-protocol",
- "speclink-store-port",
- "speclink-verbs",
+ "specseal-core",
+ "specseal-fs",
+ "specseal-host",
+ "specseal-protocol",
+ "specseal-store-port",
+ "specseal-verbs",
 ]
 
 [[package]]
-name = "speclink-protocol"
+name = "specseal-protocol"
 version = "0.12.0"
 dependencies = [
  "schemars 1.2.1",
@@ -4672,7 +4672,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-remote"
+name = "specseal-remote"
 version = "0.12.0"
 dependencies = [
  "anyhow",
@@ -4686,11 +4686,11 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2 0.10.9",
- "speclink-core",
- "speclink-host",
- "speclink-protocol",
- "speclink-server",
- "speclink-store",
+ "specseal-core",
+ "specseal-host",
+ "specseal-protocol",
+ "specseal-server",
+ "specseal-store",
  "tempfile",
  "tiny_http",
  "tokio",
@@ -4698,7 +4698,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-server"
+name = "specseal-server"
 version = "0.12.0"
 dependencies = [
  "anyhow",
@@ -4715,15 +4715,15 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2 0.10.9",
- "speclink-core",
- "speclink-fs",
- "speclink-host",
- "speclink-protocol",
- "speclink-remote",
- "speclink-store",
- "speclink-store-fs",
- "speclink-store-postgres",
- "speclink-store-sqlite",
+ "specseal-core",
+ "specseal-fs",
+ "specseal-host",
+ "specseal-protocol",
+ "specseal-remote",
+ "specseal-store",
+ "specseal-store-fs",
+ "specseal-store-postgres",
+ "specseal-store-sqlite",
  "tar",
  "tempfile",
  "tokio",
@@ -4731,7 +4731,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-store"
+name = "specseal-store"
 version = "0.12.0"
 dependencies = [
  "chrono",
@@ -4740,56 +4740,56 @@ dependencies = [
 ]
 
 [[package]]
-name = "speclink-store-fs"
+name = "specseal-store-fs"
 version = "0.12.0"
 dependencies = [
  "chrono",
  "fs4",
  "serde",
  "serde_json",
- "speclink-store",
- "speclink-store-sqlite",
+ "specseal-store",
+ "specseal-store-sqlite",
  "tempfile",
 ]
 
 [[package]]
-name = "speclink-store-port"
+name = "specseal-store-port"
 version = "0.12.0"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
-name = "speclink-store-postgres"
+name = "specseal-store-postgres"
 version = "0.12.0"
 dependencies = [
  "chrono",
  "postgres",
  "serde_json",
- "speclink-store",
- "speclink-store-sqlite",
+ "specseal-store",
+ "specseal-store-sqlite",
  "tempfile",
 ]
 
 [[package]]
-name = "speclink-store-sqlite"
+name = "specseal-store-sqlite"
 version = "0.12.0"
 dependencies = [
  "chrono",
  "rusqlite",
  "serde_json",
- "speclink-store",
+ "specseal-store",
  "tempfile",
 ]
 
 [[package]]
-name = "speclink-verbs"
+name = "specseal-verbs"
 version = "0.12.0"
 dependencies = [
  "clap",
  "serde",
  "serde_json",
- "speclink-core",
+ "specseal-core",
 ]
 
 [[package]]
