@@ -18,7 +18,8 @@ describe("BrandMark", () => {
     expect(mark.className).toContain("text-primary");
     const svg = mark.querySelector("svg");
     expect(svg).toBeTruthy();
-    expect(svg!.innerHTML).toContain('fill="currentColor"');
+    // 描边风格印章标记：主色走 currentColor（stroke），并防旧上游品牌色回归。
+    expect(svg!.innerHTML).toContain('stroke="currentColor"');
     expect(svg!.outerHTML).not.toContain("#167873");
   });
 
@@ -37,10 +38,10 @@ describe("Wordmark", () => {
   it("浅色版与深色版两张 img（alt=Specseal），以 dark: 切换显示，className 套到两张", () => {
     render(<Wordmark className="h-5" />);
     const [light, dark] = screen.getAllByAltText("Specseal") as HTMLImageElement[];
-    expect(light.getAttribute("src")).toContain("logo-horizontal");
-    expect(light.getAttribute("src")).not.toContain("logo-horizontal-dark");
+    // vite 把 svg 资产内联为 data URI，两张 src 不再含文件名——以 data URI 与 dark: 类区分。
+    expect(light.getAttribute("src")).toContain("data:image/svg+xml");
     expect(light.className).toContain("dark:hidden");
-    expect(dark.getAttribute("src")).toContain("logo-horizontal-dark");
+    expect(dark.getAttribute("src")).toContain("data:image/svg+xml");
     expect(dark.className.split(/\s+/)).toEqual(expect.arrayContaining(["hidden", "dark:block"]));
     for (const img of [light, dark]) expect(img.className).toContain("h-5");
   });

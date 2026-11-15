@@ -46,7 +46,7 @@ describe("EmptyWorkspace", () => {
     const [wordmark, dark] = screen.getAllByAltText("Specseal");
     expect(wordmark.className).toContain("h-10");
     expect(wordmark.className).toContain("dark:hidden");
-    expect(dark.getAttribute("src")).toContain("logo-horizontal-dark");
+    expect(dark.getAttribute("src")).toContain("data:image/svg+xml");
     expect(screen.getByRole("heading", { level: 2, name: "打开一个项目开始" })).toBeTruthy();
     // 新项目的说明写缺省规格文档夹 specseal/（spec「画面依实际规格文档夹与数据文档名显示」）。
     expect(screen.getByText(zh["app.emptyDesc"]).textContent).toContain("specseal/");
