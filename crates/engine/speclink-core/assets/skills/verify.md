@@ -1,5 +1,7 @@
 **Project principles**: if `speclink/principles.md` exists, read it and include a principles check in the verification round: record which numbered principles were checked and any violations — a violation is a **must-fix finding** citing the principle number.
 
+**Convergence loop**: when a verification round surfaces must-fix findings, the station is not done — fix them, freeze the scope again if files moved, and append the next round (discovery first, then validation) instead of treating one round as final. Stamp only when the last validation round is clean. A change that cannot converge within three rounds goes back to the user with the recorded findings instead of a stamp.
+
 **Steps**
 
 1. **If no change name provided, prompt for selection**

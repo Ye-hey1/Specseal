@@ -223,7 +223,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 - **Partial**: Remote workspaces in the desktop app, the Claude Code plugin, the Herdr mod.
 - **Planned upstream**: Agent tool packages and MCP, SSO, runtime plugins, multi-node deployment.
 
-Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename. **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client), the verify CI gate as a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)), principles guidance baked into the propose/apply/review/verify skills (ASSET_VERSION v1.58.1), and a spec-kit migration script ([`scripts/migrate-spec-kit.mjs`](scripts/migrate-spec-kit.mjs)).
+Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename and desktop remote workspaces (upstream is also partial there). **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client), the verify CI gate as a reusable GitHub Action ([`.github/actions/specseal-verify`](.github/actions/specseal-verify/action.yml)), principles guidance baked into the propose/apply/review/verify skills, a spec-kit migration script ([`scripts/migrate-spec-kit.mjs`](scripts/migrate-spec-kit.mjs)), the `/speclink-bugfix` skill (reproduce → cause → change → verdict discipline), and the verify convergence loop (fix → re-freeze → next round → stamp only on a clean validation round).
 
 ## <a id="contributing"></a>Contributing
 

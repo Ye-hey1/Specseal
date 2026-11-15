@@ -21,6 +21,7 @@ const EMPHASIS_CAPS: &[(&str, usize)] = &[
     ("archive.md", 4),
     ("artifact-write-back.md", 0),
     ("audit.md", 1),
+    ("bugfix.md", 2),
     ("baseline.md", 8),
     ("clarify.md", 4),
     ("commit.md", 6),

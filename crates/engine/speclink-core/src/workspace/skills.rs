@@ -122,6 +122,7 @@ const B_IMPROVE: &str = include_str!("../../assets/skills/improve.md");
 const B_INGEST: &str = include_str!("../../assets/skills/ingest.md");
 const B_MANUAL: &str = include_str!("../../assets/skills/manual.md");
 const B_BASELINE: &str = include_str!("../../assets/skills/baseline.md");
+const B_BUGFIX: &str = include_str!("../../assets/skills/bugfix.md");
 const B_PROPOSE: &str = include_str!("../../assets/skills/propose.md");
 const B_QUALITY: &str = include_str!("../../assets/skills/quality.md");
 /// The two quality stations share their checking rules (brief discipline,
@@ -173,6 +174,8 @@ pub fn registry() -> Vec<Skill> {
         // parallel audit agents, which the fork's Explore agent cannot spawn.
         Skill { name: "audit", description: "Use when changed code needs a security pass — hunts dangerous defaults, type confusion and silent failures, and reports the sharp edges it finds.", fork: false, disallow_edit: true, claude_only: false, worktree_gated: false, body: B_AUDIT },
         Skill { name: "baseline", description: "Use when adopting Speclink on a codebase that already has behavior but no specs — establishes the baseline by generating the initial specs from what the code does today.", fork: false, disallow_edit: false, claude_only: false, worktree_gated: false, body: B_BASELINE },
+        // Specseal addition: one bug, one change, an explicit verdict.
+        Skill { name: "bugfix", description: "Use when a single bug needs fixing end to end — reproduce it, locate the cause, record the change, patch, and prove a verified/partial/failed verdict against the original symptom.", fork: false, disallow_edit: false, claude_only: false, worktree_gated: false, body: B_BUGFIX },
         Skill { name: "commit", description: "Use when only the files belonging to one specific change should be committed — selects that change's files and writes the commit.", fork: false, disallow_edit: false, claude_only: false, worktree_gated: false, body: B_COMMIT },
         // Writes only through `speclink workflow-config` (never a direct file
         // edit), so Edit/Write stay disallowed; not a fork skill because the
