@@ -2,7 +2,9 @@
 
 Principles（项目原则）是一份短清单：本仓库中每一份规格、每一轮 review、每一轮 verify 都对照它检查。想法、计划、变更来了又走；原则很少变，改一条原则需要讨论，而不是顺手一改。
 
-这是 Specseal 的约定层。这个想法来自 spec-kit 的 "constitution"：一小份稳定的原则胜过一份又长又漂移的。目前引擎还不会自动注入这份文档——由 agent 和审查者去读（用法见下）；把注入做成自动是 Specseal 路线图上的一项（[REBRAND-NOTES.md](../REBRAND-NOTES.md)）。
+这是 Specseal 的约定层。这个想法来自 spec-kit 的 "constitution"：一小份稳定的原则胜过一份又长又漂移的。
+
+**注入现状**：propose / apply / review / verify 四个技能文件已内置「读 `speclink/principles.md`」的指引（资产版本 v1.58.2 起）——agent 在这些阶段会被技能提示去读原则，违反编号原则即 must-fix。引擎指令上下文级的自动注入（把原则内容直接拼进指令）仍是路线图项（[REBRAND-NOTES.md](../REBRAND-NOTES.md)）。
 
 ## 快速上手
 
