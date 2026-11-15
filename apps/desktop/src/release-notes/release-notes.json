@@ -154,7 +154,7 @@
           },
           {
             "en": "Settings now open in a settings mode. App settings and project settings each list their categories in the left column, with one page per category. New options let you pick a light, dark or system appearance and turn automatic update checks on or off.",
-            "zh-CN": "设置改成设置模式：应用进程设置与项目设置各自在左栏列出分类、每类一页，并添加浅色／深色／跟随系统的外观选项与自动检查更新的开关。"
+            "zh-CN": "设置改成设置模式：应用设置与项目设置各自在左栏列出分类、每类一页，并添加浅色／深色／跟随系统的外观选项与自动检查更新的开关。"
           },
           {
             "en": "Project context and output rules in project settings now use a code editor with line numbers and highlighting. Project context can switch between edit and preview, and ⌘S saves.",
@@ -300,7 +300,7 @@
           },
           {
             "en": "The README is now an English-first open-source home page. The Chinese version is README.zh-CN.md, and the repo adds CONTRIBUTING, SECURITY and issue templates.",
-            "zh-CN": "README 改成英文为主的开源首页，繁中版改名为 README.zh-CN.md，并添加 CONTRIBUTING、SECURITY 与 issue 范本。"
+            "zh-CN": "README 改成英文为主的开源首页，繁中版改名为 README.zh-CN.md，并添加 CONTRIBUTING、SECURITY 与 issue 模板。"
           }
         ]
       }
@@ -319,7 +319,7 @@
           },
           {
             "en": "The Plan tab in the desktop app detail panel now shows four cards: Wave, Prerequisites, Overlaps and Archive order. A badge on the Prerequisites card shows if the change is blocked. The Overlaps card lists which change touches which requirement, and what each side does to it. The Archive order card lists the changes that must archive first. The cards show a warning for a name conflict or a mutual wait. Remote projects show the same information. With an older server, the Prerequisites card also lists the waits that the server finds from overlaps.",
-            "zh-CN": "桌面 app 详情面板的「调度」分页改成波次、前置、重叠、封存顺序四张卡片：是否被挡住改成前置卡上的徽章，重叠卡列出和哪个变更撞到哪个 requirement、双方各做了什幺操作，封存顺序卡列出封存时要排在谁后面，遇到同名冲突或互相等待时显示警示；remote 项目也看得到同一份信息，连到旧版 server 时前置卡会另列 server 依重叠判定的等待。"
+            "zh-CN": "桌面 app 详情面板的「调度」分页改成波次、前置、重叠、封存顺序四张卡片：是否被卡住改成前置卡上的徽章，重叠卡列出和哪个变更撞到哪个 requirement、双方各做了什幺操作，封存顺序卡列出封存时要排在谁后面，遇到同名冲突或互相等待时显示警示；remote 项目也看得到同一份信息，连到旧版 server 时前置卡会另列 server 依重叠判定的等待。"
           }
         ]
       }
@@ -353,11 +353,11 @@
         "items": [
           {
             "en": "`specseal plan` calculates the execution order of all changes that are not archived. It groups them into waves (changes in the same wave can run in parallel), lists what blocks each change, and names the next change that is ready to start. `specseal change depends` declares which changes must finish before a change. The apply skill checks plan before it starts and stops when the change is blocked. At the end of propose, the skill records the dependencies that it finds.",
-            "zh-CN": "`specseal plan` 会算出所有未封存变更的运行顺序：分成一波一波（同一波可以并行），列出每个变更被谁挡住，并指出下一个可开工的变更；`specseal change depends` 可以声明「这个变更要等哪些变更先做完」，apply 技能开工前会先看 plan、被挡住就停下，propose 收尾会把判定出的依赖落档。"
+            "zh-CN": "`specseal plan` 会算出所有未封存变更的运行顺序：分成一波一波（同一波可以并行），列出每个变更被谁卡住，并指出下一个可开工的变更；`specseal change depends` 可以声明「这个变更要等哪些变更先做完」，apply 技能开工前会先看 plan、被卡住就停下，propose 收尾会把判定出的依赖落档。"
           },
           {
             "en": "The board, the system tray and the detail panel in the desktop app follow the plan order. Cards show their wave, and blocked changes appear faded. A new Plan tab in the detail panel shows the prerequisites and lets you add or remove them. Drag-and-drop cannot move a card past a declared dependency. The board shows a warning when dependencies form a cycle.",
-            "zh-CN": "桌面 app 的看板、系统匣与详情面板都照 plan 的顺序排列：卡片标出波次、被挡住的变更变淡，详情面板添加「调度」分页可以查看与增减前置，拖排不能跨越声明的依赖，依赖成环时看板会提示。"
+            "zh-CN": "桌面 app 的看板、系统匣与详情面板都照 plan 的顺序排列：卡片标出波次、被卡住的变更变淡，详情面板添加「调度」分页可以查看与增减前置，拖排不能跨越声明的依赖，依赖成环时看板会提示。"
           },
           {
             "en": "Remote mode has the same execution order. The server provides plan and writes prerequisites. When the desktop app connects to a server, its board and system tray work the same as locally, and so does the CLI in remote mode. When you add a prerequisite in the Plan tab, the candidates now come from the roster that holds the change. A change in a worktree no longer offers names that the engine rejects.",
@@ -369,7 +369,7 @@
           },
           {
             "en": "apply-with-worktree checks plan before it creates a worktree. With several change names, it separates the changes that can run in parallel from the changes that must wait for prerequisites. A blocked change no longer leaves an empty worktree behind. At the end of ingest, the skill checks the dependencies of the change again and records them.",
-            "zh-CN": "apply-with-worktree 建 worktree 之前先以 plan 守门：多个变更名时分出可并行与须等前置的，被挡住的变更不会留下空 worktree；ingest 收尾会重判本变更的依赖并落档。"
+            "zh-CN": "apply-with-worktree 建 worktree 之前先以 plan 守门：多个变更名时分出可并行与须等前置的，被卡住的变更不会留下空 worktree；ingest 收尾会重判本变更的依赖并落档。"
           },
           {
             "en": "The opening scan of `/specseal-discuss` now includes the delta specs of changes in progress. The list of assumptions marks the requirements that \"in-progress change X will change\". A discussion no longer builds on specs that are about to change. Each change in `specseal list --json` now carries the list of capabilities in its delta.",

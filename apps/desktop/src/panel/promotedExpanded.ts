@@ -1,6 +1,6 @@
 // 面板讨论卡底「已转出」收合列的展开记忆（tray-panel-restyle design D4）：app 本机
 // （localStorage）、值为 "true"／"false"。与看板的 specseal.board.promotedExpanded 刻意
-// 分键——两个窗口、两个把手，面板的点按不改看板的收合状态。
+// 分键——两个窗口、两个把手，面板的点击不改看板的收合状态。
 
 export const TRAY_PROMOTED_EXPANDED_STORAGE_KEY = "specseal.tray.promotedExpanded";
 

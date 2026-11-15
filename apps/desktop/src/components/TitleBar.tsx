@@ -1,5 +1,5 @@
 // 三平台标题列（design D1／D6）：左侧标题列（图标列＋项目栏共用）与主区顶列，
-// 两者整列可拖曳（deep：子树皆可拖、按钮等可点元素由 Tauri 自动排除）。
+// 两者整列可拖拽（deep：子树皆可拖、按钮等可点元素由 Tauri 自动排除）。
 import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ArrowLeft, Copy, Minus, Square, X } from "lucide-react";

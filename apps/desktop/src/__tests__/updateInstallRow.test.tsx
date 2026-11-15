@@ -26,7 +26,7 @@ const row = () => screen.getByTestId("update-install-row");
 const button = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
 
 describe("UpdateInstallRow", () => {
-  it("待同意：显示目标版本与「下载」；同意才回呼下载、不触发重启", () => {
+  it("待同意：显示目标版本与「下载」；同意才回调下载、不触发重启", () => {
     const p = props({ phase: "available", version: "0.2.0" });
     render(<UpdateInstallRow {...p} />);
     // 更新页「下载与安装」卡的列（desktop-settings-mode design D6）：标题 Specseal 目标版本。
@@ -39,7 +39,7 @@ describe("UpdateInstallRow", () => {
     expect(p.onCancel).not.toHaveBeenCalled();
   });
 
-  it("下载中：不确定进度列（无 aria-valuenow）与「取消」；取消回呼 onCancel", () => {
+  it("下载中：不确定进度列（无 aria-valuenow）与「取消」；取消回调 onCancel", () => {
     const p = props({ phase: "downloading", version: "0.2.0" });
     render(<UpdateInstallRow {...p} />);
     expect(row().textContent).toContain("0.2.0");
@@ -59,7 +59,7 @@ describe("UpdateInstallRow", () => {
     expect(p.onRelaunch).toHaveBeenCalledTimes(1);
   });
 
-  it("失败：红字错误消息与「重试」；重试回呼 onRetry（重新检查）", () => {
+  it("失败：红字错误消息与「重试」；重试回调 onRetry（重新检查）", () => {
     const p = props({ phase: "error", message: "invalid signature" });
     render(<UpdateInstallRow {...p} />);
     const message = screen.getByText(/invalid signature/);

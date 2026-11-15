@@ -42,6 +42,7 @@ export const PICKER_SKILLS = [
   { skill: "worktree-merge", group: "收尾", pair: "变更", about: "把 worktree 合回主分支" },
   { skill: "commit", group: "收尾", pair: "变更", about: "只提交这个变更的文件" },
   { skill: "improve", group: "项目", pair: null, about: "扫描代码找改善点" },
+  { skill: "bugfix", group: "项目", pair: null, about: "复现并修复一个缺陷" },
   { skill: "audit", group: "项目", pair: null, about: "找出代码的安全问题" },
   { skill: "trace", group: "项目", pair: null, about: "查一项能力的来龙去脉" },
   { skill: "manual", group: "项目", pair: null, about: "从规格产生操作手册" },

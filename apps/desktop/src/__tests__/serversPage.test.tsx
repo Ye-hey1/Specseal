@@ -115,7 +115,7 @@ describe("ServersPage", () => {
     expect(screen.getByTestId("servers-empty")).toBeTruthy();
   });
 
-  it("缺省卡：下拉只列已登录连接与「不预选」，选取回呼", async () => {
+  it("缺省卡：下拉只列已登录连接与「不预选」，选取回调", async () => {
     const onDefaultConnectionChange = vi.fn();
     const user = userEvent.setup({ pointerEventsCheck: 0 });
     render(page({ connections: [A, C], defaultConnectionId: null, onDefaultConnectionChange }));

@@ -1256,7 +1256,7 @@ describe("产出流程页（spec「产出流程页」）", () => {
   });
 
   it("fork 仅 local 渲染，按下后清单反映新项目层项目", async () => {
-    // spec Scenario「fork 产出项目层复本」的前端面。
+    // spec Scenario「fork 产出项目层副本」的前端面。
     const forked: SchemaEntry = { ...BUILTIN_ENTRY, name: "spec-driven-custom", source: "project" };
     const ws = schemaSettings(projectSnap());
     (ws.readSchemas as ReturnType<typeof vi.fn>)

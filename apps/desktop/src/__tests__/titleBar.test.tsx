@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 describe("LeftTitleBar", () => {
-  it("项目名左缘对齐下方项目栏导览文本（98px）、可拖曳、纯文本标题 hover 显示路径", () => {
+  it("项目名左缘对齐下方项目栏导览文本（98px）、可拖拽、纯文本标题 hover 显示路径", () => {
     render(<LeftTitleBar title="specseal" path="/Users/a/specseal" menu={<button>⋯</button>} />);
     const bar = screen.getByTestId("left-titlebar");
     // 图标列 56＋项目栏内距 8＋导览项内距 10＋图标 16＋间距 8＝导览文本左缘。
@@ -175,10 +175,10 @@ describe("MainTitleBar", () => {
   });
 });
 
-// 设置档守门：窗口钮与拖曳所需权限、平台覆盖档不得因合并取代掉主窗口尺寸。
+// 设置档守门：窗口钮与拖拽所需权限、平台覆盖档不得因合并取代掉主窗口尺寸。
 describe("Tauri 窗口设置", () => {
 
-  it("capabilities/default.json 含拖曳与三颗窗口钮所需的五条权限", () => {
+  it("capabilities/default.json 含拖拽与三颗窗口钮所需的五条权限", () => {
     const { permissions } = JSON.parse(defaultCapsRaw);
     for (const p of [
       "core:window:allow-start-dragging",

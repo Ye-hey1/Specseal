@@ -447,8 +447,8 @@ function AppInner({
   // 正常仍停用的写入只剩角色原因——server 对 reader 的每个写入都回 403。
   const writeDisabledReason = t(stale ? "remote.writeUnavailable" : "remote.readerRole");
 
-  // 看板拖曳手势让路（design D6、TaskList 同款）：手势中暂缓 workspace-changed
-  // 的整批 refresh（避免拖曳中卡片重排打断手势），放开后补跑一次。
+  // 看板拖拽手势让路（design D6、TaskList 同款）：手势中暂缓 workspace-changed
+  // 的整批 refresh（避免拖拽中卡片重排打断手势），放开后补跑一次。
   const boardDragActive = useRef(false);
   const pendingRefresh = useRef(false);
   // 详情页内的确认（封存、删除、退回）在途时，成功／失败由 store 决定是否关页——
@@ -504,7 +504,7 @@ function AppInner({
     return session.events.subscribe(
       () => {
         // 监看重挂先于刷新（worktree 增减会改变监看拓扑；目标不变时 Rust 端
-        // 沿用原监看）——拖曳手势只暂缓画面刷新，不暂缓重挂。
+        // 沿用原监看）——拖拽手势只暂缓画面刷新，不暂缓重挂。
         void useStore.getState().rearmWatch();
         if (boardDragActive.current) {
           pendingRefresh.current = true;

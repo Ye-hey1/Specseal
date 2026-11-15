@@ -49,7 +49,7 @@ const VersionText = ({ children }: { children: string }) => (
 export function UpdatesPage({ updater }: { updater?: AppSettingsUpdaterProps }) {
   const { t, locale } = useI18n();
   // 聚焦卷动（图标列更新钮、toast「查看」、技能档较新态的入口举旗）：卷到下载与安装卡，
-  // 没有该卡时卷到版本卡；卷一次并回呼清旗标。
+  // 没有该卡时卷到版本卡；卷一次并回调清旗标。
   const versionCard = useRef<HTMLDivElement>(null);
   const installCard = useRef<HTMLDivElement>(null);
   const focus = updater?.focus === true;

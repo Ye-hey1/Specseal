@@ -26,22 +26,22 @@ const navItems = (nav: HTMLElement) =>
     .map((b) => b.textContent);
 
 describe("SettingsColumn", () => {
-  it("「应用进程」群组四项＋「关于」群组一项依序渲染，所在分类为作用中，点击回呼分类", () => {
+  it("「应用」群组四项＋「关于」群组一项依序渲染，所在分类为作用中，点击回调分类", () => {
     const onSelect = vi.fn();
     render(<SettingsColumn section="updates" onSelect={onSelect} />);
     const nav = screen.getByRole("navigation", { name: "设置分类" });
-    expect(within(nav).getByText("应用进程")).toBeTruthy();
+    expect(within(nav).getByText("应用")).toBeTruthy();
     expect(navItems(nav)).toEqual(["一般", "更新", "CLI", "服务器", "关于 Specseal"]);
     expect(within(nav).getByRole("button", { name: "更新" }).getAttribute("aria-current")).toBe("page");
     fireEvent.click(within(nav).getByRole("button", { name: "服务器" }));
     expect(onSelect).toHaveBeenCalledWith("servers");
   });
 
-  it("「关于」群组在「应用进程」之后、唯一一项「关于 Specseal」；作用中与点击回呼", () => {
+  it("「关于」群组在「应用」之后、唯一一项「关于 Specseal」；作用中与点击回调", () => {
     const onSelect = vi.fn();
     const { rerender } = render(<SettingsColumn section="general" onSelect={onSelect} />);
     const nav = screen.getByRole("navigation", { name: "设置分类" });
-    const headers = [within(nav).getByText("应用进程"), within(nav).getByText("关于")];
+    const headers = [within(nav).getByText("应用"), within(nav).getByText("关于")];
     expect(headers[0].compareDocumentPosition(headers[1]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     const about = within(nav).getByRole("button", { name: "关于 Specseal" });
     expect(headers[1].compareDocumentPosition(about) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -56,7 +56,7 @@ describe("SettingsColumn", () => {
     const nav = screen.getByRole("navigation", { name: "设置分类" });
     fireEvent.change(within(nav).getByPlaceholderText("搜索设置"), { target: { value: "第三方" } });
     expect(navItems(nav)).toEqual(["关于 Specseal"]);
-    expect(within(nav).queryByText("应用进程")).toBeNull();
+    expect(within(nav).queryByText("应用")).toBeNull();
     // 成为第一组时不带群组间的上方间距。
     expect(within(nav).getByText("关于").closest(".pb-1")?.classList.contains("pt-3")).toBe(false);
   });
@@ -95,7 +95,7 @@ describe("SettingsColumn", () => {
 });
 
 describe("ProjectSettingsColumn", () => {
-  // spec「设置页图形化读写两层设置」：组名与分类名一律用概念名，与应用进程设置的分类栏相同。
+  // spec「设置页图形化读写两层设置」：组名与分类名一律用概念名，与应用设置的分类栏相同。
   it("local：「工作流程」组（品质关卡下有两个子项）与「项目」组 AI 工具，分类栏内不出现设置档文档名", () => {
     const onSelect = vi.fn();
     render(<ProjectSettingsColumn section="context" remote={false} configParseError={false} specsealParseError={false} onSelect={onSelect} />);

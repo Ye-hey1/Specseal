@@ -45,7 +45,7 @@ const row = (label: string) => screen.getByRole("group", { name: label });
 const installCard = () => screen.queryByRole("region", { name: "下载与安装" });
 
 describe("UpdatesPage", () => {
-  it("页标题「更新」右侧「检查更新」回呼 onCheck、检查中停用；版本卡有目前版本列（等宽）", () => {
+  it("页标题「更新」右侧「检查更新」回调 onCheck、检查中停用；版本卡有目前版本列（等宽）", () => {
     const onCheck = vi.fn();
     const { rerender } = render(<UpdatesPage updater={updaterProps({ phase: "idle" }, { onCheck })} />);
     expect(screen.getByRole("heading", { level: 2, name: "更新" })).toBeTruthy();
@@ -145,7 +145,7 @@ describe("UpdatesPage", () => {
     expect(card.textContent).not.toContain(top.items[0]["zh-CN"]);
   });
 
-  it("自动检查卡：开关反映偏好、切换回呼 onAutoCheckChange", () => {
+  it("自动检查卡：开关反映偏好、切换回调 onAutoCheckChange", () => {
     const onAutoCheckChange = vi.fn();
     const { rerender } = render(<UpdatesPage updater={updaterProps({ phase: "idle" }, { onAutoCheckChange })} />);
     const sw = screen.getByRole("switch", { name: "启动时在背景检查新版本" });
@@ -157,7 +157,7 @@ describe("UpdatesPage", () => {
     expect(screen.getByRole("switch", { name: "启动时在背景检查新版本" }).getAttribute("aria-checked")).toBe("false");
   });
 
-  it("focus 为 true 时卷到「下载与安装」卡一次并回呼；无该卡时卷到版本卡", () => {
+  it("focus 为 true 时卷到「下载与安装」卡一次并回调；无该卡时卷到版本卡", () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const onFocusHandled = vi.fn();

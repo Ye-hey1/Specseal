@@ -399,11 +399,12 @@ test('discussionSkills：依讨论状态决定建议', () => {
   assert.deepEqual(discussionSkills(d({ status: 'promoted' })), [{ skill: 'discuss', args: 's', primary: false }]);
 });
 
-test('specseal 写出的每个技能都有放处，表上也没有已不存在的技能', () => {
-  const written = readdirSync(path.join(ROOT, '.claude/skills'))
-    .filter((name) => name.startsWith('specseal-'))
-    .map((name) => name.slice('specseal-'.length))
-    .sort();
+test('技能选择器覆盖引擎注册表，不依赖当前项目是否启用 worktree', () => {
+  const source = readFileSync(path.join(ROOT, 'crates/engine/specseal-core/src/workspace/skills.rs'), 'utf8');
+  const registry = source.match(/pub fn registry\([^]*?\n}/)?.[0];
+  assert.ok(registry, '找不到引擎技能注册表');
+  const written = [...registry.matchAll(/\bSkill\s*\{\s*name:\s*"([^"]+)"/g)].map((match) => match[1]).sort();
+  assert.ok(written.length > 0, '技能注册表不能为空');
   assert.deepEqual([...ALL_SKILLS].sort(), written);
 });
 
@@ -1805,7 +1806,10 @@ test('合成一列：每个做法都是真的技能，清单少掉其他做法',
     assert.equal(choices[0].skill, row, '第一个是缺省，也是那一列的名字');
     for (const { skill } of choices) assert.ok(names.has(skill), skill);
   }
-  assert.equal(PICKER_ROWS.length, 16);
+  assert.deepEqual(PICKER_ROWS.map((row) => row.skill), [
+    'discuss', 'propose', 'ingest', 'apply', 'analyze', 'drift', 'quality',
+    'archive', 'worktree-merge', 'commit', 'improve', 'bugfix', 'audit', 'trace', 'manual', 'baseline', 'config',
+  ]);
   for (const hidden of ['apply-with-worktree', 'review', 'verify', 'archive+commit']) {
     assert.ok(!PICKER_ROWS.some((w) => w.skill === hidden), hidden);
   }
@@ -1823,7 +1827,8 @@ test('清单只列现在能做的：没有变更时只剩规划；有变更时�
 
 test('点过的组照用户的：all 全列，closed 收起来', () => {
   const groups = pickerGroups(() => 0, { 项目: 'all', 规划: 'closed' });
-  assert.equal(groups.find((g) => g.group === '项目').rows.length, 6);
+  assert.deepEqual(groups.find((g) => g.group === '项目').rows.map((row) => row.skill),
+    ['improve', 'bugfix', 'audit', 'trace', 'manual', 'baseline', 'config']);
   assert.equal(groups.find((g) => g.group === '规划').rows.length, 0);
 });
 

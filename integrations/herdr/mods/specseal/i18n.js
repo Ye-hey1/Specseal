@@ -29,6 +29,12 @@ export function watchLang(exec, cx, ui) {
 }
 
 export const TO_ZH = {
+  "New workspace": "新建工作区",
+  "Add project…": "添加项目…",
+  "Add project": "添加项目",
+  "Unable to add project": "无法添加项目",
+  "New workspace or project": "新建工作区或添加项目",
+  "Specseal panel": "展开或收起 Specseal · ⌘⇧S",
   // Herdr 内置画面：分页列、状态栏
   Files: "文件",
   Changes: "变更",
@@ -194,6 +200,7 @@ export const TO_ZH = {
 };
 
 export const TO_EN = {
+  "复现并修复一个缺陷": "Reproduce and fix a single bug",
   我的技能: "My skills",
   给: "To",
   主文件夹: "Main folder",

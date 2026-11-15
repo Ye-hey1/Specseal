@@ -1,5 +1,5 @@
 // 面板样式呈现层（spec「面板样式」；design D5）：以主窗口推送的
-// TraySnapshot 薄渲染——分区与内容和原生菜单同源；jsdom 只测结构与回呼，
+// TraySnapshot 薄渲染——分区与内容和原生菜单同源；jsdom 只测结构与回调，
 // 原生质感（不抢焦点、贴齐、失焦收合）由 4.4 真窗口手动验证。
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { act, cleanup, render as rtlRender, screen, fireEvent, within } from "@testing-library/react";
@@ -132,7 +132,7 @@ function renderPanel(over: Partial<Parameters<typeof TrayPanel>[0]> = {}) {
 }
 
 describe("TrayPanel 渲染（与原生菜单同源的分区内容）", () => {
-  it("active no-session error 以精简复原卡取代旧数据，retry 原地而详情／登录走明确回呼", () => {
+  it("active no-session error 以精简复原卡取代旧数据，retry 原地而详情／登录走明确回调", () => {
     const key = "remote:c1/demo/backend";
     const h = renderPanel({
       snapshot: snapshot({
@@ -248,7 +248,7 @@ describe("TrayPanel 渲染（与原生菜单同源的分区内容）", () => {
     expect(screen.queryByTestId("panel-recovery-card")).toBeNull();
   });
 
-  it("active unreachable 的 Panel retry 只走原地回呼，不误触主窗口详情", () => {
+  it("active unreachable 的 Panel retry 只走原地回调，不误触主窗口详情", () => {
     const key = "remote:c1/demo/backend";
     const h = renderPanel({
       snapshot: snapshot({
@@ -292,7 +292,7 @@ describe("TrayPanel 渲染（与原生菜单同源的分区内容）", () => {
     expect(within(disc).getByText("讨论一")).toBeTruthy();
   });
 
-  it("项目区列出分页且作用中标示、点非作用中项目回呼切换", () => {
+  it("项目区列出分页且作用中标示、点非作用中项目回调切换", () => {
     const h = renderPanel();
     const one = screen.getByTestId("panel-project-local:/proj/one");
     const two = screen.getByTestId("panel-project-local:/proj/two");
@@ -302,7 +302,7 @@ describe("TrayPanel 渲染（与原生菜单同源的分区内容）", () => {
     expect(h.onOpenProject).toHaveBeenCalledWith("local:/proj/two");
   });
 
-  it("点 remote 项目 tab 以 locator key 回呼切换，不因空 root 静默", () => {
+  it("点 remote 项目 tab 以 locator key 回调切换，不因空 root 静默", () => {
     const remoteKey = "remote:conn-1/demo/backend";
     const h = renderPanel({
       snapshot: snapshot({
@@ -1012,7 +1012,7 @@ describe("TrayPanel 交互（打开与 hover 拷贝）", () => {
     expect(h.onOpenDiscussion).toHaveBeenCalledWith("d1");
   });
 
-  it("变更列拷贝钮回呼 name（不含进度字符）且不触发打开", () => {
+  it("变更列拷贝钮回调 name（不含进度字符）且不触发打开", () => {
     const h = renderPanel();
     const row = screen.getByTestId("panel-change-inprog");
     fireEvent.click(within(row).getByRole("button", { name: "拷贝名称" }));
@@ -1020,7 +1020,7 @@ describe("TrayPanel 交互（打开与 hover 拷贝）", () => {
     expect(h.onOpenChange).not.toHaveBeenCalled();
   });
 
-  it("讨论列拷贝钮回呼 slug 且不触发打开", () => {
+  it("讨论列拷贝钮回调 slug 且不触发打开", () => {
     const h = renderPanel();
     const row = screen.getByTestId("panel-discussion-d1");
     fireEvent.click(within(row).getByRole("button", { name: "拷贝 slug" }));
@@ -1028,7 +1028,7 @@ describe("TrayPanel 交互（打开与 hover 拷贝）", () => {
     expect(h.onOpenDiscussion).not.toHaveBeenCalled();
   });
 
-  it("底部「打开 Specseal」回呼打开主窗口", () => {
+  it("底部「打开 Specseal」回调打开主窗口", () => {
     const h = renderPanel();
     fireEvent.click(screen.getByText("打开 Specseal"));
     expect(h.onOpenApp).toHaveBeenCalled();
@@ -1691,7 +1691,7 @@ describe("面板内容卡收合", () => {
       snapshot: snapshot({ tabs: [wadpilot, specseal], activeKey: wadpilot.key, discussions: topics("w", 8) }),
     });
     fireEvent.click(toggle("discussions"));
-    // 点 specseal 的项目 tab：面板回呼切换，主窗口推送 specseal 的快照。
+    // 点 specseal 的项目 tab：面板回调切换，主窗口推送 specseal 的快照。
     fireEvent.click(screen.getByTestId(`panel-project-${specseal.key}`));
     expect(h.onOpenProject).toHaveBeenCalledWith(specseal.key);
     h.pushSnapshot(snapshot({ tabs: [wadpilot, specseal], activeKey: specseal.key, discussions: topics("s", 2) }));

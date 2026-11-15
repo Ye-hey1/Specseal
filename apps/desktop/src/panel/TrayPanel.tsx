@@ -1,7 +1,7 @@
 // 面板样式呈现层（spec「面板样式」；design D5）：主窗口推送的
 // TraySnapshot 薄渲染——分区内容与原生菜单同源（同一 store 快照），不自建
 // 数据查找路径。原生质感（vibrancy、不抢焦点、失焦收合、高度自适应）由
-// Rust 侧面板窗口与入口层承担，此组件只负责结构与回呼；拷贝钮常驻列尾、
+// Rust 侧面板窗口与入口层承担，此组件只负责结构与回调；拷贝钮常驻列尾、
 // 分区图标沿用看板同款（KanbanBoard 的 stage 图标）。
 import {
   useEffect,
@@ -103,7 +103,7 @@ export interface TrayPanelProps {
   onOpenSettings: () => void;
   /** 结束 app（动作区「结束」；面板端经 Rust 命令结束行程）。 */
   onQuit: () => void;
-  /** 拷贝回呼（面板入口接 clipboard 插件——Rust 端，不受焦点限制）。 */
+  /** 拷贝回调（面板入口接 clipboard 插件——Rust 端，不受焦点限制）。 */
   onCopy: (text: string) => void;
   /** 快速加入项目（design D7）：开文件夹选择器，选定即加入并切换、取消无事。 */
   onAddProject: () => void;

@@ -2252,7 +2252,7 @@ export function createAppStore(deps: AppStoreDeps): UseBoundStore<StoreApi<AppSt
       }
     },
     cancelLogin(origin) {
-      // 立即回未登录；Rust 端结束等待、关掉回呼的端口，不留任何 credential。
+      // 立即回未登录；Rust 端结束等待、关掉回调的端口，不留任何 credential。
       nextLoginRun(origin);
       void connectionsAdapter?.loginCancel(origin);
       setConnectionPhase(origin, { kind: "idle" });
@@ -2685,7 +2685,7 @@ export function createAppStore(deps: AppStoreDeps): UseBoundStore<StoreApi<AppSt
       } catch (error) {
         // 失败留在原位可重试——update() 幂等，重试即收敛（决策 5）。
         set({ assetUpdateError: String(error), assetUpdating: false });
-        // 更新期间监看已暂停（Windows 上监看会挡住文件夹改名）。
+        // 更新期间监看已暂停（Windows 上监看会卡住文件夹改名）。
         await get().rearmWatch();
         return;
       }

@@ -1,4 +1,4 @@
-// 应用进程设置（desktop-settings-mode design D5；desktop-about-page design D7）：依所在分类渲染
+// 应用设置（desktop-settings-mode design D5；desktop-about-page design D7）：依所在分类渲染
 // 一页——一般、CLI 于此档；更新页、服务器页与关于页各有自己的测试档。
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render as rtlRender, screen, within } from "@testing-library/react";
@@ -21,7 +21,7 @@ function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: zhWrapper });
 }
 
-/** 软件更新面的最小注入：状态＋回呼。 */
+/** 软件更新面的最小注入：状态＋回调。 */
 function updaterProps(state: UpdaterState, over: Partial<AppSettingsUpdaterProps> = {}): AppSettingsUpdaterProps {
   return {
     state,
@@ -88,7 +88,7 @@ describe("一般页", () => {
     }
   });
 
-  it("显示语言列三选回呼本机偏好（跟随系统＝null）", async () => {
+  it("显示语言列三选回调本机偏好（跟随系统＝null）", async () => {
     const onLocalePrefChange = vi.fn();
     const user = userEvent.setup();
     render(view({ onLocalePrefChange }));
@@ -99,7 +99,7 @@ describe("一般页", () => {
     expect(onLocalePrefChange).toHaveBeenCalledWith("en");
   });
 
-  it("外观列三选回呼 onThemePrefChange（跟随系统／浅色／深色）", async () => {
+  it("外观列三选回调 onThemePrefChange（跟随系统／浅色／深色）", async () => {
     const onThemePrefChange = vi.fn();
     const user = userEvent.setup();
     const { rerender } = render(view({ themePref: "dark", onThemePrefChange }));
@@ -125,7 +125,7 @@ describe("CLI 页的 CLI 指令卡", () => {
   const withCli = (over: Partial<CliInstallView>, onInstall = vi.fn(), platform: ViewProps["platform"] = "macos") =>
     view({ section: "cli", platform, cliInstall: { view: cliView(over), onInstall } });
 
-  it("未安装且可布署：列「specseal CLI」显示未安装与安装钮，点击回呼 onInstall", () => {
+  it("未安装且可布署：列「specseal CLI」显示未安装与安装钮，点击回调 onInstall", () => {
     const onInstall = vi.fn();
     render(withCli({}, onInstall));
     expect(within(row("specseal CLI")).getByText("未安装")).toBeTruthy();

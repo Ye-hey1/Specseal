@@ -80,7 +80,7 @@ export function CodeEditor({
   // 唯读只设 EditorState.readOnly：输入被忽略，但内容区仍可聚焦——关掉 editable 会让
   // WebView 把焦点移走，保存失败恢复可编辑后焦点也回不来。
   const readOnlyMode = useRef(new Compartment()).current;
-  // 编辑器只建一次，扩充内的回呼经 ref 取最新 props。
+  // 编辑器只建一次，扩充内的回调经 ref 取最新 props。
   const latest = useRef({ onChange, onSave });
   latest.current = { onChange, onSave };
   const [cursor, setCursor] = useState({ line: 1, col: 1 });

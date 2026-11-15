@@ -860,7 +860,7 @@ describe("App (kanban primary + rich detail)", () => {
       .mockResolvedValue({ status: "project", root: "A", name: "proj-a" });
     const settings = fakeSettings();
     render(<App createSession={makeSession(fakeDataSource(), settings)} workspace={ws as never} />);
-    // 开应用进程设置（缺省一般页）→ 显示语言列切 English。
+    // 开应用设置（缺省一般页）→ 显示语言列切 English。
     await waitFor(() => expect(crumbText()).toBe("proj-a/变更"));
     fireEvent.click(settingsGear());
     await pickOption("显示语言", "English");
@@ -924,7 +924,7 @@ describe("board search wiring（看板搜索接线）", () => {
     await screen.findByText("desktop-shell-and-browser");
     const heading = screen.getByRole("heading", { level: 2, name: "变更" });
     const header = heading.closest("[data-page-header]") as HTMLElement;
-    expect(header.textContent).toContain("依生命周期分栏；拖曳排序，点卡片开详情。");
+    expect(header.textContent).toContain("依生命周期分栏；拖拽排序，点卡片开详情。");
     expect(within(header).getByPlaceholderText("搜索看板卡片…")).toBeTruthy();
   });
 
@@ -1280,7 +1280,7 @@ describe("sidebar navigation structure（侧栏导览结构）", () => {
     expect(within(projectSettingsColumn()).getByRole("button", { name: "项目说明" }).getAttribute("aria-current")).toBe("page");
   });
 
-  it("零分页：左侧只有图标列（无项目栏、无项目设置）；齿轮仍进入应用进程设置页", async () => {
+  it("零分页：左侧只有图标列（无项目栏、无项目设置）；齿轮仍进入应用设置页", async () => {
     const ws = fakeWorkspace();
     render(<App createSession={makeSession(fakeDataSource())} workspace={ws as never} />);
     expect(await screen.findByText("打开一个项目开始")).toBeTruthy();
@@ -1292,7 +1292,7 @@ describe("sidebar navigation structure（侧栏导览结构）", () => {
     expect(screen.getByTestId("main-titlebar").textContent).toBe("");
 
     fireEvent.click(settingsGear());
-    // 设置模式左侧恒为图标列加设置分类栏（零项目亦然；spec「零分页仍可进入应用进程设置」）。
+    // 设置模式左侧恒为图标列加设置分类栏（零项目亦然；spec「零分页仍可进入应用设置」）。
     expect(within(settingsColumn()).getAllByRole("button")).toHaveLength(5);
     expect(screen.queryByText("打开一个项目开始")).toBeNull();
     expect(settingsGear().className).toContain("bg-primary");

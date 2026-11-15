@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-// 拷贝 Herdr 的 main 版面成 specseal 版面，在最右边加一栏常驻的 Specseal 面板。
-// 也拷贝 spaces、agents 接上阶段徽章和 Specseal 信息，因为内置的没有扩充点；拷贝 files、changes 让文件名称和差异内容不会被 i18n.js 翻掉；拷贝 tabs 让卷动不会切换页签。
-// 内置版面不能停靠，拷贝版又不会跟着 Herdr 更新，所以 Herdr 更新后要重跑这支。
-// 旧的版面会留在 layouts/specseal.json.old-<时间>，和 Herdr 的 layout.reset 同样做法；
-// 旧的 mod 拷贝版直接删掉，那些文件夹没有用户的数据。
-//
+// 安装或更新 Specseal 的 Herdr 集成：保留已安装布局中的外观与其他区块。
+// 项目选择菜单、右上角入口和默认收起行为都由仓库生成，重复安装不会丢失。
+// 更新前先验证内置组件的匹配点，再暂存全部文件并备份当前布局、快捷键和组件。
 // 用法：node scripts/herdr/dock-panel.mjs（Herdr 要开着）
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,9 +14,10 @@ const NAME = 'specseal';
 const PANEL = {
   id: 'specseal',
   type: 'block',
-  size: { px: 368 },
+  size: { px: 340 },
   min: 280,
   max: 900,
+  hidden: true,
   // 标头可以拖动窗口，和分页列一样；面板内容与按钮会挡下按压。
   window_drag: true,
   content: { mod: 'specseal' },
@@ -30,8 +28,12 @@ const COLUMN_SYNC = { id: 'specseal-column-sync', content: { mod: 'specseal', pr
 
 // 接上徽章要改的地方。Herdr 改了这几行就停下来，不要装出半套。
 const SPACES_EDITS = [
-  ['import { View, div, svg } from "gpui-kit";', 'import { View, div, svg } from "gpui-kit";\nimport { InputState as LangInput } from "gpui-base";\nimport { tr, watchLang } from "./i18n.js";\nimport { rowEnd, watchStages } from "./stage-badge.js";'],
-  ['export default class Spaces extends View {\n  init(_props, cx) {', 'export default class Spaces extends View {\n  init(_props, cx) {\n    watchLang(exec, cx, { div, InputState: LangInput });\n    watchStages(this, cx);'],
+  ['import { View, div, svg } from "gpui-kit";', 'import { View, div, svg } from "gpui-kit";\nimport { InputState as LangInput } from "gpui-base";\nimport { tr, watchLang } from "./i18n.js";\nimport { rowEnd, watchStages } from "./stage-badge.js";\nimport { watchProjectCommands } from "./projects.js";'],
+  ['export default class Spaces extends View {\n  init(_props, cx) {', 'export default class Spaces extends View {\n  init(_props, cx) {\n    watchLang(exec, cx, { div, InputState: LangInput });\n    watchStages(this, cx);\n    watchProjectCommands(this, cx);'],
+  [
+    '.on_click(() => run("space.new")).child(svg("mods/workspace-chrome/plus.svg").size(14))',
+    '.cursor_pointer().tooltip(tr("New workspace or project"))\n          .on_click(() => openOverlay({ mod: "specseal-workspace-menu", kind: "popup", width: 156, props: { labels: [tr("New workspace"), tr("Add project…")] } })).child(svg("mods/workspace-chrome/plus.svg").size(14))',
+  ],
   [
     '.child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())',
     '.child(g ? this.gitTail(g, tree, w.name, t) : div().flex_1())\n          .children(rowEnd(g, tree, t))',
@@ -131,18 +133,22 @@ const CHANGES_EDITS = [
 
 // 内置的页签列一卷动就切换页签，触摸板滑一次会连切好几个，画面一直闪。拿掉后卷动只移动页签列。
 const TABS_EDITS = [['      .on_scroll_wheel(e => { if (Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })\n', '']];
+const TABS_REQUIRED_EDITS = [[
+  '      .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/changes/changes.svg")))',
+  '      .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/changes/changes.svg")))\n      .child(button("specseal-toggle", svg("mods/specseal/icons/logo.svg").size(12), () => run("layout.toggle", { id: "specseal" })).tooltip("Specseal · ⌘⇧S"))',
+]];
 
 const integration = (file) => fileURLToPath(new URL(`../../integrations/herdr/${file}`, import.meta.url));
 // 版面里的区块换成哪个拷贝版。files 是拷贝版里的文件名对应 repo 里的文件。
 const I18N = { 'i18n.js': 'mods/specseal/i18n.js' };
 const UNPROTECTED = '名称刚好和接口文本相同时会被翻。';
-const CLONES = [
+export const CLONES = [
   {
     mod: 'spaces',
     blocks: ['spaces'],
     as: 'specseal-spaces',
     edits: SPACES_EDITS,
-    files: { ...I18N, 'stage-badge.js': 'spaces-badge/stage-badge.js' },
+    files: { ...I18N, 'stage-badge.js': 'spaces-badge/stage-badge.js', 'projects.js': 'mods/specseal/projects.js' },
   },
   {
     mod: 'agents',
@@ -154,29 +160,41 @@ const CLONES = [
   // 这几个 Herdr 改了就用内置的，不挡停靠。optional 写的是改用内置后会怎样。
   { mod: 'files', blocks: ['files'], as: 'specseal-files', edits: FILES_EDITS, files: {}, optional: UNPROTECTED },
   { mod: 'changes', blocks: ['changes'], as: 'specseal-changes', edits: CHANGES_EDITS, files: {}, optional: UNPROTECTED },
-  { mod: 'tabs', blocks: ['tabs'], as: 'specseal-tabs', edits: TABS_EDITS, files: {}, optional: '卷动页签列时会切换页签。' },
+  { mod: 'tabs', blocks: ['tabs'], as: 'specseal-tabs', edits: TABS_EDITS, requiredEdits: TABS_REQUIRED_EDITS, files: {}, optional: '卷动页签列时会切换页签。' },
 ];
 
-const home = process.env.HERDR_APP_HOME ?? path.join(homedir(), '.config/herdr-app');
-const file = path.join(home, 'layouts', `${NAME}.json`);
-const herdr = (command, args) => execFileSync('herdr-app', ['do', command, JSON.stringify(args)], { stdio: 'pipe' });
+function readJson(file) {
+  try { return JSON.parse(readFileSync(file, 'utf8')); }
+  catch (error) { throw new Error(`无法读取 ${file}: ${error.message}`, { cause: error }); }
+}
 
-// 先改好再动任何东西：找不到要改的行时，现在的版面还完好。
-for (const clone of CLONES) {
-  clone.source = readFileSync(path.join(home, 'mods', clone.mod, 'main.js'), 'utf8');
-  for (const [from, to] of clone.edits) {
-    if (clone.source.split(from).length !== 2) {
-      if (!clone.optional) throw new Error(`Herdr 的 ${clone.mod} mod 改了，找不到这一行，这支脚本要跟着改：${from}`);
-      console.warn(`Herdr 的 ${clone.mod} mod 改了，改用内置的。${clone.optional}找不到：${from}`);
-      clone.skip = true;
-      break;
-    }
-    clone.source = clone.source.replace(from, () => to);
+function writeJson(file, value) {
+  const next = `${file}.install-next`;
+  try {
+    writeFileSync(next, `${JSON.stringify(value, null, 2)}\n`);
+    renameSync(next, file);
+  } finally {
+    rmSync(next, { force: true });
   }
 }
-const clones = CLONES.filter((clone) => !clone.skip);
 
-// 版面里指定 id 的区块。
+export function patchClone(clone, original, warn = console.warn) {
+  let source = original;
+  for (const [from, to] of clone.requiredEdits ?? []) {
+    if (source.split(from).length !== 2) throw new Error(`Herdr 的 ${clone.mod} 组件缺少必须的匹配点：${from}`);
+    source = source.replace(from, () => to);
+  }
+  for (const [from, to] of clone.edits) {
+    if (source.split(from).length !== 2) {
+      if (!clone.optional) throw new Error(`Herdr 的 ${clone.mod} mod 改了，找不到这一行：${from}`);
+      warn(`Herdr 的 ${clone.mod} 可选修改未应用：${clone.optional}`);
+      return { ...clone, source, skip: !clone.requiredEdits?.length };
+    }
+    source = source.replace(from, () => to);
+  }
+  return { ...clone, source, skip: false };
+}
+
 function findBlock(node, id) {
   if (node.id === id) return node;
   for (const child of node.children ?? []) {
@@ -186,35 +204,120 @@ function findBlock(node, id) {
   return null;
 }
 
-if (existsSync(file)) {
-  // 先切回 main，才不会把显示中的版面抽走。
-  herdr('layout.switch', { name: 'main' });
-  renameSync(file, `${file}.old-${Date.now()}`);
-}
-
-for (const clone of clones) {
-  const dir = path.join(home, 'mods', clone.as);
-  rmSync(dir, { recursive: true, force: true });
-  herdr('mod.clone', { name: clone.mod, as: clone.as });
-  writeFileSync(path.join(dir, 'main.js'), clone.source);
-  for (const [name, from] of Object.entries(clone.files)) copyFileSync(integration(from), path.join(dir, name));
-}
-
-herdr('layout.clone', { name: 'main', as: NAME });
-const layout = JSON.parse(readFileSync(file, 'utf8'));
-if (layout.type !== 'row') {
-  throw new Error(`main 版面的最外层不再是 row（现在是 ${layout.type}），这支脚本要跟着改`);
-}
-for (const clone of clones) {
-  for (const id of clone.blocks) {
-    const block = findBlock(layout, id);
-    if (block?.content?.mod !== clone.mod) {
-      throw new Error(`main 版面找不到 ${id} 区块，这支脚本要跟着改`);
+export function prepareLayout(base, clones) {
+  const layout = structuredClone(base);
+  if (layout.type !== 'row') throw new Error('Herdr 布局的最外层必须是 row');
+  for (const clone of clones) {
+    for (const id of clone.blocks) {
+      const block = findBlock(layout, id);
+      if (![clone.mod, clone.as].includes(block?.content?.mod)) throw new Error(`布局中的 ${id} 不是内置或 Specseal 管理的组件，未覆盖`);
+      block.content.mod = clone.skip ? clone.mod : clone.as;
     }
-    block.content.mod = clone.as;
+  }
+  const panel = findBlock(layout, NAME) ?? structuredClone(PANEL);
+  panel.content = { mod: NAME };
+  panel.hidden = true;
+  layout.children = [...layout.children.filter((node) => node.id !== NAME), panel];
+  layout.floating = [...(layout.floating ?? []).filter((node) => node.id !== COLUMN_SYNC.id), structuredClone(COLUMN_SYNC)];
+  return layout;
+}
+
+export function mergeKeys(current, defaults, warn = console.warn) {
+  const keys = structuredClone(current);
+  for (const [section, bindings] of Object.entries(defaults)) {
+    keys[section] ??= {};
+    for (const [key, action] of Object.entries(bindings)) {
+      const old = keys[section][key];
+      const managed = typeof old === 'string' && (/^mod\.open:(?:speclink|specseal|zh-CN-speclink)(?:-new)?$/.test(old) || /^layout\.toggle:(?:speclink|specseal)$/.test(old));
+      if (old === undefined || old === action || managed) keys[section][key] = action;
+      else warn(`保留用户快捷键：${section} ${key}`);
+    }
+  }
+  return keys;
+}
+
+const callHerdr = (args) => execFileSync('herdr-app', args, { encoding: 'utf8' });
+
+export function installHerdr({ home = process.env.HERDR_APP_HOME ?? path.join(homedir(), '.config/herdr-app'), herdr = callHerdr, warn = console.warn } = {}) {
+  const file = path.join(home, 'layouts', `${NAME}.json`);
+  const keysFile = path.join(home, 'keys.json');
+  // 所有匹配点和布局先准备好；不匹配时不改当前界面。
+  const clones = CLONES.map((clone) => patchClone(clone, readFileSync(path.join(home, 'mods', clone.mod, 'main.js'), 'utf8'), warn));
+  const layout = prepareLayout(readJson(existsSync(file) ? file : path.join(home, 'layouts', 'main.json')), clones);
+  const keys = mergeKeys(existsSync(keysFile) ? readJson(keysFile) : {}, readJson(integration('keys.json')), warn);
+  let initial;
+  try { initial = JSON.parse(herdr(['status'])); }
+  catch (error) { throw new Error(`无法读取 Herdr 当前状态：${error.message}`, { cause: error }); }
+  if (typeof initial.layout !== 'string') throw new Error('Herdr 未返回当前布局，未开始安装');
+  const version = herdr(['--version']).trim().replace(/^herdr-app\s+/, '');
+  const stage = mkdtempSync(path.join(home, '.specseal-install-'));
+  const folders = [];
+  let backup;
+  const replaced = [];
+  const originals = new Set();
+  const files = [file, keysFile].map((name) => ({ name, content: existsSync(name) ? readFileSync(name) : null }));
+  try {
+    for (const entry of readdirSync(integration('mods'), { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      cpSync(integration(`mods/${entry.name}`), path.join(stage, entry.name), { recursive: true });
+      folders.push(entry.name);
+    }
+    for (const clone of clones.filter((item) => !item.skip)) {
+      const dir = path.join(stage, clone.as);
+      cpSync(path.join(home, 'mods', clone.mod), dir, { recursive: true });
+      writeFileSync(path.join(dir, 'main.js'), clone.source.replaceAll(`mods/${clone.mod}/`, `mods/${clone.as}/`));
+      const meta = readJson(path.join(dir, 'mod.json'));
+      meta.place = 'none';
+      meta.cloned_from = { name: clone.mod, version };
+      writeJson(path.join(dir, 'mod.json'), meta);
+      for (const [name, from] of Object.entries(clone.files)) copyFileSync(integration(from), path.join(dir, name));
+      folders.push(clone.as);
+    }
+    const backupRoot = path.join(home, 'backups', NAME);
+    mkdirSync(backupRoot, { recursive: true });
+    backup = mkdtempSync(path.join(backupRoot, `${Date.now()}-`));
+    mkdirSync(path.join(backup, 'mods'));
+    for (const name of folders) {
+      const old = path.join(home, 'mods', name);
+      if (existsSync(old)) {
+        cpSync(old, path.join(backup, 'mods', name), { recursive: true });
+        originals.add(name);
+      }
+    }
+    for (const item of files) {
+      if (item.content !== null) writeFileSync(path.join(backup, path.basename(item.name)), item.content);
+    }
+    writeJson(path.join(backup, 'manifest.json'), { layout: initial.layout, version, installedFrom: integration('.'), modules: folders });
+    for (const name of folders) {
+      replaced.push(name);
+      const dest = path.join(home, 'mods', name);
+      rmSync(dest, { recursive: true, force: true });
+      renameSync(path.join(stage, name), dest);
+    }
+    writeJson(file, layout);
+    writeJson(keysFile, keys);
+    herdr(['do', 'layout.switch', JSON.stringify({ name: NAME })]);
+    return { layout: file, backup };
+  } catch (error) {
+    for (const name of [...replaced].reverse()) {
+      const dest = path.join(home, 'mods', name);
+      rmSync(dest, { recursive: true, force: true });
+      if (originals.has(name)) cpSync(path.join(backup, 'mods', name), dest, { recursive: true });
+    }
+    if (replaced.length) {
+      for (const item of files) {
+        if (item.content === null) rmSync(item.name, { force: true });
+        else writeFileSync(item.name, item.content);
+      }
+      try { herdr(['do', 'layout.switch', JSON.stringify({ name: initial.layout })]); } catch {}
+    }
+    throw error;
+  } finally {
+    rmSync(stage, { recursive: true, force: true });
   }
 }
-layout.children.push(PANEL);
-layout.floating = [...(layout.floating ?? []), COLUMN_SYNC];
-writeFileSync(file, `${JSON.stringify(layout, null, 2)}\n`);
-console.log(`已停靠：${file}`);
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const result = installHerdr();
+  console.log(`已安装：${result.layout}\n备份：${result.backup}`);
+}

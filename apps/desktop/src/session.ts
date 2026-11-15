@@ -63,7 +63,7 @@ export interface WorkspaceSettingsProvider {
   readSchemas(): Promise<SchemaEntry[]>;
   /** 切换项目 schema；remote 成功回新 revision、local 维持 void。 */
   writeWorkflowSchema(name: string): Promise<number | void>;
-  /** fork 到项目层（复本名固定为引擎缺省 <source>-custom），回新 schema 名称；
+  /** fork 到项目层（副本名固定为引擎缺省 <source>-custom），回新 schema 名称；
    * remote 不支持（rejected Promise）。 */
   forkSchema(source: string): Promise<string>;
   /** 创建自订 schema 骨架（D5；引擎缺省布局）；remote 不支持（rejected Promise）。 */

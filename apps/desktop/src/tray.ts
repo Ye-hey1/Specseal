@@ -355,7 +355,7 @@ export interface TrayDeps {
   platform?: Platform;
   /** 菜单重建去抖延迟（ms）；缺省与看板刷新同量级（400ms）。 */
   debounceMs?: number;
-  /** 面板样式下点击图标的开闭回呼（面板实作由调用端注入；未注入即无动作）。 */
+  /** 面板样式下点击图标的开闭回调（面板实作由调用端注入；未注入即无动作）。 */
   onPanelToggle?: () => void;
 }
 

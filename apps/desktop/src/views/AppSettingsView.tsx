@@ -25,7 +25,7 @@ export interface AppSettingsUpdaterProps {
   onRelaunch: () => void;
   /** true＝进更新页后卷到下载与安装卡一次（图标列更新钮、toast「查看」、技能档较新态的入口）。 */
   focus?: boolean;
-  /** 卷到卡后回呼，调用端清旗标。 */
+  /** 卷到卡后回调，调用端清旗标。 */
   onFocusHandled?: () => void;
   /** 启动时与回到前景的背景检查开关现值（缺省开）。 */
   autoCheck: boolean;
