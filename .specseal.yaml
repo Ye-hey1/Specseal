@@ -1,11 +1,4 @@
-# Specseal application config
-# See: https://github.com/MomoChenisMe/speclink
-
-# Spec directory (relative to project root; default: specseal)
-# spec_dir: docs/specs
-
-# AI tools to generate instruction files for
-# tools:
-#   - claude
-#   - codex
-tools: [claude, codex]
+tools:
+- claude
+- codex
+- pi

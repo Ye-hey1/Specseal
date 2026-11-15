@@ -89,8 +89,8 @@ describe("SettingsColumn", () => {
     render(<SettingsColumn section="general" onSelect={() => {}} />);
     const nav = screen.getByRole("navigation", { name: "设置分类" });
     fireEvent.change(within(nav).getByPlaceholderText("搜索设置"), { target: { value: "cli" } });
-    // CLI 页本身；「关于 Specseal」的分类名含 spe-cli-nk 也命中；一般页已无 CLI 列。
-    expect(navItems(nav)).toEqual(["CLI", "关于 Specseal"]);
+    // CLI 页本身；Specseal 不再含 "cli" 字样（上游 Speclink 有），「关于」页不再命中。
+    expect(navItems(nav)).toEqual(["CLI"]);
   });
 });
 
