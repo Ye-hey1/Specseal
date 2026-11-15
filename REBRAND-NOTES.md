@@ -76,6 +76,6 @@ Speclink 上游用自己的引擎管理自己的开发，仓库里带着它的�
 
 按优先级排列，来自立项时的产品分析：
 
-1. **P0** — MCP server（一个集成面胜过五套手写技能）；verify CI 门禁做成可复用的 GitHub Action（上面的模板是第一步）；AI 安装 prompt 与 demo 优先的 README（已完成）。
+1. **P0** — MCP server（✅ 2026-11-15 完成：`packages/mcp-npm`，13 个工具、stdio、7/7 测试含真 Client e2e，已注册进本机 Claude Code）；verify CI 门禁做成可复用的 GitHub Action（模板已就位，待打包成正式 Action）；AI 安装 prompt 与 demo 优先的 README（已完成）。
 2. **P1** — 引擎自动把 `speclink/principles.md` 注入 propose/review/verify 上下文；spec-kit → Specseal 迁移命令（OpenSpec 导入是现成范式）；`init` 生成通用指令模式（当前该文件需手动复制）。
 3. **P2** — bug 修复与存量项目流程做成可选站点；verify→修复→再验证的收敛环并记录轮次；桌面远程工作区。

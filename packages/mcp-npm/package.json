@@ -1,0 +1,33 @@
+{
+  "name": "@specseal/mcp",
+  "version": "0.1.0",
+  "description": "Specseal MCP server — expose the Specseal spec-driven development engine to any MCP-capable coding agent",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ye-hey1/Specseal.git",
+    "directory": "packages/mcp-npm"
+  },
+  "type": "module",
+  "bin": {
+    "specseal-mcp": "specseal-mcp.mjs"
+  },
+  "files": [
+    "specseal-mcp.mjs",
+    "tools.mjs",
+    "exec.mjs",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "private": true,
+  "//": "private 挡误发布；发布副本由 scripts/npm 物化（对齐 cli-npm 惯例），版本号在物化时盖"
+}

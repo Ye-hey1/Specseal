@@ -100,6 +100,7 @@ For the full first round (propose, apply, check, archive), see [Getting started]
 
 - **Plain text**: In Local mode, the files live under `speclink/` in your repo: `specs/<capability>/spec.md`, `changes/<name>/`, `changes/archive/`, and `config.yaml`. All content is Markdown and YAML. You can read and edit it without Specseal, and each change shows in the Git diff. Speclink adds only two items: `discussions/` (discussion records) and a `.meta.yaml` file in each change (lifecycle metadata). This applies to Local mode only. In remote mode, the specs live in the Store, and your machine has only a read-only projection. To import a project that uses OpenSpec, run `speclink init` in the project root. Specseal moves `openspec/` to `speclink/`, and after that the OpenSpec CLI cannot read the project. The import is one-way: you cannot convert the project back.
 - **Skills for AI agents**: `speclink init` writes skill files for Claude Code, Codex, GitHub Copilot, pi, and Cursor. Each stage, from discussion to archive, has a `/speclink-*` command (`$speclink-*` in Codex, `/skill:speclink-*` in pi). Any other agent works from the [universal instruction file](integrations/universal/SPECSEAL-AGENT-INSTRUCTIONS.md).
+- **MCP server**: [`@specseal/mcp`](packages/mcp-npm/README.md) exposes 13 engine tools (list/plan/validate/verify scope→round→stamp…) to any MCP-capable agent over stdio — one integration covers Claude Code, Cursor, Codex, Windsurf and beyond, no per-tool skills needed. The engine still enforces the stamp rule (open must-fix ⇒ no stamp) at the protocol layer.
 - **Quality stations**: `review` checks code craft. `verify` checks that the delivery matches the specs and stamps the ticket. Both stations are optional.
 - **Execution order**: `speclink plan` puts changes into waves from their declared dependencies and shows the next change that is ready to start.
 - **Manual and trace**: Specseal generates a readable manual from the specs, and `trace` shows how a capability came to be.
@@ -188,6 +189,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 | [Principles](docs/principles.md) | The repo-level constitution, with a ready-to-copy template |
 | [AI setup prompt](docs/ai-setup-prompt.md) | Let your AI install and initialize Specseal for you |
 | [Comparison](docs/comparison.md) | Honest positioning against spec-kit, OpenSpec, BMAD, and task-master |
+| [MCP server](packages/mcp-npm/README.md) | Connect any MCP-capable agent to the engine (13 tools) |
 
 **For a team that shares one set of specs**
 
@@ -221,7 +223,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 - **Partial**: Remote workspaces in the desktop app, the Claude Code plugin, the Herdr mod.
 - **Planned upstream**: Agent tool packages and MCP, SSO, runtime plugins, multi-node deployment.
 
-Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename, MCP server, the verify CI gate as a reusable GitHub Action, and a spec-kit migration command.
+Specseal-specific priorities (in [REBRAND-NOTES.md](REBRAND-NOTES.md)): the staged rename, the verify CI gate as a reusable GitHub Action, and a spec-kit migration command. **Done:** the MCP server ([packages/mcp-npm](packages/mcp-npm/README.md), 13 tools, e2e-tested against a real MCP client).
 
 ## <a id="contributing"></a>Contributing
 
