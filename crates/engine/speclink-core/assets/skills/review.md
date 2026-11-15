@@ -1,3 +1,5 @@
+**Project principles**: if `speclink/principles.md` exists, read it and check the change against it. A violation of a numbered principle is a **must-fix finding** — cite the principle number in the round (e.g. "violates P3 — new dependency without a written reason").
+
 **Steps**
 
 1. **If no change name provided, prompt for selection**

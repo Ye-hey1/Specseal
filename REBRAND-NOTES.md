@@ -77,5 +77,5 @@ Speclink 上游用自己的引擎管理自己的开发，仓库里带着它的�
 按优先级排列，来自立项时的产品分析：
 
 1. **P0** — MCP server（✅ 2026-11-15 完成：`packages/mcp-npm`，13 个工具、stdio、7/7 测试含真 Client e2e，已注册进本机 Claude Code）；verify CI 门禁可复用 GitHub Action（✅ 2026-11-15 完成：`.github/actions/specseal-verify` composite action，validate + 盖章门禁，断言基于实测的 `.meta.yaml` `verified_at/reviewed_at` 字段，三种场景本地验证通过；下游一行 `uses:` 接入，模板见 `integrations/ci/specseal-verify.yml`）；AI 安装 prompt 与 demo 优先的 README（已完成）。
-2. **P1** — 引擎自动把 `speclink/principles.md` 注入 propose/review/verify 上下文；spec-kit → Specseal 迁移命令（OpenSpec 导入是现成范式）；`init` 生成通用指令模式（当前该文件需手动复制）。
+2. **P1** — ✅ 2026-11-15 完成（文档/资产层，不改引擎逻辑）：principles 指引注入 propose/apply/review/verify 四个技能资产（ASSET_VERSION → v1.58.1，golden 快照与资产锁同步重生成）；spec-kit → Specseal 迁移脚本 `scripts/migrate-spec-kit.mjs`（constitution→principles、User Story/GWT/FR→规格，validate 兜底 + 迁移报告，fixture 实测通过）。⚠️ 范围调整：`init` 生成通用指令与引擎级 Tool 矩阵扩展**延后**——`Tool::ALL` 被引擎几十处依赖（保留名/目录/资产锁/错误信息），上游注释明确 5 工具是刻意设计；不破坏该设计，universal 指令继续以 `integrations/universal/` 手动文件兜底。真引擎级注入（把 principles 内容拼进指令上下文）也延后到引擎专项——当前是「技能提示 agent 去读」的约定层实现。
 3. **P2** — bug 修复与存量项目流程做成可选站点；verify→修复→再验证的收敛环并记录轮次；桌面远程工作区。

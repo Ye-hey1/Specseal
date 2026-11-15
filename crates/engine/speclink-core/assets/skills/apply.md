@@ -8,6 +8,8 @@ Implement tasks from a Speclink change.
 
 **Asking the user**: ask with the **AskUserQuestion tool**; when that tool is not available, ask the same question with the same options as plain text and wait for the user's response.
 
+Project principles: if `speclink/principles.md` exists, read it before implementing. Implementation must honor the numbered principles (testing, scope discipline, dependency policy). If a task cannot be completed without violating one, do not work around it — surface the conflict to the user first.
+
 {{ARTIFACT_WRITE_BACK}}
 
 **Steps**

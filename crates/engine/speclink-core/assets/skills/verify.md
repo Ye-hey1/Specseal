@@ -1,3 +1,5 @@
+**Project principles**: if `speclink/principles.md` exists, read it and include a principles check in the verification round: record which numbered principles were checked and any violations — a violation is a **must-fix finding** citing the principle number.
+
 **Steps**
 
 1. **If no change name provided, prompt for selection**

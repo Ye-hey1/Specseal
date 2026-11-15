@@ -9,7 +9,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -102,7 +102,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -117,6 +117,8 @@ Implement tasks from a Speclink change.
 **Prerequisites**: This skill requires the `speclink` CLI. If any `speclink` command fails with "command not found" or similar, report the error and STOP.
 
 **Asking the user**: ask with the **AskUserQuestion tool**; when that tool is not available, ask the same question with the same options as plain text and wait for the user's response.
+
+Project principles: if `speclink/principles.md` exists, read it before implementing. Implementation must honor the numbered principles (testing, scope discipline, dependency policy). If a task cannot be completed without violating one, do not work around it — surface the conflict to the user first.
 
 **Write-back: changing an artifact that already exists.** Every fix and update this skill makes to an artifact that already exists is a write-back. Read the artifact's full text with `speclink artifact cat <artifact-id> --change "<name>"` — a delta spec is `specs/<capability>`, which the `deltaSpecs` field of `speclink show <name> --json` lists as `<capability>/spec.md` — make the change on that full text, and write the whole result back with `--stdin --force`:
 
@@ -450,7 +452,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -786,7 +788,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -1035,7 +1037,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -1165,7 +1167,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -1489,7 +1491,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -1736,7 +1738,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -2229,7 +2231,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -2372,7 +2374,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -2569,7 +2571,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -2908,7 +2910,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -3125,7 +3127,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -3146,6 +3148,8 @@ If no argument is provided, the workflow extracts requirements from conversation
 **Asking the user**: ask with the **AskUserQuestion tool**; when that tool is not available, ask the same question with the same options as plain text and wait for the user's response.
 
 **This workflow writes artifacts, not code.** Never write application code or implement features during this workflow, never skip the artifact workflow to write code directly, and never reinterpret requirements by ignoring the proposal file. The workflow ends after step 12 and its landscape check — it NEVER invokes `/speclink-apply`; the user decides when implementation starts.
+
+**Project principles**: if `speclink/principles.md` exists, read it before writing any artifact and shape the proposal to honor it. When a requirement tensions against a numbered principle, surface the conflict to the user instead of resolving it silently — never violate a numbered principle without saying so.
 
 **Write-back: changing an artifact that already exists.** Every fix and update this skill makes to an artifact that already exists is a write-back. Read the artifact's full text with `speclink artifact cat <artifact-id> --change "<name>"` — a delta spec is `specs/<capability>`, which the `deltaSpecs` field of `speclink show <name> --json` lists as `<capability>/spec.md` — make the change on that full text, and write the whole result back with `--stdin --force`:
 
@@ -3620,7 +3624,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -3758,7 +3762,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -3825,6 +3829,8 @@ ARTIFACT_EOF
 ```
 
 A delta spec is written back with `speclink new artifact spec <capability> --change "<name>" --stdin --force`. The same verbs work when the documents live in a remote store. When `new artifact` refuses a write-back with an error (for example, a task list whose tasks are all checked), stop and tell the user the message — do not edit the file instead.
+
+**Project principles**: if `speclink/principles.md` exists, read it and check the change against it. A violation of a numbered principle is a **must-fix finding** — cite the principle number in the round (e.g. "violates P3 — new dependency without a written reason").
 
 **Steps**
 
@@ -4062,7 +4068,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -4150,7 +4156,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.58.2"
   generatedBy: "Speclink"
 ---
 
@@ -4217,6 +4223,8 @@ ARTIFACT_EOF
 ```
 
 A delta spec is written back with `speclink new artifact spec <capability> --change "<name>" --stdin --force`. The same verbs work when the documents live in a remote store. When `new artifact` refuses a write-back with an error (for example, a task list whose tasks are all checked), stop and tell the user the message — do not edit the file instead.
+
+**Project principles**: if `speclink/principles.md` exists, read it and include a principles check in the verification round: record which numbered principles were checked and any violations — a violation is a **must-fix finding** citing the principle number.
 
 **Steps**
 

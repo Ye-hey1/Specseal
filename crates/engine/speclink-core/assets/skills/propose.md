@@ -14,6 +14,8 @@ If no argument is provided, the workflow extracts requirements from conversation
 
 **This workflow writes artifacts, not code.** Never write application code or implement features during this workflow, never skip the artifact workflow to write code directly, and never reinterpret requirements by ignoring the proposal file. The workflow ends after step 12 and its landscape check — it NEVER invokes `/speclink:apply`; the user decides when implementation starts.
 
+**Project principles**: if `speclink/principles.md` exists, read it before writing any artifact and shape the proposal to honor it. When a requirement tensions against a numbered principle, surface the conflict to the user instead of resolving it silently — never violate a numbered principle without saying so.
+
 {{ARTIFACT_WRITE_BACK}}
 
 **Steps**
