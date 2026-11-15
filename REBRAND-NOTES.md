@@ -6,6 +6,15 @@
 
 Specseal 是 [Speclink](https://github.com/MomoChenisMe/speclink)（MIT）的 fork，2026-11-14 从 `main` 浅克隆（depth 1）。MIT 许可证与上游版权声明保留在 `LICENSE` 中——这是许可证的要求；README 的 Acknowledgments 中已致谢上游。
 
+## 已切割上游 dogfood（2026-11-15）
+
+Speclink 上游用自己的引擎管理自己的开发，仓库里带着它的全部工作痕迹。Specseal 作为全新项目，已整体切除：
+
+- **删除** `speclink/`（上游的 1954 份自规格、变更与讨论归档）、`.claude/`、`.agents/`（上游 init 生成的技能实例）、`.speclink.yaml`（上游 init 标记）
+- **保留** `.claude-plugin/`——那是插件市场定义（`/plugin install speclink-skills` 面向用户的功能），不是 dogfood
+- **重新 `speclink init --tools claude,codex`**：得到一个空白的 `speclink/` 工作区（空 specs/changes + config.yaml）和全新的技能文件，`speclink list --json` 返回空——Herdr 面板从零开始记录 Specseal 自己的变更
+- 删除前核对过：测试里的 `speclink/specs` 引用全部是测试在临时目录自建的工作区；CI 不跑引擎自检；无测试读取仓库根的 dogfood 目录
+
 ## 命名决策
 
 - **Specseal** = spec + seal（规格 + 封章）。每个 AI 做的变更都盖上「查得到、机器读得到」的验证证据，这就是本项目的一句话定位。

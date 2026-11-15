@@ -1,10 +1,11 @@
 # Speclink application config
 # See: https://github.com/MomoChenisMe/speclink
 
-# OpenSpec directory path (relative to project root)
+# Spec directory (relative to project root; default: speclink)
 # spec_dir: docs/specs
 
 # AI tools to generate instruction files for
-tools:
-  - claude
-  - codex
+# tools:
+#   - claude
+#   - codex
+tools: [claude, codex]

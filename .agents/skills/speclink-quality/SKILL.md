@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.53.0"
   generatedBy: "Speclink"
 ---
 
@@ -52,9 +52,7 @@ Which findings are worth fixing, and whether the change is ready to stamp, are t
 
 2. **Send the three checks in one message**
 
-   Compose the review station's Standards and Correctness briefs (review step 5) and the verify station's checking brief (verify step 6), each by its own station's rules, and send all three read-only sub-agents in ONE message — do not wait for the review ticket before sending the verify check. Each sub-agent carries its own station's model: the two review sub-agents the `subagentModel.review.codex` cell, the verify sub-agent the `subagentModel.verify.codex` cell, by the stations' **Sub-agent model** rules. If your harness cannot spawn sub-agents, or cannot send three at once, fall back the way the stations do: run the three checks yourself one after another and keep each report separate.
-
-   When the harness refuses the model name of any of the three, follow the stations' **Sub-agent model** rule for a refused name, for both stations at once: neither ticket records this round, also not the reports of the sub-agents that did run — a round checks both stations or neither. This both-stations rule is the one place this skill adds to a station's rule, and it takes precedence over the guardrail against restating one.
+   Compose the review station's Standards and Correctness briefs (review step 5) and the verify station's checking brief (verify step 6), each by its own station's rules, and send all three read-only sub-agents in ONE message — do not wait for the review ticket before sending the verify check. If your harness cannot spawn sub-agents, or cannot send three at once, fall back the way the stations do: run the three checks yourself one after another and keep each report separate.
 
 3. **Close both stations, review first, no stamp**
 
@@ -64,7 +62,7 @@ Which findings are worth fixing, and whether the change is ready to stamp, are t
 
 4. **Stop and ask — the round's pause**
 
-   Both stations have reported. Summarize their findings TOGETHER — grouped by station, must-fix separated from the rest — and keep the review station's opening line that names the review rules it applied, plus each station's **Sub-agent model** line (the review one right after the rules line). List on their own, ahead of everything else, the findings whose fix would touch an artifact (specs, design, tasks): the user decides those first, and the stations' verification gates say how such a fix is handled. Then STOP: put the next step to the user (see **Asking the user**). Make no edits before the answer arrives.
+   Both stations have reported. Summarize their findings TOGETHER — grouped by station, must-fix separated from the rest — and keep the review station's opening line that names the review rules it applied. List on their own, ahead of everything else, the findings whose fix would touch an artifact (specs, design, tasks): the user decides those first, and the stations' verification gates say how such a fix is handled. Then STOP: put the next step to the user (see **Asking the user**). Make no edits before the answer arrives.
 
    The options:
 
@@ -97,13 +95,12 @@ Which findings are worth fixing, and whether the change is ready to stamp, are t
 
 **Resuming after an interrupted session**
 
-A session closed in the middle of a fix round resumes by running `$speclink-quality` again. The tickets live in the change folder and the frozen snapshots in `.speclink/review-scopes/<change>/`, so each station's scope sees its ticket and freezes a validation patch that holds every fix landed before the close. A resumed run adds three rules to the steps above:
+A session closed in the middle of a fix round resumes by running `$speclink-quality` again. The tickets live in the change folder and the frozen snapshots in `.speclink/review-scopes/<change>/`, so each station's scope sees its open ticket and freezes a validation patch that holds every fix landed before the close. A resumed run adds three rules to the steps above:
 
 - Pass both stations' **Verification gate** before step 1 — the earlier session's test state is unknown, and a fix the gate still needs must land before the scopes freeze.
-- A station whose validation patch has no files while its last round still carries must-fix findings may still have an artifact fix to judge, because the patch leaves the spec documents out.
-  List the change folder's uncommitted and untracked files with `git status --porcelain -- "speclink/changes/<change-name>/"`, the two tickets left out. Git cannot tell whether those changes came before or after the last round, so:
+- A station whose validation patch has no files while its last round still carries must-fix findings may still have an artifact fix to judge, because the patch leaves the spec directory out. List the change folder's uncommitted and untracked files with `git status --porcelain -- "speclink/changes/<change-name>/"`, the two tickets left out. Git cannot tell whether those edits came before or after the last round, so:
   - Nothing listed → that station sends no sub-agent and records no round this time: a round with nothing to judge would count as "no progress" and fail. The summary says that station had no fix to judge. When both stations are in that state, go straight to step 4 with the last rounds' findings.
-  - Files listed → show the list and ask the user (see **Asking the user**) whether the earlier session fixed findings by changing those artifacts. A yes runs the station's validation pass, its brief carrying the changed passages verbatim as the gate's artifact case says; a no takes the nothing-listed path above.
+  - Files listed → show the list and ask the user (see **Asking the user**) whether the earlier session fixed findings by editing those artifacts. A yes runs the station's validation pass, its brief carrying the edited passages verbatim as the gate's artifact case says; a no takes the nothing-listed path above.
 - Tell the user not to commit fixes between the close and the resume: a validation patch picks up fixes by content movement and the dirty state, and a commit can drop a new file the snapshots never captured out of it.
 
 The earlier session's fix-or-skip answers are not kept: step 4 lists only the findings still unresolved and asks again.

@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.53.0"
   generatedBy: "Speclink"
 ---
 
@@ -27,16 +27,6 @@ Update an existing Speclink change — from a plan file or conversation context.
 - `/speclink-ingest ~/.claude/plans/agile-discovering-rocket.md`
 - `/speclink-ingest agile-discovering-rocket`
 - `/speclink-ingest` (use conversation context or auto-detect plan file)
-
-**Write-back: changing an artifact that already exists.** Every fix and update this skill makes to an artifact that already exists is a write-back. Read the artifact's full text with `speclink artifact cat <artifact-id> --change "<name>"` — a delta spec is `specs/<capability>`, which the `deltaSpecs` field of `speclink show <name> --json` lists as `<capability>/spec.md` — make the change on that full text, and write the whole result back with `--stdin --force`:
-
-```bash
-speclink new artifact <artifact-id> --change "<name>" --stdin --force <<'ARTIFACT_EOF'
-<full updated content>
-ARTIFACT_EOF
-```
-
-A delta spec is written back with `speclink new artifact spec <capability> --change "<name>" --stdin --force`. The same verbs work when the documents live in a remote store. When `new artifact` refuses a write-back with an error (for example, a task list whose tasks are all checked), stop and tell the user the message — do not edit the file instead.
 
 **Steps**
 
@@ -121,9 +111,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
 
 4. **Select the change**
 
-   Read the existing artifacts for context before updating: `speclink artifact cat <artifact-id> --change "<name>"` prints each one (a delta spec is `specs/<capability>`).
-
-   **A change checked out in a worktree is updated there.** When this change's `speclink list --json` entry carries a `worktree` object, run every command of steps 4 to 8 from its `worktree.path`. Run from the main checkout, they read and write the main copy only, and apply works in the worktree copy, so it would never see the update.
+   Read existing artifacts for context before updating.
 
 5. **Update artifacts**
 
@@ -146,9 +134,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
 
    Use the `template` from instructions as the output structure. Apply `context` and `rules` as constraints but do not copy them into the file.
 
-   Write every update as a write-back (see **Write-back** above the steps): merge the new content into the artifact's full text, then write the whole result back.
-
-   The instructions JSON includes `locale` — the language to write artifacts in. If present, write the artifact content in that language. Spec files (specs/\*/\*.md) default to English instead — unless `speclink workflow-config show --json` returns a `specLocale` other than `null` (a locale code, or `auto` to follow `locale`), in which case write spec prose in that language. Structural markers (`### Requirement:`, `#### Scenario:`, `- **WHEN**`/`- **THEN**`) and normative keywords (SHALL/MUST) always stay in English.
+   The instructions JSON includes `locale` — the language to write artifacts in. If present, write the artifact content in that language. Spec files (specs/\*/\*.md) default to English instead — unless the project sets `spec_locale` in `speclink/config.yaml` (a locale code, or `auto` to follow `locale`), in which case write spec prose in that language. Structural markers (`### Requirement:`, `#### Scenario:`, `- **WHEN**`/`- **THEN**`) and normative keywords (SHALL/MUST) always stay in English.
 
    **Plan-to-Artifact Mapping** (when using a plan file):
 
@@ -171,8 +157,8 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
    | Discussion phases    | tasks.md groups  | One topic = one `##` heading       |
 
    **When updating an existing change:**
-   - Merge new context into the existing proposal (don't replace) — one write-back of the full text
-   - Add new tasks from plan stages or conversation, and **preserve every completed `[x]` item** — never revert progress. Keep every existing task line exactly as it is, its checkbox state and the identity comment at the end of the line included; add the new tasks beside them, and the engine gives each new line its own identity comment
+   - Merge new context into existing proposal (don't replace)
+   - Add new tasks from plan stages or conversation, and **preserve every completed `[x]` item** — never revert progress
    - Do not remove existing content
    - The source content is too brief to fill an artifact section → use the **AskUserQuestion tool** to get more details rather than inventing content
 
@@ -200,7 +186,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
 
 6. **Inline Self-Review** (before CLI analysis)
 
-   After updating all artifacts, read them back with `speclink artifact cat` and scan them. Fix each issue with a write-back (see **Write-back**), then proceed to the CLI analyzer.
+   After updating all artifacts, scan them manually. Fix issues inline, then proceed to the CLI analyzer.
 
    **Check 1: No Placeholders**
 
@@ -240,7 +226,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
    - **Vague acceptance criteria**: success conditions like "works correctly", "behaves as expected", "handles edge cases" without naming the observable behavior or the verification target (test name, CLI invocation, analyzer rule, manual assertion).
    - **Missing scope boundaries on non-trivial work**: design lacking explicit "in scope" / "out of scope" lines for any change that touches more than one subsystem or introduces new behavior. Trivial artifact-only edits may skip this; runtime, build, or tooling effects may not.
 
-   Fix every failure with a write-back (see **Write-back**) using the existing context and the new plan/conversation source before running the CLI analyzer. Update incomplete design and task content so behavior contracts, verification criteria, and scope boundaries stay current with the new context. Preserve completed tasks unchanged.
+   Fix every failure inline using the existing context and the new plan/conversation source before running the CLI analyzer. Update incomplete design and task content so behavior contracts, verification criteria, and scope boundaries stay current with the new context. Preserve completed tasks unchanged.
 
 7. **Analyze-Fix Loop** (max 2 iterations)
 
@@ -252,7 +238,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
    2. No Critical/Warning findings → show "Artifacts look consistent ✓" and proceed
    3. Critical/Warning findings exist →
       a. Show: "Found N issue(s), fixing... (attempt M/2)"
-      b. Fix each finding in the affected artifact with a write-back (see **Write-back**)
+      b. Fix each finding in the affected artifact
       c. Re-run `speclink analyze <name> --json`
       d. Repeat up to 2 total iterations
    4. Findings remain after 2 attempts → show them as a summary and proceed normally (do not block)
@@ -263,7 +249,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
    speclink validate "<name>"
    ```
 
-   If validation fails, fix the errors with a write-back (see **Write-back**) and re-validate.
+   If validation fails, fix errors and re-validate.
 
 9. **Re-judge soft dependencies**
 
@@ -272,7 +258,7 @@ A delta spec is written back with `speclink new artifact spec <capability> --cha
    1. Run `speclink list --json` for the active change names and their task counts (`totalTasks`). The change you just updated counts.
    2. **Only one active change** (the one you just updated) → skip the rest of this step and run nothing — neither `change depends` nor `change rank`.
    3. **Two or more** → judge the **soft dependencies of the change you just updated only** — never re-judge the whole landscape:
-      - Going by the updated artifacts, read the Impact section of each other active change's proposal with `speclink artifact cat proposal --change <other>` — when that change's `speclink list --json` entry carries a `worktree` object, run it from its `worktree.path` — and decide whether this change builds on that change's outcome. Each such change is a prerequisite of this one.
+      - Going by the updated artifacts, read the Impact section of each other active change's proposal and decide whether this change builds on that change's outcome. Each such change is a prerequisite of this one.
       - Editing the same code areas alone is not a prerequisite here: this change may already be under way, and waiting for a change that has not started would stall it. Name such an overlap to the user instead of recording it.
       - Record each prerequisite with its own call: `speclink change depends <change-name> --on <prerequisite>`. The verb writes all of its `--on` names or none, so one call per prerequisite keeps one refusal from dropping the others. This writes `depends_on` into the change's metadata, where `speclink plan` and every later session read it. A verbal note is not enough — if you found a prerequisite, the command must have run. An edge that already exists is left as it is. The verb refuses (with zero writes) a self-dependency, an unknown or archived name, and an edge that would form a cycle; report the refusal and move on to the next prerequisite — do not retry it, and do not edit another change's `depends_on`.
       - No prerequisite found → run nothing.

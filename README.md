@@ -213,7 +213,7 @@ On the first start, the server prints a one-time `/setup` link. The default Stor
 | [Roadmap](docs/roadmap.md) | The work that comes next |
 | [Changelog](CHANGELOG.md) | The changes in each version |
 
-`speclink/` holds the specs of the engine itself. `speclink/changes/archive/` and `speclink/discussions/archive/` are history records, not user guides.
+`speclink/` is your project's own spec workspace, created by `speclink init`. This repository starts clean: no upstream dogfood history (specs, changes, or discussions) is carried over.
 
 ## <a id="status"></a>Project status
 

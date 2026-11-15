@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires speclink CLI.
 metadata:
   author: speclink
-  version: "v1.58.0"
+  version: "v1.53.0"
   generatedBy: "Speclink"
 ---
 
@@ -30,9 +30,7 @@ Have a focused discussion about a topic and reach a conclusion. Every discussion
 
 ## The discussion record
 
-Every speclink discussion is persisted to a record, so the conversation keeps its thread across turns and sessions, and a later `$speclink-propose --from-discussion <slug>` can seed a proposal directly from it. Drive the record through the `speclink discuss` verbs — NEVER hand-write or edit it.
-
-The record's file is `speclink/discussions/<slug>.md`.
+Every speclink discussion is persisted to a document (`speclink/discussions/<slug>.md`), so the conversation keeps its thread across turns and sessions, and a later `$speclink-propose --from-discussion <slug>` can seed a proposal directly from it. Drive the record through the `speclink discuss` verbs — NEVER hand-write or edit the file.
 
 Every record has the same fixed skeleton:
 
@@ -67,7 +65,7 @@ Every record has the same fixed skeleton:
 2. Act on what the discussion list shows:
    - **A record matches the topic and is still live** — `status` `open`, or `promoted` mid-way through a spin-out (Step 9) → resume it (reuse its `slug`): the record already exists; every later `add-round`/`conclude` call uses it. Only `concluded` and archived records are past resuming. **Resume ritual**: before continuing, present a recap derived from the record — one line per round (its Focus → the first sentence of its Position), then the last round's Open ledger as the current frontier — and only then pick the discussion back up. The recap is mechanically derived from fields the record already has; it introduces no new format and existing records need no migration. Rounds you add to a resumed record follow **Record language** (Step 5).
    - **No live record matches** → do not create one yet. Derive an English kebab-case slug from the topic (translate when the topic is not English — e.g. 「看板搜尋列」 → `board-search-bar`), announce it ("This discussion will be recorded as `<slug>` once it has substance."), and proceed — scout, judge requirement clarity, present your first assumptions or question with nothing on disk. A mis-invocation or a topic answered in one exchange leaves no file behind. Step 5 says when the record is created.
-3. If the user mentioned a specific change name, read its artifacts for context: `speclink show <name> --json` lists them, and `speclink artifact cat <artifact> --change <name>` prints each one — a delta spec is `specs/<capability>`, which `deltaSpecs` lists as `<capability>/spec.md`. When that change's `speclink list --json` entry carries a `worktree` object, run both from its `worktree.path`: the worktree copy is the one being worked on.
+3. If the user mentioned a specific change name, read its artifacts for context.
 
 ---
 
@@ -92,7 +90,7 @@ Pull 2-5 keywords from the user's topic. For "search should support fuzzy matchi
 
 The scout is a funnel: the canon, plus the in-flight deltas about to change it, narrows the vocabulary, the prior-discussion check tells you what is already settled, then the code scan runs on the narrowed terms.
 
-1. **Canon pass** — run `speclink list --specs --json` and match the keywords against capability names. Keep at most 5 candidates in **candidate order** — the names that match the most keywords first, ties in the order the command lists them. Read the Purpose of at most 3 of them in that order: run `speclink show <capability> --item-type spec` for each and read the Purpose at the top of its output (naming the type keeps a same-named active change from answering instead). Each hit's `path` only identifies the capability — do not open it as a file: in remote mode it is a storage key, not a location on disk. Read a spec in full only when the topic directly targets that capability; the same `speclink show <capability> --item-type spec` output is the whole spec. Zero hits → skip silently: don't mention specs at all and run the code pass with the original keywords.
+1. **Canon pass** — run `speclink list --specs --json` and match the keywords against capability names. Keep at most 5 candidates in **candidate order** — the names that match the most keywords first, ties in the order the command lists them. Read the Purpose of at most 3 of them in that order (each hit's `path` is the capability's directory — its `spec.md` holds the Purpose), and read a spec in full only when the topic directly targets that capability. Zero hits → skip silently: don't mention specs at all and run the code pass with the original keywords.
 
    **In-flight deltas belong to this pass.** Every change `speclink list --json` returned ("At the start", item 1) is still active: whatever its `status`, its delta specs have not landed in the canon yet. Each change entry's `deltaCapabilities` field names the capabilities those deltas rewrite (the field is absent when the change has none), so that list already holds the answer — no further call. Every change whose `deltaCapabilities` holds a capability the canon pass hit is an **in-flight delta hit** — note it as `<name>: <capability>`. Time-box: read at most 3 hits — the first 3 in candidate order, several changes on one capability in the order `speclink list --json` returned them — with `speclink artifact cat specs/<capability> --change <name>`, and keep only its `## ADDED` / `MODIFIED` / `REMOVED` / `RENAMED` section markers and `### Requirement:` headings, never the delta's full text. When that change's list entry carries a `worktree` object, run the command from its `worktree.path`: the list took that change's deltas from the worktree copy, so the headings have to come from there too. Zero canon hits, no active changes, or no `deltaCapabilities` holding a hit capability → skip silently: say nothing about in-flight deltas. Both verbs work in remote mode, so the check runs the same way there. The hits feed the in-flight marker on the first two triage rows (Step 3) and the Context's "related changes/specs" line (Step 5); they never open a stage of their own.
 2. **Translate** — rewrite the search terms using the capability names and canonical vocabulary the canon pass surfaced (on top of Step 0's vocabulary), so the code scan speaks the system's language instead of the user's.
@@ -390,11 +388,9 @@ Where to capture:
 | Design decision made       | `design.md`                  |
 | Scope changed              | `proposal.md`                |
 | New work identified        | `tasks.md`                   |
-| Vocabulary drift           | `LANGUAGE.md`                |
+| Vocabulary drift           | `speclink/LANGUAGE.md`    |
 
-**Vocabulary drift** means the discussion surfaced a recurring concept that is missing, ambiguous, or pulling away from the shared vocabulary loaded in Step 0. Examples: the topic uses a term that the vocabulary lists as an `avoid` synonym, or the discussion repeatedly names a concept that has no entry yet. When this happens, name it as vocabulary drift in the conclusion summary and direct the capture to `LANGUAGE.md`, the shared vocabulary document. The conclusion summary preserves this contract — do not silently rewrite the term in the artifacts without recording the drift.
-
-The document's file is `speclink/LANGUAGE.md`.
+**Vocabulary drift** means the discussion surfaced a recurring concept that is missing, ambiguous, or pulling away from the shared vocabulary loaded in Step 0. Examples: the topic uses a term that the vocabulary lists as an `avoid` synonym, or the discussion repeatedly names a concept that has no entry yet. When this happens, name it as vocabulary drift in the conclusion summary and direct the capture to `speclink/LANGUAGE.md`. The conclusion summary preserves this contract — do not silently rewrite the term in the artifacts without recording the drift.
 
 Present the summary and say something like "I'll capture this to design.md unless you'd rather not." Default to capturing — the user can decline.
 
@@ -461,7 +457,7 @@ Never require a conclusion before a mid-discussion promote, and never conclude t
 
 **Staged cuts — `--hold`.** When the conclusion plans further changes to spin out from this same record later (cut A now, cut B once A lands, cut C after that), run `conclude` with `--hold` **once** — an ordinary spin-out never clears the flag, so the single call covers the whole series. The record stays live past its conclusion and past every middle cut's archive. The **last cut is spun out with `--last`** (`$speclink-propose --from-discussion <slug>` decides this from the conclusion's cut list and the record's `promoted_to`; on the raw verbs it is `speclink discuss promote <slug> --last`, `speclink new change <name> --from-discussion <slug> --last`, or `speclink discuss seal <slug> <change> --last`): that spin-out drops the flag in the same write, and when the last spun-out change is archived the record is co-archived automatically — there is nothing to close by hand. Besides `--last`, only a `conclude` without `--hold` or a manual `speclink discuss archive <slug>` releases the flag. Forgot `--last`? The record simply stays live (the board labels it "promoted · on hold"); run `speclink discuss archive <slug>` once to close the series. Without `--hold` the record is archived along with the last of its changes, and any later cut needs a new discussion.
 
-**Archived by mistake?** (For example, `--last` went on a cut that was not the last one, and the record was co-archived with it.) Move the record file from `speclink/discussions/archive/` back to `speclink/discussions/` and drop the `<date>-` prefix from its name — it is live again and every verb works on it, and the engine's error for spinning out from an archived record points at the same path.
+**Archived by mistake?** (For example, `--last` went on a cut that was not the last one, and the record was co-archived with it.) Move the record file from `speclink/discussions/archive/` back to `speclink/discussions/` and drop the `<date>-` prefix from its name — it is live again and every verb works on it. The engine's error for spinning out from an archived record points at the same path.
 
 ---
 
