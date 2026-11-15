@@ -61,18 +61,16 @@ Specseal 有两条部署路径：一个人用 Local Repo 就够；团队要共�
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/desktop-change-detail.png" alt="变更的详情页，左边是文档树，中间是提案内容，右边是变更信息" /><br /><sub>一个变更的文档、任务与品质关卡</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/zh-CN/desktop-board.png" alt="Specseal 桌面 app 的看板，分成讨论、提案中、进行中与已就绪四栏" /><br /><sub>变更看板：依生命周期分栏，点卡片开详情</sub></td>
     <td width="50%"><img src="docs/assets/screenshots/zh-CN/desktop-manual.png" alt="桌面 app 的手册页，内容由正式规格产生" /><br /><sub>由正式规格产生的手册</sub></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/assets/screenshots/zh-CN/desktop-spec.png" alt="正式规格的详情页，列出需求与情境" /><br /><sub>一份正式规格的需求与情境</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/server-overview.png" alt="Server 后台的总览页" /><br /><sub>自架 server 的后台</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><img src="docs/assets/screenshots/zh-CN/desktop-tray.png" width="200" alt="从 macOS 菜单列打开的 Specseal 系统匣面板，依提案中、进行中、已就绪与讨论分组列出变更" /><br /><sub>macOS 菜单列的系统匣面板</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/claude-code-panel.png" alt="Claude Code 输入框上方是 specseal-skills 技能列，右边开着侧边面板的看板分页" /><br /><sub>Claude Code 插件的技能列与侧边面板</sub></td>
+    <td width="50%"><img src="docs/assets/screenshots/zh-CN/desktop-cli.png" alt="设置页的 CLI 分页：specseal CLI 已安装与部署位置" /><br /><sub>CLI 状态与部署位置</sub></td>
   </tr>
 </table>
+
+> 其余画面（变更详情、托盘面板、Claude Code 插件、Herdr 面板、server 后台）的截图将在对应界面于简中环境下重新截取后补充。
 
 ## <a id="features"></a>特色
 
@@ -158,14 +156,9 @@ CLI 与桌面 app 都想装？桌面 app 可能换掉你的 CLI，先看 [Local 
 /plugin install specseal-skills --marketplace MomoChenisMe/speclink
 ```
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/claude-code-quality.png" alt="侧边面板的品质分页，列出 add-keyboard-shortcuts 未结的审查工单与两条发现" /><br /><sub>品质分页列出未结的审查与验证工单</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/claude-code-hash-menu.png" alt="在 /specseal-apply 后面打 #，输入框上方跳出提案中的变更菜单" /><br /><sub>打 <code>#</code> 选变更名称</sub></td>
-  </tr>
-</table>
-
 需求、设置与已知限制见 [specseal-skills](integrations/claude-code/specseal-skills/README.md)。
+
+> 插件界面的截图将在简中环境下重新截取后补充。
 
 ### Herdr mod（选用）
 
@@ -178,12 +171,7 @@ cp -R integrations/herdr/mods/specseal integrations/herdr/mods/specseal-new ~/.c
 node scripts/herdr/dock-panel.mjs
 ```
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/herdr-panel.png" alt="Herdr 窗口：左边是阶段徽章与 Agent 清单，右边是 Specseal 面板" /><br /><sub>Herdr 里的侧栏与面板</sub></td>
-    <td width="50%"><img src="docs/assets/screenshots/zh-CN/herdr-skill-picker.png" alt="技能跳窗：左边是分成五组的技能，右边是这个技能能搭配的变更" /><br /><sub>选技能和变更，放到输入框或开新分页</sub></td>
-  </tr>
-</table>
+> Herdr 面板与技能跳窗的截图将在简中环境下重新截取后补充。
 
 快捷键、需求与已知限制见 [Specseal 的 Herdr mod](integrations/herdr/README.md)。
 

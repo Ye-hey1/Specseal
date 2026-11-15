@@ -22,7 +22,7 @@
 
 面板有两种放法。两种都不抢键盘，项目都跟着目前焦点所在的终端机走，切 space 就换项目。
 
-- **停靠**：用拷贝出来的 `specseal` 版面（见「安装」），面板常驻在窗口最右边一栏，和终端机并排。`⌘⇧S` 开关这一栏，拖动边界可以改宽度。每个 space 各自记住开或关，切 space 会还原，还没记过的 space 缺省打开，所以用不到 Specseal 的项目关一次就好。
+- **停靠**：使用 `specseal` 版面（见「安装」），面板在窗口最右侧。首次进入工作区时默认收起；右上角 12px 的 Specseal 小图标或 `⌘⇧S` 可展开/收起。每个工作区分别记住手动开关状态。工作区标题右侧的「＋」提供「新建工作区」和「添加项目…」，后者先选择本地文件夹，再在其中打开终端。
 - **弹出**：其他版面按 `⌘⇧S` 开关面板，面板是一个可以拖动的浮动窗口。
 
 面板的内容：
@@ -222,73 +222,38 @@ Logo 送 `specseal://project` 网址：桌面 app 切到这个 space 的项目�
 
 ## 安装
 
-在 repo 根目录操作，Herdr 要开着：
-
-1. 拷贝 mod。Herdr 会自动加载。
-
-   ```bash
-   cp -R integrations/herdr/mods/specseal integrations/herdr/mods/specseal-new ~/.config/herdr-app/mods/
-   ```
-
-2. 在 `~/.config/herdr-app/keys.json` 的 `global` 加上前两行，再加上 `layout:specseal` 这一段（内容和 [keys.json](keys.json) 相同）。`⌘⇧N` 开技能跳窗。在 `specseal` 版面，`⌘⇧S` 开关右边那一栏；在其他版面，`⌘⇧S` 弹出浮动窗口。
-
-   ```json
-   "cmd-shift-s": "mod.open:specseal",
-   "cmd-shift-n": "mod.open:specseal-new"
-   ```
-
-   ```json
-   "layout:specseal": { "cmd-shift-s": "layout.toggle:specseal" }
-   ```
-
-3. 要停靠就运行这一行。它把 Herdr 的 `main` 版面拷贝成 `specseal` 版面，在最右边加一栏面板，把左边侧栏换成接上 Specseal 的拷贝版，然后切过去。不想停靠就跳过这一步，用 `⌘⇧S` 弹出。
-
-   ```bash
-   node scripts/herdr/dock-panel.mjs
-   ```
-
-4. 要让面板认得在 Claude Code 里直接打的指令，再加上 hook，见「追踪直接打的指令」。
-
-用 `⌘⇧L` 切换版面。
-
-### 更新 mod
-
-侧栏的拷贝版里也有面板文档的副本，所以要一起拷贝。Herdr 会立刻重新加载，版面和栏宽都不变：
-
-```bash
-M=integrations/herdr/mods/specseal; H=~/.config/herdr-app/mods
-cp -R $M integrations/herdr/mods/specseal-new $H/
-cp $M/i18n.js $M/model.js $M/shared.js $H/specseal-agents/
-cp $M/i18n.js $H/specseal-spaces/
-```
-
-`integrations/herdr/spaces-badge/`、`integrations/herdr/agents-list/` 或 `scripts/herdr/dock-panel.mjs` 有改时，要重做停靠，见下一节。
-
-不要用符号链接安装：Herdr 加载得到进程，但画不出链接里的 SVG 图标，存盘也不会自动重新加载。
-
-### Herdr 更新后重做停靠
-
-拷贝版不会跟着 Herdr 更新：Herdr 的 `main` 版面、Spaces 清单或 Agents 清单有新东西时，`specseal` 版面不会有。`~/.config/herdr-app/layouts/specseal.json` 的 `cloned_from.version` 是拷贝时的 Herdr 版本，和 `herdr-app --version` 不同时就该重做。重做是再运行一次同一行：
+在仓库根目录操作，Herdr 要开着。安装和后续更新使用同一个命令：
 
 ```bash
 node scripts/herdr/dock-panel.mjs
+node scripts/herdr/verify-install.mjs
 ```
 
-它会做这些事：
+安装器会同步面板、技能选择器、项目菜单及派生组件，并合并 [keys.json](keys.json) 中的快捷键。已有的非 Specseal 自定义快捷键会保留；发生冲突时会提示键名。`⌘⇧N` 打开技能选择器；当前版面下 `⌘⇧S` 开关右侧面板。
 
-1. 切回 `main`。
-2. 把旧的拷贝版改名成 `layouts/specseal.json.old-<时间>`，删掉旧的 `mods/specseal-spaces`、`mods/specseal-agents`、`mods/specseal-files`、`mods/specseal-changes` 和 `mods/specseal-tabs`。
-3. 用新版的 `spaces`、`agents`、`files`、`changes`、`tabs` 重新拷贝并接上。Herdr 改了 `spaces`、`agents` 要接的那几行时，脚本会在动任何东西之前停下来。`files`、`changes`、`tabs` 改不到时，脚本会警告并改用内置的，不挡停靠。
-4. 用新版的 `main` 重新拷贝，加上面板，切到新的 `specseal` 版面。
+界面行为由仓库维护：
 
-改过 `keys.json` 的话，Herdr 更新不会自动加新的快捷键，要自己加。例如 0.1.13 的终端机搜索，要在 `terminal` 区段加 `"cmd-f": "terminal.search"`。
+- 工作区「＋」打开 156px 宽的两项菜单。添加项目支持中文、空格等路径，取消不创建工作区；已打开的本地项目直接切换过去。
+- 右上角的 Specseal 图标为 12px，位于「文件 / 变更」旁，左侧标题栏不增加大按钮。
+- 面板首次默认收起，之后按工作区保留手动开关状态。
+- 新终端和 Agent 按 Herdr 原有规则继承当前目录；手动 `cd` 后的新标签页也会跟随当前终端。
 
-重做后，面板那一栏回到缺省宽度，其他栏宽和开关状态和 `main` 相同，每个 space 记住的开关不变。你手改过旧版的话，内容还在 `.old` 档里，要自己搬过来。确认没问题后可以删掉 `.old` 档。
+要追踪在 Claude Code 里直接输入的指令，另按「追踪直接打的指令」配置 hook。用 `⌘⇧L` 切换版面。
+
+### 重复安装、更新与备份
+
+更新本仓库或 Herdr 后，再运行上面的两条命令即可，不需要手工复制组件。Herdr 0.1.15 已验证；其他版本若改变必须的匹配点，安装器会在修改当前配置之前停止。文件名保护和卷动修复是可选补丁；右上角入口和项目菜单是必需项。
+
+首次从 Herdr 的 `main` 创建布局；后续保留现有 `specseal` 布局的主题、栏宽和其他区块，只更新受管理的组件，不重复叠加面板。遇到同名但不属于内置或 Specseal 的组件会停止，避免覆盖用户的实现。
+
+安装前的布局、快捷键与受管理组件保存在 `~/.config/herdr-app/backups/specseal/<时间>/`。启用新布局失败时会自动还原；这些备份也可用于手动恢复。项目文件、终端和会话数据不在安装器的写入范围内。
+
+不要用符号链接安装界面组件：Herdr 可能无法绘制链接内的 SVG 或监听保存。派生组件会刷新到新版内置实现，但不会自动搬入新版 `main` 新增的布局结构。
 
 ### 移除
 
 1. 用 `⌘⇧L` 切回 `main`。
-2. 删掉 `~/.config/herdr-app/layouts/specseal.json`，以及 `~/.config/herdr-app/mods/` 底下的 `specseal`、`specseal-new`、`specseal-spaces`、`specseal-agents`、`specseal-files`、`specseal-changes`、`specseal-tabs`。
+2. 删掉 `~/.config/herdr-app/layouts/specseal.json`，以及 `~/.config/herdr-app/mods/` 底下的 `specseal`、`specseal-new`、`specseal-workspace-menu`、`specseal-spaces`、`specseal-agents`、`specseal-files`、`specseal-changes`、`specseal-tabs`。
 3. 删掉 `keys.json` 里加的那几行。
 
 ### 为什幺用拷贝的版面

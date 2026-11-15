@@ -22,7 +22,7 @@ To run another skill, click `⋯`.
 
 The panel has two placements. Neither takes the keyboard. In both, the project follows the terminal that has focus, so a switch of space also switches the project.
 
-- **Docked**: with the cloned `specseal` layout (see "Install"), the panel stays in the rightmost column of the window, beside the terminals. `⌘⇧S` opens or closes this column. Drag its edge to change the width. Each space remembers its own open or closed state, and a switch of space restores it. A space with no saved state starts open, so close it once in a project that does not use Specseal.
+- **Docked**: the `specseal` layout keeps the panel on the right, collapsed by default for a space with no saved preference. Use the 12px Specseal icon at the top right, or `⌘⇧S`, to toggle it. Each space remembers manual changes. The Spaces “+” opens a compact menu with New workspace and Add project; the latter chooses a local folder before creating its terminal.
 - **Popped up**: in other layouts, `⌘⇧S` opens or closes the panel as a floating window that you can drag.
 
 What the panel contains:
@@ -222,73 +222,38 @@ The logo sends a `specseal://project` URL. The desktop app goes to the project o
 
 ## Install
 
-Work from the repo root, with Herdr open:
-
-1. Copy the mod. Herdr loads it automatically.
-
-   ```bash
-   cp -R integrations/herdr/mods/specseal integrations/herdr/mods/specseal-new ~/.config/herdr-app/mods/
-   ```
-
-2. In `~/.config/herdr-app/keys.json`, add the first two lines to `global`. Then add the `layout:specseal` section ([keys.json](keys.json) has the same content). `⌘⇧N` opens the Skills pop-up. In the `specseal` layout, `⌘⇧S` opens or closes the right column. In other layouts, `⌘⇧S` pops up the floating window.
-
-   ```json
-   "cmd-shift-s": "mod.open:specseal",
-   "cmd-shift-n": "mod.open:specseal-new"
-   ```
-
-   ```json
-   "layout:specseal": { "cmd-shift-s": "layout.toggle:specseal" }
-   ```
-
-3. To dock the panel, run this line. It clones Herdr's `main` layout as the `specseal` layout, adds the panel as the rightmost column, replaces the left sidebar with clones connected to Specseal, and switches to it. To keep the pop-up only, skip this step.
-
-   ```bash
-   node scripts/herdr/dock-panel.mjs
-   ```
-
-4. To let the panel know the commands that you type in Claude Code, add the hooks. See "Track what you type directly".
-
-Use `⌘⇧L` to switch layouts.
-
-### Update the mod
-
-The cloned sidebar mods hold copies of the panel files, so copy them too. Herdr reloads at once. The layout and the column widths do not change:
-
-```bash
-M=integrations/herdr/mods/specseal; H=~/.config/herdr-app/mods
-cp -R $M integrations/herdr/mods/specseal-new $H/
-cp $M/i18n.js $M/model.js $M/shared.js $H/specseal-agents/
-cp $M/i18n.js $H/specseal-spaces/
-```
-
-If `integrations/herdr/spaces-badge/`, `integrations/herdr/agents-list/` or `scripts/herdr/dock-panel.mjs` changed, dock again. See the next section.
-
-Do not install with a symbolic link. Herdr loads the code, but it does not draw the SVG icons behind a link, and a save does not reload the mod.
-
-### Dock again after a Herdr update
-
-A clone does not follow Herdr updates: new things in Herdr's `main` layout, Spaces list or Agents list do not appear in the `specseal` layout. `cloned_from.version` in `~/.config/herdr-app/layouts/specseal.json` is the Herdr version at the time of the clone. When it differs from `herdr-app --version`, dock again. Run the same line:
+From the repository root, with Herdr open, run the same commands for installation and updates:
 
 ```bash
 node scripts/herdr/dock-panel.mjs
+node scripts/herdr/verify-install.mjs
 ```
 
-The script does these steps:
+The installer copies the panel, skill picker, project menu and derived mods together, then merges [keys.json](keys.json). Personal shortcuts are preserved; conflicts report the key name. `⌘⇧N` opens Skills, and `⌘⇧S` toggles the panel in the Specseal layout.
 
-1. It switches to `main`.
-2. It renames the old clone to `layouts/specseal.json.old-<time>` and deletes the old `mods/specseal-spaces`, `mods/specseal-agents`, `mods/specseal-files`, `mods/specseal-changes` and `mods/specseal-tabs`.
-3. It clones the new `spaces`, `agents`, `files`, `changes` and `tabs` and connects them. If Herdr changed the lines that the script edits in `spaces` or `agents`, the script stops before it changes anything. If it cannot edit `files`, `changes` or `tabs`, it warns, uses the built-in mod, and continues.
-4. It clones the new `main`, adds the panel, and switches to the new `specseal` layout.
+The repository owns these controls:
 
-If you edited `keys.json`, a Herdr update does not add new shortcuts, so add them yourself. For example, for terminal search in 0.1.13, add `"cmd-f": "terminal.search"` to the `terminal` section.
+- The Spaces “+” opens a 156px two-item menu. Add project uses the native folder picker, preserves paths with spaces and Unicode, reuses an existing local project, and does nothing on cancellation.
+- The panel toggle is a 12px icon beside Files / Changes at the top right; no large button is added to the left title bar.
+- The panel starts collapsed, then remembers manual open/closed preferences per space.
+- Terminals and agents follow Herdr's existing current-directory inheritance; a later manual `cd` also affects new tabs.
 
-After this, the panel column has its default width, and the other column widths and open or closed states are the same as in `main`. The state that each space remembers does not change. If you edited the old clone by hand, your edits are in the `.old` file, and you must move them yourself. You can delete the `.old` file when all is well.
+For commands typed directly into Claude Code, configure the optional hooks described above. `⌘⇧L` switches layouts.
+
+### Updates and backups
+
+Run the same two commands after updating this repository or Herdr. No manual copying is required. Herdr 0.1.15 has been verified. If a required source anchor changes, installation stops before modifying the current configuration. File-name protection and tab-scroll fixes are optional; the project menu and right-hand toggle are required.
+
+The first installation starts from Herdr's `main`. Later installations preserve the existing Specseal layout's theme, widths and unrelated blocks, update managed components, and do not duplicate the panel. An unexpected custom component at a managed block causes an error rather than being overwritten.
+
+The previous layout, shortcuts and managed modules are backed up under `~/.config/herdr-app/backups/specseal/<timestamp>/`. Failure to activate the new layout restores the previous files automatically. These backups are also available for manual recovery. Project files and terminal/session data are outside the installer's write scope.
+
+Do not symlink UI components: Herdr may not render linked SVGs or reload saved changes. Derived modules are refreshed from the installed Herdr version, but new structural blocks from an updated `main` are not imported automatically.
 
 ### Remove
 
 1. Press `⌘⇧L` to switch to `main`.
-2. Delete `~/.config/herdr-app/layouts/specseal.json`, and `specseal`, `specseal-new`, `specseal-spaces`, `specseal-agents`, `specseal-files`, `specseal-changes` and `specseal-tabs` in `~/.config/herdr-app/mods/`.
+2. Delete `~/.config/herdr-app/layouts/specseal.json`, and `specseal`, `specseal-new`, `specseal-workspace-menu`, `specseal-spaces`, `specseal-agents`, `specseal-files`, `specseal-changes` and `specseal-tabs` in `~/.config/herdr-app/mods/`.
 3. Remove the additions from `keys.json`.
 
 ### Why a cloned layout

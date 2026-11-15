@@ -309,7 +309,8 @@ export function installHerdr({ home = process.env.HERDR_APP_HOME ?? path.join(ho
         if (item.content === null) rmSync(item.name, { force: true });
         else writeFileSync(item.name, item.content);
       }
-      try { herdr(['do', 'layout.switch', JSON.stringify({ name: initial.layout })]); } catch {}
+      try { herdr(['do', 'layout.switch', JSON.stringify({ name: initial.layout })]); }
+      catch (restoreError) { warn(`文件已恢复，但无法切回 ${initial.layout}：${restoreError.message}`); }
     }
     throw error;
   } finally {
